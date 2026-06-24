@@ -1,0 +1,26 @@
+{
+  "id": "fema-personalized-rank",
+  "version": "1.0.0",
+  "kind": "ranker",
+  "runtime": "wasm",
+  "hooks": ["on_sort"],
+  "permissions": ["ranker:enriched_candidates"],
+  "disclosure": "Re-ranks feed pages using engagement, freshness, velocity, and author diversity (adapted from Near You; no location personalization).",
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "preset": {
+        "type": "string",
+        "enum": ["balanced", "fresh", "engagement"],
+        "default": "balanced",
+        "description": "Scoring preset — overrides default Near You weights"
+      },
+      "diversityMinGap": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 10,
+        "description": "Minimum posts between same author (post-processing)"
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@cfb/ingest-jetstream",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "optionalDependencies": {
+    "@skyware/jetstream": "^0.2.5"
+  },
+  "dependencies": {
+    "@cfb/core-types": "workspace:*",
+    "@cfb/post-normalize": "workspace:*",
+    "@skyware/jetstream": "^0.2.5"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@cfb-plugin/fema-personalized-rank",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Near You-inspired global scoring ranker (no geo/viewer factors)",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "rank": "node --import tsx src/cli.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

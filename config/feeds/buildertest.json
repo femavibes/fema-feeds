@@ -1,0 +1,51 @@
+{
+  "feedId": "buildertest",
+  "projectId": "urbanism",
+  "name": "buildertest",
+  "enabled": true,
+  "published": true,
+  "poolScope": "project_only",
+  "match": {
+    "id": "root",
+    "type": "group",
+    "logic": "any",
+    "children": [
+      {
+        "id": "kw-mql8jpat",
+        "op": "includes",
+        "type": "keyword",
+        "terms": [],
+        "fields": [
+          "text"
+        ]
+      }
+    ]
+  },
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-kw-mql8jpat",
+        "branch": true,
+        "source": "start",
+        "target": "kw-mql8jpat"
+      },
+      {
+        "id": "e-kw-mql8jpat-end",
+        "branch": true,
+        "source": "kw-mql8jpat",
+        "target": "end"
+      }
+    ],
+    "positions": {
+      "start": {
+        "x": -74,
+        "y": 29.33333333333333
+      }
+    }
+  },
+  "liveAt": "2026-06-19T23:12:32.216Z",
+  "publishedAt": "2026-06-19T18:03:13.665Z",
+  "publishedUri": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.feed.generator/buildertest",
+  "atprotoRkey": "buildertest"
+}

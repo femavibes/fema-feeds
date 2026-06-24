@@ -1,0 +1,4 @@
+packages:
+  - 'packages/*'
+  - 'apps/*'
+  - 'publisher-workspace/fema-personalized-rank'

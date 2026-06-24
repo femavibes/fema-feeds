@@ -1,0 +1,22 @@
+{
+  "name": "custom-feed-builder",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "ingest": "pnpm --filter @cfb/ingest run start",
+    "worker": "pnpm --filter @cfb/worker run start",
+    "api": "pnpm --filter @cfb/api start",
+    "web": "pnpm --filter @cfb/web run dev",
+    "dev:restart": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restart-dev.ps1",
+    "db:migrate": "node database/run-migration.mjs --all"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4",
+    "@types/node": "^22.15.21",
+    "pg": "^8.16.0"
+  },
+  "packageManager": "pnpm@10.12.1"
+}

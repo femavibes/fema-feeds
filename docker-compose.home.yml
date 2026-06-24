@@ -1,0 +1,40 @@
+# Home PC stack: postgres + API + Cloudflare Tunnel (no router port forwarding).
+#
+# Quick start:
+#   1. Cloudflare Zero Trust → Networks → Tunnels → Create tunnel
+#   2. Public Hostname → Service URL: http://api:3000
+#   3. Copy tunnel token + your HTTPS hostname into .env:
+#        CLOUDFLARE_TUNNEL_TOKEN=…
+#        FEEDGEN_PUBLIC_URL=https://feeds.yourdomain.com
+#   4. .\scripts\docker-up.ps1 -Profile home
+#      (or: docker compose -f docker-compose.yml -f docker-compose.home.yml up -d --build)
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+    container_name: cfb-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://cfb:cfb_dev@postgres:5432/custom_feed_builder
+      API_PORT: '3000'
+      JETSTREAM_URL: ${JETSTREAM_URL:-wss://jetstream1.us-east.bsky.network/subscribe}
+      BSKY_PUBLIC_API: ${BSKY_PUBLIC_API:-https://public.api.bsky.app}
+      CLOUDFLARE_TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+      FEEDGEN_PUBLIC_URL: ${FEEDGEN_PUBLIC_URL:-}
+    volumes:
+      - ./config:/app/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cfb-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - api

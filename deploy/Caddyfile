@@ -1,0 +1,4 @@
+# HTTPS reverse proxy for DuckDNS hostname (set SITE_HOST in compose, e.g. femafeeds.duckdns.org)
+{$SITE_HOST} {
+  reverse_proxy api:3000
+}

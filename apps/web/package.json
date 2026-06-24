@@ -1,0 +1,31 @@
+{
+  "name": "@cfb/web",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@cfb/core-types": "workspace:*",
+    "@cfb/l1-compile": "workspace:*",
+    "@cfb/l1-registry": "workspace:*",
+    "@cfb/l2-graph": "workspace:*",
+    "@cfb/post-resolve": "workspace:*",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lint": "^6.9.7",
+    "@uiw/react-codemirror": "^4.25.10",
+    "@xyflow/react": "^12.8.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.5.2",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}

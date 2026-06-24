@@ -1,0 +1,17 @@
+node_modules/
+dist/
+target/
+.env
+.env.*
+!.env.example
+*.log
+*.out
+_ref/
+config/git-user.local
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+.vite/
+coverage/
+.turbo/
+.pnpm-store/

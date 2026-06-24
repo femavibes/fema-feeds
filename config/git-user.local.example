@@ -1,0 +1,5 @@
+# Copy to git-user.local (gitignored) — project-only commit identity.
+# GitHub → Settings → Emails → copy your noreply address.
+[user]
+	name = fma58
+	email = 12345678+YOUR_GITHUB_USERNAME@users.noreply.github.com

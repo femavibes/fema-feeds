@@ -1,0 +1,30 @@
+{
+  "name": "@cfb/ingest",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "eval-fixture": "node dist/main.js eval-fixture",
+    "run-live": "node dist/main.js run-live"
+  },
+  "dependencies": {
+    "@cfb/core-types": "workspace:*",
+    "@cfb/list-cache": "workspace:*",
+    "@cfb/list-sources": "workspace:*",
+    "@cfb/l1-compile": "workspace:*",
+    "@cfb/l1-eval": "workspace:*",
+    "@cfb/ingest-jetstream": "workspace:*",
+    "@cfb/ingest-runner": "workspace:*",
+    "@cfb/post-normalize": "workspace:*",
+    "@cfb/project-config": "workspace:*",
+    "@cfb/storage-postgres": "workspace:*",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/pg": "^8.15.2",
+    "typescript": "^5.8.3"
+  }
+}

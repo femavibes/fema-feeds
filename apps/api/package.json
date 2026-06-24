@@ -1,0 +1,43 @@
+{
+  "name": "@cfb/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prestart": "pnpm run build",
+    "start": "node dist/main.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@atproto/api": "^0.20.16",
+    "@atproto/jwk-jose": "^0.2.1",
+    "@atproto/oauth-client-node": "^0.4.2",
+    "@cfb/core-types": "workspace:*",
+    "@cfb/feed-config": "workspace:*",
+    "@cfb/feedgen": "workspace:*",
+    "@cfb/ingest-runner": "workspace:*",
+    "@cfb/l1-compile": "workspace:*",
+    "@cfb/l1-eval": "workspace:*",
+    "@cfb/l2-eval": "workspace:*",
+    "@cfb/l2-graph": "workspace:*",
+    "@cfb/l2-worker": "workspace:*",
+    "@cfb/label-resolve": "workspace:*",
+    "@cfb/list-cache": "workspace:*",
+    "@cfb/list-sources": "workspace:*",
+    "@cfb/post-normalize": "workspace:*",
+    "@cfb/post-resolve": "workspace:*",
+    "@cfb/profile-enrich": "workspace:*",
+    "@cfb/project-config": "workspace:*",
+    "@cfb/plugin-wasm": "workspace:*",
+    "@cfb/storage-postgres": "workspace:*",
+    "@hono/node-server": "^1.14.4",
+    "dotenv": "^17.2.3",
+    "hono": "^4.7.11"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

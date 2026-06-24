@@ -1,0 +1,14 @@
+{
+  "uri": "at://did:plc:example/app.bsky.feed.post/def",
+  "cid": "bafyfixture2",
+  "author": "did:plc:random",
+  "time": "2026-06-17T12:01:00.000Z",
+  "record": {
+    "text": "my video tutorial on bluesky feeds",
+    "langs": ["en"],
+    "embed": {
+      "$type": "app.bsky.embed.video",
+      "video": { "ref": { "$link": "bafyvideo" } }
+    }
+  }
+}

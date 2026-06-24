@@ -1,0 +1,27 @@
+{
+  "name": "@cfb/worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "poll-lists": "node dist/main.js poll-lists",
+    "refresh-labels": "node dist/main.js refresh-labels --once",
+    "prune": "node dist/main.js prune"
+  },
+  "dependencies": {
+    "@cfb/feed-config": "workspace:*",
+    "@cfb/label-refresh": "workspace:*",
+    "@cfb/label-stream": "workspace:*",
+    "@cfb/l2-worker": "workspace:*",
+    "@cfb/list-cache": "workspace:*",
+    "@cfb/project-config": "workspace:*",
+    "@cfb/storage-postgres": "workspace:*",
+    "dotenv": "^17.2.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "typescript": "^5.8.3"
+  }
+}

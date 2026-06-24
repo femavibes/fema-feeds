@@ -1,0 +1,29 @@
+{
+  "name": "@cfb/label-stream",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cfb/core-types": "workspace:*",
+    "@cfb/feed-config": "workspace:*",
+    "@cfb/label-refresh": "workspace:*",
+    "@cfb/label-resolve": "workspace:*",
+    "@cfb/list-cache": "workspace:*",
+    "@cfb/project-config": "workspace:*",
+    "@cfb/storage-postgres": "workspace:*",
+    "cbor": "^10.0.11",
+    "ws": "^8.18.2"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.2",
+    "@types/ws": "^8.18.1",
+    "vitest": "^3.2.4"
+  }
+}

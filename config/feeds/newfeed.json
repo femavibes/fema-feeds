@@ -1,0 +1,142 @@
+{
+  "feedId": "newfeed",
+  "projectId": "secondtestproject",
+  "name": "NEWFEED",
+  "enabled": true,
+  "published": false,
+  "poolScope": "project_only",
+  "match": {
+    "id": "root",
+    "type": "group",
+    "logic": "any",
+    "children": [
+      {
+        "id": "kw-mqqx683z",
+        "op": "includes",
+        "type": "keyword",
+        "terms": [
+          "HAHAHA"
+        ],
+        "fields": [
+          "text"
+        ],
+        "runAtIngest": true
+      },
+      {
+        "id": "group-mqr5i44v",
+        "type": "group",
+        "logic": "any",
+        "children": [
+          {
+            "id": "lang-mqr5i928",
+            "type": "language",
+            "allow": [
+              "es"
+            ],
+            "unknown": "exclude",
+            "runAtIngest": true
+          },
+          {
+            "id": "kw-mqr5iidp",
+            "op": "includes",
+            "type": "keyword",
+            "terms": [
+              "fafa"
+            ],
+            "fields": [
+              "text"
+            ],
+            "runAtIngest": true
+          }
+        ]
+      }
+    ]
+  },
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-kw-mqqx683z",
+        "branch": true,
+        "source": "start",
+        "target": "kw-mqqx683z"
+      },
+      {
+        "id": "e-kw-mqqx683z-kw-mqr4v1d0",
+        "branch": true,
+        "source": "kw-mqqx683z",
+        "target": "kw-mqr4v1d0"
+      },
+      {
+        "id": "e-kw-mqr4v1d0-end",
+        "branch": true,
+        "source": "kw-mqr4v1d0",
+        "target": "end"
+      },
+      {
+        "id": "e-kw-mqqx683z-group-mqr5i44v",
+        "branch": true,
+        "source": "kw-mqqx683z",
+        "target": "group-mqr5i44v"
+      },
+      {
+        "id": "e-group-mqr5i44v-end",
+        "branch": true,
+        "source": "group-mqr5i44v",
+        "target": "end"
+      }
+    ],
+    "labels": {},
+    "positions": {
+      "end": {
+        "x": 625.3333333333334,
+        "y": 94.66666666666667
+      },
+      "start": {
+        "x": -128,
+        "y": 28.666666666666664
+      },
+      "kw-mqqx683z": {
+        "x": 43.39518305750825,
+        "y": -195.72974818157869
+      },
+      "kw-mqr5iidp": {
+        "x": 428.3552769070011,
+        "y": -36.517769287704645
+      },
+      "lang-mqr5fm50": {
+        "x": 382.3333333333333,
+        "y": -30.69811259143148
+      },
+      "group-mqr5hxz1": {
+        "x": 19.001044932079537,
+        "y": 210.00000000000003
+      },
+      "group-mqr5i44v": {
+        "x": 326.53570184604666,
+        "y": -181.84883315917799
+      }
+    },
+    "nodeSources": {
+      "kw-mqqx683z": "native",
+      "kw-mqqx6d0g": "native",
+      "kw-mqr4v1d0": "native",
+      "kw-mqr5iidp": "native",
+      "tag-mqr42f0m": "native",
+      "tag-mqr42g0b": "native",
+      "url-mqr42cxu": "native",
+      "url-mqr42gf7": "native",
+      "kind-mqr459a2": "native",
+      "lang-mqr42e6s": "native",
+      "lang-mqr42h92": "native",
+      "lang-mqr5fm50": "native",
+      "lang-mqr5i928": "native",
+      "group-mqr5f8cf": "native",
+      "group-mqr5hxz1": "native",
+      "group-mqr5i44v": "native",
+      "regex-mqr42flq": "native",
+      "author-mqr58ve0": "native"
+    }
+  },
+  "liveAt": "2026-06-23T22:45:26.326Z"
+}

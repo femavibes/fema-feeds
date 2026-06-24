@@ -1,0 +1,14 @@
+{
+  "uri": "at://did:plc:example/app.bsky.feed.post/abc",
+  "cid": "bafyfixture",
+  "author": "did:plc:reporter1",
+  "time": "2026-06-17T12:00:00.000Z",
+  "record": {
+    "text": "City council meets tonight in springfield",
+    "langs": ["en"],
+    "embed": {
+      "$type": "app.bsky.embed.images",
+      "images": [{ "alt": "city hall" }]
+    }
+  }
+}
