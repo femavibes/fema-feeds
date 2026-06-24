@@ -20,6 +20,8 @@ interface Props {
   onMarketplaceViewChange?: (view: MarketplaceWorkspaceView) => void
   onVerifyPublisherClick?: () => void
   showVerifyPublisher?: boolean
+  onModerateListingsClick?: () => void
+  showModerateListings?: boolean
   onNewLogicBlockClick?: () => void
   onNewCustomCodeClick?: () => void
   collectionView?: CollectionWorkspaceView
@@ -77,6 +79,8 @@ export function WorkspaceNav({
   onMarketplaceViewChange,
   onVerifyPublisherClick,
   showVerifyPublisher = false,
+  onModerateListingsClick,
+  showModerateListings = false,
   onNewLogicBlockClick,
   onNewCustomCodeClick,
   collectionView = 'blocks',
@@ -158,19 +162,33 @@ export function WorkspaceNav({
         ))}
       </ul>
 
-      {mode === 'marketplace' && showVerifyPublisher ? (
+      {mode === 'marketplace' && (showVerifyPublisher || showModerateListings) ? (
         <footer className="sidebar-footer workspace-nav-footer">
           <ul className="sidebar-global-nav">
-            <li>
-              <button
-                type="button"
-                className={`sidebar-global-item${marketplaceView === 'verify' ? ' active' : ''}`}
-                aria-current={marketplaceView === 'verify' ? 'page' : undefined}
-                onClick={() => onVerifyPublisherClick?.()}
-              >
-                Verify publisher
-              </button>
-            </li>
+            {showModerateListings ? (
+              <li>
+                <button
+                  type="button"
+                  className={`sidebar-global-item${marketplaceView === 'moderate' ? ' active' : ''}`}
+                  aria-current={marketplaceView === 'moderate' ? 'page' : undefined}
+                  onClick={() => onModerateListingsClick?.()}
+                >
+                  Moderate listings
+                </button>
+              </li>
+            ) : null}
+            {showVerifyPublisher ? (
+              <li>
+                <button
+                  type="button"
+                  className={`sidebar-global-item${marketplaceView === 'verify' ? ' active' : ''}`}
+                  aria-current={marketplaceView === 'verify' ? 'page' : undefined}
+                  onClick={() => onVerifyPublisherClick?.()}
+                >
+                  Verify publisher
+                </button>
+              </li>
+            ) : null}
           </ul>
         </footer>
       ) : null}

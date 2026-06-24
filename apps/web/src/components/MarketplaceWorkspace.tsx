@@ -17,6 +17,7 @@ import { LogicBlocksBrowseView } from './logic-blocks/LogicBlocksBrowseView'
 import { LogicBlocksInstalledView } from './logic-blocks/LogicBlocksInstalledView'
 
 import { PublisherVerifyPanel } from './logic-blocks/PublisherVerifyPanel'
+import { MarketplaceModerationPanel } from './marketplace/MarketplaceModerationPanel'
 
 import { SortPackDetailPanel } from './sort-packs/SortPackDetailPanel'
 
@@ -62,6 +63,14 @@ const VIEW_COPY: Record<MarketplaceWorkspaceView, { title: string; hint: string 
 
   },
 
+  moderate: {
+
+    title: 'Moderate listings',
+
+    hint: 'Approve unverified catalog listings for this deployment or the global marketplace.',
+
+  },
+
 }
 
 
@@ -100,11 +109,18 @@ export function MarketplaceWorkspace() {
 
   const [isGlobalVerifier, setIsGlobalVerifier] = useState(false)
 
+  const [registryRole, setRegistryRole] = useState<'operator' | 'consumer' | 'embedded' | null>(
+    null,
+  )
+
   const [refreshKey, setRefreshKey] = useState(0)
 
 
 
   const canVerify = isMaster || isGlobalVerifier
+  const canModerateGlobal =
+    isGlobalVerifier && (registryRole === 'operator' || registryRole === 'embedded')
+  const canModerate = isMaster || canModerateGlobal
 
   const copy = VIEW_COPY[view]
 
@@ -204,6 +220,14 @@ export function MarketplaceWorkspace() {
 
       })
 
+    void api
+
+      .globalMarketplaceStatus()
+
+      .then((s) => setRegistryRole(s.registryRole))
+
+      .catch(() => setRegistryRole(null))
+
   }, [refreshSubscriptions, refreshKey])
 
 
@@ -236,7 +260,11 @@ export function MarketplaceWorkspace() {
 
         showVerifyPublisher={canVerify}
 
+        showModerateListings={canModerate}
+
         onVerifyPublisherClick={() => setView('verify')}
+
+        onModerateListingsClick={() => setView('moderate')}
 
         onMarketplaceViewChange={(next) => {
 
@@ -519,6 +547,22 @@ export function MarketplaceWorkspace() {
                 isMaster={isMaster}
 
                 isGlobalVerifier={isGlobalVerifier}
+
+                onChanged={bumpRefresh}
+
+              />
+
+            )}
+
+            {view === 'moderate' && (
+
+              <MarketplaceModerationPanel
+
+                isMaster={isMaster}
+
+                isGlobalVerifier={isGlobalVerifier}
+
+                registryRole={registryRole}
 
                 onChanged={bumpRefresh}
 

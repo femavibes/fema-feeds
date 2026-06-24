@@ -682,6 +682,19 @@ export const api = {
         body: JSON.stringify({ trustTier }),
       },
     ),
+  verifySortPackTrust: (id: string, trustTier: import('@cfb/core-types').LogicBlockTrustTier) =>
+    apiFetch<{ package: import('@cfb/core-types').SortPackPackage }>(
+      `/api/sort-packs/${id}/trust`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ trustTier }),
+      },
+    ),
+  verifyPluginTrust: (id: string, trustTier: import('@cfb/core-types').LogicBlockTrustTier) =>
+    apiFetch<{ package: import('@cfb/core-types').PluginPackage }>(`/api/plugins/${id}/trust`, {
+      method: 'PATCH',
+      body: JSON.stringify({ trustTier }),
+    }),
   lookupPublisherVerification: (handle: string) =>
     apiFetch<{
       status: import('@cfb/core-types').PublisherVerificationStatus
