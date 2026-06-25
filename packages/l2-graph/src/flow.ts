@@ -172,6 +172,8 @@ export function conditionNodeTitle(node: L2RuleNode): string {
       return (node.title ?? node.grazeType ?? 'GRAZE').toUpperCase()
     case 'logic_block_ref':
       return 'LOGIC BLOCK'
+    case 'score':
+      return `SCORE +${node.points}`
     case 'group':
       return `GROUP [${node.logic.toUpperCase()}]`
   }
@@ -228,6 +230,8 @@ export function summarizeRule(node: L2RuleNode): string {
       return node.title ?? node.grazeType
     case 'logic_block_ref':
       return node.label ?? `Logic block ${node.versionPin}`
+    case 'score':
+      return `score +${node.points}`
     case 'group':
       return `group (${node.logic})`
   }

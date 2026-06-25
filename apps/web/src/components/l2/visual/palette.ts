@@ -18,11 +18,12 @@ import {
   newPostAgeCondition,
   newPostKindCondition,
   newRegexCondition,
+  newScoreNode,
   newFollowRingCondition,
   newUrlCondition,
 } from '../../../lib/l2-form'
 
-export type PaletteCategory = 'structure' | 'text' | 'media' | 'social' | 'math'
+export type PaletteCategory = 'structure' | 'text' | 'media' | 'social' | 'math' | 'scoring'
 
 export interface PaletteItem {
   id: string
@@ -35,6 +36,7 @@ export interface PaletteItem {
 
 export const PALETTE_CATEGORIES: { id: PaletteCategory; title: string }[] = [
   { id: 'structure', title: 'Groups' },
+  { id: 'scoring', title: 'Scoring' },
   { id: 'text', title: 'Text & tags' },
   { id: 'media', title: 'Media & post' },
   { id: 'social', title: 'Authors' },
@@ -260,6 +262,14 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     category: 'math',
     action: 'condition',
     factory: newCompareCondition,
+  },
+  {
+    id: 'score',
+    label: 'Score',
+    description: 'Add editorial score points to posts that pass through this node',
+    category: 'scoring',
+    action: 'condition',
+    factory: newScoreNode,
   },
 ]
 

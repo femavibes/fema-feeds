@@ -95,6 +95,8 @@ export function numericFieldValue(
       return ctx.rankSnapshot.mediaStats.facetLinkCount
     case 'facet_mention_count':
       return ctx.rankSnapshot.mediaStats.facetMentionCount
+    case 'editor_score':
+      return 0 // editor_score is resolved at eval result level, not per-field lookup
   }
 }
 

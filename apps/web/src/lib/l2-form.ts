@@ -43,6 +43,7 @@ export const L2_NUMERIC_FIELDS: L2NumericField[] = [
   'link_thumb_size_bytes',
   'facet_link_count',
   'facet_mention_count',
+  'editor_score',
 ]
 
 export const L2_MEDIA_STAT_METRICS: L2MediaStatMetric[] = [
@@ -232,6 +233,10 @@ export function newCompareCondition(): L2RuleNode {
     op: '>=',
     right: { type: 'literal', value: 10 },
   }
+}
+
+export function newScoreNode(points = 1): L2RuleNode {
+  return { type: 'score', id: newId('score'), points }
 }
 
 export function newMediaTypeCondition(): L2RuleNode {

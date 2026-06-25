@@ -26,6 +26,7 @@ export type L2NumericField =
   | 'link_thumb_size_bytes'
   | 'facet_link_count'
   | 'facet_mention_count'
+  | 'editor_score'
 
 /** Subset of numeric fields exposed in the Media stats condition UI. */
 export type L2MediaStatMetric = Extract<
@@ -261,6 +262,14 @@ export interface L2CompareCondition {
   right: L2Expr
 }
 
+/** Score node — adds editor_score to posts that pass through it. */
+export interface L2ScoreCondition {
+  type: 'score'
+  id: string
+  /** Points added to post's editor_score when it passes through this node. */
+  points: number
+}
+
 /** Preserved Graze leaf node not yet mapped to a native L2 condition */
 export interface L2GrazeStubCondition {
   type: 'graze_stub'
@@ -300,6 +309,7 @@ export type L2RuleNode =
   | L2MimeTypeCondition
   | L2AuthorCondition
   | L2CompareCondition
+  | L2ScoreCondition
   | L2GrazeStubCondition
   | L2LogicBlockRefCondition
 
@@ -392,5 +402,7 @@ export interface L2EvalResult {
   feedId: string
   matched: boolean
   sortKey: number | null
+  /** Editorial score accumulated from Score nodes in the graph (+1 at END). */
+  editorScore: number
   trace: L2NodeTrace[]
 }

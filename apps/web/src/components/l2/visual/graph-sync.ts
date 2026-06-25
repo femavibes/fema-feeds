@@ -150,13 +150,14 @@ export function flowGraphToRfNodes(
       case 'condition':
         return {
           ...base,
-          type: 'condition' as const,
+          type: box.rule?.type === 'score' ? ('score' as const) : ('condition' as const),
           data: {
             ...base.data,
             nodeId: box.id,
             ruleType: box.rule?.type,
             rule: box.rule,
             title: box.rule ? conditionNodeTitle(box.rule) : box.label,
+            subtitle: box.rule?.type === 'score' ? `+${box.rule.points}` : undefined,
             customName:
               nodeLabels[box.id]?.trim() ||
               (box.rule?.type === 'logic_block_ref' ? box.rule.label?.trim() : undefined) ||

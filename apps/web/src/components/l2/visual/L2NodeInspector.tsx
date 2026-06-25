@@ -586,7 +586,33 @@ export function L2PropertiesInspector({
 
 
 
-            {selected && selected.type !== 'group' && selected.type !== 'logic_block_ref' && (
+            {selected && selected.type === 'score' && (
+              <>
+                <h4>Score node</h4>
+                {!readOnly ? (
+                <label className="l2-inspector-field">
+                  Points
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={selected.points}
+                    onChange={(e) => {
+                      const points = Math.max(1, parseInt(e.target.value) || 1)
+                      onChange(updateInMatch(match, selected.id, { ...selected, points }))
+                    }}
+                  />
+                </label>
+                ) : (
+                  <p className="l2-inspector-readonly">+{selected.points} points</p>
+                )}
+                <p className="l2-inspector-hint">
+                  Posts passing through this node accumulate +{selected.points} editorial score. Score always sticks even if the path fails later.
+                </p>
+              </>
+            )}
+
+            {selected && selected.type !== 'group' && selected.type !== 'logic_block_ref' && selected.type !== 'score' && (
 
               <div className="l2-inspector-condition">
 

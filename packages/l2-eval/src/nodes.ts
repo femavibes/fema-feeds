@@ -335,14 +335,26 @@ function evalMimeType(node: L2MimeTypeCondition, ctx: L2RuntimeContext): boolean
   return node.op === 'includes' ? hit : !hit
 }
 
+export interface ScoreAccumulator {
+  value: number
+}
+
 export function evalRuleNode(
   node: L2RuleNode,
   ctx: L2RuntimeContext,
   input: L2EvalInput,
   traces: L2NodeTrace[],
+  scoreAcc: ScoreAccumulator = { value: 0 },
 ): boolean {
   if (node.type === 'group') {
-    return evalGroup(node, ctx, input, traces)
+    return evalGroup(node, ctx, input, traces, scoreAcc)
+  }
+
+  // Score node: always passes, accumulates points
+  if (node.type === 'score') {
+    scoreAcc.value += node.points
+    trace(traces, node, 'pass', `+${node.points} (total: ${scoreAcc.value})`)
+    return true
   }
 
   let ok = false
@@ -488,6 +500,7 @@ function evalGroup(
   ctx: L2RuntimeContext,
   input: L2EvalInput,
   traces: L2NodeTrace[],
+  scoreAcc: ScoreAccumulator = { value: 0 },
 ): boolean {
   if (group.children.length === 0) {
     const ok = emptyGroupOutcome(group.logic)
@@ -495,7 +508,7 @@ function evalGroup(
     return ok
   }
 
-  const results = group.children.map((child) => evalRuleNode(child, ctx, input, traces))
+  const results = group.children.map((child) => evalRuleNode(child, ctx, input, traces, scoreAcc))
 
   let ok: boolean
   switch (group.logic) {
