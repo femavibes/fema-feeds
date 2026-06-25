@@ -182,10 +182,11 @@ interface Props {
   sample: PoolMatchSample
   matched?: boolean
   sortKey?: number | null
+  editorScore?: number
   onSelectNode?: TraceSelectHandler
 }
 
-export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey, onSelectNode }: Props) {
+export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey, editorScore, onSelectNode }: Props) {
   const sample = normalizePoolMatchSample(rawSample)
   const selectTraceNode = onSelectNode
     ? (nodeId: string) => onSelectNode(nodeId, sample.trace)
@@ -274,6 +275,11 @@ export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey
             >
               <TraceRulesIcon />
             </button>
+          ) : null}
+          {editorScore != null && editorScore > 0 ? (
+            <span className="l2-match-pool-score" title={`Editor score: ${editorScore}`}>
+              +{editorScore}
+            </span>
           ) : null}
         </div>
       </div>

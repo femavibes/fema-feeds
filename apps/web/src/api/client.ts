@@ -201,7 +201,7 @@ export interface PoolMatchResult {
   scanned: number
   matchCount: number
   rejectCount: number
-  posts: Array<PoolMatchSample & { sortKey: number | null }>
+  posts: Array<PoolMatchSample & { sortKey: number | null; editorScore: number }>
   rejects: PoolMatchSample[]
   truncated: boolean
 }

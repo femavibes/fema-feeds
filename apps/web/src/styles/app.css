@@ -8282,6 +8282,18 @@ body.l2-visual-open #root {
   gap: 0.25rem;
 }
 
+.l2-match-pool-score {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #f59e0b;
+  background: color-mix(in srgb, #f59e0b 12%, var(--surface-1));
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, var(--border));
+  border-radius: 0.3rem;
+  padding: 0.1rem 0.3rem;
+  line-height: 1;
+}
+
 .l2-match-pool-trace-toggle {
   flex-shrink: 0;
   display: inline-flex;

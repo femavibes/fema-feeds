@@ -133,6 +133,7 @@ export async function previewFeedPoolMatches(
         matches.push({
           ...buildPoolMatchSample(post, result.trace),
           sortKey: result.sortKey ?? defaultSortKey(post.indexedAt),
+          editorScore: result.editorScore,
         })
       }
     }

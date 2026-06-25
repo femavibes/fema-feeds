@@ -180,6 +180,7 @@ export function L2MatchPoolPanel({
                     sample={post}
                     matched
                     sortKey={post.sortKey}
+                    editorScore={post.editorScore}
                     onSelectNode={onSelectNode}
                   />
                 ))}

@@ -31,6 +31,7 @@ export interface PoolMatchSample {
 
 export interface PoolMatchItem extends PoolMatchSample {
   sortKey: number | null
+  editorScore: number
 }
 
 export function buildPoolMatchSample(
