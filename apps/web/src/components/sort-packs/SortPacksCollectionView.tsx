@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { SortPackPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
+import { MarketplaceCatalogCard } from '../marketplace/MarketplaceCatalogCard'
 
 interface Props {
   selectedId: string | null
@@ -29,22 +30,24 @@ export function SortPacksCollectionView({ selectedId, onSelect }: Props) {
           No sort packs saved yet. Use <strong>Save sort to collection</strong> on a feed&apos;s Sorting tab.
         </p>
       )}
-      <ul className="logic-blocks-catalog-list">
+      <div className="marketplace-catalog-grid">
         {packages.map((pkg) => (
-          <li key={pkg.id}>
-            <button
-              type="button"
-              className={`logic-blocks-catalog-item${selectedId === pkg.id ? ' is-selected' : ''}`}
-              onClick={() => onSelect(pkg)}
-            >
-              <div className="logic-blocks-catalog-meta">
-                <span className="logic-blocks-catalog-name">{pkg.name}</span>
-                <span className="logic-blocks-catalog-sub">v{pkg.version}</span>
-              </div>
-            </button>
-          </li>
+          <MarketplaceCatalogCard
+            key={pkg.id}
+            id={pkg.id}
+            name={pkg.name}
+            description={pkg.description}
+            version={pkg.version}
+            visibility={pkg.visibility}
+            trustTier={pkg.trustTier}
+            listing={pkg.listing}
+            updatedAt={pkg.updatedAt}
+            productKind="sort_pack"
+            selected={selectedId === pkg.id}
+            onClick={() => onSelect(pkg)}
+          />
         ))}
-      </ul>
+      </div>
     </div>
   )
 }

@@ -13,6 +13,8 @@ interface Props {
   stripAt?: boolean
   /** Noun for search UI copy — e.g. keyword, hashtag. */
   itemNoun?: string
+  /** Show values without edit controls (logic block preview, etc.). */
+  readOnly?: boolean
 }
 
 function storeTerm(value: string, stripHash: boolean, stripAt: boolean): string {
@@ -58,6 +60,7 @@ export function TermListEditor({
   stripHash = false,
   stripAt = false,
   itemNoun = 'keyword',
+  readOnly = false,
 }: Props) {
   const terms = termsProp ?? []
   const [newTerm, setNewTerm] = useState('')
@@ -129,6 +132,26 @@ export function TermListEditor({
       : itemNoun === 'account'
         ? 'Search accounts…'
         : 'Search keywords…'
+
+  if (readOnly) {
+    return (
+      <div className="term-list-panel term-list-panel--readonly">
+        {terms.length === 0 ? (
+          <p className="card-hint term-list-readonly-empty">
+            No {itemNoun}s configured.
+          </p>
+        ) : (
+          <ul className="term-list-readonly">
+            {terms.map((term, index) => (
+              <li key={`${index}-${term}`} className="term-list-readonly-item">
+                {term}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="term-list-panel">

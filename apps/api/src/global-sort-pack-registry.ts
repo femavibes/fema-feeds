@@ -8,7 +8,7 @@ import {
 } from '@cfb/storage-postgres'
 import {
   globalMarketplaceRemoteUrl,
-  isGlobalMarketplaceOperatorInstance,
+  isCanonicalGlobalRegistryHost,
 } from './global-marketplace.js'
 
 export interface GlobalRegistrySortPackSummary {
@@ -55,7 +55,7 @@ function toDetail(pkg: SortPackPackage): GlobalRegistrySortPackDetail {
 export function registerGlobalSortPackRegistryRoutes(app: Hono, pool: Pool | null): void {
   app.get('/api/global-marketplace/sort-packs/catalog', async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
-    if (!isGlobalMarketplaceOperatorInstance()) {
+    if (!isCanonicalGlobalRegistryHost()) {
       return c.json({ error: 'global marketplace registry not enabled on this host' }, 503)
     }
     const packages = await listSortPackCatalog(pool, 'global')
@@ -64,7 +64,7 @@ export function registerGlobalSortPackRegistryRoutes(app: Hono, pool: Pool | nul
 
   app.get('/api/global-marketplace/sort-packs/catalog/:id/versions', async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
-    if (!isGlobalMarketplaceOperatorInstance()) {
+    if (!isCanonicalGlobalRegistryHost()) {
       return c.json({ error: 'global marketplace registry not enabled on this host' }, 503)
     }
     const versions = await listSortPackPackageVersions(pool, c.req.param('id'))
@@ -75,7 +75,7 @@ export function registerGlobalSortPackRegistryRoutes(app: Hono, pool: Pool | nul
 
   app.get('/api/global-marketplace/sort-packs/catalog/:id', async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
-    if (!isGlobalMarketplaceOperatorInstance()) {
+    if (!isCanonicalGlobalRegistryHost()) {
       return c.json({ error: 'global marketplace registry not enabled on this host' }, 503)
     }
     const versionPin = c.req.query('version')?.trim()

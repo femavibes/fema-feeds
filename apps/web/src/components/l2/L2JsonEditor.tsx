@@ -5,6 +5,7 @@ import { json, jsonParseLinter } from '@codemirror/lang-json'
 import { linter } from '@codemirror/lint'
 
 import type { FeedConfig } from '@cfb/core-types'
+import { retainBodyEditorOpen } from '../../lib/body-editor-open'
 import { useTextEditorHistory } from '../../hooks/useTextEditorHistory'
 import {
   applyFeedLogicJson,
@@ -156,10 +157,10 @@ export function L2JsonEditor({
       if (e.key === 'Escape') onClose()
     }
     window.addEventListener('keydown', onKey)
-    document.body.classList.add('l2-editor-open')
+    const releaseBodyEditorOpen = retainBodyEditorOpen()
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.classList.remove('l2-editor-open')
+      releaseBodyEditorOpen()
     }
   }, [onClose, onAutosaveDraft, undo, redo, canonical, dirty, draft, saving, text, flash])
 

@@ -308,6 +308,16 @@ export type L2PoolScope = 'project_only' | 'global'
 /** Where a canvas node came from — drives palette grouping and node chrome. */
 export type L2NodeProvenance = 'native' | 'collection' | 'subscription' | 'custom_code'
 
+/** Saved visual editor canvas state (feeds and logic blocks). */
+export interface L2VisualLayout {
+  positions: Record<string, { x: number; y: number }>
+  edges?: Array<{ id: string; source: string; target: string; branch?: boolean }>
+  /** Optional display names for condition nodes (groups use match.label). */
+  labels?: Record<string, string>
+  /** Canvas styling: native built-ins vs collection / subscription / custom code. */
+  nodeSources?: Record<string, L2NodeProvenance>
+}
+
 export interface FeedConfig {
   feedId: string
   projectId: string
@@ -334,14 +344,7 @@ export interface FeedConfig {
   /** Root group — typically ANY of AND-groups (Graze-style). */
   match: L2RuleGroup
   /** Saved canvas layout for the visual editor (optional). */
-  visualLayout?: {
-    positions: Record<string, { x: number; y: number }>
-    edges?: Array<{ id: string; source: string; target: string; branch?: boolean }>
-    /** Optional display names for condition nodes (groups use match.label). */
-    labels?: Record<string, string>
-    /** Canvas styling: native built-ins vs collection / subscription / custom code. */
-    nodeSources?: Record<string, L2NodeProvenance>
-  }
+  visualLayout?: L2VisualLayout
   /** Optional sort — inline L2Expr and/or subscribed sort pack ref. */
   rank?: import('./sort-packs.js').FeedRankConfig
   /** Post-sort injection (ads, promos) — applied at getFeedSkeleton. */

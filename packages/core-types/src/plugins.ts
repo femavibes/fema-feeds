@@ -38,6 +38,7 @@ export interface PluginPackage {
   wasmSize?: number
   createdAt: string
   updatedAt: string
+  listing?: import('./marketplace-listing.js').MarketplaceListingMeta
 }
 
 export interface PluginSubscription {

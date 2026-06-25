@@ -12,6 +12,52 @@ import type pg from 'pg'
 import { createHash } from 'node:crypto'
 
 import { applyPublisherTrustToPlugin } from './publisher-trust.js'
+import { parseListingMeta } from './marketplace-listing-meta.js'
+import {
+  insertPluginVersionSnapshot,
+  patchPluginVersionMetadata,
+  pluginVersionExists,
+} from './package-version-snapshots.js'
+
+function rowFromVersionJoin(row: {
+  id: string
+  owner_did: string
+  slug: string
+  kind: PluginKind
+  runtime: PluginRuntime
+  visibility: PluginVisibility
+  trust_tier: PluginTrustTier
+  listing_meta?: unknown
+  updated_at: Date
+  version: string
+  manifest: PluginManifest
+  remote_endpoint: string | null
+  wasm_sha256?: string | null
+  wasm_size?: number | null
+  name: string
+  description: string | null
+  created_at: Date
+}): PluginPackage {
+  return {
+    id: row.id,
+    ownerDid: row.owner_did,
+    slug: row.slug,
+    version: row.version,
+    name: row.name,
+    description: row.description ?? undefined,
+    kind: row.kind,
+    runtime: row.runtime,
+    visibility: row.visibility,
+    trustTier: row.trust_tier,
+    manifest: row.manifest,
+    remoteEndpoint: row.remote_endpoint ?? undefined,
+    wasmSha256: row.wasm_sha256 ?? undefined,
+    wasmSize: row.wasm_size ?? undefined,
+    listing: parseListingMeta(row.listing_meta),
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+  }
+}
 
 function rowToPackage(row: {
   id: string
@@ -28,6 +74,7 @@ function rowToPackage(row: {
   remote_endpoint: string | null
   wasm_sha256?: string | null
   wasm_size?: number | null
+  listing_meta?: unknown
   created_at: Date
   updated_at: Date
 }): PluginPackage {
@@ -46,6 +93,7 @@ function rowToPackage(row: {
     remoteEndpoint: row.remote_endpoint ?? undefined,
     wasmSha256: row.wasm_sha256 ?? undefined,
     wasmSize: row.wasm_size ?? undefined,
+    listing: parseListingMeta(row.listing_meta),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   }
@@ -62,14 +110,23 @@ export async function getPluginPackageById(
   id: string,
   versionPin?: string,
 ): Promise<PluginPackage | null> {
-  const res = versionPin
-    ? await pool.query(`SELECT * FROM plugin_packages WHERE id = $1 AND version = $2`, [id, versionPin])
-    : await pool.query(
-        `SELECT * FROM plugin_packages WHERE id = $1 ORDER BY created_at DESC LIMIT 1`,
-        [id],
-      )
+  if (!versionPin) {
+    const res = await pool.query(`SELECT * FROM plugin_packages WHERE id = $1`, [id])
+    const row = res.rows[0]
+    return row ? rowToPackage(row) : null
+  }
+  const res = await pool.query(
+    `SELECT p.id, p.owner_did, p.slug, p.kind, p.runtime, p.visibility, p.trust_tier, p.listing_meta,
+            p.updated_at, v.version, v.manifest, v.remote_endpoint, v.wasm_sha256, v.wasm_size,
+            v.name, v.description, v.created_at
+     FROM plugin_packages p
+     INNER JOIN plugin_package_versions v
+       ON v.package_id = p.id AND v.version = $2
+     WHERE p.id = $1`,
+    [id, versionPin],
+  )
   const row = res.rows[0]
-  return row ? rowToPackage(row) : null
+  return row ? rowFromVersionJoin(row) : null
 }
 
 export async function listPluginSubscriptions(
@@ -79,9 +136,13 @@ export async function listPluginSubscriptions(
 ): Promise<Array<PluginSubscription & { package: PluginPackage }>> {
   const res = await pool.query(
     `SELECT s.owner_did, s.package_id, s.version_pin, s.update_policy, s.subscribed_at,
-            p.*
+            p.id, p.owner_did AS pkg_owner_did, p.slug, p.kind, p.runtime, p.visibility, p.trust_tier,
+            p.listing_meta, p.updated_at, v.version, v.manifest, v.remote_endpoint, v.wasm_sha256,
+            v.wasm_size, v.name, v.description, v.created_at
      FROM plugin_subscriptions s
-     JOIN plugin_packages p ON p.id = s.package_id AND p.version = s.version_pin
+     JOIN plugin_packages p ON p.id = s.package_id
+     JOIN plugin_package_versions v
+       ON v.package_id = s.package_id AND v.version = s.version_pin
      WHERE s.owner_did = $1
        AND ($2::text IS NULL OR p.kind = $2)
      ORDER BY s.subscribed_at DESC`,
@@ -93,7 +154,25 @@ export async function listPluginSubscriptions(
     versionPin: row.version_pin,
     updatePolicy: row.update_policy as PluginUpdatePolicy,
     subscribedAt: row.subscribed_at.toISOString(),
-    package: rowToPackage(row),
+    package: rowFromVersionJoin({
+      id: row.id,
+      owner_did: row.pkg_owner_did,
+      slug: row.slug,
+      kind: row.kind,
+      runtime: row.runtime,
+      visibility: row.visibility,
+      trust_tier: row.trust_tier,
+      listing_meta: row.listing_meta,
+      updated_at: row.updated_at,
+      version: row.version,
+      manifest: row.manifest,
+      remote_endpoint: row.remote_endpoint,
+      wasm_sha256: row.wasm_sha256,
+      wasm_size: row.wasm_size,
+      name: row.name,
+      description: row.description,
+      created_at: row.created_at,
+    }),
   }))
 }
 
@@ -155,6 +234,21 @@ export async function createPluginPackage(
     ],
   )
   let pkg = rowToPackage(res.rows[0])
+  const wasmRes = await pool.query<{ wasm_artifact: Buffer | null }>(
+    `SELECT wasm_artifact FROM plugin_packages WHERE id = $1`,
+    [pkg.id],
+  )
+  await insertPluginVersionSnapshot(pool, {
+    packageId: pkg.id,
+    version: pkg.version,
+    manifest: pkg.manifest,
+    remoteEndpoint: pkg.remoteEndpoint,
+    wasmSha256: pkg.wasmSha256,
+    wasmSize: pkg.wasmSize,
+    wasmArtifact: wasmRes.rows[0]?.wasm_artifact ?? null,
+    name: pkg.name,
+    description: pkg.description ?? null,
+  })
   if (visibility === 'deployment' || visibility === 'global') {
     await applyPublisherTrustToPlugin(pool, pkg.id, input.ownerDid, visibility)
     const refreshed = await getPluginPackageById(pool, pkg.id, pkg.version)
@@ -209,7 +303,31 @@ export async function updatePluginPackage(
       input.description === undefined ? null : input.description?.trim() || null,
     ],
   )
-  return res.rows[0] ? rowToPackage(res.rows[0]) : null
+  if (!res.rows[0]) return null
+  const pkg = rowToPackage(res.rows[0])
+  const wasmRes = await pool.query<{ wasm_artifact: Buffer | null }>(
+    `SELECT wasm_artifact FROM plugin_packages WHERE id = $1`,
+    [packageId],
+  )
+  if (bumpVersion) {
+    await insertPluginVersionSnapshot(pool, {
+      packageId: pkg.id,
+      version: pkg.version,
+      manifest: pkg.manifest,
+      remoteEndpoint: pkg.remoteEndpoint,
+      wasmSha256: pkg.wasmSha256,
+      wasmSize: pkg.wasmSize,
+      wasmArtifact: wasmRes.rows[0]?.wasm_artifact ?? null,
+      name: pkg.name,
+      description: pkg.description ?? null,
+    })
+  } else if (input.name !== undefined || input.description !== undefined) {
+    await patchPluginVersionMetadata(pool, packageId, pkg.version, {
+      name: input.name,
+      description: input.description,
+    })
+  }
+  return pkg
 }
 
 export async function subscribePlugin(
@@ -219,6 +337,9 @@ export async function subscribePlugin(
   versionPin: string,
   updatePolicy: PluginUpdatePolicy = 'pinned',
 ): Promise<void> {
+  const versionOk = await pluginVersionExists(pool, packageId, versionPin)
+  if (!versionOk) throw new Error('version_not_found')
+
   await pool.query(
     `INSERT INTO plugin_subscriptions (owner_did, package_id, version_pin, update_policy)
      VALUES ($1, $2, $3, $4)
@@ -228,6 +349,18 @@ export async function subscribePlugin(
            subscribed_at = NOW()`,
     [ownerDid, packageId, versionPin, updatePolicy],
   )
+}
+
+export async function unsubscribePlugin(
+  pool: pg.Pool,
+  ownerDid: string,
+  packageId: string,
+): Promise<boolean> {
+  const res = await pool.query(
+    `DELETE FROM plugin_subscriptions WHERE owner_did = $1 AND package_id = $2`,
+    [ownerDid, packageId],
+  )
+  return (res.rowCount ?? 0) > 0
 }
 
 export async function setPluginVisibility(
@@ -282,9 +415,9 @@ export async function listPluginCollection(
   const res = await pool.query(
     `SELECT DISTINCT ON (id) *
      FROM plugin_packages
-     WHERE owner_did = $1 AND visibility = 'collection'
+     WHERE owner_did = $1
        AND ($2::text IS NULL OR kind = $2)
-     ORDER BY id, created_at DESC`,
+     ORDER BY id, updated_at DESC`,
     [ownerDid, kind ?? null],
   )
   return res.rows.map(rowToPackage)
@@ -295,10 +428,16 @@ export async function listPluginPackageVersions(
   packageId: string,
 ): Promise<PluginPackage[]> {
   const res = await pool.query(
-    `SELECT * FROM plugin_packages WHERE id = $1 ORDER BY created_at DESC`,
+    `SELECT p.id, p.owner_did, p.slug, p.kind, p.runtime, p.visibility, p.trust_tier, p.listing_meta,
+            p.updated_at, v.version, v.manifest, v.remote_endpoint, v.wasm_sha256, v.wasm_size,
+            v.name, v.description, v.created_at
+     FROM plugin_package_versions v
+     INNER JOIN plugin_packages p ON p.id = v.package_id
+     WHERE v.package_id = $1
+     ORDER BY v.created_at DESC`,
     [packageId],
   )
-  return res.rows.map(rowToPackage)
+  return res.rows.map(rowFromVersionJoin)
 }
 
 export async function upsertPluginRegistryMirror(
@@ -338,7 +477,23 @@ export async function upsertPluginRegistryMirror(
       pkg.remoteEndpoint ?? null,
     ],
   )
-  return rowToPackage(res.rows[0])
+  const mirrored = rowToPackage(res.rows[0])
+  const wasmRes = await pool.query<{ wasm_artifact: Buffer | null }>(
+    `SELECT wasm_artifact FROM plugin_packages WHERE id = $1`,
+    [mirrored.id],
+  )
+  await insertPluginVersionSnapshot(pool, {
+    packageId: mirrored.id,
+    version: mirrored.version,
+    manifest: mirrored.manifest,
+    remoteEndpoint: mirrored.remoteEndpoint,
+    wasmSha256: mirrored.wasmSha256,
+    wasmSize: mirrored.wasmSize,
+    wasmArtifact: wasmRes.rows[0]?.wasm_artifact ?? null,
+    name: mirrored.name,
+    description: mirrored.description ?? null,
+  })
+  return mirrored
 }
 
 export async function getPluginWasmArtifact(
@@ -348,11 +503,13 @@ export async function getPluginWasmArtifact(
 ): Promise<{ bytes: Buffer; sha256: string } | null> {
   const res = versionPin
     ? await pool.query<{ wasm_artifact: Buffer | null; wasm_sha256: string | null }>(
-        `SELECT wasm_artifact, wasm_sha256 FROM plugin_packages WHERE id = $1 AND version = $2`,
+        `SELECT wasm_artifact, wasm_sha256
+         FROM plugin_package_versions
+         WHERE package_id = $1 AND version = $2`,
         [packageId, versionPin],
       )
     : await pool.query<{ wasm_artifact: Buffer | null; wasm_sha256: string | null }>(
-        `SELECT wasm_artifact, wasm_sha256 FROM plugin_packages WHERE id = $1 ORDER BY created_at DESC LIMIT 1`,
+        `SELECT wasm_artifact, wasm_sha256 FROM plugin_packages WHERE id = $1`,
         [packageId],
       )
   const row = res.rows[0]
@@ -383,5 +540,18 @@ export async function setPluginWasmArtifact(
      RETURNING *`,
     [packageId, ownerDid, existing.version, wasmBytes, sha256, wasmBytes.byteLength, version],
   )
-  return res.rows[0] ? rowToPackage(res.rows[0]) : null
+  if (!res.rows[0]) return null
+  const pkg = rowToPackage(res.rows[0])
+  await insertPluginVersionSnapshot(pool, {
+    packageId: pkg.id,
+    version: pkg.version,
+    manifest: pkg.manifest,
+    remoteEndpoint: pkg.remoteEndpoint,
+    wasmSha256: pkg.wasmSha256,
+    wasmSize: pkg.wasmSize,
+    wasmArtifact: wasmBytes,
+    name: pkg.name,
+    description: pkg.description ?? null,
+  })
+  return pkg
 }

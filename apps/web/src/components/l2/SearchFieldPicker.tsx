@@ -5,9 +5,10 @@ import { ToggleRow } from '../ToggleRow'
 interface Props {
   fields: PostSearchField[]
   onChange: (fields: PostSearchField[]) => void
+  readOnly?: boolean
 }
 
-export function SearchFieldPicker({ fields: fieldsProp, onChange }: Props) {
+export function SearchFieldPicker({ fields: fieldsProp, onChange, readOnly = false }: Props) {
   const fields = fieldsProp ?? []
   const selected = new Set(fields.length > 0 ? fields : DEFAULT_SEARCH_FIELDS)
 
@@ -31,7 +32,8 @@ export function SearchFieldPicker({ fields: fieldsProp, onChange }: Props) {
           checked={selected.has(opt.field)}
           onChange={() => toggle(opt.field)}
           ariaLabel={`Search ${opt.label}`}
-          disabled={selected.has(opt.field) && selected.size <= 1}
+          disabled={!readOnly && selected.has(opt.field) && selected.size <= 1}
+          readOnly={readOnly}
         />
       ))}
     </div>

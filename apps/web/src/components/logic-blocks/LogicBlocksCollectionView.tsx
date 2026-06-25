@@ -1,141 +1,56 @@
 import { useEffect, useState } from 'react'
-
 import type { LogicBlockPackage } from '@cfb/core-types'
 
-
-
 import { api } from '../../api/client'
-
-import { LogicBlockTrustBadge } from './logic-block-labels'
-
-
+import { MarketplaceCatalogCard } from '../marketplace/MarketplaceCatalogCard'
 
 interface Props {
-
   selectedId: string | null
-
   onSelect: (pkg: LogicBlockPackage) => void
-
   onEdit?: (pkg: LogicBlockPackage) => void
-
 }
 
-
-
-export function LogicBlocksCollectionView({ selectedId, onSelect, onEdit }: Props) {
-
+export function LogicBlocksCollectionView({ selectedId, onSelect }: Props) {
   const [packages, setPackages] = useState<LogicBlockPackage[]>([])
-
   const [loading, setLoading] = useState(true)
 
-
-
-  const load = () => {
-
-    setLoading(true)
-
-    void api
-
-      .listLogicBlockCollection()
-
-      .then((res) => setPackages(res.packages))
-
-      .catch(() => setPackages([]))
-
-      .finally(() => setLoading(false))
-
-  }
-
-
-
   useEffect(() => {
-
-    load()
-
+    setLoading(true)
+    void api
+      .listLogicBlockCollection()
+      .then((res) => setPackages(res.packages))
+      .catch(() => setPackages([]))
+      .finally(() => setLoading(false))
   }, [])
 
-
-
   return (
-
     <div className="logic-blocks-collection">
-
       {loading && <p className="card-hint">Loading collection…</p>}
-
       {!loading && packages.length === 0 && (
-
         <p className="card-hint">
-
           No blocks yet. Click <strong>New logic block</strong> above or save a group from a feed&apos;s
-
           visual editor with &quot;Save to my collection&quot;.
-
         </p>
-
       )}
-
-      <ul className="logic-blocks-catalog-list">
-
+      <div className="marketplace-catalog-grid">
         {packages.map((pkg) => (
-
-          <li key={`${pkg.id}@${pkg.version}`} className="logic-blocks-catalog-row">
-
-            <button
-
-              type="button"
-
-              className={`logic-blocks-catalog-item${selectedId === pkg.id ? ' is-selected' : ''}`}
-
-              onClick={() => onSelect(pkg)}
-
-            >
-
-              <div className="logic-blocks-catalog-meta">
-
-                <span className="logic-blocks-catalog-name">{pkg.name}</span>
-
-                <span className="logic-blocks-catalog-sub">v{pkg.version} · {pkg.slug}</span>
-
-                {pkg.description ? (
-
-                  <span className="logic-blocks-catalog-desc">{pkg.description}</span>
-
-                ) : null}
-
-              </div>
-
-              <LogicBlockTrustBadge tier={pkg.trustTier} visibility={pkg.visibility} />
-
-            </button>
-
-            {onEdit ? (
-
-              <button
-
-                type="button"
-
-                className="btn btn-secondary btn-sm logic-blocks-catalog-edit"
-
-                onClick={() => onEdit(pkg)}
-
-              >
-
-                Edit logic
-
-              </button>
-
-            ) : null}
-
-          </li>
-
+          <MarketplaceCatalogCard
+            key={`${pkg.id}@${pkg.version}`}
+            id={pkg.id}
+            name={pkg.name}
+            description={pkg.description}
+            version={pkg.version}
+            visibility={pkg.visibility}
+            trustTier={pkg.trustTier}
+            listing={pkg.listing}
+            updatedAt={pkg.updatedAt}
+            productKind="logic_block"
+            subtitle={pkg.slug}
+            selected={selectedId === pkg.id}
+            onClick={() => onSelect(pkg)}
+          />
         ))}
-
-      </ul>
-
+      </div>
     </div>
-
   )
-
 }
-
-

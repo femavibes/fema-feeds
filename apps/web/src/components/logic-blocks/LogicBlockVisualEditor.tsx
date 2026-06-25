@@ -1,21 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FeedConfig, LogicBlockPackage } from '@cfb/core-types'
 
-import { normalizeRuleGroup } from '@cfb/l2-graph'
+import { normalizeCanvasFeedStorage } from '@cfb/l2-graph'
 import { api } from '../../api/client'
+import { logicBlockToFeedDraft } from '../../lib/logic-block-editor'
 import { LogicBlockMetadataFields } from './LogicBlockMetadataFields'
 import { L2VisualEditor } from '../l2/visual/L2VisualEditor'
-
-function packageToDraft(pkg: LogicBlockPackage): FeedConfig {
-  return {
-    feedId: `logic-block-${pkg.id}`,
-    projectId: 'collection',
-    name: pkg.name,
-    enabled: false,
-    poolScope: 'project_only',
-    match: normalizeRuleGroup(structuredClone(pkg.root)),
-  }
-}
 
 interface Props {
   pkg: LogicBlockPackage
@@ -24,8 +14,8 @@ interface Props {
 }
 
 export function LogicBlockVisualEditor({ pkg, onClose, onSaved }: Props) {
-  const [baseline, setBaseline] = useState(() => packageToDraft(pkg))
-  const [draft, setDraft] = useState(() => packageToDraft(pkg))
+  const [baseline, setBaseline] = useState(() => logicBlockToFeedDraft(pkg))
+  const [draft, setDraft] = useState(() => logicBlockToFeedDraft(pkg))
   const [name, setName] = useState(pkg.name)
   const [slug, setSlug] = useState(pkg.slug)
   const [description, setDescription] = useState(pkg.description ?? '')
@@ -37,7 +27,7 @@ export function LogicBlockVisualEditor({ pkg, onClose, onSaved }: Props) {
   const dirty = logicDirty || metaDirty
 
   useEffect(() => {
-    const next = packageToDraft(pkg)
+    const next = logicBlockToFeedDraft(pkg)
     setBaseline(next)
     setDraft(next)
     setName(pkg.name)
@@ -76,10 +66,11 @@ export function LogicBlockVisualEditor({ pkg, onClose, onSaved }: Props) {
         name: name.trim(),
         slug: slug.trim() || name.trim(),
         description: description.trim() || null,
-        root: logicDirty ? draft.match : undefined,
+        root: logicDirty ? normalizeCanvasFeedStorage(draft.match) : undefined,
+        visualLayout: logicDirty ? draft.visualLayout : undefined,
         bumpVersion: logicDirty,
       })
-      const next = packageToDraft(res.package)
+      const next = logicBlockToFeedDraft(res.package)
       setBaseline(next)
       setDraft(next)
       setName(res.package.name)

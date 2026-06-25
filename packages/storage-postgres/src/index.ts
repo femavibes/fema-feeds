@@ -153,6 +153,7 @@ export {
   setLogicBlockVisibility,
   setLogicBlockTrustTier,
   subscribeLogicBlock,
+  unsubscribeLogicBlock,
   updateLogicBlockPackage,
   upsertLogicBlockRegistryMirror,
   type CreateLogicBlockInput,
@@ -169,6 +170,7 @@ export {
   setSortPackVisibility,
   setSortPackTrustTier,
   subscribeSortPack,
+  unsubscribeSortPack,
   updateSortPackPackage,
   upsertSortPackRegistryMirror,
   type CreateSortPackInput,
@@ -182,6 +184,7 @@ export {
   listPluginSubscriptions,
   setPluginVisibility,
   subscribePlugin,
+  unsubscribePlugin,
   updatePluginPackage,
   upsertPluginRegistryMirror,
   getPluginWasmArtifact,
@@ -193,6 +196,23 @@ export {
   verifyPublisherScopes,
   revokePublisherScopes,
 } from './publisher-trust.js'
+export { moderateUnpublishPackage } from './marketplace-moderation.js'
+export {
+  approveMarketplacePublishRequest,
+  createMarketplacePublishRequest,
+  denyMarketplacePublishRequest,
+  getMarketplacePublishRequest,
+  listOwnerPublishRequests,
+  listPendingPublishRequests,
+} from './marketplace-publish-requests.js'
+export { setPackageListingMeta, type PublisherListingMetaInput } from './marketplace-listing-meta.js'
+export {
+  ingestGlobalListingSubmission,
+  loadPackageForIngress,
+  stageLogicBlockForIngress,
+  stagePluginForIngress,
+  stageSortPackForIngress,
+} from './registry-ingress.js'
 export {
   normalizedPostFromRow,
   getIngestedPost,

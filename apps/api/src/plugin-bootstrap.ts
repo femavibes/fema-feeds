@@ -1,7 +1,7 @@
 import type { PluginKind, PluginManifest } from '@cfb/core-types'
 import type { Pool } from '@cfb/storage-postgres'
 import { createPluginPackage, listPluginCatalog } from '@cfb/storage-postgres'
-import { isGlobalMarketplaceOperatorInstance } from './global-marketplace.js'
+import { isCanonicalGlobalRegistryHost } from './global-marketplace.js'
 
 export const DEMO_STATIC_INJECTOR_SLUG = 'static-uri-injector'
 export const DEMO_PINNED_RANKER_SLUG = 'pinned-uri-ranker'
@@ -51,7 +51,7 @@ export function demoStaticInjectorManifest(): PluginManifest {
 
 /** Seed a native static-URI injector on operator instances for dev/demo. */
 export async function ensureDemoInjectorPackage(pool: Pool): Promise<void> {
-  if (!isGlobalMarketplaceOperatorInstance()) return
+  if (!isCanonicalGlobalRegistryHost()) return
 
   const existing = await listPluginCatalog(pool, 'injector', 'deployment')
   if (existing.some((p) => p.slug === DEMO_STATIC_INJECTOR_SLUG)) return
@@ -77,7 +77,7 @@ export async function ensureDemoInjectorPackage(pool: Pool): Promise<void> {
 
 /** Seed a native pinned-URI ranker on operator instances for dev/demo. */
 export async function ensureDemoRankerPackage(pool: Pool): Promise<void> {
-  if (!isGlobalMarketplaceOperatorInstance()) return
+  if (!isCanonicalGlobalRegistryHost()) return
 
   const existing = await listPluginCatalog(pool, 'ranker', 'deployment')
   if (existing.some((p) => p.slug === DEMO_PINNED_RANKER_SLUG)) return

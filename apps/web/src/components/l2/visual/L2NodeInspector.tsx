@@ -86,6 +86,12 @@ interface Props {
 
   onRefreshList?: (listId: string) => Promise<void>
   prefilterMode?: boolean
+  readOnly?: boolean
+  onOpenInnerLogicPreview?: (target: {
+    packageId: string
+    versionPin: string
+    title?: string
+  }) => void
 }
 
 
@@ -122,6 +128,8 @@ export function L2PropertiesInspector({
 
   onRefreshList,
   prefilterMode = false,
+  readOnly = false,
+  onOpenInnerLogicPreview,
 }: Props) {
 
   const selected = selectedId ? findInMatch(match, selectedId) : null
@@ -151,7 +159,7 @@ export function L2PropertiesInspector({
 
   const canDeleteEdge = Boolean(selectedEdgeId)
 
-  const showFooter = canDeleteNode || canDeleteEdge
+  const showFooter = !readOnly && (canDeleteNode || canDeleteEdge)
 
 
 
@@ -165,14 +173,19 @@ export function L2PropertiesInspector({
 
             selected && selected.type !== 'group' ? ' l2-inspector-body--condition' : ''
 
-          }`}
+          }${readOnly ? ' l2-inspector-body--readonly' : ''}`}
 
         >
 
             {!selected && !selectedEdgeId && (
 
-              <>
+              readOnly ? (
 
+                <p className="card-hint">Click a node to inspect its conditions and settings.</p>
+
+              ) : (
+
+              <>
                 <div className="l2-inspector-guide">
 
                   <p className="l2-inspector-guide-title">How paths work</p>
@@ -198,6 +211,8 @@ export function L2PropertiesInspector({
                 <p className="card-hint">Click the canvas background, then add groups or filters from the palette.</p>
 
               </>
+
+              )
 
             )}
 
@@ -228,6 +243,44 @@ export function L2PropertiesInspector({
               <>
 
                 {selected.id !== match.id && (
+
+                  readOnly ? (
+
+                    <>
+
+                      <h4>Group</h4>
+
+                      {selected.label ? <p className="card-hint">Label: {selected.label}</p> : null}
+
+                      <p className="card-hint">
+
+                        Logic:{' '}
+
+                        {selected.logic === 'any'
+
+                          ? 'Any — OR'
+
+                          : selected.logic === 'all'
+
+                            ? 'All — AND'
+
+                            : selected.logic === 'n_of'
+
+                              ? `N-of — at least ${selected.minPass ?? 2} pass`
+
+                              : 'NOT (legacy)'}
+
+                      </p>
+
+                      <p className="card-hint">
+
+                        {`${selected.children?.length ?? 0} condition(s) in this group.`}
+
+                      </p>
+
+                    </>
+
+                  ) : (
 
                   <>
 
@@ -389,8 +442,12 @@ export function L2PropertiesInspector({
 
                   </>
 
+                  )
+
                 )}
 
+                {!readOnly ? (
+                  <>
                 <SaveLogicBlockPanel group={selected} />
 
                 <LogicBlockInsertPanel
@@ -402,6 +459,8 @@ export function L2PropertiesInspector({
                   onInsert={onChange}
 
                 />
+                  </>
+                ) : null}
 
               </>
 
@@ -415,6 +474,7 @@ export function L2PropertiesInspector({
 
                 <h4>Logic block</h4>
 
+                {!readOnly ? (
                 <label className="l2-inspector-field">
 
                   Display name
@@ -456,15 +516,33 @@ export function L2PropertiesInspector({
                   />
 
                 </label>
+                ) : null}
 
                 <p className="card-hint">
 
-                  <strong>{selected.label ?? 'Custom logic'}</strong> — pinned at v{selected.versionPin}.
+                  <strong>{nodeLabels[selected.id]?.trim() || (selected.label ?? 'Custom logic')}</strong> — pinned at v{selected.versionPin}.
 
                 </p>
 
                 <code className="mono logic-block-ref-id">{selected.packageId}</code>
 
+                {!readOnly && onOpenInnerLogicPreview ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() =>
+                    onOpenInnerLogicPreview({
+                      packageId: selected.packageId,
+                      versionPin: selected.versionPin,
+                      title: selected.label ?? nodeLabels[selected.id]?.trim() ?? undefined,
+                    })
+                  }
+                >
+                  View inner logic
+                </button>
+                ) : null}
+
+                {!readOnly ? (
                 <label className="l2-inspector-field">
 
                   Update policy
@@ -500,6 +578,7 @@ export function L2PropertiesInspector({
                   </select>
 
                 </label>
+                ) : null}
 
               </>
 
@@ -513,6 +592,7 @@ export function L2PropertiesInspector({
 
                 <h4>Condition</h4>
 
+                {!readOnly ? (
                 <label className="l2-inspector-field">
 
                   Display name
@@ -554,6 +634,9 @@ export function L2PropertiesInspector({
                   />
 
                 </label>
+                ) : nodeLabels[selected.id]?.trim() ? (
+                  <p className="card-hint">Label: {nodeLabels[selected.id]}</p>
+                ) : null}
 
                 <ConditionRow
 
@@ -577,7 +660,7 @@ export function L2PropertiesInspector({
 
                   showRemove={false}
 
-                  fillHeight={selected.type === 'keyword'}
+                  fillHeight={!readOnly && selected.type === 'keyword'}
 
                   projectAuthorLists={projectAuthorLists}
 
@@ -613,6 +696,8 @@ export function L2PropertiesInspector({
                   onRefreshList={onRefreshList}
 
                   prefilterMode={prefilterMode}
+
+                  readOnly={readOnly}
 
                 />
 

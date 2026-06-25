@@ -53,8 +53,8 @@ export function SaveLogicBlockPanel({ group, onSaved }: Props) {
     <div className="logic-block-save-panel logic-block-save-panel-open">
       <p className="logic-block-save-title">Custom graph logic</p>
       <p className="card-hint">
-        Saves this group as a reusable block. Stays private in your collection unless you publish
-        to this deployment or the global marketplace.
+        Saves this group as a reusable block. Stays in your collection even after you publish to
+        the marketplace.
       </p>
       <label className="l2-inspector-field">
         Name
@@ -81,8 +81,8 @@ export function SaveLogicBlockPanel({ group, onSaved }: Props) {
           onChange={(e) => setVisibility(e.target.value as LogicBlockVisibility)}
         >
           <option value="collection">My collection only</option>
-          <option value="deployment">This deployment (unverified until master approves)</option>
-          <option value="global">Global marketplace (platform reviews separately)</option>
+          <option value="deployment">This deployment (live immediately; verification badge is separate)</option>
+          <option value="global">Global marketplace (requires platform review)</option>
         </select>
       </label>
       {error && <p className="field-error">{error}</p>}

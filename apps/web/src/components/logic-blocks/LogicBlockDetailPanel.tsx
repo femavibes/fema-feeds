@@ -2,30 +2,48 @@ import { useEffect, useState } from 'react'
 import type { LogicBlockPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
+import { RequestListingButton } from '../marketplace/RequestListingButton'
+import { MarketplaceListingHero } from '../marketplace/MarketplaceListingHero'
+import { PackageVersionHistory } from '../marketplace/PackageVersionHistory'
 import { LogicBlockMetadataFields } from './LogicBlockMetadataFields'
 import { LogicBlockTrustBadge, trustLabel, visibilityLabel } from './logic-block-labels'
 
 export type LogicBlockDetailVariant = 'marketplace' | 'collection'
+export type LogicBlockMarketplaceSection = 'details' | 'listing'
 
 interface Props {
   variant: LogicBlockDetailVariant
+  marketplaceSection?: LogicBlockMarketplaceSection
   pkg: LogicBlockPackage | null
   userDid?: string | null
   subscribedVersionPin?: string | null
+  selectedVersion?: string
+  onSelectedVersionChange?: (version: string) => void
+  updatePolicy?: import('@cfb/core-types').LogicBlockUpdatePolicy
+  onUpdatePolicyChange?: (policy: import('@cfb/core-types').LogicBlockUpdatePolicy) => void
+  subscriptionBusy?: boolean
   onSubscribed?: () => void
   onPublished?: () => void
   onEdit?: () => void
+  onEditListing?: () => void
   onMetadataSaved?: (pkg: LogicBlockPackage) => void
 }
 
 export function LogicBlockDetailPanel({
   variant,
+  marketplaceSection,
   pkg,
   userDid,
   subscribedVersionPin,
+  selectedVersion: selectedVersionProp,
+  onSelectedVersionChange,
+  updatePolicy: updatePolicyProp,
+  onUpdatePolicyChange,
+  subscriptionBusy = false,
   onSubscribed,
   onPublished,
   onEdit,
+  onEditListing,
   onMetadataSaved,
 }: Props) {
   const [versions, setVersions] = useState<LogicBlockPackage[]>([])
@@ -34,8 +52,11 @@ export function LogicBlockDetailPanel({
   const [slug, setSlug] = useState('')
   const [description, setDescription] = useState('')
   const [metaDirty, setMetaDirty] = useState(false)
-  const [updatePolicy, setUpdatePolicy] = useState<import('@cfb/core-types').LogicBlockUpdatePolicy>('pinned')
+  const [updatePolicyLocal, setUpdatePolicyLocal] = useState<import('@cfb/core-types').LogicBlockUpdatePolicy>('pinned')
+  const updatePolicy = updatePolicyProp ?? updatePolicyLocal
+  const setUpdatePolicy = onUpdatePolicyChange ?? setUpdatePolicyLocal
   const [busy, setBusy] = useState(false)
+  const actionBusy = busy || subscriptionBusy
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
@@ -51,7 +72,7 @@ export function LogicBlockDetailPanel({
       setMessage(null)
       return
     }
-    setSelectedVersion(pkg.version)
+    setSelectedVersion(subscribedVersionPin ?? pkg.version)
     setName(pkg.name)
     setSlug(pkg.slug)
     setDescription(pkg.description ?? '')
@@ -76,24 +97,13 @@ export function LogicBlockDetailPanel({
     )
   }
 
-  const versionPin = selectedVersion || pkg.version
+  const versionPin = selectedVersionProp ?? (selectedVersion || pkg.version)
+  const isMarketplaceDetails = variant === 'marketplace' && marketplaceSection === 'details'
+  const showMarketplaceHero = variant === 'marketplace' && !isMarketplaceDetails
   const isSubscribed = subscribedVersionPin != null
   const onLatestPin = isSubscribed && subscribedVersionPin === versionPin
   const latestVersion = versions[0]?.version ?? pkg.version
   const isOwner = Boolean(userDid && pkg.ownerDid === userDid)
-
-  const subscribe = async () => {
-    setBusy(true)
-    setError(null)
-    try {
-      await api.subscribeLogicBlock(pkg.id, { versionPin, updatePolicy })
-      onSubscribed?.()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Subscribe failed')
-    } finally {
-      setBusy(false)
-    }
-  }
 
   const publish = async (visibility: 'deployment' | 'global') => {
     setBusy(true)
@@ -120,12 +130,10 @@ export function LogicBlockDetailPanel({
       const res = await api.updateLogicBlock(pkg.id, {
         name: name.trim(),
         slug: slug.trim() || name.trim(),
-        description: description.trim() || null,
         bumpVersion: false,
       })
       setName(res.package.name)
       setSlug(res.package.slug)
-      setDescription(res.package.description ?? '')
       setMetaDirty(false)
       setMessage('Details saved')
       onMetadataSaved?.(res.package)
@@ -138,12 +146,25 @@ export function LogicBlockDetailPanel({
 
   return (
     <div className="logic-block-detail-panel">
+      {showMarketplaceHero ? (
+        <MarketplaceListingHero
+          packageId={pkg.id}
+          name={pkg.name}
+          description={pkg.description}
+          visibility={pkg.visibility}
+          trustTier={pkg.trustTier}
+          listing={pkg.listing}
+          productKind="logic_block"
+          ownerDid={pkg.ownerDid}
+        />
+      ) : null}
       {variant === 'collection' && isOwner ? (
         <>
           <LogicBlockMetadataFields
             name={name}
             slug={slug}
             description={description}
+            showDescription={false}
             disabled={busy}
             onNameChange={(v) => {
               setName(v)
@@ -155,12 +176,18 @@ export function LogicBlockDetailPanel({
               setMetaDirty(true)
               setMessage(null)
             }}
-            onDescriptionChange={(v) => {
-              setDescription(v)
-              setMetaDirty(true)
-              setMessage(null)
-            }}
+            onDescriptionChange={() => {}}
           />
+          {onEditListing ? (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={busy}
+              onClick={onEditListing}
+            >
+              Edit storefront listing
+            </button>
+          ) : null}
           {metaDirty ? (
             <button
               type="button"
@@ -168,25 +195,31 @@ export function LogicBlockDetailPanel({
               disabled={busy || !name.trim()}
               onClick={() => void saveMetadata()}
             >
-              {busy ? 'Saving…' : 'Save name & details'}
+              {busy ? 'Saving…' : 'Save name & slug'}
             </button>
           ) : null}
         </>
-      ) : (
+      ) : variant === 'collection' ? (
         <>
           <h3 className="logic-block-detail-name">{pkg.name}</h3>
           <p className="logic-block-detail-sub">
             {pkg.slug} · {visibilityLabel(pkg.visibility)}
           </p>
         </>
-      )}
+      ) : null}
       {variant === 'collection' && isOwner ? (
         <p className="logic-block-detail-sub">{visibilityLabel(pkg.visibility)} · v{pkg.version}</p>
+      ) : variant === 'marketplace' ? (
+        <p className="logic-block-detail-sub">
+          {pkg.slug} · {visibilityLabel(pkg.visibility)}
+        </p>
       ) : null}
-      <div className="logic-block-detail-badges">
-        <LogicBlockTrustBadge tier={pkg.trustTier} visibility={pkg.visibility} />
-      </div>
-      {pkg.description && !(variant === 'collection' && isOwner) ? (
+      {variant === 'collection' ? (
+        <div className="logic-block-detail-badges">
+          <LogicBlockTrustBadge tier={pkg.trustTier} visibility={pkg.visibility} />
+        </div>
+      ) : null}
+      {pkg.description && variant === 'collection' && !isOwner ? (
         <p className="card-hint">{pkg.description}</p>
       ) : null}
       {trustLabel(pkg) ? <p className="settings-hint">{trustLabel(pkg)}</p> : null}
@@ -202,8 +235,12 @@ export function LogicBlockDetailPanel({
           Version
           <select
             value={versionPin}
-            disabled={busy}
-            onChange={(e) => setSelectedVersion(e.target.value)}
+            disabled={actionBusy}
+            onChange={(e) => {
+              const next = e.target.value
+              if (onSelectedVersionChange) onSelectedVersionChange(next)
+              else setSelectedVersion(next)
+            }}
           >
             {versions.map((v) => (
               <option key={v.version} value={v.version}>
@@ -216,6 +253,15 @@ export function LogicBlockDetailPanel({
       ) : (
         <p className="logic-block-detail-version">Version v{versionPin}</p>
       )}
+
+      {variant === 'collection' && isOwner ? (
+        <PackageVersionHistory
+          productKind="logic_block"
+          packageId={pkg.id}
+          latestVersion={latestVersion}
+          mode="owner"
+        />
+      ) : null}
 
       {variant === 'marketplace' && isSubscribed ? (
         <p className="settings-hint">
@@ -231,7 +277,7 @@ export function LogicBlockDetailPanel({
           Update policy
           <select
             value={updatePolicy}
-            disabled={busy}
+            disabled={actionBusy}
             onChange={(e) =>
               setUpdatePolicy(e.target.value as import('@cfb/core-types').LogicBlockUpdatePolicy)
             }
@@ -247,22 +293,15 @@ export function LogicBlockDetailPanel({
       {message ? <p className="settings-hint">{message}</p> : null}
 
       <div className="logic-block-detail-actions">
-        {variant === 'collection' && isOwner && onEdit ? (
-          <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={onEdit}>
-            Edit logic
-          </button>
-        ) : null}
-
-        {variant === 'marketplace' && pkg.visibility !== 'collection' && (!isSubscribed || !onLatestPin) && (
-          <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => void subscribe()}>
-            {isSubscribed ? `Update to v${versionPin}` : 'Subscribe'}
-          </button>
-        )}
-
         {variant === 'collection' && isOwner && (
           <>
             {pkg.visibility === 'collection' && (
               <>
+                <p className="card-hint">
+                  <strong>Publish to this deployment</strong> — lists immediately in the local
+                  marketplace. Verification badge is separate (deployment master under Moderate
+                  listings).
+                </p>
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
@@ -271,32 +310,25 @@ export function LogicBlockDetailPanel({
                 >
                   Publish to this deployment
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  disabled={busy}
-                  onClick={() => void publish('global')}
-                >
-                  Submit to global marketplace
-                </button>
               </>
             )}
-            {pkg.visibility === 'deployment' && (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                disabled={busy}
-                onClick={() => void publish('global')}
-              >
-                Submit to global marketplace
-              </button>
-            )}
-            {pkg.visibility !== 'collection' && (
+            <RequestListingButton
+              productKind="logic_block"
+              packageId={pkg.id}
+              visibility={pkg.visibility}
+              disabled={busy}
+            />
+            {pkg.visibility === 'deployment' ? (
               <p className="card-hint">
-                Published listings also appear under Marketplace. Use Verify publisher in the
-                marketplace sidebar to assign trust seals.
+                Listed on this deployment — still editable here. Use <strong>Submit to global
+                marketplace</strong> below to request a global listing.
               </p>
-            )}
+            ) : pkg.visibility !== 'collection' ? (
+              <p className="card-hint">
+                Listed on the marketplace and still in your collection — edit anytime; saving logic
+                bumps the version.
+              </p>
+            ) : null}
           </>
         )}
       </div>

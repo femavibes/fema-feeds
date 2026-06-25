@@ -1,0 +1,100 @@
+# Global marketplace registry — marketplace.fema.monster (no ingest/worker).
+
+#
+
+# Quick start:
+
+#   1. Copy deploy/.env.operator.example → .env (OAUTH_PUBLIC_URL=https://marketplace.fema.monster)
+
+#   2. docker compose -f docker-compose.yml -f deploy/docker-compose.operator.yml up -d --build
+
+#   3. Apply migrations: node database/run-migration.mjs --all
+
+#   4. Log in as fema.monster to moderate global listings
+
+
+
+services:
+
+  api:
+
+    build:
+
+      context: .
+
+      dockerfile: deploy/Dockerfile
+
+    container_name: cfb-operator-api
+
+    restart: unless-stopped
+
+    environment:
+
+      DATABASE_URL: postgresql://cfb:cfb_dev@postgres:5432/custom_feed_builder
+
+      API_PORT: '3000'
+
+      BSKY_PUBLIC_API: ${BSKY_PUBLIC_API:-https://public.api.bsky.app}
+
+      BSKY_SERVICE_URL: ${BSKY_SERVICE_URL:-https://bsky.social}
+
+      OAUTH_PUBLIC_URL: ${OAUTH_PUBLIC_URL:-https://marketplace.fema.monster}
+
+      SITE_HOST: ${SITE_HOST:-marketplace.fema.monster}
+
+      CFB_GLOBAL_MARKETPLACE_OPERATOR_DID: ${CFB_GLOBAL_MARKETPLACE_OPERATOR_DID:-}
+
+      CFB_APP_PROFILE: registry
+
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+
+    volumes:
+
+      - ./config:/app/config
+
+    depends_on:
+
+      postgres:
+
+        condition: service_healthy
+
+
+
+  caddy:
+
+    image: caddy:2-alpine
+
+    container_name: cfb-operator-caddy
+
+    restart: unless-stopped
+
+    ports:
+
+      - '80:80'
+
+      - '443:443'
+
+    environment:
+
+      SITE_HOST: ${SITE_HOST:-marketplace.fema.monster}
+
+    volumes:
+
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+
+      - cfb_operator_caddy_data:/data
+
+      - cfb_operator_caddy_config:/config
+
+    depends_on:
+
+      - api
+
+
+
+volumes:
+
+  cfb_operator_caddy_data:
+
+  cfb_operator_caddy_config:
+

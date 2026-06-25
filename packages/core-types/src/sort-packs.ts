@@ -26,6 +26,7 @@ export interface SortPackPackage {
   sortKey: L2Expr
   createdAt: string
   updatedAt: string
+  listing?: import('./marketplace-listing.js').MarketplaceListingMeta
 }
 
 export interface SortPackSubscription {

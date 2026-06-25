@@ -6,6 +6,8 @@ import type { FeedConfig, L2NodeTrace, L2RuleGroup, AuthorListConfig } from '@cf
 import type { ListCacheEntry } from '../../../api/client'
 import { useVisualEditorHistory, type VisualEditorSnapshot } from '../../../hooks/useVisualEditorHistory'
 import { useVisualEditorRails } from '../../../hooks/useVisualEditorRails'
+import { retainBodyEditorOpen } from '../../../lib/body-editor-open'
+import { VisualEditorNestContext } from './visual-editor-nest'
 import {
   addToGroup,
   clearPositionsForSubtree,
@@ -25,6 +27,7 @@ import { L2PreviewRail } from './L2PreviewRail'
 import { RailCollapseStrip, RailPanelHead, RailResizeHandle } from './L2RailChrome'
 import { L2NodePalette } from './L2NodePalette'
 import { L2NodeRenameDialog } from './L2NodeRenameDialog'
+import { LogicBlockInnerPreview } from '../../logic-blocks/LogicBlockInnerPreview'
 import { resolveCanvasEdges, type CanvasEdge, type NodeLabels, type NodePositions, type NodeSources } from './graph-sync'
 import { type PaletteItem, type PaletteLogicBlockEntry, type PalettePick } from './palette'
 
@@ -57,6 +60,8 @@ interface Props {
   closeLabel?: string
   canvasHint?: string
   hideJsonButton?: boolean
+  /** Read-only canvas (no edits, palette, or save). */
+  readOnly?: boolean
   /** Hide manual save when draft autosave is enabled (feed editor). */
   hideSaveDraft?: boolean
   /** Project prefilter editor — ingest-only palette, no pool toggle. */
@@ -87,6 +92,7 @@ export function L2VisualEditor({
   closeLabel = 'Back to rules',
   canvasHint = 'Separate paths from START are OR. Chain on one path (START → A → B → FEED) for AND. Changes autosave as draft — use Deploy in the sidebar to update live or publish.',
   hideJsonButton = false,
+  readOnly = false,
   hideSaveDraft = false,
   revertToLive,
   metadataPanel,
@@ -97,6 +103,21 @@ export function L2VisualEditor({
   onRefreshList,
 }: Props) {
   const rails = useVisualEditorRails()
+  const [innerLogicPreview, setInnerLogicPreview] = useState<{
+    packageId: string
+    versionPin: string
+    title?: string
+  } | null>(null)
+  const nestedOverlayOpen = innerLogicPreview !== null
+
+  const registerNestedOverlay = useCallback(() => {
+    return () => {}
+  }, [])
+
+  const nestContext = useMemo(
+    () => ({ registerNestedOverlay }),
+    [registerNestedOverlay],
+  )
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
@@ -324,6 +345,7 @@ export function L2VisualEditor({
       }
 
       if (e.key === 'Escape') {
+        if (nestedOverlayOpen) return
         if (renameTargetId) {
           setRenameTargetId(null)
           return
@@ -341,10 +363,10 @@ export function L2VisualEditor({
       }
     }
     window.addEventListener('keydown', onKey)
-    document.body.classList.add('l2-editor-open')
+    const releaseBodyEditorOpen = retainBodyEditorOpen()
     return () => {
       window.removeEventListener('keydown', onKey)
-      document.body.classList.remove('l2-editor-open')
+      releaseBodyEditorOpen()
     }
   }, [
     handleClose,
@@ -358,6 +380,7 @@ export function L2VisualEditor({
     saving,
     dirty,
     onSaveDraft,
+    nestedOverlayOpen,
   ])
   const flash = (msg: string | null) => {
     setStatusMessage(msg)
@@ -472,12 +495,16 @@ export function L2VisualEditor({
   )
 
   const overlay = (
+    <VisualEditorNestContext.Provider value={nestContext}>
     <div
-      className="l2-visual-fullscreen"
+      className={`l2-visual-fullscreen${readOnly ? ' l2-visual-fullscreen--nested' : ''}${
+        !readOnly && nestedOverlayOpen ? ' l2-visual-fullscreen--obscured' : ''
+      }`}
       style={rails.gridStyle}
       role="dialog"
       aria-modal="true"
-      aria-label="Visual rule editor"
+      aria-label={readOnly ? 'Logic block preview' : 'Visual rule editor'}
+      aria-hidden={!readOnly && nestedOverlayOpen ? true : undefined}
     >
       <header className="l2-visual-toolbar">
         <div className="l2-visual-toolbar-left">
@@ -488,76 +515,84 @@ export function L2VisualEditor({
         </div>
         <div className="l2-visual-toolbar-actions">
           <div className="l2-visual-history-actions">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={!canUndo}
-              onClick={undo}
-              title="Undo (Ctrl+Z)"
-            >
-              Undo
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={!canRedo}
-              onClick={redo}
-              title="Redo (Ctrl+Shift+Z)"
-            >
-              Redo
-            </button>
+            {!readOnly ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={!canUndo}
+                  onClick={undo}
+                  title="Undo (Ctrl+Z)"
+                >
+                  Undo
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={!canRedo}
+                  onClick={redo}
+                  title="Redo (Ctrl+Shift+Z)"
+                >
+                  Redo
+                </button>
+              </>
+            ) : null}
           </div>
-          <span className="l2-editor-switch" aria-hidden="true" />
-          {hideSaveDraft && revertToLive ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={!revertToLive.enabled || saving}
-              title={
-                revertToLive.enabled
-                  ? 'Discard autosaved draft changes and restore the live rule graph'
-                  : 'Draft already matches live rules'
-              }
-              onClick={() => {
-                resetHistory()
-                revertToLive.onRevert()
-              }}
-            >
-              Revert to live
-            </button>
-          ) : !hideSaveDraft ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              disabled={!dirty}
-              onClick={() => {
-                resetHistory()
-                onReset()
-              }}
-            >
-              Reset
-            </button>
-          ) : null}
-          {!hideSaveDraft ? (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={!dirty || saving}
-              onClick={onSaveDraft}
-            >
-              {saving ? 'Saving…' : saveLabel}
-            </button>
-          ) : null}
-          {!hideJsonButton && onOpenJson ? (
+          {!readOnly ? (
             <>
               <span className="l2-editor-switch" aria-hidden="true" />
-              <button type="button" className="btn btn-secondary btn-sm" onClick={onOpenJson}>
-                Open JSON editor
-              </button>
+              {hideSaveDraft && revertToLive ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={!revertToLive.enabled || saving}
+                  title={
+                    revertToLive.enabled
+                      ? 'Discard autosaved draft changes and restore the live rule graph'
+                      : 'Draft already matches live rules'
+                  }
+                  onClick={() => {
+                    resetHistory()
+                    revertToLive.onRevert()
+                  }}
+                >
+                  Revert to live
+                </button>
+              ) : !hideSaveDraft ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  disabled={!dirty}
+                  onClick={() => {
+                    resetHistory()
+                    onReset()
+                  }}
+                >
+                  Reset
+                </button>
+              ) : null}
+              {!hideSaveDraft ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={!dirty || saving}
+                  onClick={onSaveDraft}
+                >
+                  {saving ? 'Saving…' : saveLabel}
+                </button>
+              ) : null}
+              {!hideJsonButton && onOpenJson ? (
+                <>
+                  <span className="l2-editor-switch" aria-hidden="true" />
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={onOpenJson}>
+                    Open JSON editor
+                  </button>
+                </>
+              ) : null}
             </>
           ) : null}
           <span className="l2-visual-hint" title="Keyboard shortcuts">
-            {hideSaveDraft ? 'Ctrl+Z · Esc' : 'Ctrl+Z · Ctrl+S · Esc'}
+            {readOnly ? 'Esc' : hideSaveDraft ? 'Ctrl+Z · Esc' : 'Ctrl+Z · Ctrl+S · Esc'}
           </span>
           <button type="button" className="btn btn-secondary btn-sm" onClick={handleClose}>
             {closeLabel}
@@ -565,6 +600,7 @@ export function L2VisualEditor({
         </div>
       </header>
 
+      {!readOnly ? (
       <aside className="l2-visual-rail l2-visual-rail-left">
         {rails.paletteOpen ? (
           <>
@@ -593,6 +629,7 @@ export function L2VisualEditor({
           />
         )}
       </aside>
+      ) : null}
 
       <p className="l2-visual-canvas-hint" aria-hidden="true">
         {canvasHint}
@@ -601,6 +638,7 @@ export function L2VisualEditor({
       <main className="l2-visual-main">
         <ReactFlowProvider>
           <L2GraphCanvas
+            readOnly={readOnly}
             match={match}
             positions={positions}
             canvasEdges={canvasEdges}
@@ -658,13 +696,16 @@ export function L2VisualEditor({
         </ReactFlowProvider>
       </main>
 
+      {!nestedOverlayOpen ? (
       <aside className="l2-visual-rail l2-visual-rail-props">
         {rails.propsOpen ? (
           <>
-            <RailResizeHandle
-              label="Resize properties panel"
-              onMouseDown={rails.startResizeProps}
-            />
+            {!readOnly ? (
+              <RailResizeHandle
+                label="Resize properties panel"
+                onMouseDown={rails.startResizeProps}
+              />
+            ) : null}
             <RailPanelHead
               title="Properties"
               onCollapse={rails.toggleProps}
@@ -690,6 +731,8 @@ export function L2VisualEditor({
               listCache={listCache}
               onRefreshList={onRefreshList}
               prefilterMode={prefilterMode}
+              readOnly={readOnly}
+              onOpenInnerLogicPreview={setInnerLogicPreview}
             />
           </>
         ) : (
@@ -700,7 +743,9 @@ export function L2VisualEditor({
           />
         )}
       </aside>
+      ) : null}
 
+      {!readOnly && !nestedOverlayOpen ? (
       <aside className="l2-visual-rail l2-visual-rail-preview">
         {rails.previewOpen ? (
           <>
@@ -724,7 +769,17 @@ export function L2VisualEditor({
           />
         )}
       </aside>
+      ) : null}
     </div>
+    {innerLogicPreview ? (
+      <LogicBlockInnerPreview
+        packageId={innerLogicPreview.packageId}
+        versionPin={innerLogicPreview.versionPin}
+        title={innerLogicPreview.title}
+        onClose={() => setInnerLogicPreview(null)}
+      />
+    ) : null}
+    </VisualEditorNestContext.Provider>
   )
 
   return createPortal(overlay, document.body)

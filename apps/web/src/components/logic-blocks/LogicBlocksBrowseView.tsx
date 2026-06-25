@@ -1,43 +1,71 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { LogicBlockPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
-import { LogicBlockTrustBadge } from './logic-block-labels'
+import type { MarketplaceCatalogScope, MarketplaceCatalogSort } from '../../lib/marketplace-catalog'
+import { sortMarketplacePackages } from '../../lib/marketplace-catalog'
+import { MarketplaceCatalogCard } from '../marketplace/MarketplaceCatalogCard'
 
-export type BrowseCatalogScope = 'deployment' | 'global'
-
-const REGISTRY_ROLE_HINT: Record<'operator' | 'consumer' | 'embedded', string> = {
-  operator:
-    'This instance hosts the global marketplace registry. Listings published to global are served from this database.',
-  consumer: 'Global listings are loaded from the configured registry URL.',
+const REGISTRY_ROLE_HINT: Record<'registry' | 'consumer' | 'embedded', string> = {
+  registry:
+    'This host is the global marketplace registry. Global listings are managed here by fema.monster.',
+  consumer: 'Global listings are loaded from marketplace.fema.monster.',
   embedded:
-    'Dev stub: global listings are in this database. Enable CFB_GLOBAL_MARKETPLACE_OPERATOR=true to act as the registry host.',
+    'Offline dev stub. Unset CFB_GLOBAL_MARKETPLACE_EMBEDDED to use the live global registry.',
+}
+
+const SCOPE_HINT: Record<MarketplaceCatalogScope, string> = {
+  all: 'Listings from this deployment and the global marketplace. Use the Catalog filter to narrow results.',
+  deployment:
+    'Published on this instance. Deployment owners can verify publishers for this deployment only.',
+  global:
+    'Global marketplace listings. Verification badges are issued by the platform operator (fema.monster), not this deployment.',
+}
+
+const EMPTY_HINT: Record<MarketplaceCatalogScope, string> = {
+  all: 'No listings yet. Publish from My collection or browse the global marketplace when items are available.',
+  deployment:
+    'No deployment listings yet. Save logic in My collection, then publish to this deployment.',
+  global: 'No global listings in the catalog yet. Submit blocks from My collection to the global marketplace.',
 }
 
 interface Props {
+  catalogScope: MarketplaceCatalogScope
+  catalogSort: MarketplaceCatalogSort
   selectedId: string | null
   subscribedIds: Set<string>
   onSelect: (pkg: LogicBlockPackage) => void
 }
 
-export function LogicBlocksBrowseView({ selectedId, subscribedIds, onSelect }: Props) {
-  const [scope, setScope] = useState<BrowseCatalogScope>('deployment')
+export function LogicBlocksBrowseView({
+  catalogScope,
+  catalogSort,
+  selectedId,
+  subscribedIds,
+  onSelect,
+}: Props) {
   const [packages, setPackages] = useState<LogicBlockPackage[]>([])
   const [loading, setLoading] = useState(true)
   const [marketplaceHint, setMarketplaceHint] = useState<string | null>(null)
-  const [registryRole, setRegistryRole] = useState<'operator' | 'consumer' | 'embedded' | null>(
+  const [registryRole, setRegistryRole] = useState<'registry' | 'consumer' | 'embedded' | null>(
     null,
   )
 
-  const load = () => {
+  const sortedPackages = useMemo(
+    () => sortMarketplacePackages(packages, catalogSort),
+    [packages, catalogSort],
+  )
+
+  useEffect(() => {
     setLoading(true)
+    const needsGlobalStatus = catalogScope !== 'deployment'
     void Promise.all([
-      api.listLogicBlockCatalog(scope),
-      scope === 'global' ? api.globalMarketplaceStatus() : Promise.resolve(null),
+      api.listLogicBlockCatalog(catalogScope),
+      needsGlobalStatus ? api.globalMarketplaceStatus() : Promise.resolve(null),
     ])
       .then(([catalogRes, statusRes]) => {
         setPackages(catalogRes.packages)
-        if (scope === 'global' && statusRes) {
+        if (needsGlobalStatus && statusRes) {
           setRegistryRole(statusRes.registryRole)
           setMarketplaceHint(statusRes.hint)
         } else {
@@ -50,78 +78,45 @@ export function LogicBlocksBrowseView({ selectedId, subscribedIds, onSelect }: P
         setMarketplaceHint(null)
       })
       .finally(() => setLoading(false))
-  }
+  }, [catalogScope])
 
-  useEffect(() => {
-    load()
-  }, [scope])
+  const scopeHint =
+    catalogScope === 'global' && registryRole
+      ? REGISTRY_ROLE_HINT[registryRole]
+      : SCOPE_HINT[catalogScope]
 
   return (
     <div className="logic-blocks-browse">
-      <div className="logic-blocks-browse-scope" role="tablist" aria-label="Catalog scope">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={scope === 'deployment'}
-          className={`logic-blocks-scope-btn${scope === 'deployment' ? ' active' : ''}`}
-          onClick={() => setScope('deployment')}
-        >
-          This deployment
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={scope === 'global'}
-          className={`logic-blocks-scope-btn${scope === 'global' ? ' active' : ''}`}
-          onClick={() => setScope('global')}
-        >
-          Global marketplace
-        </button>
-      </div>
+      <p className="card-hint">{scopeHint}</p>
 
-      <p className="card-hint">
-        {scope === 'deployment'
-          ? 'Published on this instance. Deployment owners can verify publishers for this deployment only.'
-          : registryRole
-            ? REGISTRY_ROLE_HINT[registryRole]
-            : 'Global marketplace listings. Verification badges are issued by the platform operator (fema.monster), not this deployment.'}
-      </p>
-
-      {marketplaceHint ? (
+      {marketplaceHint && catalogScope !== 'deployment' ? (
         <p className="settings-hint logic-blocks-global-hint">{marketplaceHint}</p>
       ) : null}
 
       {loading && <p className="card-hint">Loading catalog…</p>}
-      {!loading && packages.length === 0 && (
-        <p className="card-hint">
-          {scope === 'deployment'
-            ? 'No deployment listings yet. Save logic in My collection, then publish to this deployment.'
-            : 'No global listings in the catalog yet. Submit blocks from My collection to the global marketplace.'}
-        </p>
+      {!loading && sortedPackages.length === 0 && (
+        <p className="card-hint">{EMPTY_HINT[catalogScope]}</p>
       )}
-      <ul className="logic-blocks-catalog-list">
-        {packages.map((pkg) => (
-          <li key={pkg.id}>
-            <button
-              type="button"
-              className={`logic-blocks-catalog-item${selectedId === pkg.id ? ' is-selected' : ''}`}
-              onClick={() => onSelect(pkg)}
-            >
-              <div className="logic-blocks-catalog-meta">
-                <span className="logic-blocks-catalog-name">{pkg.name}</span>
-                <span className="logic-blocks-catalog-sub">
-                  v{pkg.version}
-                  {subscribedIds.has(pkg.id) ? ' · Subscribed' : ''}
-                </span>
-                {pkg.description ? (
-                  <span className="logic-blocks-catalog-desc">{pkg.description}</span>
-                ) : null}
-              </div>
-              <LogicBlockTrustBadge tier={pkg.trustTier} visibility={pkg.visibility} />
-            </button>
-          </li>
+      <div className="marketplace-catalog-grid">
+        {sortedPackages.map((pkg) => (
+          <MarketplaceCatalogCard
+            key={pkg.id}
+            id={pkg.id}
+            name={pkg.name}
+            description={pkg.description}
+            version={pkg.version}
+            visibility={pkg.visibility}
+            trustTier={pkg.trustTier}
+            listing={pkg.listing}
+            updatedAt={pkg.updatedAt}
+            productKind="logic_block"
+            ownerDid={pkg.ownerDid}
+            subscribed={subscribedIds.has(pkg.id)}
+            selected={selectedId === pkg.id}
+            onClick={() => onSelect(pkg)}
+          />
         ))}
-      </ul>
+      </div>
     </div>
   )
 }

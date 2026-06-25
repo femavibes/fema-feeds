@@ -32,9 +32,11 @@ Jetstream / ingest
        ↓
    L1 prefilter  →  project pool (Postgres)
        ↓
-   L2 match      ← Logic blocks attach here
+   L2 match      ← Logic blocks attach here (+ editor_score accumulation)
        ↓
-   rank / sort   ← Sort packs, Rankers attach here
+   sort          ← Sort packs attach here (pool sort → sort_key in DB)
+       ↓
+   personalize   ← Personalization plugins attach here (per-viewer, serve-time)
        ↓
    inject        ← Injectors attach here (ads, promos)
        ↓
@@ -44,17 +46,28 @@ Jetstream / ingest
 ```mermaid
 flowchart LR
   ING[Ingest / pool] --> L2[L2 match graph]
-  L2 --> RANK[Rank / sort]
-  RANK --> INJ[Inject slots]
+  L2 --> SORT[Sort / sort packs]
+  SORT --> PERS[Personalization]
+  PERS --> INJ[Inject slots]
   INJ --> SKEL[getFeedSkeleton]
   LB[Logic block ref] -.-> L2
-  SP[Sort pack] -.-> RANK
-  RK[Ranker plugin] -.-> RANK
+  SP[Sort pack] -.-> SORT
+  PK[Personalization plugin] -.-> PERS
   AD[Injector plugin] -.-> INJ
 ```
 
-**Key insight from product design:** ads and injected posts do **not** belong in the L2 filter graph (they should not pass through match rules). They run **after** sort, before skeleton response.
+**Mental model for operators:**
 
+```
+┌─────────────────────────────────────────┐
+│ 1. WHO GETS IN     → L2 logic blocks    │
+│ 2. DEFAULT ORDER   → Sort / sort packs  │  ← "editorial algorithm"
+│ 3. PERSONAL TOUCH  → Personalization     │  ← "for you" layer (optional)
+│ 4. PROMOS          → Injector (optional) │
+└─────────────────────────────────────────┘
+```
+
+**Key insight from product design:** ads and injected posts do **not** belong in the L2 filter graph (they should not pass through match rules). They run **after** sort, before skeleton response.
 ---
 
 ## 3. Extension kinds (taxonomy)
@@ -64,45 +77,137 @@ Four kinds, increasing risk and runtime complexity:
 | Kind | What it is | Pipeline stage | Runtime | Trust |
 |------|------------|----------------|---------|-------|
 | **Logic block** | Reusable native L2 subgraph (container node) | L2 match | Native JSON (`L2RuleGroup`) | Low — schema + compile check |
-| **Sort pack** | Published `L2Expr` sort formula | Rank / `sort_key` at **candidate build** | Native JSON | Low — any user can save |
-| **Ranker** | Custom reorder / scoring at **serve time** | `onSort` hook | Native config, remote URL, worker/WASM (later) | Medium–high — **verified publishers only** |
+| **Sort pack** | Published `L2Expr` sort formula | Sort / `sort_key` at **candidate build** | Native JSON | Low — any user can save |
+| **Personalization** | Per-viewer reorder at **serve time** | `onSort` hook | Native config, remote URL, worker/WASM (later) | Medium–high — **verified publishers only** |
 | **Injector** | Insert URIs after sort (ads, promos) | `onInject` hook | Native config, remote URL, worker/WASM (later) | Medium–high — **verified publishers only** |
 
-### 3.1 Sort packs vs rankers (not the same thing)
+### 3.0 Native vs Custom Code (1:1 for every type)
 
-These feel similar because both affect “what order posts appear in,” but they run at **different stages**:
+Every extension kind has a **native** variant (declarative JSON the platform can inspect, diff, and run fast) and a **custom code** variant (verified publisher, sandboxed, same slot, different runtime).
 
-| | Sort pack | Ranker plugin |
-|---|-----------|---------------|
+| Type | Native | Custom Code |
+|------|--------|-------------|
+| **Logic** | Visual graph nodes (`L2RuleGroup`) | Verified custom node dropped into the visual graph (black-box filter) |
+| **Sort** | Sort packs (`L2Expr` formula) | Code that receives all numeric fields + `editor_score` → returns `sort_key` |
+| **Personalization** | Built-in behaviors (boost follows, demote seen) | WASM/remote plugin at serve-time, receives page + viewer context |
+| **Injector** | Static URI slot config | WASM/remote plugin, receives page → inserts URIs |
+
+**Unified rule:**
+- **Native** = declarative JSON the platform can inspect, diff, and run fast.
+- **Custom code** = verified publisher, sandboxed, same slot (filter / sort / personalize / inject), different runtime.
+
+### 3.1 Sort packs vs personalization (not the same thing)
+
+These feel similar because both affect "what order posts appear in," but they run at **different stages**:
+
+| | Sort pack | Personalization plugin |
+|---|-----------|------------------------|
 | **When** | Ingest / candidate rebuild (`sort_key` in Postgres) | `getFeedSkeleton` (each page request) |
-| **Input** | Post metrics + `L2Expr` | Ordered URI list for the page |
+| **Input** | Post metrics + `editor_score` + `L2Expr` | Ordered URI list for the page + viewer context |
 | **Who can publish** | Anyone (save to collection) | **Verified publishers** for custom code |
-| **Runtime** | Native JSON only | Native / remote today; uploaded code later |
+| **Runtime** | Native JSON or custom code | Native / remote today; uploaded code later |
+| **Personalized?** | No — same for all viewers | Yes — can use viewerDid, follows, seen-state |
 
-**UX model (feed Sorting tab):**
+**UX model (feed tabs):**
 
-1. **Pool sort** — built-in modes + sort packs (how candidates are scored in the DB)
-2. **Serve-time ranker** — optional plugin reorder on each skeleton page
-3. **Serve-time injector** — optional slots after rank
+1. **Sorting tab** — built-in modes + sort packs (how candidates are scored in the DB)
+2. **Personalization tab** — optional per-viewer plugin reorder on each skeleton page
+3. **Injector** — optional slots after personalization
 
-Long term, sort packs may fold into “native ranker packages” (`runtime: native`, payload = `L2Expr`), but the **two-stage** model (pool sort + serve-time rank) stays.
+**Rule of thumb:**
+- If two users with different follow graphs should see different order from the same candidates → **personalization**.
+- If the feed has a single editorial voice ("this is a breaking-news feed") → **sort pack**.
 
-### 3.2 Custom code publishing (verified publishers)
+Most editorial logic belongs in **sorting**. Personalization is reserved for things sorting cannot do: viewer-specific signals, already-seen state, diversity rules, external live APIs.
+
+### 3.2 Score node — editor_score in the visual graph
+
+The L2 visual editor supports **Score nodes** that assign posts a numeric editorial score separate from Bluesky engagement metrics. This score can be used by sort packs as one of many sortable fields.
+
+#### Semantics
+
+- Each post carries a single mutable counter (`editor_score`), starts at **0**
+- As the post flows through the graph, whenever it **passes** a Score node, that node’s value is **added** to the counter
+- Score accumulates on the **post itself**, not per-path — forks don’t clone the counter
+- At **END**: all matched posts receive a final **+1** (cold-start floor so no post has 0)
+- `editor_score` is always computed for matched posts regardless of sort mode
+
+#### Running total — score always sticks
+
+If a post gains score on one pathway but then **fails** a later filter on that path, the score already gained is **retained**. If the post reaches END via a different pathway, it keeps all accumulated score from every Score node it passed through — even on dead-end paths.
+
+Rationale:
+1. Simpler — one counter, only goes up, never rolled back
+2. Matches the "flowing water" mental model — the post *did* pass through that node
+3. Rewards posts partially relevant to multiple criteria
+4. Avoids complex retroactive path-tracking on diamonds/rejoins
+5. Predictable UX — trace shows "+5 from hashtag boost" and that score is always visible
+
+**If you want conditional scoring** (bonus only if the full path succeeds), use the **Conditional Score node** (see below).
+
+#### Example
+
+```
+START → [Keyword A: passes] → Score +3 → FORK
+                                          ├── path A (no score) → END
+                                          └── path B → Score +1 → END
+```
+
+- Post qualifies via **both** paths: `editor_score` = 3 + 1 + 1(END) = **5**
+- Post qualifies via **only path A**: `editor_score` = 3 + 0 + 1(END) = **4**
+- Post qualifies via **only path B**: `editor_score` = 3 + 1 + 1(END) = **5**
+
+#### Dead-end path example
+
+```
+START → [Keyword A: passes] → Score +3 → [Keyword B: FAILS] → END
+      → [Hashtag node: passes] → Score +2 → END
+```
+
+- Post fails path 1 after gaining +3, but succeeds path 2 gaining +2
+- Final `editor_score` = 3 + 2 + 1(END) = **6** (the +3 sticks)
+
+#### Conditional Score node (future)
+
+A second score node type: **Conditional Score**. Points from this node only count if the path it’s on fully reaches END. Use alongside regular Score nodes for "bonus only if you also pass everything after this" semantics.
+
+- Regular Score node: always sticks (default, simple)
+- Conditional Score node: rolled back if path fails before END
+
+#### How editor_score integrates with sorting
+
+- `editor_score` is exposed as an `L2NumericField` in sort packs (alongside `like_count`, `repost_count`, etc.)
+- Custom code sort packs receive `editor_score` in their input data
+- Chronological sort ignores `editor_score` (sorts by `indexedAt` only)
+- Engagement formulas can combine: e.g. `editor_score * 1_000_000 + (likes + reposts)`
+- Scale note: editor scores are typically 0–20; engagement can be 10⁵ — sort pack formulas should weight accordingly
+
+#### Storage
+
+- Computed at L2 eval time; stored on `feed_candidates` (column or score breakdown)
+- Visible in match trace UI: shows which Score nodes contributed
+
+---
+
+### 3.3 Custom code publishing (verified publishers)
 
 | Action | Requirement |
 |--------|-------------|
-| Create ranker / injector package | `deployment_verified` **or** `global_verified` publisher |
+| Create personalization / injector package | `deployment_verified` **or** `global_verified` publisher |
+| Create custom code sort pack | `deployment_verified` **or** `global_verified` publisher |
+| Create custom code logic node | `deployment_verified` **or** `global_verified` publisher |
 | Publish to **deployment** catalog | `deployment_verified` |
 | Publish to **global** catalog | `global_verified` (fema.monster) |
-| Logic blocks / sort packs | No publisher verification required |
+| Native logic blocks / native sort packs | No publisher verification required |
 
-**UI:** My collection → sidebar **New custom code** → pick ranker or injector, native or remote endpoint.
+**UI:** My collection → sidebar **New custom code** → pick type (logic node, sort pack, personalization, or injector), native or remote endpoint.
 
-**Logic blocks** = visual editor JSON, no arbitrary code.  
-**Sort packs** = native formulas only (plumbing until real custom rankers ship).  
-**Rankers / Injectors** = custom-code marketplace slots; today native config + remote HTTPS; uploaded bundles later.
-
-### 3.3 What “Worker / WASM runtime” means
+**Native logic blocks** = visual editor JSON, no arbitrary code.
+**Native sort packs** = declarative `L2Expr` formulas.
+**Custom code logic nodes** = verified black-box filter node in the visual graph.
+**Custom code sort packs** = verified code that receives numeric fields + `editor_score` → returns `sort_key`.
+**Personalization / Injectors** = custom-code marketplace slots; today native config + remote HTTPS; uploaded bundles later.
+### 3.4 What “Worker / WASM runtime” means
 
 Today, custom rankers and injectors are **not** arbitrary uploaded code. They are:
 
@@ -554,14 +659,14 @@ Authenticated unless noted.
 | **My Collection → Custom code** | Sidebar | Verified publishers create ranker/injector packages |
 | **publisher-workspace/** (repo) | Source | Publishable WASM source — not runtime install path |
 | **My Collection → New custom code** | Nav footer | Create dialog (gated on publisher verification) |
-| **Marketplace → Browse** | Workspace | Logic blocks \| Sort packs \| Injectors \| **Rankers** tabs |
+| **Marketplace → Browse** | Workspace | Logic blocks \| Sort packs \| Injectors \| **Personalization** tabs |
 | **Marketplace → Subscriptions** | Workspace | Installed blocks / packs / injectors |
 | **Marketplace → Verify publisher** | Nav footer (master / global verifier) | Publisher-level seals |
 | **Feed editor → Subscribed palette** | L2 visual | Insert `logic_block_ref` nodes |
 | **Feed editor → Save logic block** | Group context | Publish selection to collection |
 | **Feed Sorting → Sort packs** | Feed workspace | Apply subscribed `rank.packRef` |
 | **Feed Sorting → Injector** | Feed workspace | Apply subscribed injector, slot caps, URIs |
-| **Feed Sorting → Ranker** | Feed workspace | Apply subscribed ranker, pinned URIs |
+| **Feed Sorting → Personalization** | Feed workspace | Apply subscribed personalization plugin, pinned URIs |
 | **Feed overview → Logic block upgrades** | Feed workspace | Per-feed version bumps |
 | **Settings → Developer** | Master only | Registry role status |
 
@@ -616,8 +721,8 @@ From product discussion + what’s already shipped:
 
 | # | Topic | Decision |
 |---|-------|----------|
-| 1 | Extension taxonomy | Four kinds: logic block, sort pack, ranker, injector |
-| 2 | Logic block runtime | Native JSON only — no custom code in v1 |
+| 1 | Extension taxonomy | Four kinds: logic block, sort pack, personalization, injector |
+| 2 | Logic block runtime | Native JSON + custom code nodes (verified publishers) |
 | 3 | In-feed representation | `logic_block_ref` node, dereference at eval |
 | 4 | Versioning | Semver patch bumps on logic save; same slug updates same package id |
 | 5 | Update default | `pinned`; `auto_minor` only for patch within same major.minor |
@@ -627,18 +732,26 @@ From product discussion + what’s already shipped:
 | 9 | Global registry | Operator host exposes public catalog; consumers mirror on subscribe |
 | 10 | Custom code safety | Phased: none → Node workers (curated) → WASM (community) — see PLAN §9 |
 | 11 | Feed graph interchange | `cfb-feed-graph` format + feed-gen import |
+| 12 | Rankers renamed | "Rankers" → **Personalization** — sorting handles ranking; personalization = per-viewer serve-time |
+| 13 | Native + Custom Code | Every extension kind has native (declarative JSON) + custom code (verified, sandboxed) variant |
+| 14 | Score node semantics | Running total on post — score always sticks even if path fails; +1 at END for all matched posts |
+| 15 | Conditional Score node | Future node type — score only counts if path fully reaches END |
+| 16 | editor_score in sorting | Exposed as `L2NumericField`; custom code sort packs receive it; chronological ignores it |
+| 17 | Sort vs Personalization | Most editorial logic in sorting; personalization reserved for viewer-specific signals only |
 
 ---
-
 ## 14. Open questions
 
-1. **Sort pack UX** — separate marketplace kind vs general “rank preset” in logic-block-shaped package with `kind` field?
-2. **Viewer-aware rankers** — skeleton-time per-viewer sort vs global `sort_key` in Postgres?
+1. ~~**Sort pack UX**~~ → Resolved: sort packs are their own marketplace kind with robust formula builder
+2. ~~**Viewer-aware rankers**~~ → Resolved: renamed to Personalization; viewer-specific logic lives there
 3. **Pricing** — free-only at launch, or manifest field for paid plugins later?
 4. **Deployment-private sharing** — link-unlisted packages between friends on same VPS?
-5. **Custom code in graph** — dedicated “Custom ranker” node with `configSchema` vs freeform code nodes?
+5. ~~**Custom code in graph**~~ → Resolved: custom code logic nodes (verified, black-box filter dropped into visual graph)
 6. **Graze import** — logic blocks exportable to/from Graze manifest subset?
+7. **Score node scale** — what weight multiplier makes `editor_score` meaningful alongside engagement (10⁵ range)? Current recommendation: `editor_score * 1_000_000 + engagement`
+8. **Conditional Score node** — implementation priority vs v1 launch?
 
+---
 ---
 
 ## Changelog

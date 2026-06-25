@@ -11,6 +11,7 @@ export {
   collectLogicBlockRefs,
   createLogicBlockResolver,
   logicBlockCacheKey,
+  resolveLogicBlockRoot,
 } from './logic-blocks.js'
 export {
   collectLogicBlockRefNodes,

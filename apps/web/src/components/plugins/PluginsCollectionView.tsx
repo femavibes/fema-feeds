@@ -1,56 +1,58 @@
 import { useEffect, useState } from 'react'
-import type { PluginPackage } from '@cfb/core-types'
+import type { PluginKind, PluginPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
+import { marketplaceProduct } from '../../lib/marketplace-products'
+import { MarketplaceCatalogCard } from '../marketplace/MarketplaceCatalogCard'
 
 interface Props {
+  kind: PluginKind
   selectedId: string | null
   onSelect: (pkg: PluginPackage) => void
 }
 
-export function PluginsCollectionView({ selectedId, onSelect }: Props) {
+export function PluginsCollectionView({ kind, selectedId, onSelect }: Props) {
   const [packages, setPackages] = useState<PluginPackage[]>([])
   const [loading, setLoading] = useState(true)
+  const product = marketplaceProduct(kind === 'injector' ? 'injectors' : 'rankers')
 
   useEffect(() => {
     setLoading(true)
     void api
-      .listPluginCollection()
-      .then((res) => setPackages(res.packages))
+      .listPluginCollection(kind)
+      .then((res) => setPackages(res.packages.filter((p) => p.kind === kind)))
       .catch(() => setPackages([]))
       .finally(() => setLoading(false))
-  }, [])
+  }, [kind])
 
   return (
     <div className="logic-blocks-collection">
-      {loading && <p className="card-hint">Loading custom code…</p>}
+      {loading && <p className="card-hint">Loading {product.label.toLowerCase()}…</p>}
       {!loading && packages.length === 0 && (
         <p className="card-hint">
-          No custom code packages yet. Use <strong>New custom code</strong> in the sidebar (verification
-          required), or open <strong>Plugin developer guide</strong> for contracts and the example ranker.
+          No {product.label.toLowerCase()} yet. Use <strong>New custom code</strong> in the sidebar
+          (verification required), or open <strong>Plugin developer guide</strong> for contracts.
         </p>
       )}
-      <ul className="logic-blocks-catalog-list">
+      <div className="marketplace-catalog-grid">
         {packages.map((pkg) => (
-          <li key={pkg.id}>
-            <button
-              type="button"
-              className={`logic-blocks-catalog-item${selectedId === pkg.id ? ' is-selected' : ''}`}
-              onClick={() => onSelect(pkg)}
-            >
-              <div className="logic-blocks-catalog-meta">
-                <span className="logic-blocks-catalog-name">{pkg.name}</span>
-                <span className="logic-blocks-catalog-sub">
-                  {pkg.kind} · {pkg.runtime} · v{pkg.version}
-                </span>
-                {pkg.description ? (
-                  <span className="logic-blocks-catalog-desc">{pkg.description}</span>
-                ) : null}
-              </div>
-            </button>
-          </li>
+          <MarketplaceCatalogCard
+            key={pkg.id}
+            id={pkg.id}
+            name={pkg.name}
+            description={pkg.description}
+            version={pkg.version}
+            visibility={pkg.visibility}
+            trustTier={pkg.trustTier}
+            listing={pkg.listing}
+            updatedAt={pkg.updatedAt}
+            productKind={kind}
+            subtitle={pkg.runtime}
+            selected={selectedId === pkg.id}
+            onClick={() => onSelect(pkg)}
+          />
         ))}
-      </ul>
+      </div>
     </div>
   )
 }

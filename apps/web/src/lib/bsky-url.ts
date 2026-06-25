@@ -4,6 +4,11 @@ export function profileActorForBskyPath(actor: string): string {
   return encodeURIComponent(actor)
 }
 
+export function blueskyProfileUrl(actor: { did: string; handle?: string | null }): string {
+  const pathActor = actor.handle?.trim() || actor.did
+  return `https://bsky.app/profile/${profileActorForBskyPath(pathActor)}`
+}
+
 /** at://…/app.bsky.feed.generator/… → https://bsky.app/profile/…/feed/… */
 export function feedUriToBskyUrl(atUri: string): string | null {
   const m = atUri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.generator\/([^/]+)$/i)

@@ -7,9 +7,10 @@ interface Props {
   ariaLabel: string
   hint?: string
   disabled?: boolean
+  readOnly?: boolean
 }
 
-export function ToggleRow({ label, checked, onChange, ariaLabel, hint, disabled }: Props) {
+export function ToggleRow({ label, checked, onChange, ariaLabel, hint, disabled, readOnly }: Props) {
   return (
     <div className="toggle-row">
       <div className="toggle-row-label">
@@ -21,6 +22,7 @@ export function ToggleRow({ label, checked, onChange, ariaLabel, hint, disabled 
         onChange={onChange}
         ariaLabel={ariaLabel}
         disabled={disabled}
+        readOnly={readOnly}
       />
     </div>
   )

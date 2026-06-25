@@ -22,6 +22,10 @@ import {
 
   subscribeLogicBlock,
 
+  unsubscribeLogicBlock,
+
+  setPackageListingMeta,
+
   updateLogicBlockPackage,
 
   upsertLogicBlockRegistryMirror,
@@ -29,23 +33,27 @@ import {
 } from '@cfb/storage-postgres'
 
 import {
+  cfbAppProfile,
   globalMarketplaceMode,
   globalMarketplaceRemoteUrl,
   globalMarketplaceRegistryRole,
   globalMarketplaceStatusHint,
+  GLOBAL_MARKETPLACE_CANONICAL_URL,
   GLOBAL_MARKETPLACE_OPERATOR_HANDLE,
+  isCanonicalGlobalRegistryHost,
   isGlobalMarketplaceOperatorInstance,
   isRequestGlobalVerifier,
 } from './global-marketplace.js'
+import { registerGlobalRegistryIngressRoutes } from './global-registry-ingress.js'
 import {
   fetchRemoteGlobalPackage,
   registerGlobalMarketplaceRegistryRoutes,
-  resolveGlobalCatalogPackages,
   resolveGlobalPackageForSubscribe,
 } from './global-marketplace-registry.js'
+import { resolveLogicBlockCatalog } from './marketplace-catalog-resolve.js'
 
+import { rejectOwnerGlobalVisibility } from './marketplace-visibility.js'
 import { getUserDid } from './request-user.js'
-
 import { isRequestMaster } from './require-master.js'
 
 
@@ -80,14 +88,18 @@ function parseCatalogScope(raw: string | undefined): 'deployment' | 'global' | '
 
 export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
   registerGlobalMarketplaceRegistryRoutes(app, pool)
+  registerGlobalRegistryIngressRoutes(app, pool)
 
   app.get('/api/global-marketplace/status', async (c) => {
     const role = globalMarketplaceRegistryRole()
     return c.json({
       mode: globalMarketplaceMode(),
       remoteUrl: globalMarketplaceRemoteUrl(),
+      canonicalUrl: GLOBAL_MARKETPLACE_CANONICAL_URL,
+      registryHost: isCanonicalGlobalRegistryHost(),
       operatorInstance: isGlobalMarketplaceOperatorInstance(),
       registryRole: role,
+      appProfile: cfbAppProfile(),
       verifierHandle: GLOBAL_MARKETPLACE_OPERATOR_HANDLE,
       publicCatalogPath: '/api/global-marketplace/catalog',
       hint: globalMarketplaceStatusHint(role),
@@ -156,7 +168,7 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
     try {
       const packages = pool
-        ? await resolveGlobalCatalogPackages(pool, scope)
+        ? await resolveLogicBlockCatalog(pool, scope)
         : []
       return c.json({
         packages,
@@ -321,7 +333,11 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
           root?: L2RuleGroup
 
+          visualLayout?: import('@cfb/core-types').L2VisualLayout | null
+
           bumpVersion?: boolean
+
+          listing?: import('@cfb/core-types').MarketplaceListingMeta | null
 
         }>()
 
@@ -331,6 +347,8 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
     const hasRoot = body.root != null && body.root.type === 'group'
 
+    const hasLayout = body.visualLayout !== undefined
+
     const hasMeta =
 
       body.name !== undefined ||
@@ -339,49 +357,93 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
       body.description !== undefined
 
-
-
-    if (!hasRoot && !hasMeta) {
-
-      return c.json({ error: 'provide root and/or name, slug, or description' }, 400)
-
-    }
+    const hasListing = body.listing !== undefined
 
 
 
-    const slug = body.slug !== undefined ? normalizeSlug(body.slug || body.name || '') : undefined
+    if (!hasRoot && !hasLayout && !hasMeta && !hasListing) {
 
-    if (body.slug !== undefined && !slug) {
-
-      return c.json({ error: 'slug required' }, 400)
+      return c.json({ error: 'provide root, visualLayout, and/or name, slug, description, or listing' }, 400)
 
     }
 
 
 
-    const result = await updateLogicBlockPackage(pool, c.req.param('id'), userDid, {
+    const packageId = c.req.param('id')
 
-      root: hasRoot ? body.root : undefined,
+    let pkg: Awaited<ReturnType<typeof updateLogicBlockPackage>> = null
 
-      name: body.name?.trim(),
 
-      slug,
 
-      description: body.description,
+    if (hasRoot || hasLayout || hasMeta) {
 
-      bumpVersion: body.bumpVersion ?? hasRoot,
+      const slug = body.slug !== undefined ? normalizeSlug(body.slug || body.name || '') : undefined
 
-    })
+      if (body.slug !== undefined && !slug) {
 
-    if (result === 'slug_taken') {
+        return c.json({ error: 'slug required' }, 400)
 
-      return c.json({ error: 'slug already used by another logic block' }, 409)
+      }
+
+
+
+      const result = await updateLogicBlockPackage(pool, packageId, userDid, {
+
+        root: hasRoot ? body.root : undefined,
+
+        visualLayout: hasLayout ? body.visualLayout ?? null : undefined,
+
+        name: body.name?.trim(),
+
+        slug,
+
+        description: body.description,
+
+        bumpVersion: body.bumpVersion ?? (hasRoot || hasLayout),
+
+      })
+
+      if (result === 'slug_taken') {
+
+        return c.json({ error: 'slug already used by another logic block' }, 409)
+
+      }
+
+      if (!result) return c.json({ error: 'not found or not owner' }, 404)
+
+      pkg = result
 
     }
 
-    if (!result) return c.json({ error: 'not found or not owner' }, 404)
 
-    return c.json({ package: result })
+
+    if (hasListing) {
+
+      const listingOk = await setPackageListingMeta(
+
+        pool,
+
+        'logic_block_packages',
+
+        packageId,
+
+        userDid,
+
+        body.listing ?? null,
+
+      )
+
+      if (!listingOk && !pkg) return c.json({ error: 'not found or not owner' }, 404)
+
+    }
+
+
+
+    const refreshed = await getLogicBlockPackageById(pool, packageId, pkg?.version ?? undefined)
+
+    if (!refreshed) return c.json({ error: 'not found or not owner' }, 404)
+
+    return c.json({ package: refreshed })
 
   })
 
@@ -431,6 +493,24 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
 
 
+  app.delete('/api/logic-blocks/:id/subscribe', async (c) => {
+
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+
+    const userDid = getUserDid(c)
+
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+
+    const ok = await unsubscribeLogicBlock(pool, userDid, c.req.param('id'))
+
+    if (!ok) return c.json({ error: 'not subscribed' }, 404)
+
+    return c.json({ ok: true })
+
+  })
+
+
+
   app.patch('/api/logic-blocks/:id/visibility', async (c) => {
 
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
@@ -453,7 +533,8 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
     }
 
-
+    const globalReject = rejectOwnerGlobalVisibility(visibility)
+    if (globalReject) return c.json(globalReject, 400)
 
     const pkg = await setLogicBlockVisibility(pool, c.req.param('id'), userDid, visibility)
 

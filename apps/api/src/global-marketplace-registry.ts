@@ -10,7 +10,7 @@ import {
 import {
   globalMarketplaceRegistryRole,
   globalMarketplaceRemoteUrl,
-  isGlobalMarketplaceOperatorInstance,
+  isCanonicalGlobalRegistryHost,
 } from './global-marketplace.js'
 
 export interface GlobalRegistryPackageSummary {
@@ -56,7 +56,7 @@ function toDetail(pkg: LogicBlockPackage): GlobalRegistryPackageDetail {
 export function registerGlobalMarketplaceRegistryRoutes(app: Hono, pool: Pool | null): void {
   app.get('/api/global-marketplace/catalog', async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
-    if (!isGlobalMarketplaceOperatorInstance()) {
+    if (!isCanonicalGlobalRegistryHost()) {
       return c.json({ error: 'global marketplace registry not enabled on this host' }, 503)
     }
     const packages = await listLogicBlockCatalog(pool, 'global')
@@ -65,7 +65,7 @@ export function registerGlobalMarketplaceRegistryRoutes(app: Hono, pool: Pool | 
 
   app.get('/api/global-marketplace/catalog/:id/versions', async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
-    if (!isGlobalMarketplaceOperatorInstance()) {
+    if (!isCanonicalGlobalRegistryHost()) {
       return c.json({ error: 'global marketplace registry not enabled on this host' }, 503)
     }
     const versions = await listLogicBlockPackageVersions(pool, c.req.param('id'))
@@ -76,7 +76,7 @@ export function registerGlobalMarketplaceRegistryRoutes(app: Hono, pool: Pool | 
 
   app.get('/api/global-marketplace/catalog/:id', async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
-    if (!isGlobalMarketplaceOperatorInstance()) {
+    if (!isCanonicalGlobalRegistryHost()) {
       return c.json({ error: 'global marketplace registry not enabled on this host' }, 503)
     }
     const versionPin = c.req.query('version')?.trim()
@@ -143,17 +143,6 @@ export async function fetchRemoteGlobalPackage(
   }
 }
 
-export async function resolveGlobalCatalogPackages(
-  pool: Pool,
-  scope: 'deployment' | 'global' | 'all',
-): Promise<LogicBlockPackage[]> {
-  if (scope === 'global' && globalMarketplaceRegistryRole() === 'consumer') {
-    const url = globalMarketplaceRemoteUrl()
-    if (!url) return listLogicBlockCatalog(pool, 'global')
-    return fetchRemoteGlobalCatalog(url)
-  }
-  return listLogicBlockCatalog(pool, scope)
-}
 
 export async function resolveGlobalPackageForSubscribe(
   pool: Pool,

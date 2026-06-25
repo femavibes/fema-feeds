@@ -5,9 +5,10 @@ interface Props {
   pattern: string
   caseInsensitive: boolean
   onChange: (pattern: string) => void
+  readOnly?: boolean
 }
 
-export function RegexPatternEditor({ pattern, caseInsensitive, onChange }: Props) {
+export function RegexPatternEditor({ pattern, caseInsensitive, onChange, readOnly = false }: Props) {
   const [sample, setSample] = useState('love urbanism and transit')
 
   const compiled = useMemo(
@@ -43,6 +44,7 @@ export function RegexPatternEditor({ pattern, caseInsensitive, onChange }: Props
           spellCheck={false}
           rows={3}
           wrap="soft"
+          readOnly={readOnly}
         />
       </label>
       <p className="l2-condition-hint regex-engine-note">
@@ -57,6 +59,7 @@ export function RegexPatternEditor({ pattern, caseInsensitive, onChange }: Props
         matched against joined search fields (newline-separated)
       </p>
 
+      {!readOnly ? (
       <div className="regex-tester">
         <label className="regex-pattern-field">
           <span className="regex-pattern-label">Regex Tester</span>
@@ -74,6 +77,7 @@ export function RegexPatternEditor({ pattern, caseInsensitive, onChange }: Props
           {tester.message}
         </p>
       </div>
+      ) : null}
     </div>
   )
 }

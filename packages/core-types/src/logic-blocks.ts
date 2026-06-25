@@ -1,4 +1,4 @@
-import type { L2RuleGroup } from './l2.js'
+import type { L2RuleGroup, L2VisualLayout } from './l2.js'
 
 /** Private collection → deployment catalog → global marketplace registry. */
 export type LogicBlockVisibility = 'collection' | 'deployment' | 'global'
@@ -34,8 +34,11 @@ export interface LogicBlockPackage {
   visibility: LogicBlockVisibility
   trustTier: LogicBlockTrustTier
   root: L2RuleGroup
+  /** Canvas wiring for the visual editor (START/END paths, node positions). */
+  visualLayout?: L2VisualLayout
   createdAt: string
   updatedAt: string
+  listing?: import('./marketplace-listing.js').MarketplaceListingMeta
 }
 
 export interface LogicBlockSubscription {

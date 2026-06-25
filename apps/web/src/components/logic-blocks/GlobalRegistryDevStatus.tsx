@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 
-const ROLE_LABELS: Record<'operator' | 'consumer' | 'embedded', string> = {
-  operator: 'Registry host (local dev)',
-  consumer: 'Registry consumer',
-  embedded: 'Embedded dev stub',
+const ROLE_LABELS: Record<'registry' | 'consumer' | 'embedded', string> = {
+  registry: 'Global registry host',
+  consumer: 'Feed builder (global catalog remote)',
+  embedded: 'Offline dev stub',
 }
 
 export function GlobalRegistryDevStatus() {
@@ -39,7 +39,7 @@ export function GlobalRegistryDevStatus() {
           <dt>Verifier</dt>
           <dd>@{status.verifierHandle}</dd>
         </div>
-        {status.registryRole === 'operator' ? (
+        {status.registryRole === 'registry' ? (
           <div>
             <dt>Public catalog</dt>
             <dd>

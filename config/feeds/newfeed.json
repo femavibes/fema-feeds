@@ -23,6 +23,14 @@
         "runAtIngest": true
       },
       {
+        "id": "logic-mqtrox63",
+        "type": "logic_block_ref",
+        "label": "Keyword Awesome",
+        "packageId": "99cc4f99-f350-4f27-a7e2-ad0a1caa2142",
+        "versionPin": "1.0.2",
+        "updatePolicy": "pinned"
+      },
+      {
         "id": "group-mqr5i44v",
         "type": "group",
         "logic": "any",
@@ -54,24 +62,46 @@
   },
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
   "visualLayout": {
+    "positions": {
+      "end": {
+        "x": 625.3333333333334,
+        "y": 94.66666666666667
+      },
+      "start": {
+        "x": -128,
+        "y": 28.666666666666664
+      },
+      "kw-mqqx683z": {
+        "x": 30.53848741577559,
+        "y": -376.2569600140408
+      },
+      "kw-mqr5iidp": {
+        "x": 428.3552769070011,
+        "y": -36.517769287704645
+      },
+      "lang-mqr5fm50": {
+        "x": 382.3333333333333,
+        "y": -30.69811259143148
+      },
+      "group-mqr5hxz1": {
+        "x": 19.001044932079537,
+        "y": 210.00000000000003
+      },
+      "group-mqr5i44v": {
+        "x": 316.13653779171017,
+        "y": -246.84360849878092
+      },
+      "logic-mqtrox63": {
+        "x": 53.33698130414942,
+        "y": 57.19288645690836
+      }
+    },
     "edges": [
       {
         "id": "e-start-kw-mqqx683z",
         "branch": true,
         "source": "start",
         "target": "kw-mqqx683z"
-      },
-      {
-        "id": "e-kw-mqqx683z-kw-mqr4v1d0",
-        "branch": true,
-        "source": "kw-mqqx683z",
-        "target": "kw-mqr4v1d0"
-      },
-      {
-        "id": "e-kw-mqr4v1d0-end",
-        "branch": true,
-        "source": "kw-mqr4v1d0",
-        "target": "end"
       },
       {
         "id": "e-kw-mqqx683z-group-mqr5i44v",
@@ -87,36 +117,6 @@
       }
     ],
     "labels": {},
-    "positions": {
-      "end": {
-        "x": 625.3333333333334,
-        "y": 94.66666666666667
-      },
-      "start": {
-        "x": -128,
-        "y": 28.666666666666664
-      },
-      "kw-mqqx683z": {
-        "x": 43.39518305750825,
-        "y": -195.72974818157869
-      },
-      "kw-mqr5iidp": {
-        "x": 428.3552769070011,
-        "y": -36.517769287704645
-      },
-      "lang-mqr5fm50": {
-        "x": 382.3333333333333,
-        "y": -30.69811259143148
-      },
-      "group-mqr5hxz1": {
-        "x": 19.001044932079537,
-        "y": 210.00000000000003
-      },
-      "group-mqr5i44v": {
-        "x": 326.53570184604666,
-        "y": -181.84883315917799
-      }
-    },
     "nodeSources": {
       "kw-mqqx683z": "native",
       "kw-mqqx6d0g": "native",
@@ -134,9 +134,38 @@
       "group-mqr5f8cf": "native",
       "group-mqr5hxz1": "native",
       "group-mqr5i44v": "native",
+      "logic-mqtqlurv": "collection",
+      "logic-mqtqn0cu": "collection",
+      "logic-mqtrox63": "collection",
+      "logic-mqtti6hl": "collection",
+      "logic-mqtti73s": "collection",
+      "logic-mqtti7vs": "collection",
+      "logic-mqtti813": "collection",
+      "logic-mqtti86f": "collection",
+      "logic-mqtti8l6": "collection",
+      "logic-mqtti8sq": "collection",
+      "logic-mqtti9f3": "collection",
+      "logic-mqttia1o": "collection",
+      "logic-mqttiaqw": "collection",
+      "logic-mqttibet": "collection",
+      "logic-mqttibtp": "collection",
+      "logic-mqtticsj": "collection",
+      "logic-mqttid67": "collection",
+      "logic-mqttiei4": "collection",
+      "logic-mqttiet6": "collection",
+      "logic-mqttmurq": "subscription",
+      "logic-mqttmvhc": "subscription",
+      "logic-mqttmwdm": "subscription",
+      "logic-mqttmx75": "subscription",
+      "logic-mqttmxwd": "subscription",
+      "logic-mqttmyk5": "subscription",
+      "logic-mqttmzaq": "subscription",
+      "logic-mqttmzyu": "subscription",
+      "logic-mqttn1b7": "subscription",
+      "logic-mqttn2it": "subscription",
       "regex-mqr42flq": "native",
       "author-mqr58ve0": "native"
     }
   },
-  "liveAt": "2026-06-23T22:45:26.326Z"
+  "liveAt": "2026-06-25T18:26:28.936Z"
 }

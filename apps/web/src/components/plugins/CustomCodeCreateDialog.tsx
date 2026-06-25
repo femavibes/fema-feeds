@@ -5,6 +5,7 @@ import { LogicBlockMetadataFields } from '../logic-blocks/LogicBlockMetadataFiel
 
 interface Props {
   publisherVerification: PublisherVerificationStatus | null
+  defaultKind?: PluginKind
   onCancel: () => void
   onOpenDeveloperGuide?: () => void
   onCreate: (input: {
@@ -34,13 +35,14 @@ const KIND_OPTIONS: { id: PluginKind; label: string; hint: string }[] = [
 
 export function CustomCodeCreateDialog({
   publisherVerification,
+  defaultKind = 'ranker',
   onCancel,
   onOpenDeveloperGuide,
   onCreate,
   busy = false,
   error,
 }: Props) {
-  const [kind, setKind] = useState<PluginKind>('ranker')
+  const [kind, setKind] = useState<PluginKind>(defaultKind)
   const [runtime, setRuntime] = useState<'native' | 'remote' | 'wasm' | 'worker'>('wasm')
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')

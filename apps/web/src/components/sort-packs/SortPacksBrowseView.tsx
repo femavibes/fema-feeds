@@ -1,89 +1,79 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { SortPackPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
-import { LogicBlockTrustBadge } from '../logic-blocks/logic-block-labels'
+import type { MarketplaceCatalogScope, MarketplaceCatalogSort } from '../../lib/marketplace-catalog'
+import { sortMarketplacePackages } from '../../lib/marketplace-catalog'
+import { MarketplaceCatalogCard } from '../marketplace/MarketplaceCatalogCard'
 
-export type BrowseCatalogScope = 'deployment' | 'global'
+const EMPTY_HINT: Record<MarketplaceCatalogScope, string> = {
+  all: 'No sort packs yet. Save a sort preset from a feed or My collection, or subscribe from the global marketplace.',
+  deployment: 'No deployment sort packs yet. Save a sort preset from a feed or My collection.',
+  global: 'No global sort packs yet.',
+}
 
 interface Props {
+  catalogScope: MarketplaceCatalogScope
+  catalogSort: MarketplaceCatalogSort
   selectedId: string | null
   subscribedIds: Set<string>
   onSelect: (pkg: SortPackPackage) => void
 }
 
-export function SortPacksBrowseView({ selectedId, subscribedIds, onSelect }: Props) {
-  const [scope, setScope] = useState<BrowseCatalogScope>('deployment')
+export function SortPacksBrowseView({
+  catalogScope,
+  catalogSort,
+  selectedId,
+  subscribedIds,
+  onSelect,
+}: Props) {
   const [packages, setPackages] = useState<SortPackPackage[]>([])
   const [loading, setLoading] = useState(true)
+
+  const sortedPackages = useMemo(
+    () => sortMarketplacePackages(packages, catalogSort),
+    [packages, catalogSort],
+  )
 
   useEffect(() => {
     setLoading(true)
     void api
-      .listSortPackCatalog(scope)
+      .listSortPackCatalog(catalogScope)
       .then((res) => setPackages(res.packages))
       .catch(() => setPackages([]))
       .finally(() => setLoading(false))
-  }, [scope])
+  }, [catalogScope])
 
   return (
     <div className="logic-blocks-browse">
-      <div className="logic-blocks-browse-scope" role="tablist" aria-label="Catalog scope">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={scope === 'deployment'}
-          className={`logic-blocks-scope-btn${scope === 'deployment' ? ' active' : ''}`}
-          onClick={() => setScope('deployment')}
-        >
-          This deployment
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={scope === 'global'}
-          className={`logic-blocks-scope-btn${scope === 'global' ? ' active' : ''}`}
-          onClick={() => setScope('global')}
-        >
-          Global marketplace
-        </button>
-      </div>
-
       <p className="card-hint">
         Native sort formulas (L2Expr) you can apply on any feed&apos;s Sorting tab after subscribing.
       </p>
 
       {loading && <p className="card-hint">Loading catalog…</p>}
-      {!loading && packages.length === 0 && (
-        <p className="card-hint">
-          {scope === 'deployment'
-            ? 'No deployment sort packs yet. Save a sort preset from a feed or My collection.'
-            : 'No global sort packs yet.'}
-        </p>
+      {!loading && sortedPackages.length === 0 && (
+        <p className="card-hint">{EMPTY_HINT[catalogScope]}</p>
       )}
-      <ul className="logic-blocks-catalog-list">
-        {packages.map((pkg) => (
-          <li key={pkg.id}>
-            <button
-              type="button"
-              className={`logic-blocks-catalog-item${selectedId === pkg.id ? ' is-selected' : ''}`}
-              onClick={() => onSelect(pkg)}
-            >
-              <div className="logic-blocks-catalog-meta">
-                <span className="logic-blocks-catalog-name">{pkg.name}</span>
-                <span className="logic-blocks-catalog-sub">
-                  v{pkg.version}
-                  {subscribedIds.has(pkg.id) ? ' · Subscribed' : ''}
-                </span>
-                {pkg.description ? (
-                  <span className="logic-blocks-catalog-desc">{pkg.description}</span>
-                ) : null}
-              </div>
-              <LogicBlockTrustBadge tier={pkg.trustTier} visibility={pkg.visibility} />
-            </button>
-          </li>
+      <div className="marketplace-catalog-grid">
+        {sortedPackages.map((pkg) => (
+          <MarketplaceCatalogCard
+            key={pkg.id}
+            id={pkg.id}
+            name={pkg.name}
+            description={pkg.description}
+            version={pkg.version}
+            visibility={pkg.visibility}
+            trustTier={pkg.trustTier}
+            listing={pkg.listing}
+            updatedAt={pkg.updatedAt}
+            productKind="sort_pack"
+            ownerDid={pkg.ownerDid}
+            subscribed={subscribedIds.has(pkg.id)}
+            selected={selectedId === pkg.id}
+            onClick={() => onSelect(pkg)}
+          />
         ))}
-      </ul>
+      </div>
     </div>
   )
 }

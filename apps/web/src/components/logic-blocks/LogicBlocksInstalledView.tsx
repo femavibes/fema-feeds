@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { LogicBlockPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
+import { PackageVersionHistory } from '../marketplace/PackageVersionHistory'
 import { compareSemver, LogicBlockTrustBadge, trustLabel, visibilityLabel } from './logic-block-labels'
 
 interface Props {
@@ -50,7 +51,7 @@ export function LogicBlocksInstalledView({ selectedId, onSelect, onChanged }: Pr
     load()
   }, [])
 
-  const upgradeSubscription = async (
+  const pinVersion = async (
     pkg: LogicBlockPackage,
     versionPin: string,
     updatePolicy: import('@cfb/core-types').LogicBlockUpdatePolicy,
@@ -83,8 +84,8 @@ export function LogicBlocksInstalledView({ selectedId, onSelect, onChanged }: Pr
   return (
     <div className="logic-blocks-installed">
       <p className="card-hint">
-        Subscribed blocks are available in the visual editor. To publish your own work, use My
-        collection in the sidebar.
+        Subscribed blocks are available in the visual editor. Pin any published version or update
+        manually when the publisher ships a new release.
       </p>
       {loading && <p className="card-hint">Loading subscriptions…</p>}
       {!loading && subscriptions.length === 0 && (
@@ -94,8 +95,7 @@ export function LogicBlocksInstalledView({ selectedId, onSelect, onChanged }: Pr
       )}
       <ul className="logic-blocks-installed-list">
         {subscriptions.map(({ package: pkg, versionPin, updatePolicy }) => {
-          const latest = catalogLatest.get(pkg.id)
-          const updateAvailable = latest != null && compareSemver(latest, versionPin) > 0
+          const latest = catalogLatest.get(pkg.id) ?? pkg.version
           return (
             <li key={`${pkg.id}@${versionPin}`} className="logic-blocks-installed-item">
               <button
@@ -108,6 +108,7 @@ export function LogicBlocksInstalledView({ selectedId, onSelect, onChanged }: Pr
                   <span className="logic-blocks-installed-sub">
                     v{versionPin} · {visibilityLabel(pkg.visibility)}
                     {trustLabel(pkg) ? ` · ${trustLabel(pkg)}` : ''}
+                    {latest && compareSemver(latest, versionPin) > 0 ? ` · v${latest} available` : ''}
                   </span>
                   {pkg.description ? <span className="card-hint">{pkg.description}</span> : null}
                   <LogicBlockTrustBadge tier={pkg.trustTier} visibility={pkg.visibility} />
@@ -127,21 +128,21 @@ export function LogicBlocksInstalledView({ selectedId, onSelect, onChanged }: Pr
                       )
                     }
                   >
-                    <option value="pinned">Pinned</option>
-                    <option value="notify">Notify</option>
-                    <option value="auto_minor">Auto minor</option>
+                    <option value="pinned">Pinned (manual updates)</option>
+                    <option value="notify">Notify on new version</option>
+                    <option value="auto_minor">Auto minor patches</option>
                   </select>
                 </label>
-                {updateAvailable && latest ? (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    disabled={busyId === pkg.id}
-                    onClick={() => void upgradeSubscription(pkg, latest, updatePolicy)}
-                  >
-                    Update to v{latest}
-                  </button>
-                ) : null}
+                <PackageVersionHistory
+                  productKind="logic_block"
+                  packageId={pkg.id}
+                  latestVersion={latest}
+                  pinnedVersion={versionPin}
+                  updatePolicy={updatePolicy}
+                  mode="subscriber"
+                  busy={busyId === pkg.id}
+                  onPinVersion={(v, policy) => void pinVersion(pkg, v, policy ?? updatePolicy)}
+                />
               </div>
             </li>
           )

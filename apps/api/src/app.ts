@@ -70,6 +70,7 @@ import { registerSortPackRoutes } from './sort-packs.js'
 import { registerPluginRoutes } from './plugins.js'
 import { ensureDemoInjectorPackage, ensureDemoRankerPackage } from './plugin-bootstrap.js'
 import { registerMarketplaceVerificationRoutes } from './marketplace-verification.js'
+import { registerMarketplaceModerationRoutes } from './marketplace-moderation.js'
 import { feedgenEnvFromProcess } from './feedgen-env.js'
 import { requireMaster, requireMasterIfMultiUser } from './require-master.js'
 import {
@@ -193,6 +194,7 @@ export function createApp(options?: {
     void ensureDemoRankerPackage(pool)
   }
   registerMarketplaceVerificationRoutes(app, pool)
+  registerMarketplaceModerationRoutes(app, pool)
 
   if (pool) {
     void bootstrapDeploymentFromEnv(pool)

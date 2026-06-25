@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 
 import type { LogicBlockPackage, PluginPackage, SortPackPackage } from '@cfb/core-types'
 
-import type { MarketplaceWorkspaceView } from '../lib/workspace-views'
+import type { MarketplaceWorkspaceView, MarketplaceProductScope } from '../lib/workspace-views'
+import { marketplaceProduct } from '../lib/marketplace-products'
+import type { MarketplaceCatalogScope, MarketplaceCatalogSort } from '../lib/marketplace-catalog'
 
 
 
@@ -10,30 +12,24 @@ import { api } from '../api/client'
 
 import { WorkspaceNav } from './WorkspaceNav'
 
-import { LogicBlockDetailPanel } from './logic-blocks/LogicBlockDetailPanel'
-
 import { LogicBlocksBrowseView } from './logic-blocks/LogicBlocksBrowseView'
 
 import { LogicBlocksInstalledView } from './logic-blocks/LogicBlocksInstalledView'
 
 import { PublisherVerifyPanel } from './logic-blocks/PublisherVerifyPanel'
 import { MarketplaceModerationPanel } from './marketplace/MarketplaceModerationPanel'
-
-import { SortPackDetailPanel } from './sort-packs/SortPackDetailPanel'
+import { MarketplaceCatalogControls } from './marketplace/MarketplaceCatalogControls'
 
 import { SortPacksBrowseView } from './sort-packs/SortPacksBrowseView'
 
 import { SortPacksInstalledView } from './sort-packs/SortPacksInstalledView'
 
-import { InjectorDetailPanel } from './plugins/InjectorDetailPanel'
-
 import { InjectorsBrowseView } from './plugins/InjectorsBrowseView'
 
 import { InjectorsInstalledView } from './plugins/InjectorsInstalledView'
 
-
-
-export type MarketplaceProductKind = 'logic_blocks' | 'sort_packs' | 'injectors' | 'rankers'
+import { MarketplaceProductSidebar } from './marketplace/MarketplaceProductSidebar'
+import { MarketplaceFeaturedBrowseView } from './marketplace/MarketplaceFeaturedBrowseView'
 
 
 
@@ -93,7 +89,7 @@ export function MarketplaceWorkspace() {
 
   const [view, setView] = useState<MarketplaceWorkspaceView>('browse')
 
-  const [productKind, setProductKind] = useState<MarketplaceProductKind>('logic_blocks')
+  const [productScope, setProductScope] = useState<MarketplaceProductScope>('all')
 
   const [selection, setSelection] = useState<Selection>(null)
 
@@ -109,20 +105,43 @@ export function MarketplaceWorkspace() {
 
   const [isGlobalVerifier, setIsGlobalVerifier] = useState(false)
 
-  const [registryRole, setRegistryRole] = useState<'operator' | 'consumer' | 'embedded' | null>(
+  const [registryRole, setRegistryRole] = useState<'registry' | 'consumer' | 'embedded' | null>(
     null,
   )
 
   const [refreshKey, setRefreshKey] = useState(0)
 
+  const [catalogScope, setCatalogScope] = useState<MarketplaceCatalogScope>('all')
+  const [catalogSort, setCatalogSort] = useState<MarketplaceCatalogSort>('updated_desc')
+
 
 
   const canVerify = isMaster || isGlobalVerifier
-  const canModerateGlobal =
-    isGlobalVerifier && (registryRole === 'operator' || registryRole === 'embedded')
+  const canModerateGlobal = isGlobalVerifier && registryRole === 'registry'
   const canModerate = isMaster || canModerateGlobal
 
   const copy = VIEW_COPY[view]
+  const scopeLabel =
+    productScope === 'all'
+      ? view === 'browse'
+        ? 'Featured'
+        : 'All'
+      : marketplaceProduct(productScope).label
+  const pageTitle =
+    view === 'browse' || view === 'installed' ? `${copy.title} · ${scopeLabel}` : copy.title
+  const pageHint =
+    view === 'browse'
+      ? productScope === 'all'
+        ? 'Browse logic blocks, sort packs, injectors, and rankers from this deployment and the global marketplace.'
+        : marketplaceProduct(productScope).browseHint
+      : view === 'installed'
+        ? productScope === 'all'
+          ? 'Everything you subscribe to across product types. Pins apply per feed — logic blocks in the visual editor; sort packs, rankers, and injectors on the Sorting tab.'
+          : `Pinned versions appear on feeds — ${marketplaceProduct(productScope).summary}`
+        : copy.hint
+  const showProductMeta =
+    (view === 'browse' || view === 'installed') && productScope !== 'all'
+  const product = productScope === 'all' ? null : marketplaceProduct(productScope)
 
 
 
@@ -248,7 +267,7 @@ export function MarketplaceWorkspace() {
 
   return (
 
-    <div className="project-workspace">
+    <div className="project-workspace project-workspace--catalog">
 
       <WorkspaceNav
 
@@ -267,13 +286,14 @@ export function MarketplaceWorkspace() {
         onModerateListingsClick={() => setView('moderate')}
 
         onMarketplaceViewChange={(next) => {
-
           setView(next)
-
           setSelection(null)
-
         }}
-
+        marketplaceProductKind={productScope}
+        onMarketplaceProductKindChange={(kind) => {
+          setProductScope(kind)
+          setSelection(null)
+        }}
       />
 
 
@@ -284,132 +304,61 @@ export function MarketplaceWorkspace() {
 
           <header className="workspace-context-head">
 
-            <div className="workspace-context-head-row">
+            <div className="workspace-context-head-row workspace-context-head-row-split">
 
-              <h2>{copy.title}</h2>
+              <h2>{pageTitle}</h2>
+
+              {view === 'browse' ? (
+                <MarketplaceCatalogControls
+                  scope={catalogScope}
+                  sort={catalogSort}
+                  onScopeChange={setCatalogScope}
+                  onSortChange={setCatalogSort}
+                />
+              ) : null}
 
             </div>
 
-            <p className="card-hint">{copy.hint}</p>
+            <p className="card-hint">{pageHint}</p>
+            {showProductMeta && product ? (
+              <>
+                <p className="card-hint marketplace-product-meta">
+                  <strong>Runs:</strong> {product.runsAt}
+                </p>
+                <p className="card-hint marketplace-product-meta">
+                  <strong>Access:</strong> {product.access}
+                </p>
+              </>
+            ) : null}
 
           </header>
 
 
 
-          {(view === 'browse' || view === 'installed') && (
-
-            <div className="logic-blocks-browse-scope marketplace-product-kind" role="tablist" aria-label="Product kind">
-
-              <button
-
-                type="button"
-
-                role="tab"
-
-                aria-selected={productKind === 'logic_blocks'}
-
-                className={`logic-blocks-scope-btn${productKind === 'logic_blocks' ? ' active' : ''}`}
-
-                onClick={() => {
-
-                  setProductKind('logic_blocks')
-
-                  setSelection(null)
-
-                }}
-
-              >
-
-                Logic blocks
-
-              </button>
-
-              <button
-
-                type="button"
-
-                role="tab"
-
-                aria-selected={productKind === 'sort_packs'}
-
-                className={`logic-blocks-scope-btn${productKind === 'sort_packs' ? ' active' : ''}`}
-
-                onClick={() => {
-
-                  setProductKind('sort_packs')
-
-                  setSelection(null)
-
-                }}
-
-              >
-
-                Sort packs
-
-              </button>
-
-              <button
-
-                type="button"
-
-                role="tab"
-
-                aria-selected={productKind === 'injectors'}
-
-                className={`logic-blocks-scope-btn${productKind === 'injectors' ? ' active' : ''}`}
-
-                onClick={() => {
-
-                  setProductKind('injectors')
-
-                  setSelection(null)
-
-                }}
-
-              >
-
-                Injectors
-
-              </button>
-
-              <button
-
-                type="button"
-
-                role="tab"
-
-                aria-selected={productKind === 'rankers'}
-
-                className={`logic-blocks-scope-btn${productKind === 'rankers' ? ' active' : ''}`}
-
-                onClick={() => {
-
-                  setProductKind('rankers')
-
-                  setSelection(null)
-
-                }}
-
-              >
-
-                Rankers
-
-              </button>
-
-            </div>
-
-          )}
-
-
-
           <div className="marketplace-content">
 
-            {view === 'browse' && productKind === 'logic_blocks' && (
+            {view === 'browse' && productScope === 'all' && (
+              <MarketplaceFeaturedBrowseView
+                key={refreshKey}
+                catalogScope={catalogScope}
+                catalogSort={catalogSort}
+                selection={selection}
+                logicSubscribedIds={logicSubscribedIds}
+                sortSubscribedIds={sortSubscribedIds}
+                injectorSubscribedIds={injectorSubscribedIds}
+                rankerSubscribedIds={rankerSubscribedIds}
+                onSelect={setSelection}
+              />
+            )}
+
+            {view === 'browse' && productScope === 'logic_blocks' && (
 
               <LogicBlocksBrowseView
 
                 key={refreshKey}
 
+                catalogScope={catalogScope}
+                catalogSort={catalogSort}
                 selectedId={selection?.kind === 'logic_block' ? selection.pkg.id : null}
 
                 subscribedIds={logicSubscribedIds}
@@ -420,12 +369,14 @@ export function MarketplaceWorkspace() {
 
             )}
 
-            {view === 'browse' && productKind === 'sort_packs' && (
+            {view === 'browse' && productScope === 'sort_packs' && (
 
               <SortPacksBrowseView
 
                 key={refreshKey}
 
+                catalogScope={catalogScope}
+                catalogSort={catalogSort}
                 selectedId={selection?.kind === 'sort_pack' ? selection.pkg.id : null}
 
                 subscribedIds={sortSubscribedIds}
@@ -436,7 +387,7 @@ export function MarketplaceWorkspace() {
 
             )}
 
-            {view === 'browse' && productKind === 'injectors' && (
+            {view === 'browse' && productScope === 'injectors' && (
 
               <InjectorsBrowseView
 
@@ -444,6 +395,8 @@ export function MarketplaceWorkspace() {
 
                 kind="injector"
 
+                catalogScope={catalogScope}
+                catalogSort={catalogSort}
                 selectedId={selection?.kind === 'injector' ? selection.pkg.id : null}
 
                 subscribedIds={injectorSubscribedIds}
@@ -454,7 +407,7 @@ export function MarketplaceWorkspace() {
 
             )}
 
-            {view === 'browse' && productKind === 'rankers' && (
+            {view === 'browse' && productScope === 'rankers' && (
 
               <InjectorsBrowseView
 
@@ -462,6 +415,8 @@ export function MarketplaceWorkspace() {
 
                 kind="ranker"
 
+                catalogScope={catalogScope}
+                catalogSort={catalogSort}
                 selectedId={selection?.kind === 'ranker' ? selection.pkg.id : null}
 
                 subscribedIds={rankerSubscribedIds}
@@ -472,7 +427,50 @@ export function MarketplaceWorkspace() {
 
             )}
 
-            {view === 'installed' && productKind === 'logic_blocks' && (
+            {view === 'installed' && productScope === 'all' && (
+              <div className="marketplace-featured-sections">
+                <section className="marketplace-featured-section" aria-label="Logic blocks">
+                  <h3 className="marketplace-featured-section-title">Logic blocks</h3>
+                  <LogicBlocksInstalledView
+                    key={`${refreshKey}-logic`}
+                    selectedId={selection?.kind === 'logic_block' ? selection.pkg.id : null}
+                    onSelect={(pkg) => setSelection({ kind: 'logic_block', pkg })}
+                    onChanged={bumpRefresh}
+                  />
+                </section>
+                <section className="marketplace-featured-section" aria-label="Sort packs">
+                  <h3 className="marketplace-featured-section-title">Sort packs</h3>
+                  <SortPacksInstalledView
+                    key={`${refreshKey}-sort`}
+                    selectedId={selection?.kind === 'sort_pack' ? selection.pkg.id : null}
+                    onSelect={(pkg) => setSelection({ kind: 'sort_pack', pkg })}
+                    onChanged={bumpRefresh}
+                  />
+                </section>
+                <section className="marketplace-featured-section" aria-label="Injectors">
+                  <h3 className="marketplace-featured-section-title">Injectors</h3>
+                  <InjectorsInstalledView
+                    key={`${refreshKey}-injector`}
+                    kind="injector"
+                    selectedId={selection?.kind === 'injector' ? selection.pkg.id : null}
+                    onSelect={(pkg) => setSelection({ kind: 'injector', pkg })}
+                    onChanged={bumpRefresh}
+                  />
+                </section>
+                <section className="marketplace-featured-section" aria-label="Rankers">
+                  <h3 className="marketplace-featured-section-title">Rankers</h3>
+                  <InjectorsInstalledView
+                    key={`${refreshKey}-ranker`}
+                    kind="ranker"
+                    selectedId={selection?.kind === 'ranker' ? selection.pkg.id : null}
+                    onSelect={(pkg) => setSelection({ kind: 'ranker', pkg })}
+                    onChanged={bumpRefresh}
+                  />
+                </section>
+              </div>
+            )}
+
+            {view === 'installed' && productScope === 'logic_blocks' && (
 
               <LogicBlocksInstalledView
 
@@ -488,7 +486,7 @@ export function MarketplaceWorkspace() {
 
             )}
 
-            {view === 'installed' && productKind === 'sort_packs' && (
+            {view === 'installed' && productScope === 'sort_packs' && (
 
               <SortPacksInstalledView
 
@@ -504,7 +502,7 @@ export function MarketplaceWorkspace() {
 
             )}
 
-            {view === 'installed' && productKind === 'injectors' && (
+            {view === 'installed' && productScope === 'injectors' && (
 
               <InjectorsInstalledView
 
@@ -522,7 +520,7 @@ export function MarketplaceWorkspace() {
 
             )}
 
-            {view === 'installed' && productKind === 'rankers' && (
+            {view === 'installed' && productScope === 'rankers' && (
 
               <InjectorsInstalledView
 
@@ -580,115 +578,31 @@ export function MarketplaceWorkspace() {
 
       <aside className="sidebar sidebar-right marketplace-sidebar">
 
-        <div className="sidebar-head">
-
-          <div className="sidebar-head-text">
-
-            <h2>Details</h2>
-
-            <span className="sidebar-head-sub">Listing</span>
-
-          </div>
-
-        </div>
-
-        <div className="marketplace-sidebar-body sidebar-scroll">
-
-          {selection?.kind === 'logic_block' ? (
-
-            <LogicBlockDetailPanel
-
-              variant="marketplace"
-
-              pkg={selection.pkg}
-
-              subscribedVersionPin={logicPins.get(selection.pkg.id) ?? null}
-
-              onSubscribed={() => {
-
-                refreshSubscriptions()
-
-                bumpRefresh()
-
-              }}
-
-            />
-
-          ) : selection?.kind === 'sort_pack' ? (
-
-            <SortPackDetailPanel
-
-              variant="marketplace"
-
-              pkg={selection.pkg}
-
-              subscribedVersionPin={sortPins.get(selection.pkg.id) ?? null}
-
-              onSubscribed={() => {
-
-                refreshSubscriptions()
-
-                bumpRefresh()
-
-              }}
-
-            />
-
-          ) : selection?.kind === 'injector' ? (
-
-            <InjectorDetailPanel
-
-              kind="injector"
-
-              variant="marketplace"
-
-              pkg={selection.pkg}
-
-              subscribedVersionPin={injectorPins.get(selection.pkg.id) ?? null}
-
-              onSubscribed={() => {
-
-                refreshSubscriptions()
-
-                bumpRefresh()
-
-              }}
-
-            />
-
-          ) : selection?.kind === 'ranker' ? (
-
-            <InjectorDetailPanel
-
-              kind="ranker"
-
-              variant="marketplace"
-
-              pkg={selection.pkg}
-
-              subscribedVersionPin={rankerPins.get(selection.pkg.id) ?? null}
-
-              onSubscribed={() => {
-
-                refreshSubscriptions()
-
-                bumpRefresh()
-
-              }}
-
-            />
-
-          ) : (
-
-            <div className="marketplace-sidebar-empty">
-
-              <p>Select a listing to preview trust status and subscribe.</p>
-
-            </div>
-
-          )}
-
-        </div>
+        {(view === 'browse' || view === 'installed') && (
+          <MarketplaceProductSidebar
+            selection={selection}
+            subscribedPin={
+              selection?.kind === 'logic_block'
+                ? logicPins.get(selection.pkg.id) ?? null
+                : selection?.kind === 'sort_pack'
+                  ? sortPins.get(selection.pkg.id) ?? null
+                  : selection?.kind === 'injector'
+                    ? injectorPins.get(selection.pkg.id) ?? null
+                    : selection?.kind === 'ranker'
+                      ? rankerPins.get(selection.pkg.id) ?? null
+                      : null
+            }
+            onSubscriptionChanged={() => {
+              refreshSubscriptions()
+              bumpRefresh()
+            }}
+            emptyHint={
+              view === 'installed'
+                ? 'Select a subscription to manage version pins.'
+                : 'Select a listing to preview trust status and subscribe.'
+            }
+          />
+        )}
 
       </aside>
 

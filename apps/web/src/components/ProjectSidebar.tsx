@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties, type MouseEvent } from 'react'
 import type { FeedConfig, ProjectL1Config } from '@cfb/core-types'
-import { GLOBAL_NAV_ITEMS, type BuilderSection } from '../lib/global-nav'
+import { GLOBAL_NAV_ITEMS, REGISTRY_NAV_ITEMS, type BuilderSection, type CfbAppProfile } from '../lib/global-nav'
+import { RailCollapseStrip, RailResizeHandle } from './l2/visual/L2RailChrome'
 
 type FeedListItem = FeedConfig & { hasUnpublishedDraft?: boolean }
 
@@ -11,6 +12,11 @@ interface Props {
   feeds: FeedListItem[]
   selectedFeedId: string | null
   builderSection: BuilderSection
+  projectsOpen: boolean
+  onToggleProjects: () => void
+  onResizeStart: (e: MouseEvent) => void
+  sidebarStyle: CSSProperties
+  appProfile?: CfbAppProfile
   onSelect: (id: string) => void
   onSelectFeed: (feedId: string) => void
   onGlobalNavSelect: (section: BuilderSection) => void
@@ -25,12 +31,20 @@ export function ProjectSidebar({
   feeds,
   selectedFeedId,
   builderSection,
+  projectsOpen,
+  onToggleProjects,
+  onResizeStart,
+  sidebarStyle,
   onSelect,
   onSelectFeed,
   onGlobalNavSelect,
   onCreate,
   onCreateFeed,
+  appProfile = 'feedbuilder',
 }: Props) {
+  const isRegistry = appProfile === 'registry'
+  const navItems = isRegistry ? REGISTRY_NAV_ITEMS : GLOBAL_NAV_ITEMS
+  const projectsLabel = isRegistry ? 'Registry' : 'Projects'
   const [showNewProject, setShowNewProject] = useState(false)
   const [newProjectId, setNewProjectId] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
@@ -63,148 +77,191 @@ export function ProjectSidebar({
   }
 
   return (
-    <aside className="sidebar">
-      <div className="sidebar-head">
-        <h2>Projects</h2>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowNewProject(true)}>
-          + New
-        </button>
-      </div>
+    <aside
+      className={`sidebar project-sidebar${projectsOpen ? '' : ' project-sidebar--collapsed'}`}
+      style={sidebarStyle}
+    >
+      <div className="project-sidebar-main">
+        {projectsOpen ? (
+          <>
+            {!isRegistry ? (
+              <>
+                <div className="sidebar-head project-sidebar-head">
+                  <button
+                    type="button"
+                    className="project-sidebar-collapse"
+                    onClick={onToggleProjects}
+                    aria-label={`Collapse ${projectsLabel.toLowerCase()}`}
+                    title={`Collapse ${projectsLabel.toLowerCase()}`}
+                  >
+                    ‹
+                  </button>
+                  <h2>{projectsLabel}</h2>
+                  <button type="button" className="btn btn-ghost btn-sm project-sidebar-new-btn" onClick={() => setShowNewProject(true)}>
+                    + New
+                  </button>
+                </div>
 
-      {showNewProject && (
-        <div className="new-project">
-          <label>
-            Project ID
-            <input
-              value={newProjectId}
-              onChange={(e) => setNewProjectId(e.target.value)}
-              placeholder="my-feed"
-              autoFocus
-            />
-          </label>
-          <label>
-            Display name
-            <input
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              placeholder="My Feed"
-            />
-          </label>
-          <div className="new-project-actions">
-            <button type="button" className="btn btn-primary btn-sm" onClick={submitNewProject}>
-              Create
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowNewProject(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      <ul className="project-list">
-        {loading && projects.length === 0 && <li className="project-list-empty">Loading…</li>}
-        {projects.map((p) => {
-          const isSelected = selectedId === p.projectId
-
-          return (
-            <li key={p.projectId} className="project-tree-item">
-              <button
-                type="button"
-                className={`project-item ${isSelected && !selectedFeedId ? 'active' : isSelected ? 'selected' : ''}`}
-                onClick={() => onSelect(p.projectId)}
-              >
-                <span className="project-name">
-                  {isSelected && feeds.length > 0 ? '▾ ' : isSelected ? '▸ ' : ''}
-                  {p.name}
-                </span>
-                <span className="project-id">{p.projectId}</span>
-                <span className={`badge ${p.enabled ? 'badge-on' : 'badge-off'}`}>
-                  {p.enabled ? 'on' : 'off'}
-                </span>
-              </button>
-
-              {isSelected && (
-                <div className="feed-nested">
-                  <div className="feed-nested-head">
-                    <span className="feed-nested-label">
-                      Feeds{feeds.length > 0 ? ` (${feeds.length})` : ''}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setShowNewFeed(true)}
-                    >
-                      + Feed
-                    </button>
-                  </div>
-
-                  {showNewFeed && (
-                    <div className="new-project feed-nested-new">
-                      <label>
-                        Feed ID
-                        <input
-                          value={newFeedId}
-                          onChange={(e) => setNewFeedId(e.target.value)}
-                          placeholder="urbanism-main"
-                          autoFocus
-                        />
-                      </label>
-                      <label>
-                        Name
-                        <input value={newFeedName} onChange={(e) => setNewFeedName(e.target.value)} />
-                      </label>
-                      <div className="new-project-actions">
-                        <button type="button" className="btn btn-primary btn-sm" onClick={submitNewFeed}>
-                          Create
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => setShowNewFeed(false)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                {showNewProject && (
+                  <div className="new-project">
+                    <label>
+                      Project ID
+                      <input
+                        value={newProjectId}
+                        onChange={(e) => setNewProjectId(e.target.value)}
+                        placeholder="my-feed"
+                        autoFocus
+                      />
+                    </label>
+                    <label>
+                      Display name
+                      <input
+                        value={newProjectName}
+                        onChange={(e) => setNewProjectName(e.target.value)}
+                        placeholder="My Feed"
+                      />
+                    </label>
+                    <div className="new-project-actions">
+                      <button type="button" className="btn btn-primary btn-sm" onClick={submitNewProject}>
+                        Create
+                      </button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowNewProject(false)}>
+                        Cancel
+                      </button>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  <ul className="feed-nested-list">
-                    {feeds.length === 0 && (
-                      <li className="project-list-empty feed-nested-empty">No feeds yet</li>
-                    )}
-                    {feeds.map((f) => (
-                      <li key={f.feedId}>
+                <ul className="project-list">
+                  {loading && projects.length === 0 && <li className="project-list-empty">Loading…</li>}
+                  {projects.map((p) => {
+                    const isSelected = selectedId === p.projectId
+
+                    return (
+                      <li key={p.projectId} className="project-tree-item">
                         <button
                           type="button"
-                          className={`feed-nested-item ${selectedFeedId === f.feedId ? 'active' : ''}`}
-                          onClick={() => onSelectFeed(f.feedId)}
+                          className={`project-item ${isSelected && !selectedFeedId ? 'active' : isSelected ? 'selected' : ''}`}
+                          onClick={() => onSelect(p.projectId)}
                         >
-                          <span className="project-name">{f.name}</span>
-                          <span className="project-id">{f.feedId}</span>
-                          <span className="feed-sidebar-badges">
-                            {f.hasUnpublishedDraft && (
-                              <span className="badge badge-warn">draft</span>
-                            )}
-                            {f.published ? (
-                              <span className="badge badge-on">pub</span>
-                            ) : f.enabled ? (
-                              <span className="badge badge-muted">live</span>
-                            ) : null}
+                          <span className="project-name">
+                            {isSelected && feeds.length > 0 ? '▾ ' : isSelected ? '▸ ' : ''}
+                            {p.name}
+                          </span>
+                          <span className="project-id">{p.projectId}</span>
+                          <span className={`badge ${p.enabled ? 'badge-on' : 'badge-off'}`}>
+                            {p.enabled ? 'on' : 'off'}
                           </span>
                         </button>
+
+                        {isSelected && (
+                          <div className="feed-nested">
+                            <div className="feed-nested-head">
+                              <span className="feed-nested-label">
+                                Feeds{feeds.length > 0 ? ` (${feeds.length})` : ''}
+                              </span>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => setShowNewFeed(true)}
+                              >
+                                + Feed
+                              </button>
+                            </div>
+
+                            {showNewFeed && (
+                              <div className="new-project feed-nested-new">
+                                <label>
+                                  Feed ID
+                                  <input
+                                    value={newFeedId}
+                                    onChange={(e) => setNewFeedId(e.target.value)}
+                                    placeholder="urbanism-main"
+                                    autoFocus
+                                  />
+                                </label>
+                                <label>
+                                  Name
+                                  <input value={newFeedName} onChange={(e) => setNewFeedName(e.target.value)} />
+                                </label>
+                                <div className="new-project-actions">
+                                  <button type="button" className="btn btn-primary btn-sm" onClick={submitNewFeed}>
+                                    Create
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    onClick={() => setShowNewFeed(false)}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            <ul className="feed-nested-list">
+                              {feeds.length === 0 && (
+                                <li className="project-list-empty feed-nested-empty">No feeds yet</li>
+                              )}
+                              {feeds.map((f) => (
+                                <li key={f.feedId}>
+                                  <button
+                                    type="button"
+                                    className={`feed-nested-item ${selectedFeedId === f.feedId ? 'active' : ''}`}
+                                    onClick={() => onSelectFeed(f.feedId)}
+                                  >
+                                    <span className="project-name">{f.name}</span>
+                                    <span className="project-id">{f.feedId}</span>
+                                    <span className="feed-sidebar-badges">
+                                      {f.hasUnpublishedDraft && (
+                                        <span className="badge badge-warn">draft</span>
+                                      )}
+                                      {f.published ? (
+                                        <span className="badge badge-on">pub</span>
+                                      ) : f.enabled ? (
+                                        <span className="badge badge-muted">live</span>
+                                      ) : null}
+                                    </span>
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </li>
-          )
-        })}
-      </ul>
+                    )
+                  })}
+                </ul>
+              </>
+            ) : (
+              <div className="sidebar-head project-sidebar-head">
+                <button
+                  type="button"
+                  className="project-sidebar-collapse"
+                  onClick={onToggleProjects}
+                  aria-label={`Collapse ${projectsLabel.toLowerCase()}`}
+                  title={`Collapse ${projectsLabel.toLowerCase()}`}
+                >
+                  ‹
+                </button>
+                <h2>{projectsLabel}</h2>
+              </div>
+            )}
+            <RailResizeHandle onMouseDown={onResizeStart} label="Resize projects sidebar" />
+          </>
+        ) : (
+          <RailCollapseStrip
+            label={projectsLabel}
+            expandLabel={`Expand ${projectsLabel.toLowerCase()}`}
+            onExpand={onToggleProjects}
+            edge="left"
+          />
+        )}
+      </div>
 
       <footer className="sidebar-footer">
         <ul className="sidebar-global-nav" aria-label="Global">
-          {GLOBAL_NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <li key={item.id}>
               <button
                 type="button"

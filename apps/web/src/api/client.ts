@@ -605,14 +605,17 @@ export const api = {
       packages: import('@cfb/core-types').LogicBlockPackage[]
       scope: 'deployment' | 'global' | 'all'
       mode: 'local' | 'remote'
-      registryRole?: 'operator' | 'consumer' | 'embedded'
+      registryRole?: 'registry' | 'consumer' | 'embedded'
     }>(`/api/logic-blocks/catalog?scope=${scope}`),
   globalMarketplaceStatus: () =>
     apiFetch<{
       mode: 'local' | 'remote'
       remoteUrl: string | null
+      canonicalUrl: string
       operatorInstance: boolean
-      registryRole: 'operator' | 'consumer' | 'embedded'
+      registryRole: 'registry' | 'consumer' | 'embedded'
+      registryHost?: boolean
+      appProfile: 'feedbuilder' | 'registry'
       verifierHandle: string
       publicCatalogPath: string
       hint: string
@@ -633,6 +636,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  unsubscribeLogicBlock: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/api/logic-blocks/${id}/subscribe`, { method: 'DELETE' }),
   listLogicBlockSubscriptions: () =>
     apiFetch<{
       subscriptions: Array<
@@ -659,7 +664,9 @@ export const api = {
       slug?: string
       description?: string | null
       root?: import('@cfb/core-types').L2RuleGroup
+      visualLayout?: import('@cfb/core-types').L2VisualLayout | null
       bumpVersion?: boolean
+      listing?: import('@cfb/core-types').MarketplaceListingMeta | null
     },
   ) =>
     apiFetch<{ package: import('@cfb/core-types').LogicBlockPackage }>(`/api/logic-blocks/${id}`, {
@@ -715,6 +722,40 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  unpublishMarketplaceListing: (
+    productKind: import('@cfb/core-types').MarketplaceProductKind,
+    packageId: string,
+  ) =>
+    apiFetch<{ ok: boolean }>('/api/marketplace/moderation/unpublish', {
+      method: 'POST',
+      body: JSON.stringify({ productKind, packageId }),
+    }),
+  listPublishRequests: (scope: 'deployment' | 'global') =>
+    apiFetch<{ requests: import('@cfb/core-types').MarketplacePublishRequest[] }>(
+      `/api/marketplace/publish-requests?scope=${scope}`,
+    ),
+  listMyPublishRequests: () =>
+    apiFetch<{ requests: import('@cfb/core-types').MarketplacePublishRequest[] }>(
+      '/api/marketplace/publish-requests/mine',
+    ),
+  createPublishRequest: (body: {
+    productKind: import('@cfb/core-types').MarketplaceProductKind
+    packageId: string
+    requestedVisibility: 'deployment' | 'global'
+    publisherNote?: string
+  }) =>
+    apiFetch<{ request: import('@cfb/core-types').MarketplacePublishRequest }>(
+      '/api/marketplace/publish-requests',
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
+  reviewPublishRequest: (
+    id: string,
+    body: { action: 'approve' | 'deny'; reviewNote?: string },
+  ) =>
+    apiFetch<{ request: import('@cfb/core-types').MarketplacePublishRequest }>(
+      `/api/marketplace/publish-requests/${id}/review`,
+      { method: 'POST', body: JSON.stringify(body) },
+    ),
   listSortPackCollection: () =>
     apiFetch<{ packages: import('@cfb/core-types').SortPackPackage[] }>('/api/sort-packs/collection'),
   listSortPackCatalog: (scope: 'deployment' | 'global' | 'all' = 'all') =>
@@ -739,6 +780,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  unsubscribeSortPack: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/api/sort-packs/${id}/subscribe`, { method: 'DELETE' }),
   listSortPackSubscriptions: () =>
     apiFetch<{
       subscriptions: Array<
@@ -766,6 +809,7 @@ export const api = {
       description?: string | null
       sortKey?: import('@cfb/core-types').L2Expr
       bumpVersion?: boolean
+      listing?: import('@cfb/core-types').MarketplaceListingMeta | null
     },
   ) =>
     apiFetch<{ package: import('@cfb/core-types').SortPackPackage }>(`/api/sort-packs/${id}`, {
@@ -828,6 +872,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  unsubscribePlugin: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/api/plugins/${id}/subscribe`, { method: 'DELETE' }),
   listPluginSubscriptions: (kind?: 'injector' | 'ranker') =>
     apiFetch<{
       subscriptions: Array<
@@ -838,7 +884,12 @@ export const api = {
     }>(`/api/plugins/subscriptions${kind ? `?kind=${kind}` : ''}`),
   updatePlugin: (
     id: string,
-    body: { name?: string; description?: string | null; remoteEndpoint?: string | null },
+    body: {
+      name?: string
+      description?: string | null
+      remoteEndpoint?: string | null
+      listing?: import('@cfb/core-types').MarketplaceListingMeta | null
+    },
   ) =>
     apiFetch<{ package: import('@cfb/core-types').PluginPackage }>(`/api/plugins/${id}`, {
       method: 'PATCH',

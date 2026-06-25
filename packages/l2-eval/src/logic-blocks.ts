@@ -1,4 +1,11 @@
 import type { LogicBlockPackage, LogicBlockRef, L2RuleGroup, L2RuleNode } from '@cfb/core-types'
+import { resolveFeedMatch } from '@cfb/l2-graph'
+
+export function resolveLogicBlockRoot(
+  pkg: Pick<LogicBlockPackage, 'root' | 'visualLayout'>,
+): L2RuleGroup {
+  return resolveFeedMatch({ match: pkg.root, visualLayout: pkg.visualLayout })
+}
 
 export function logicBlockCacheKey(ref: LogicBlockRef): string {
   return `${ref.packageId}@${ref.versionPin}`
@@ -31,7 +38,10 @@ export function createLogicBlockResolver(
 ): (ref: LogicBlockRef) => L2RuleGroup | null {
   const byKey = new Map<string, L2RuleGroup>()
   for (const pkg of packages) {
-    byKey.set(logicBlockCacheKey({ packageId: pkg.id, versionPin: pkg.version }), pkg.root)
+    byKey.set(
+      logicBlockCacheKey({ packageId: pkg.id, versionPin: pkg.version }),
+      resolveLogicBlockRoot(pkg),
+    )
   }
   return (ref) => byKey.get(logicBlockCacheKey(ref)) ?? null
 }

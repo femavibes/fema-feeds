@@ -430,6 +430,9 @@ importers:
       '@cfb/core-types':
         specifier: workspace:*
         version: link:../core-types
+      '@cfb/l2-graph':
+        specifier: workspace:*
+        version: link:../l2-graph
       '@cfb/post-normalize':
         specifier: workspace:*
         version: link:../post-normalize

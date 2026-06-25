@@ -27,6 +27,8 @@ const PUBLIC_API_PREFIXES = [
   '/xrpc/',
   '/api/cfb/deployments/register',
   '/api/global-marketplace/catalog',
+  '/api/global-marketplace/status',
+  '/api/global-marketplace/ingress/',
   '/api/global-marketplace/sort-packs/catalog',
   '/api/global-marketplace/injectors/catalog',
   '/api/global-marketplace/rankers/catalog',

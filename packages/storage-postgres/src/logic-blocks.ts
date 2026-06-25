@@ -5,10 +5,56 @@ import type {
   LogicBlockUpdatePolicy,
   LogicBlockVisibility,
   L2RuleGroup,
+  L2VisualLayout,
 } from '@cfb/core-types'
 import type pg from 'pg'
 
 import { applyPublisherTrustToPackage } from './publisher-trust.js'
+import { parseListingMeta } from './marketplace-listing-meta.js'
+import {
+  insertLogicBlockVersionSnapshot,
+  logicBlockVersionExists,
+  patchLogicBlockVersionMetadata,
+} from './package-version-snapshots.js'
+
+function parseVisualLayout(raw: unknown): L2VisualLayout | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const layout = raw as L2VisualLayout
+  if (!layout.positions || typeof layout.positions !== 'object') return undefined
+  return layout
+}
+
+function rowFromVersionJoin(row: {
+  id: string
+  owner_did: string
+  slug: string
+  visibility: LogicBlockVisibility
+  trust_tier: LogicBlockTrustTier
+  listing_meta?: unknown
+  updated_at: Date
+  version: string
+  root_group: L2RuleGroup
+  visual_layout?: unknown
+  name: string
+  description: string | null
+  created_at: Date
+}): LogicBlockPackage {
+  return {
+    id: row.id,
+    ownerDid: row.owner_did,
+    slug: row.slug,
+    version: row.version,
+    name: row.name,
+    description: row.description ?? undefined,
+    visibility: row.visibility,
+    trustTier: row.trust_tier,
+    root: row.root_group,
+    visualLayout: parseVisualLayout(row.visual_layout),
+    listing: parseListingMeta(row.listing_meta),
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+  }
+}
 
 function rowToPackage(row: {
   id: string
@@ -20,6 +66,8 @@ function rowToPackage(row: {
   visibility: LogicBlockVisibility
   trust_tier: LogicBlockTrustTier
   root_group: L2RuleGroup
+  visual_layout?: unknown
+  listing_meta?: unknown
   created_at: Date
   updated_at: Date
 }): LogicBlockPackage {
@@ -33,6 +81,8 @@ function rowToPackage(row: {
     visibility: row.visibility,
     trustTier: row.trust_tier,
     root: row.root_group,
+    visualLayout: parseVisualLayout(row.visual_layout),
+    listing: parseListingMeta(row.listing_meta),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   }
@@ -49,17 +99,22 @@ export async function getLogicBlockPackageById(
   id: string,
   versionPin?: string,
 ): Promise<LogicBlockPackage | null> {
-  const res = versionPin
-    ? await pool.query(
-        `SELECT * FROM logic_block_packages WHERE id = $1 AND version = $2`,
-        [id, versionPin],
-      )
-    : await pool.query(
-        `SELECT * FROM logic_block_packages WHERE id = $1 ORDER BY created_at DESC LIMIT 1`,
-        [id],
-      )
+  if (!versionPin) {
+    const res = await pool.query(`SELECT * FROM logic_block_packages WHERE id = $1`, [id])
+    const row = res.rows[0]
+    return row ? rowToPackage(row) : null
+  }
+  const res = await pool.query(
+    `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.listing_meta, p.updated_at,
+            v.version, v.root_group, v.visual_layout, v.name, v.description, v.created_at
+     FROM logic_block_packages p
+     INNER JOIN logic_block_package_versions v
+       ON v.package_id = p.id AND v.version = $2
+     WHERE p.id = $1`,
+    [id, versionPin],
+  )
   const row = res.rows[0]
-  return row ? rowToPackage(row) : null
+  return row ? rowFromVersionJoin(row) : null
 }
 
 export async function getLogicBlockPackagesByRefs(
@@ -70,13 +125,16 @@ export async function getLogicBlockPackagesByRefs(
   const ids = refs.map((r) => r.packageId)
   const versions = refs.map((r) => r.versionPin)
   const res = await pool.query(
-    `SELECT p.*
+    `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.listing_meta, p.updated_at,
+            v.version, v.root_group, v.visual_layout, v.name, v.description, v.created_at
      FROM logic_block_packages p
      INNER JOIN UNNEST($1::uuid[], $2::text[]) AS r(id, version)
-       ON p.id = r.id AND p.version = r.version`,
+       ON p.id = r.id
+     INNER JOIN logic_block_package_versions v
+       ON v.package_id = p.id AND v.version = r.version`,
     [ids, versions],
   )
-  return res.rows.map(rowToPackage)
+  return res.rows.map(rowFromVersionJoin)
 }
 
 export async function listLogicBlocksForUser(
@@ -104,8 +162,8 @@ export async function listUserCollection(
   const res = await pool.query(
     `SELECT DISTINCT ON (slug) *
      FROM logic_block_packages
-     WHERE owner_did = $1 AND visibility = 'collection'
-     ORDER BY slug, created_at DESC`,
+     WHERE owner_did = $1
+     ORDER BY slug, updated_at DESC`,
     [ownerDid],
   )
   return res.rows.map(rowToPackage)
@@ -117,10 +175,12 @@ export async function listUserSubscriptions(
 ): Promise<Array<LogicBlockSubscription & { package: LogicBlockPackage }>> {
   const res = await pool.query(
     `SELECT s.owner_did, s.package_id, s.version_pin, s.update_policy, s.subscribed_at,
-            p.id, p.owner_did AS pkg_owner_did, p.slug, p.version, p.name, p.description,
-            p.visibility, p.trust_tier, p.root_group, p.created_at, p.updated_at
+            p.id, p.owner_did AS pkg_owner_did, p.slug, p.visibility, p.trust_tier, p.listing_meta,
+            p.updated_at, v.version, v.root_group, v.name, v.description, v.created_at
      FROM logic_block_subscriptions s
-     JOIN logic_block_packages p ON p.id = s.package_id AND p.version = s.version_pin
+     JOIN logic_block_packages p ON p.id = s.package_id
+     JOIN logic_block_package_versions v
+       ON v.package_id = s.package_id AND v.version = s.version_pin
      WHERE s.owner_did = $1
      ORDER BY s.subscribed_at DESC`,
     [ownerDid],
@@ -131,18 +191,19 @@ export async function listUserSubscriptions(
     versionPin: row.version_pin,
     updatePolicy: row.update_policy as LogicBlockUpdatePolicy,
     subscribedAt: row.subscribed_at.toISOString(),
-    package: rowToPackage({
+    package: rowFromVersionJoin({
       id: row.id,
       owner_did: row.pkg_owner_did,
       slug: row.slug,
-      version: row.version,
-      name: row.name,
-      description: row.description,
       visibility: row.visibility,
       trust_tier: row.trust_tier,
-      root_group: row.root_group,
-      created_at: row.created_at,
+      listing_meta: row.listing_meta,
       updated_at: row.updated_at,
+      version: row.version,
+      root_group: row.root_group,
+      name: row.name,
+      description: row.description,
+      created_at: row.created_at,
     }),
   }))
 }
@@ -153,6 +214,7 @@ export interface CreateLogicBlockInput {
   name: string
   description?: string
   root: L2RuleGroup
+  visualLayout?: L2VisualLayout
   visibility?: LogicBlockVisibility
 }
 
@@ -177,6 +239,7 @@ export async function updateLogicBlockPackage(
   ownerDid: string,
   input: {
     root?: L2RuleGroup
+    visualLayout?: L2VisualLayout | null
     name?: string
     slug?: string
     description?: string | null
@@ -196,14 +259,23 @@ export async function updateLogicBlockPackage(
     if (clash.rows[0]) return 'slug_taken'
   }
 
-  const logicChanged = input.root != null
+  const logicChanged = input.root != null || input.visualLayout !== undefined
   const bumpVersion = logicChanged && input.bumpVersion !== false
   const version = bumpVersion ? bumpPatchVersion(existing.version) : existing.version
-  const rootJson = logicChanged ? JSON.stringify(input.root) : JSON.stringify(existing.root)
+  const rootJson = input.root != null ? JSON.stringify(input.root) : JSON.stringify(existing.root)
+  const visualLayoutJson =
+    input.visualLayout !== undefined
+      ? input.visualLayout != null
+        ? JSON.stringify(input.visualLayout)
+        : null
+      : existing.visualLayout != null
+        ? JSON.stringify(existing.visualLayout)
+        : null
 
   const res = await pool.query(
     `UPDATE logic_block_packages
      SET root_group = $4::jsonb,
+         visual_layout = $10::jsonb,
          version = $5,
          name = COALESCE($6, name),
          slug = COALESCE($7, slug),
@@ -221,9 +293,27 @@ export async function updateLogicBlockPackage(
       input.slug?.trim() || null,
       input.description !== undefined,
       input.description === undefined ? null : input.description?.trim() || null,
+      visualLayoutJson,
     ],
   )
-  return res.rows[0] ? rowToPackage(res.rows[0]) : null
+  if (!res.rows[0]) return null
+  const pkg = rowToPackage(res.rows[0])
+  if (bumpVersion) {
+    await insertLogicBlockVersionSnapshot(pool, {
+      packageId: pkg.id,
+      version: pkg.version,
+      root: pkg.root,
+      visualLayout: pkg.visualLayout,
+      name: pkg.name,
+      description: pkg.description ?? null,
+    })
+  } else if (input.name !== undefined || input.description !== undefined) {
+    await patchLogicBlockVersionMetadata(pool, packageId, pkg.version, {
+      name: input.name,
+      description: input.description,
+    })
+  }
+  return pkg
 }
 
 export async function createLogicBlockPackage(
@@ -240,6 +330,7 @@ export async function createLogicBlockPackage(
     if (existing.rows[0]) {
     const updated = await updateLogicBlockPackage(pool, existing.rows[0].id, input.ownerDid, {
       root: input.root,
+      visualLayout: input.visualLayout,
       name: input.name,
       description: input.description,
       bumpVersion: true,
@@ -258,8 +349,8 @@ export async function createLogicBlockPackage(
 
   const res = await pool.query(
     `INSERT INTO logic_block_packages
-       (owner_did, slug, version, name, description, visibility, root_group)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+       (owner_did, slug, version, name, description, visibility, root_group, visual_layout)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)
      RETURNING *`,
     [
       input.ownerDid,
@@ -269,9 +360,18 @@ export async function createLogicBlockPackage(
       input.description ?? null,
       visibility,
       JSON.stringify(input.root),
+      input.visualLayout ? JSON.stringify(input.visualLayout) : null,
     ],
   )
   let pkg = rowToPackage(res.rows[0])
+  await insertLogicBlockVersionSnapshot(pool, {
+    packageId: pkg.id,
+    version: pkg.version,
+    root: pkg.root,
+    visualLayout: pkg.visualLayout,
+    name: pkg.name,
+    description: pkg.description ?? null,
+  })
 
   if (visibility === 'deployment' || visibility === 'global') {
     await applyPublisherTrustToPackage(pool, pkg.id, input.ownerDid, visibility)
@@ -297,6 +397,9 @@ export async function subscribeLogicBlock(
   versionPin: string,
   updatePolicy: LogicBlockUpdatePolicy = 'pinned',
 ): Promise<void> {
+  const versionOk = await logicBlockVersionExists(pool, packageId, versionPin)
+  if (!versionOk) throw new Error('version_not_found')
+
   await pool.query(
     `INSERT INTO logic_block_subscriptions (owner_did, package_id, version_pin, update_policy)
      VALUES ($1, $2, $3, $4)
@@ -306,6 +409,18 @@ export async function subscribeLogicBlock(
            subscribed_at = NOW()`,
     [ownerDid, packageId, versionPin, updatePolicy],
   )
+}
+
+export async function unsubscribeLogicBlock(
+  pool: pg.Pool,
+  ownerDid: string,
+  packageId: string,
+): Promise<boolean> {
+  const res = await pool.query(
+    `DELETE FROM logic_block_subscriptions WHERE owner_did = $1 AND package_id = $2`,
+    [ownerDid, packageId],
+  )
+  return (res.rowCount ?? 0) > 0
 }
 
 export async function setLogicBlockVisibility(
@@ -381,12 +496,15 @@ export async function listLogicBlockPackageVersions(
   packageId: string,
 ): Promise<LogicBlockPackage[]> {
   const res = await pool.query(
-    `SELECT * FROM logic_block_packages
-     WHERE id = $1
-     ORDER BY created_at DESC`,
+    `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.listing_meta, p.updated_at,
+            v.version, v.root_group, v.visual_layout, v.name, v.description, v.created_at
+     FROM logic_block_package_versions v
+     INNER JOIN logic_block_packages p ON p.id = v.package_id
+     WHERE v.package_id = $1
+     ORDER BY v.created_at DESC`,
     [packageId],
   )
-  return res.rows.map(rowToPackage)
+  return res.rows.map(rowFromVersionJoin)
 }
 
 async function ensureRegistryPublisherUser(pool: pg.Pool, ownerDid: string): Promise<void> {
@@ -428,5 +546,13 @@ export async function upsertLogicBlockRegistryMirror(
       JSON.stringify(pkg.root),
     ],
   )
-  return rowToPackage(res.rows[0])
+  const mirrored = rowToPackage(res.rows[0])
+  await insertLogicBlockVersionSnapshot(pool, {
+    packageId: mirrored.id,
+    version: mirrored.version,
+    root: mirrored.root,
+    name: mirrored.name,
+    description: mirrored.description ?? null,
+  })
+  return mirrored
 }

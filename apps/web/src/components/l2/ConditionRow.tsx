@@ -55,6 +55,7 @@ interface Props {
   onRefreshList?: (listId: string) => Promise<void>
   /** Project prefilter editor — no per-node pool toggle. */
   prefilterMode?: boolean
+  readOnly?: boolean
 }
 
 export function ConditionRow({
@@ -71,6 +72,7 @@ export function ConditionRow({
   projectId = '',
   onRefreshList,
   prefilterMode = false,
+  readOnly = false,
 }: Props) {
   const termScroll = useTermListScrollHeight(
     fillHeight && node.type === 'keyword',
@@ -80,7 +82,9 @@ export function ConditionRow({
   )
 
   return (
-    <div className={`l2-condition${fillHeight ? ' l2-condition-fill' : ''}`}>
+    <div
+      className={`l2-condition${fillHeight ? ' l2-condition-fill' : ''}${readOnly ? ' l2-condition--readonly' : ''}`}
+    >
       <div className="l2-condition-body">
         {node.type === 'text' && (
           <div className="l2-condition-stack">
@@ -90,6 +94,7 @@ export function ConditionRow({
               showRemove={showRemove}
             />
             <select
+              disabled={readOnly}
               value={node.op}
               onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
             >
@@ -117,6 +122,7 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
+                  disabled={readOnly}
                   value={node.op}
                   onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
                 >
@@ -132,10 +138,12 @@ export function ConditionRow({
                 onChange={({ caseSensitive, wholeWord }) =>
                   onChange({ ...node, caseSensitive, wholeWord })
                 }
+                readOnly={readOnly}
               />
               <SearchFieldPicker
                 fields={node.fields}
                 onChange={(fields) => onChange({ ...node, fields })}
+                readOnly={readOnly}
               />
             </div>
             <div ref={termScroll.scrollRef} className="term-list-scroll term-list-scroll--fill scrollbar-modern">
@@ -145,6 +153,7 @@ export function ConditionRow({
                 placeholder="fema"
                 searchable
                 caseSensitive={node.caseSensitive === true}
+                readOnly={readOnly}
               />
             </div>
           </div>
@@ -158,6 +167,7 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
+                  disabled={readOnly}
                   value={node.op}
                   onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
                 >
@@ -172,16 +182,19 @@ export function ConditionRow({
                 checked={node.caseInsensitive !== false}
                 onChange={(checked) => onChange({ ...node, caseInsensitive: checked })}
                 ariaLabel="Case insensitive regex matching"
+                readOnly={readOnly}
               />
             </div>
             <SearchFieldPicker
               fields={node.fields}
               onChange={(fields) => onChange({ ...node, fields })}
+              readOnly={readOnly}
             />
             <RegexPatternEditor
               pattern={node.pattern}
               caseInsensitive={node.caseInsensitive !== false}
               onChange={(pattern) => onChange({ ...node, pattern })}
+              readOnly={readOnly}
             />
           </div>
         )}
@@ -194,6 +207,7 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
+                  disabled={readOnly}
                   value={node.op}
                   onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
                 >
@@ -211,6 +225,7 @@ export function ConditionRow({
                 searchable
                 stripHash
                 itemNoun="hashtag"
+                readOnly={readOnly}
               />
             </div>
           </div>
@@ -224,6 +239,7 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
+                  disabled={readOnly}
                   value={node.op}
                   onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
                 >
@@ -239,6 +255,7 @@ export function ConditionRow({
               caseSensitive={node.caseSensitive}
               wholeWord={false}
               onChange={({ caseSensitive }) => onChange({ ...node, caseSensitive })}
+              readOnly={readOnly}
             />
             <UrlSourcePicker
               sources={node.sources}
@@ -252,6 +269,7 @@ export function ConditionRow({
                 searchable
                 caseSensitive={node.caseSensitive === true}
                 itemNoun="URL pattern"
+                readOnly={readOnly}
               />
             </div>
           </div>
@@ -261,6 +279,7 @@ export function ConditionRow({
           <div className="l2-condition-stack">
             <ConditionHead title="Embed" onRemove={onRemove} showRemove={showRemove} />
             <select
+              disabled={readOnly}
               value={node.field}
               onChange={(e) => onChange({ ...node, field: e.target.value as L2BoolField })}
             >
@@ -271,6 +290,7 @@ export function ConditionRow({
               ))}
             </select>
             <select
+              disabled={readOnly}
               value={node.value ? 'require' : 'exclude'}
               onChange={(e) => onChange({ ...node, value: e.target.value === 'require' })}
             >
@@ -288,6 +308,7 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
+                  disabled={readOnly}
                   value={node.unknown}
                   onChange={(e) =>
                     onChange({ ...node, unknown: e.target.value as 'include' | 'exclude' })
@@ -307,13 +328,14 @@ export function ConditionRow({
           <div className="l2-condition-stack">
             <ConditionHead title="Post type" onRemove={onRemove} showRemove={showRemove} />
             <select
+              disabled={readOnly}
               value={node.op}
               onChange={(e) => onChange({ ...node, op: e.target.value as L2PostKindCondition['op'] })}
             >
               <option value="is">is</option>
               <option value="is_not">is not</option>
             </select>
-            <PostKindPicker node={node} onChange={onChange} />
+            <PostKindPicker node={node} onChange={onChange} readOnly={readOnly} />
           </div>
         )}
 
@@ -325,6 +347,7 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
+                  disabled={readOnly}
                   value={node.op}
                   onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
                 >
@@ -336,7 +359,7 @@ export function ConditionRow({
             <p className="l2-condition-hint">
               Near You media bucket from ingest (text, image, video, GIF, link card, quote).
             </p>
-            <MediaTypePicker node={node} onChange={onChange} />
+            <MediaTypePicker node={node} onChange={onChange} readOnly={readOnly} />
           </div>
         )}
 
@@ -344,6 +367,7 @@ export function ConditionRow({
           <div className="l2-condition-stack">
             <ConditionHead title="Alt text" onRemove={onRemove} showRemove={showRemove} />
             <select
+              disabled={readOnly}
               value={node.op}
               onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
             >
@@ -358,6 +382,7 @@ export function ConditionRow({
           <div className="l2-condition-stack">
             <ConditionHead title="Post age" onRemove={onRemove} showRemove={showRemove} />
             <select
+              disabled={readOnly}
               value={node.op}
               onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
             >
@@ -372,6 +397,7 @@ export function ConditionRow({
             />
             <span>hours</span>
             <select
+              disabled={readOnly}
               value={node.use}
               onChange={(e) => onChange({ ...node, use: e.target.value as typeof node.use })}
             >
@@ -385,6 +411,7 @@ export function ConditionRow({
           <div className="l2-condition-stack">
             <ConditionHead title="Media stats" onRemove={onRemove} showRemove={showRemove} />
             <select
+              disabled={readOnly}
               value={node.metric}
               onChange={(e) =>
                 onChange({ ...node, metric: e.target.value as typeof node.metric })
@@ -397,6 +424,7 @@ export function ConditionRow({
               ))}
             </select>
             <select
+              disabled={readOnly}
               value={node.op}
               onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
             >
@@ -432,6 +460,7 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
+                  disabled={readOnly}
                   value={node.op}
                   onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
                 >
@@ -455,6 +484,7 @@ export function ConditionRow({
           <div className="l2-condition-stack">
             <ConditionHead title="Labels" onRemove={onRemove} showRemove={showRemove} />
             <select
+              disabled={readOnly}
               value={node.op}
               onChange={(e) => onChange({ ...node, op: e.target.value as 'includes' | 'excludes' })}
             >
@@ -462,6 +492,7 @@ export function ConditionRow({
               <option value="excludes">excludes</option>
             </select>
             <select
+              disabled={readOnly}
               value={node.scope}
               onChange={(e) =>
                 onChange({
@@ -486,7 +517,7 @@ export function ConditionRow({
         {node.type === 'compare' && (
           <div className="l2-condition-stack">
             <ConditionHead title="Math" onRemove={onRemove} showRemove={showRemove} />
-            <MathCompareRow node={node} onChange={onChange} />
+            <MathCompareRow node={node} onChange={onChange} readOnly={readOnly} />
           </div>
         )}
 
@@ -494,6 +525,7 @@ export function ConditionRow({
           <div className="l2-condition-stack">
             <ConditionHead title="Author" onRemove={onRemove} showRemove={showRemove} />
             <select
+              disabled={readOnly}
               value={node.op}
               onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
             >
@@ -546,6 +578,7 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
+                  disabled={readOnly}
                   value={node.op}
                   onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
                 >
@@ -565,6 +598,7 @@ export function ConditionRow({
                 searchable
                 stripAt
                 itemNoun="account"
+                readOnly={readOnly}
               />
             </div>
             <MentionAccountChips accounts={node.accounts} />
@@ -576,9 +610,12 @@ export function ConditionRow({
               }
               ariaLabel="Also match members of a Bluesky list"
               hint="List must already be synced on this deployment (L1 author list or feed list poll)."
+              readOnly={readOnly}
             />
             {node.listUri !== undefined ? (
               <input
+                readOnly={readOnly}
+                disabled={readOnly}
                 value={node.listUri}
                 onChange={(e) => onChange({ ...node, listUri: e.target.value })}
                 placeholder="at://did:plc:…/app.bsky.graph.list/… or bsky.app list URL"
@@ -596,6 +633,7 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
+                  disabled={readOnly}
                   value={node.op}
                   onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
                 >
@@ -611,6 +649,7 @@ export function ConditionRow({
             <label>
               Hub source
               <select
+                disabled={readOnly}
                 value={node.hubSource ?? 'account'}
                 onChange={(e) =>
                   onChange({
@@ -636,6 +675,7 @@ export function ConditionRow({
             <label>
               Ring direction
               <select
+                disabled={readOnly}
                 value={node.direction}
                 onChange={(e) =>
                   onChange({
@@ -721,9 +761,11 @@ function ConditionHead({
 function PostKindPicker({
   node,
   onChange,
+  readOnly = false,
 }: {
   node: Extract<L2RuleNode, { type: 'post_kind' }>
   onChange: (node: L2RuleNode) => void
+  readOnly?: boolean
 }) {
   const toggle = (kind: PostKind) => {
     const set = new Set(node.kinds)
@@ -741,6 +783,7 @@ function PostKindPicker({
           checked={node.kinds.includes(kind)}
           onChange={() => toggle(kind)}
           ariaLabel={`Post kind ${fieldLabel(kind)}`}
+          readOnly={readOnly}
         />
       ))}
     </div>
@@ -750,9 +793,11 @@ function PostKindPicker({
 function MediaTypePicker({
   node,
   onChange,
+  readOnly = false,
 }: {
   node: Extract<L2RuleNode, { type: 'media_type' }>
   onChange: (node: L2RuleNode) => void
+  readOnly?: boolean
 }) {
   const toggle = (value: L2MediaTypeValue) => {
     const set = new Set(node.mediaTypes)
@@ -770,6 +815,7 @@ function MediaTypePicker({
           checked={node.mediaTypes.includes(value)}
           onChange={() => toggle(value)}
           ariaLabel={`Media type ${mediaTypeLabel(value)}`}
+          readOnly={readOnly}
         />
       ))}
     </div>
@@ -779,9 +825,11 @@ function MediaTypePicker({
 function MathCompareRow({
   node,
   onChange,
+  readOnly = false,
 }: {
   node: L2CompareCondition
   onChange: (node: L2RuleNode) => void
+  readOnly?: boolean
 }) {
   const leftField =
     node.left.type === 'field'
@@ -811,7 +859,7 @@ function MathCompareRow({
 
   return (
     <>
-      <select value={leftField} onChange={(e) => apply(e.target.value as L2NumericField, plusField, node.op, literal)}>
+      <select disabled={readOnly} value={leftField} onChange={(e) => apply(e.target.value as L2NumericField, plusField, node.op, literal)}>
         {L2_NUMERIC_FIELDS.map((f) => (
           <option key={f} value={f}>
             {fieldLabel(f)}
@@ -819,7 +867,7 @@ function MathCompareRow({
         ))}
       </select>
       <span>+</span>
-      <select value={plusField} onChange={(e) => apply(leftField, e.target.value as L2NumericField, node.op, literal)}>
+      <select disabled={readOnly} value={plusField} onChange={(e) => apply(leftField, e.target.value as L2NumericField, node.op, literal)}>
         {L2_NUMERIC_FIELDS.filter((f) => f !== leftField).map((f) => (
           <option key={f} value={f}>
             {fieldLabel(f)}
@@ -827,6 +875,7 @@ function MathCompareRow({
         ))}
       </select>
       <select
+        disabled={readOnly}
         value={node.op}
         onChange={(e) => apply(leftField, plusField, e.target.value as L2CompareCondition['op'], literal)}
       >
@@ -838,6 +887,8 @@ function MathCompareRow({
       </select>
       <input
         type="number"
+        readOnly={readOnly}
+        disabled={readOnly}
         value={literal}
         onChange={(e) => apply(leftField, plusField, node.op, Number(e.target.value))}
       />

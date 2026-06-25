@@ -8,6 +8,7 @@ import {
   type ListCacheEntry,
 } from './api/client'
 import { ProjectSidebar } from './components/ProjectSidebar'
+import { useProjectSidebarRail } from './hooks/useProjectSidebarRail'
 import { ProjectWorkspace } from './components/ProjectWorkspace'
 import { MarketplaceWorkspace } from './components/MarketplaceWorkspace'
 import { CollectionWorkspace } from './components/CollectionWorkspace'
@@ -20,7 +21,7 @@ import { emptyProject } from './lib/l1-form'
 import { emptyFeed } from './lib/l2-form'
 import { mergeCompiledIngestFromServer } from './lib/project-ingest'
 import { projectConfigsEqual } from './lib/project-draft'
-import type { BuilderSection } from './lib/global-nav'
+import type { BuilderSection, CfbAppProfile } from './lib/global-nav'
 import type { SettingsWorkspaceView } from './lib/workspace-views'
 
 const MASTER_ONBOARDING_DISMISS_KEY = 'cfb_master_onboarding_dismissed'
@@ -42,6 +43,7 @@ export function App() {
   const [feeds, setFeeds] = useState<FeedListItem[]>([])
   const [selectedFeedId, setSelectedFeedId] = useState<string | null>(null)
   const [builderSection, setBuilderSection] = useState<BuilderSection>('project')
+  const projectSidebarRail = useProjectSidebarRail(builderSection)
   const [stats, setStats] = useState<IngestStats | null>(null)
   const [listCache, setListCache] = useState<ListCacheEntry[]>([])
   const [labelers, setLabelers] = useState<LabelerSource[]>([])
@@ -53,6 +55,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null)
   const [showMasterOnboarding, setShowMasterOnboarding] = useState(false)
   const [settingsInitialView, setSettingsInitialView] = useState<SettingsWorkspaceView | undefined>()
+  const [appProfile, setAppProfile] = useState<CfbAppProfile>('feedbuilder')
 
   const checkMasterOnboarding = useCallback(async (isMaster: boolean) => {
     if (!isMaster) return
@@ -80,6 +83,18 @@ export function App() {
       }
       setAuthReady(true)
     })()
+  }, [])
+
+  useEffect(() => {
+    void api
+      .globalMarketplaceStatus()
+      .then((status) => {
+        setAppProfile(status.appProfile)
+        if (status.appProfile === 'registry') {
+          setBuilderSection((current) => (current === 'project' ? 'marketplace' : current))
+        }
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -316,7 +331,9 @@ export function App() {
   const listCacheForProject = listCache.filter((l) => l.projectId === selectedId)
 
   const workspaceSubtitle =
-    builderSection === 'settings'
+    appProfile === 'registry'
+      ? 'Global marketplace registry'
+      : builderSection === 'settings'
       ? 'Deployment settings'
       : builderSection === 'marketplace'
         ? 'Marketplace'
@@ -332,18 +349,20 @@ export function App() {
         <button
           type="button"
           className="brand brand-home"
-          onClick={() => setBuilderSection('project')}
-          aria-label="Back to projects"
+          onClick={() => setBuilderSection(appProfile === 'registry' ? 'marketplace' : 'project')}
+          aria-label={appProfile === 'registry' ? 'Back to marketplace' : 'Back to projects'}
         >
           <span className="brand-mark" />
           <div>
-            <h1>Custom Feed Builder</h1>
+            <h1>{appProfile === 'registry' ? 'FEMA Marketplace' : 'Custom Feed Builder'}</h1>
             <p>{workspaceSubtitle}</p>
           </div>
         </button>
         <div className="header-controls">
           {user ? <UserMenu user={user} onLogout={() => setUser(null)} /> : null}
-          <IngestStatusPill isMaster={!loginRequired || Boolean(user?.isMaster)} />
+          {appProfile !== 'registry' ? (
+            <IngestStatusPill isMaster={!loginRequired || Boolean(user?.isMaster)} />
+          ) : null}
         </div>
       </header>
 
@@ -387,11 +406,16 @@ export function App() {
           feeds={feeds}
           selectedFeedId={selectedFeedId}
           builderSection={builderSection}
+          projectsOpen={projectSidebarRail.projectsOpen}
+          onToggleProjects={projectSidebarRail.toggleProjects}
+          onResizeStart={projectSidebarRail.startResize}
+          sidebarStyle={projectSidebarRail.sidebarStyle}
           onSelect={selectProject}
           onSelectFeed={selectFeed}
           onGlobalNavSelect={openBuilderSection}
           onCreate={handleCreate}
           onCreateFeed={(id, name) => void handleCreateFeed(id, name)}
+          appProfile={appProfile}
         />
 
         <main
@@ -444,9 +468,9 @@ export function App() {
             />
           ) : builderSection === 'marketplace' ? (
             <MarketplaceWorkspace />
-          ) : builderSection === 'collection' ? (
+          ) : builderSection === 'collection' && appProfile !== 'registry' ? (
             <CollectionWorkspace />
-          ) : draft ? (
+          ) : draft && appProfile !== 'registry' ? (
             <ProjectWorkspace
               draft={draft}
               projectDirty={projectDirty}
@@ -475,6 +499,8 @@ export function App() {
                 openBuilderSection('settings')
               }}
             />
+          ) : appProfile === 'registry' ? (
+            <MarketplaceWorkspace />
           ) : (
             <div className="empty-state">
               {loading ? 'Loading…' : 'Select or create a project'}

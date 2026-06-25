@@ -11,6 +11,8 @@ import {
   setSortPackTrustTier,
   setSortPackVisibility,
   subscribeSortPack,
+  unsubscribeSortPack,
+  setPackageListingMeta,
   updateSortPackPackage,
   upsertSortPackRegistryMirror,
 } from '@cfb/storage-postgres'
@@ -21,10 +23,11 @@ import {
 } from './global-marketplace.js'
 import {
   fetchRemoteGlobalSortPack,
-  fetchRemoteGlobalSortPackCatalog,
   registerGlobalSortPackRegistryRoutes,
 } from './global-sort-pack-registry.js'
+import { resolveSortPackCatalog } from './marketplace-catalog-resolve.js'
 import { getUserDid } from './request-user.js'
+import { rejectOwnerGlobalVisibility } from './marketplace-visibility.js'
 import { isRequestMaster } from './require-master.js'
 
 function normalizeSlug(raw: string): string {
@@ -39,14 +42,6 @@ function normalizeSlug(raw: string): string {
 function parseCatalogScope(raw: string | undefined): 'deployment' | 'global' | 'all' {
   if (raw === 'deployment' || raw === 'global' || raw === 'all') return raw
   return 'all'
-}
-
-async function resolveSortPackCatalog(pool: Pool, scope: 'deployment' | 'global' | 'all') {
-  if (scope === 'global' && globalMarketplaceRegistryRole() === 'consumer') {
-    const packages = await fetchRemoteGlobalSortPackCatalog()
-    return packages
-  }
-  return listSortPackCatalog(pool, scope)
 }
 
 async function resolveSortPackForSubscribe(
@@ -166,28 +161,47 @@ export function registerSortPackRoutes(app: Hono, pool: Pool | null): void {
           description?: string | null
           sortKey?: L2Expr
           bumpVersion?: boolean
+          listing?: import('@cfb/core-types').MarketplaceListingMeta | null
         }>()
         .catch(() => null)) ?? {}
     const hasSortKey = body.sortKey != null
     const hasMeta =
       body.name !== undefined || body.slug !== undefined || body.description !== undefined
-    if (!hasSortKey && !hasMeta) {
-      return c.json({ error: 'provide sortKey and/or name, slug, or description' }, 400)
+    const hasListing = body.listing !== undefined
+    if (!hasSortKey && !hasMeta && !hasListing) {
+      return c.json({ error: 'provide sortKey and/or name, slug, description, or listing' }, 400)
     }
-    const slug = body.slug !== undefined ? normalizeSlug(body.slug || body.name || '') : undefined
-    if (body.slug !== undefined && !slug) return c.json({ error: 'slug required' }, 400)
-    const result = await updateSortPackPackage(pool, c.req.param('id'), userDid, {
-      sortKey: hasSortKey ? body.sortKey : undefined,
-      name: body.name?.trim(),
-      slug,
-      description: body.description,
-      bumpVersion: body.bumpVersion ?? hasSortKey,
-    })
-    if (result === 'slug_taken') {
-      return c.json({ error: 'slug already used by another sort pack' }, 409)
+    const packageId = c.req.param('id')
+    let pkg: Awaited<ReturnType<typeof updateSortPackPackage>> = null
+    if (hasSortKey || hasMeta) {
+      const slug = body.slug !== undefined ? normalizeSlug(body.slug || body.name || '') : undefined
+      if (body.slug !== undefined && !slug) return c.json({ error: 'slug required' }, 400)
+      const result = await updateSortPackPackage(pool, packageId, userDid, {
+        sortKey: hasSortKey ? body.sortKey : undefined,
+        name: body.name?.trim(),
+        slug,
+        description: body.description,
+        bumpVersion: body.bumpVersion ?? hasSortKey,
+      })
+      if (result === 'slug_taken') {
+        return c.json({ error: 'slug already used by another sort pack' }, 409)
+      }
+      if (!result) return c.json({ error: 'not found or not owner' }, 404)
+      pkg = result
     }
-    if (!result) return c.json({ error: 'not found or not owner' }, 404)
-    return c.json({ package: result })
+    if (hasListing) {
+      const listingOk = await setPackageListingMeta(
+        pool,
+        'sort_pack_packages',
+        packageId,
+        userDid,
+        body.listing ?? null,
+      )
+      if (!listingOk && !pkg) return c.json({ error: 'not found or not owner' }, 404)
+    }
+    const refreshed = await getSortPackPackageById(pool, packageId, pkg?.version)
+    if (!refreshed) return c.json({ error: 'not found or not owner' }, 404)
+    return c.json({ package: refreshed })
   })
 
   app.post('/api/sort-packs/:id/subscribe', async (c) => {
@@ -209,6 +223,15 @@ export function registerSortPackRoutes(app: Hono, pool: Pool | null): void {
     return c.json({ ok: true })
   })
 
+  app.delete('/api/sort-packs/:id/subscribe', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+    const ok = await unsubscribeSortPack(pool, userDid, c.req.param('id'))
+    if (!ok) return c.json({ error: 'not subscribed' }, 404)
+    return c.json({ ok: true })
+  })
+
   app.patch('/api/sort-packs/:id/visibility', async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
     const userDid = getUserDid(c)
@@ -218,6 +241,8 @@ export function registerSortPackRoutes(app: Hono, pool: Pool | null): void {
     if (!visibility || !['collection', 'deployment', 'global'].includes(visibility)) {
       return c.json({ error: 'visibility required' }, 400)
     }
+    const globalReject = rejectOwnerGlobalVisibility(visibility)
+    if (globalReject) return c.json(globalReject, 400)
     const pkg = await setSortPackVisibility(pool, c.req.param('id'), userDid, visibility)
     if (!pkg) return c.json({ error: 'not found or not owner' }, 404)
     return c.json({ package: pkg })

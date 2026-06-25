@@ -83,6 +83,7 @@ interface Props {
   onUndo?: () => void
   onRedo?: () => void
   onResetPanels?: () => void
+  readOnly?: boolean
 }
 
 function minimapNodeColor(node: Node<GraphNodeData>): string {
@@ -118,6 +119,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     onUndo,
     onRedo,
     onResetPanels,
+    readOnly = false,
   },
   ref,
 ) {
@@ -555,13 +557,15 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
         }}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
-        onConnect={onConnect}
+        onConnect={readOnly ? undefined : onConnect}
         connectionLineType={ConnectionLineType.SmoothStep}
-        isValidConnection={(c) => isValidCanvasConnection(c as Connection, match, edgesRef.current)}
-        nodesDraggable
-        nodesConnectable
+        isValidConnection={
+          readOnly ? undefined : (c) => isValidCanvasConnection(c as Connection, match, edgesRef.current)
+        }
+        nodesDraggable={!readOnly}
+        nodesConnectable={!readOnly}
         edgesReconnectable={false}
-        deleteKeyCode={['Delete', 'Backspace']}
+        deleteKeyCode={readOnly ? null : ['Delete', 'Backspace']}
         colorMode="dark"
         fitView
         fitViewOptions={{ padding: 0.15 }}

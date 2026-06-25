@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@cfb/core-types": "workspace:*",
+    "@cfb/l2-graph": "workspace:*",
     "@cfb/post-normalize": "workspace:*"
   },
   "devDependencies": {

@@ -191,8 +191,9 @@ export function resolveCanvasEdges(
   match: L2RuleGroup,
   saved?: CanvasEdge[],
 ): CanvasEdge[] {
-  if (!saved?.length) return []
-  return sanitizeCanvasEdges(match, saved)
+  if (!saved?.length) return defaultCanvasEdges(match)
+  const cleaned = sanitizeCanvasEdges(match, saved)
+  return cleaned.length ? cleaned : defaultCanvasEdges(match)
 }
 
 export function defaultNodeProvenance(rule?: L2RuleNode): L2NodeProvenance {

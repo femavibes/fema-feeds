@@ -12,17 +12,21 @@ import {
   setPluginVisibility,
   setPluginWasmArtifact,
   subscribePlugin,
+  unsubscribePlugin,
+  setPackageListingMeta,
   updatePluginPackage,
 } from '@cfb/storage-postgres'
 import { evictWasmCache, MAX_WASM_BYTES } from '@cfb/plugin-wasm'
 import {
   globalMarketplaceMode,
   globalMarketplaceRegistryRole,
-  isGlobalMarketplaceOperatorInstance,
+  isCanonicalGlobalRegistryHost,
   isRequestGlobalVerifier,
 } from './global-marketplace.js'
+import { resolvePluginCatalog } from './marketplace-catalog-resolve.js'
 import { parsePluginKind } from './plugin-bootstrap.js'
 import { getUserDid } from './request-user.js'
+import { rejectOwnerGlobalVisibility } from './marketplace-visibility.js'
 import { isRequestMaster } from './require-master.js'
 
 function parseCatalogScope(raw: string | undefined): 'deployment' | 'global' | 'all' {
@@ -35,7 +39,7 @@ export function registerGlobalPluginRegistryRoutes(app: Hono, pool: Pool | null,
 
   app.get(`${base}/catalog`, async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
-    if (!isGlobalMarketplaceOperatorInstance()) {
+    if (!isCanonicalGlobalRegistryHost()) {
       return c.json({ error: 'global marketplace registry not enabled on this host' }, 503)
     }
     const packages = await listPluginCatalog(pool, kind, 'global')
@@ -58,7 +62,7 @@ export function registerGlobalPluginRegistryRoutes(app: Hono, pool: Pool | null,
 
   app.get(`${base}/catalog/:id`, async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
-    if (!isGlobalMarketplaceOperatorInstance()) {
+    if (!isCanonicalGlobalRegistryHost()) {
       return c.json({ error: 'global marketplace registry not enabled on this host' }, 503)
     }
     const versionPin = c.req.query('version')?.trim()
@@ -150,8 +154,13 @@ export function registerPluginRoutes(app: Hono, pool: Pool | null): void {
     const kind = parsePluginKind(c.req.query('kind'))
     if (!kind) return c.json({ error: 'kind=injector or kind=ranker required' }, 400)
     const scope = parseCatalogScope(c.req.query('scope'))
-    const packages = await listPluginCatalog(pool, kind, scope)
-    return c.json({ packages, scope, kind, mode: globalMarketplaceMode() })
+    try {
+      const packages = await resolvePluginCatalog(pool, kind, scope)
+      return c.json({ packages, scope, kind, mode: globalMarketplaceMode() })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'registry fetch failed'
+      return c.json({ error: message }, 502)
+    }
   })
 
   app.get('/api/plugins/collection', async (c) => {
@@ -314,21 +323,57 @@ export function registerPluginRoutes(app: Hono, pool: Pool | null): void {
     return c.json({ ok: true })
   })
 
+  app.delete('/api/plugins/:id/subscribe', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+    const ok = await unsubscribePlugin(pool, userDid, c.req.param('id'))
+    if (!ok) return c.json({ error: 'not subscribed' }, 404)
+    return c.json({ ok: true })
+  })
+
   app.patch('/api/plugins/:id', async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
     const userDid = getUserDid(c)
     if (!userDid) return c.json({ error: 'login_required' }, 401)
     const body =
       (await c.req
-        .json<{ name?: string; description?: string | null; remoteEndpoint?: string | null }>()
+        .json<{
+          name?: string
+          description?: string | null
+          remoteEndpoint?: string | null
+          listing?: import('@cfb/core-types').MarketplaceListingMeta | null
+        }>()
         .catch(() => null)) ?? {}
-    const pkg = await updatePluginPackage(pool, c.req.param('id'), userDid, {
-      name: body.name?.trim(),
-      description: body.description,
-      remoteEndpoint: body.remoteEndpoint,
-    })
-    if (!pkg) return c.json({ error: 'not found or not owner' }, 404)
-    return c.json({ package: pkg })
+    const hasMeta =
+      body.name !== undefined || body.description !== undefined || body.remoteEndpoint !== undefined
+    const hasListing = body.listing !== undefined
+    if (!hasMeta && !hasListing) {
+      return c.json({ error: 'provide name, description, remoteEndpoint, or listing' }, 400)
+    }
+    const packageId = c.req.param('id')
+    let pkg: Awaited<ReturnType<typeof updatePluginPackage>> = null
+    if (hasMeta) {
+      pkg = await updatePluginPackage(pool, packageId, userDid, {
+        name: body.name?.trim(),
+        description: body.description,
+        remoteEndpoint: body.remoteEndpoint,
+      })
+      if (!pkg) return c.json({ error: 'not found or not owner' }, 404)
+    }
+    if (hasListing) {
+      const listingOk = await setPackageListingMeta(
+        pool,
+        'plugin_packages',
+        packageId,
+        userDid,
+        body.listing ?? null,
+      )
+      if (!listingOk && !pkg) return c.json({ error: 'not found or not owner' }, 404)
+    }
+    const refreshed = await getPluginPackageById(pool, packageId, pkg?.version)
+    if (!refreshed) return c.json({ error: 'not found or not owner' }, 404)
+    return c.json({ package: refreshed })
   })
 
   app.patch('/api/plugins/:id/visibility', async (c) => {
@@ -340,6 +385,8 @@ export function registerPluginRoutes(app: Hono, pool: Pool | null): void {
     if (!visibility || !['collection', 'deployment', 'global'].includes(visibility)) {
       return c.json({ error: 'visibility required' }, 400)
     }
+    const globalReject = rejectOwnerGlobalVisibility(visibility)
+    if (globalReject) return c.json(globalReject, 400)
     if (visibility === 'deployment' || visibility === 'global') {
       const verified = await requireVerifiedPublisher(pool, userDid)
       if (!verified.ok) {

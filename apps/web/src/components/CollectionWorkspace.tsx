@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import type { L2RuleGroup, LogicBlockPackage, PluginPackage, PublisherVerificationStatus, SortPackPackage } from '@cfb/core-types'
-import type { CollectionWorkspaceView } from '../lib/workspace-views'
+import type { CollectionWorkspaceView, MarketplaceProductScope } from '../lib/workspace-views'
+import { isCustomCodeProduct, marketplaceProduct } from '../lib/marketplace-products'
 
 
 
@@ -29,9 +30,11 @@ import { PluginDeveloperGuide } from './plugins/PluginDeveloperGuide'
 
 import { PluginsCollectionView } from './plugins/PluginsCollectionView'
 
-
-
-type CollectionKind = 'logic_blocks' | 'sort_packs' | 'custom_code'
+import {
+  MarketplaceListingEditor,
+  type ListingEditorTarget,
+} from './marketplace/MarketplaceListingEditor'
+import { CollectionAllView, type CollectionAllSelection } from './marketplace/CollectionAllView'
 
 
 
@@ -43,9 +46,30 @@ function emptyLogicRoot(): L2RuleGroup {
 
 
 
+function clearCollectionSelection(
+  kind: MarketplaceProductScope,
+  setters: {
+    setSelectedLogic: (v: LogicBlockPackage | null) => void
+    setSelectedSort: (v: SortPackPackage | null) => void
+    setSelectedPlugin: (v: PluginPackage | null) => void
+  },
+) {
+  if (kind === 'all') {
+    setters.setSelectedLogic(null)
+    setters.setSelectedSort(null)
+    setters.setSelectedPlugin(null)
+    return
+  }
+  if (kind !== 'logic_blocks') setters.setSelectedLogic(null)
+  if (kind !== 'sort_packs') setters.setSelectedSort(null)
+  setters.setSelectedPlugin(null)
+}
+
+
+
 export function CollectionWorkspace() {
 
-  const [collectionKind, setCollectionKind] = useState<CollectionKind>('logic_blocks')
+  const [collectionScope, setCollectionScope] = useState<MarketplaceProductScope>('all')
 
   const [collectionView, setCollectionView] = useState<CollectionWorkspaceView>('blocks')
 
@@ -56,6 +80,8 @@ export function CollectionWorkspace() {
   const [selectedPlugin, setSelectedPlugin] = useState<PluginPackage | null>(null)
 
   const [editingPkg, setEditingPkg] = useState<LogicBlockPackage | null>(null)
+
+  const [listingEditor, setListingEditor] = useState<ListingEditorTarget | null>(null)
 
   const [showCreateDialog, setShowCreateDialog] = useState(false)
 
@@ -76,9 +102,44 @@ export function CollectionWorkspace() {
 
   const bumpRefresh = useCallback(() => setRefreshKey((k) => k + 1), [])
 
+  const handleListingSaved = useCallback((next: ListingEditorTarget) => {
+    setListingEditor(next)
+    if (next.productKind === 'logic_block') setSelectedLogic(next.pkg)
+    else if (next.productKind === 'sort_pack') setSelectedSort(next.pkg)
+    else setSelectedPlugin(next.pkg)
+    bumpRefresh()
+  }, [bumpRefresh])
+
   const openDeveloperGuide = useCallback(() => {
     setShowCustomCodeDialog(false)
     setCollectionView('developer_guide')
+  }, [])
+
+  const handleCollectionProductKindChange = useCallback((kind: MarketplaceProductScope) => {
+    setCollectionView('blocks')
+    setListingEditor(null)
+    setCollectionScope(kind)
+    clearCollectionSelection(kind, {
+      setSelectedLogic,
+      setSelectedSort,
+      setSelectedPlugin,
+    })
+  }, [])
+
+  const handleCollectionAllSelect = useCallback((sel: CollectionAllSelection) => {
+    if (sel.kind === 'logic_block') {
+      setSelectedLogic(sel.pkg)
+      setSelectedSort(null)
+      setSelectedPlugin(null)
+    } else if (sel.kind === 'sort_pack') {
+      setSelectedSort(sel.pkg)
+      setSelectedLogic(null)
+      setSelectedPlugin(null)
+    } else {
+      setSelectedPlugin(sel.pkg)
+      setSelectedLogic(null)
+      setSelectedSort(null)
+    }
   }, [])
 
 
@@ -229,7 +290,7 @@ export function CollectionWorkspace() {
 
         setShowCustomCodeDialog(false)
 
-        setCollectionKind('custom_code')
+        setCollectionScope(input.kind === 'injector' ? 'injectors' : 'rankers')
 
         setSelectedPlugin(res.package)
 
@@ -281,81 +342,63 @@ export function CollectionWorkspace() {
 
   const isSortOwner = Boolean(userDid && selectedSort && selectedSort.ownerDid === userDid)
 
+  const showingLogicDetail = Boolean(
+    collectionView !== 'developer_guide' &&
+      !listingEditor &&
+      selectedLogic &&
+      (collectionScope === 'logic_blocks' || collectionScope === 'all'),
+  )
+
+  const showLogicEditInHeader = showingLogicDetail && isLogicOwner
+
 
 
   return (
-
-    <div className="project-workspace collection-workspace">
-
+    <>
       {showCustomCodeDialog ? (
-
         <CustomCodeCreateDialog
-
           publisherVerification={publisherVerification}
-
+          defaultKind={
+            collectionScope === 'rankers' ? 'ranker' : 'injector'
+          }
           busy={creating}
-
           error={error}
-
           onCancel={() => {
-
             setShowCustomCodeDialog(false)
-
             setError(null)
-
           }}
-
           onOpenDeveloperGuide={openDeveloperGuide}
-
           onCreate={(input) => void createCustomCode(input)}
-
         />
-
       ) : null}
-
-
 
       {showCreateDialog ? (
-
         <LogicBlockCreateDialog
-
           busy={creating}
-
           error={error}
-
           onCancel={() => {
-
             setShowCreateDialog(false)
-
             setError(null)
-
           }}
-
           onCreate={(meta) => void createNewLogicBlock(meta)}
-
         />
-
       ) : null}
 
-
-
+      <div className="project-workspace collection-workspace project-workspace--catalog">
       <WorkspaceNav
-
         mode="collection"
-
         contextLabel="My collection"
-
         collectionView={collectionView}
-
         onCollectionViewChange={setCollectionView}
-
+        collectionProductKind={collectionScope}
+        onCollectionProductKindChange={handleCollectionProductKindChange}
         onOpenDeveloperGuide={() => setCollectionView('developer_guide')}
 
         onNewLogicBlockClick={() => {
 
           setCollectionView('blocks')
 
-          setCollectionKind('logic_blocks')
+          setCollectionScope('logic_blocks')
 
           setError(null)
 
@@ -367,7 +410,9 @@ export function CollectionWorkspace() {
 
           setCollectionView('blocks')
 
-          setCollectionKind('custom_code')
+          if (collectionScope !== 'injectors' && collectionScope !== 'rankers') {
+            setCollectionScope('injectors')
+          }
 
           setError(null)
 
@@ -387,139 +432,106 @@ export function CollectionWorkspace() {
 
             <PluginDeveloperGuide />
 
+          ) : listingEditor ? (
+
+            <MarketplaceListingEditor
+              target={listingEditor}
+              onBack={() => setListingEditor(null)}
+              onSaved={handleListingSaved}
+            />
+
           ) : (
 
             <div className="collection-blocks-view">
 
+          {(() => {
+            const scopeLabel =
+              collectionScope === 'all' ? 'All' : marketplaceProduct(collectionScope).label
+            const product = collectionScope === 'all' ? null : marketplaceProduct(collectionScope)
+            return (
           <header className="workspace-context-head">
 
             <div className="workspace-context-head-row">
 
-              <h2>My collection</h2>
+              <h2>
+                My collection · {scopeLabel}
+                {product ? (
+                  <span className="marketplace-product-tier">
+                    {product.tier === 'native' ? 'Native' : 'Custom code'}
+                  </span>
+                ) : null}
+              </h2>
 
-              {collectionKind === 'logic_blocks' ? (
-
+              {collectionScope === 'logic_blocks' ? (
                 <button
-
                   type="button"
-
                   className="btn btn-primary btn-sm"
-
                   disabled={creating}
-
                   onClick={() => {
-
                     setError(null)
-
                     setShowCreateDialog(true)
-
                   }}
-
                 >
-
                   New logic block
-
                 </button>
-
+              ) : collectionScope !== 'all' && isCustomCodeProduct(collectionScope) ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={creating}
+                  onClick={() => {
+                    setError(null)
+                    setShowCustomCodeDialog(true)
+                  }}
+                >
+                  New {product!.label.toLowerCase().replace(/s$/, '')}
+                </button>
               ) : null}
 
             </div>
 
             <p className="card-hint">
-
-              Private workspace — publish to this deployment or the global marketplace when ready.
-
+              {collectionScope === 'all'
+                ? 'Your packages across logic blocks, sort packs, injectors, and rankers. Pick a category in the sidebar to focus or create new items.'
+                : product!.collectionHint}
             </p>
+            {product ? (
+              <>
+                <p className="card-hint marketplace-product-meta">
+                  <strong>Runs:</strong> {product.runsAt}
+                </p>
+                <p className="card-hint marketplace-product-meta">
+                  <strong>Access:</strong> {product.access}
+                </p>
+              </>
+            ) : null}
 
             {error && !showCreateDialog ? <p className="field-error">{error}</p> : null}
 
           </header>
-
-
-
-          <div className="logic-blocks-browse-scope marketplace-product-kind" role="tablist" aria-label="Collection kind">
-
-            <button
-
-              type="button"
-
-              role="tab"
-
-              aria-selected={collectionKind === 'logic_blocks'}
-
-              className={`logic-blocks-scope-btn${collectionKind === 'logic_blocks' ? ' active' : ''}`}
-
-              onClick={() => {
-
-                setCollectionKind('logic_blocks')
-
-                setSelectedSort(null)
-
-              }}
-
-            >
-
-              Logic blocks
-
-            </button>
-
-            <button
-
-              type="button"
-
-              role="tab"
-
-              aria-selected={collectionKind === 'sort_packs'}
-
-              className={`logic-blocks-scope-btn${collectionKind === 'sort_packs' ? ' active' : ''}`}
-
-              onClick={() => {
-
-                setCollectionKind('sort_packs')
-
-                setSelectedLogic(null)
-
-              }}
-
-            >
-
-              Sort packs
-
-            </button>
-
-            <button
-
-              type="button"
-
-              role="tab"
-
-              aria-selected={collectionKind === 'custom_code'}
-
-              className={`logic-blocks-scope-btn${collectionKind === 'custom_code' ? ' active' : ''}`}
-
-              onClick={() => {
-
-                setCollectionKind('custom_code')
-
-                setSelectedLogic(null)
-
-                setSelectedSort(null)
-
-              }}
-
-            >
-
-              Custom code
-
-            </button>
-
-          </div>
-
-
+            )
+          })()}
 
           <div className="marketplace-content">
 
-            {collectionKind === 'logic_blocks' ? (
+            {collectionScope === 'all' ? (
+              <CollectionAllView
+                key={refreshKey}
+                selection={
+                  selectedLogic
+                    ? { kind: 'logic_block', pkg: selectedLogic }
+                    : selectedSort
+                      ? { kind: 'sort_pack', pkg: selectedSort }
+                      : selectedPlugin
+                        ? {
+                            kind: selectedPlugin.kind === 'injector' ? 'injector' : 'ranker',
+                            pkg: selectedPlugin,
+                          }
+                        : null
+                }
+                onSelect={handleCollectionAllSelect}
+              />
+            ) : collectionScope === 'logic_blocks' ? (
 
               <LogicBlocksCollectionView
 
@@ -533,7 +545,7 @@ export function CollectionWorkspace() {
 
               />
 
-            ) : collectionKind === 'sort_packs' ? (
+            ) : collectionScope === 'sort_packs' ? (
 
               <SortPacksCollectionView
 
@@ -545,11 +557,27 @@ export function CollectionWorkspace() {
 
               />
 
+            ) : collectionScope === 'injectors' ? (
+
+              <PluginsCollectionView
+
+                key={`${refreshKey}-injector`}
+
+                kind="injector"
+
+                selectedId={selectedPlugin?.id ?? null}
+
+                onSelect={setSelectedPlugin}
+
+              />
+
             ) : (
 
               <PluginsCollectionView
 
-                key={refreshKey}
+                key={`${refreshKey}-ranker`}
+
+                kind="ranker"
 
                 selectedId={selectedPlugin?.id ?? null}
 
@@ -573,27 +601,37 @@ export function CollectionWorkspace() {
 
       <aside className="sidebar sidebar-right marketplace-sidebar">
 
-        <div className="sidebar-head">
+        <div className={`sidebar-head${showLogicEditInHeader ? ' marketplace-sidebar-toolbar' : ''}`}>
 
-          <div className="sidebar-head-text">
+          <div className="sidebar-head-text marketplace-sidebar-head-labels">
 
             <h2>Details</h2>
 
             <span className="sidebar-head-sub">
-
-              {collectionKind === 'logic_blocks'
-
-                ? 'Logic block'
-
-                : collectionKind === 'sort_packs'
-
-                  ? 'Sort pack'
-
-                  : 'Custom code'}
-
+              {collectionScope === 'all'
+                ? selectedLogic
+                  ? marketplaceProduct('logic_blocks').label
+                  : selectedSort
+                    ? marketplaceProduct('sort_packs').label
+                    : selectedPlugin
+                      ? marketplaceProduct(selectedPlugin.kind === 'injector' ? 'injectors' : 'rankers').label
+                      : 'All packages'
+                : marketplaceProduct(collectionScope).label}
             </span>
 
           </div>
+
+          {showLogicEditInHeader && selectedLogic ? (
+            <div className="marketplace-sidebar-toolbar-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => openEditor(selectedLogic)}
+              >
+                Edit logic
+              </button>
+            </div>
+          ) : null}
 
         </div>
 
@@ -613,7 +651,7 @@ export function CollectionWorkspace() {
 
             </div>
 
-          ) : collectionKind === 'logic_blocks' ? (
+          ) : collectionScope === 'all' && selectedLogic ? (
 
             <LogicBlockDetailPanel
 
@@ -625,7 +663,11 @@ export function CollectionWorkspace() {
 
               onPublished={handlePublishedLogic}
 
-              onEdit={isLogicOwner && selectedLogic ? () => openEditor(selectedLogic) : undefined}
+              onEditListing={
+                isLogicOwner && selectedLogic
+                  ? () => setListingEditor({ productKind: 'logic_block', pkg: selectedLogic })
+                  : undefined
+              }
 
               onMetadataSaved={(pkg) => {
 
@@ -637,7 +679,7 @@ export function CollectionWorkspace() {
 
             />
 
-          ) : collectionKind === 'sort_packs' ? (
+          ) : collectionScope === 'all' && selectedSort ? (
 
             <SortPackDetailPanel
 
@@ -649,6 +691,12 @@ export function CollectionWorkspace() {
 
               onPublished={handlePublishedSort}
 
+              onEditListing={
+                isSortOwner && selectedSort
+                  ? () => setListingEditor({ productKind: 'sort_pack', pkg: selectedSort })
+                  : undefined
+              }
+
               onMetadataSaved={(pkg) => {
 
                 setSelectedSort(pkg)
@@ -659,11 +707,11 @@ export function CollectionWorkspace() {
 
             />
 
-          ) : (
+          ) : collectionScope === 'all' && selectedPlugin ? (
 
             <InjectorDetailPanel
 
-              kind={selectedPlugin?.kind ?? 'ranker'}
+              kind={selectedPlugin.kind}
 
               variant="collection"
 
@@ -689,6 +737,16 @@ export function CollectionWorkspace() {
 
               }}
 
+              onEditListing={
+                selectedPlugin && userDid && selectedPlugin.ownerDid === userDid
+                  ? () =>
+                      setListingEditor({
+                        productKind: selectedPlugin.kind,
+                        pkg: selectedPlugin,
+                      })
+                  : undefined
+              }
+
               onMetadataSaved={(pkg) => {
 
                 setSelectedPlugin(pkg)
@@ -701,16 +759,129 @@ export function CollectionWorkspace() {
 
             />
 
-          )}
+          ) : collectionScope === 'all' ? (
+
+            <div className="marketplace-sidebar-empty">
+              <p>Select a package to view details, publish, or edit its storefront listing.</p>
+            </div>
+
+          ) : collectionScope === 'logic_blocks' ? (
+
+            <LogicBlockDetailPanel
+
+              variant="collection"
+
+              pkg={selectedLogic}
+
+              userDid={userDid}
+
+              onPublished={handlePublishedLogic}
+
+              onEditListing={
+                isLogicOwner && selectedLogic
+                  ? () => setListingEditor({ productKind: 'logic_block', pkg: selectedLogic })
+                  : undefined
+              }
+
+              onMetadataSaved={(pkg) => {
+
+                setSelectedLogic(pkg)
+
+                bumpRefresh()
+
+              }}
+
+            />
+
+          ) : collectionScope === 'sort_packs' ? (
+
+            <SortPackDetailPanel
+
+              variant="collection"
+
+              pkg={selectedSort}
+
+              userDid={userDid}
+
+              onPublished={handlePublishedSort}
+
+              onEditListing={
+                isSortOwner && selectedSort
+                  ? () => setListingEditor({ productKind: 'sort_pack', pkg: selectedSort })
+                  : undefined
+              }
+
+              onMetadataSaved={(pkg) => {
+
+                setSelectedSort(pkg)
+
+                bumpRefresh()
+
+              }}
+
+            />
+
+          ) : collectionScope === 'injectors' || collectionScope === 'rankers' ? (
+
+            <InjectorDetailPanel
+
+              kind={collectionScope === 'injectors' ? 'injector' : 'ranker'}
+
+              variant="collection"
+
+              pkg={selectedPlugin}
+
+              userDid={userDid}
+
+              onPublished={() => {
+
+                bumpRefresh()
+
+                if (selectedPlugin) {
+
+                  void api
+
+                    .getPlugin(selectedPlugin.id)
+
+                    .then((res) => setSelectedPlugin(res.package))
+
+                    .catch(() => {})
+
+                }
+
+              }}
+
+              onEditListing={
+                selectedPlugin && userDid && selectedPlugin.ownerDid === userDid
+                  ? () =>
+                      setListingEditor({
+                        productKind: collectionScope === 'injectors' ? 'injector' : 'ranker',
+                        pkg: selectedPlugin,
+                      })
+                  : undefined
+              }
+
+              onMetadataSaved={(pkg) => {
+
+                setSelectedPlugin(pkg)
+
+                bumpRefresh()
+
+              }}
+
+              onOpenDeveloperGuide={openDeveloperGuide}
+
+            />
+
+          ) : null}
 
         </div>
 
       </aside>
 
-    </div>
-
+      </div>
+    </>
   )
-
 }
 
 

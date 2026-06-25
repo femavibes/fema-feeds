@@ -3,6 +3,7 @@ interface Props {
   slug: string
   description: string
   disabled?: boolean
+  showDescription?: boolean
   onNameChange: (value: string) => void
   onSlugChange: (value: string) => void
   onDescriptionChange: (value: string) => void
@@ -13,6 +14,7 @@ export function LogicBlockMetadataFields({
   slug,
   description,
   disabled = false,
+  showDescription = true,
   onNameChange,
   onSlugChange,
   onDescriptionChange,
@@ -37,6 +39,7 @@ export function LogicBlockMetadataFields({
           onChange={(e) => onSlugChange(e.target.value)}
         />
       </label>
+      {showDescription ? (
       <label className="l2-inspector-field">
         Description
         <input
@@ -46,6 +49,7 @@ export function LogicBlockMetadataFields({
           onChange={(e) => onDescriptionChange(e.target.value)}
         />
       </label>
+      ) : null}
     </div>
   )
 }
