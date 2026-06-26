@@ -31,7 +31,7 @@ export function SortTester({ draft }: Props) {
     }
   }
 
-  const nonZeroFields = result?.fields.filter((f) => f.value !== 0) ?? []
+  const nonZeroFields = result?.fields ?? []
 
   return (
     <div className="sort-tester">

@@ -1312,30 +1312,12 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
       const { resolvePostInput } = await import('@cfb/post-resolve')
       const post = await resolvePostInput(body.url)
 
-      // Try local DB first (same source as the actual feed system)
-      let metrics = pool ? await loadPostMetrics(pool, post.uri, post.authorDid) : undefined
+      if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
 
-      // Fallback to Bluesky public API if we don't have engagement metrics locally
-      const hasEngagementMetrics = metrics && (metrics.likeCount || metrics.repostCount || metrics.replyCount)
-      if (!hasEngagementMetrics) {
-        const bskyBase = process.env.BSKY_PUBLIC_API ?? 'https://public.api.bsky.app'
-        const postsRes = await fetch(`${bskyBase}/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(post.uri)}`)
-        if (postsRes.ok) {
-          const postsData = (await postsRes.json()) as { posts?: Array<{ likeCount?: number; repostCount?: number; replyCount?: number; quoteCount?: number; author?: { followersCount?: number; followsCount?: number; postsCount?: number } }> }
-          const view = postsData.posts?.[0]
-          if (view) {
-            metrics = {
-              ...metrics,
-              likeCount: view.likeCount ?? 0,
-              repostCount: view.repostCount ?? 0,
-              replyCount: view.replyCount ?? 0,
-              quoteCount: view.quoteCount ?? 0,
-              authorFollowerCount: view.author?.followersCount ?? 0,
-              authorFollowsCount: view.author?.followsCount ?? 0,
-              authorPostsCount: view.author?.postsCount ?? 0,
-            }
-          }
-        }
+      // Use local DB only — same source as the actual feed system
+      const metrics = await loadPostMetrics(pool, post.uri, post.authorDid)
+      if (!metrics || (!metrics.likeCount && !metrics.repostCount && !metrics.replyCount && !metrics.authorFollowerCount)) {
+        return c.json({ error: 'Post not in our database. Ingest it first to test scoring.' }, 404)
       }
 
       const { buildL2Runtime, numericFieldValue, evalExpr } = await import('@cfb/l2-eval')
