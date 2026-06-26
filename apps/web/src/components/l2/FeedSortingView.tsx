@@ -35,9 +35,21 @@ export function FeedSortingView({
   return (
     <div className="workspace-page feed-sorting-view">
       <header className="workspace-context-head">
-        <div className="workspace-context-head-row">
-          <h2>Sorting</h2>
-          <span className="badge badge-on">{sortModeBadge(mode, weights)}</span>
+        <div className="workspace-context-head-row workspace-context-head-row-split">
+          <div>
+            <h2>Sorting</h2>
+            <span className="badge badge-on">{sortModeBadge(mode, weights)}</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              /* handled by SortPackFeedSection inside the panel */
+              document.querySelector<HTMLButtonElement>('.sort-pack-save-trigger')?.click()
+            }}
+          >
+            Save sort to collection
+          </button>
         </div>
         <p className="card-hint">
           How posts are ordered in <strong>{draft.name}</strong> when the feed skeleton is built.

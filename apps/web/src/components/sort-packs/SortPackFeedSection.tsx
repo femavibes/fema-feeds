@@ -136,7 +136,7 @@ export function SortPackFeedSection({ draft, onChange }: Props) {
       )}
 
       {!saveOpen ? (
-        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSaveOpen(true)}>
+        <button type="button" className="btn btn-secondary btn-sm sort-pack-save-trigger" onClick={() => setSaveOpen(true)}>
           Save sort to collection
         </button>
       ) : (

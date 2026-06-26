@@ -201,9 +201,18 @@ export function detectSortMode(rank: FeedConfig['rank']): SortMode {
   if (rank?.packRef) return 'pack'
   if (!rank?.sortKey) return 'chronological'
 
+  // Only detect as engagement if the expr matches what engagementExpr would produce
+  // (i.e. a sum/weighted-sum of engagement fields at the top level)
   const w = detectEngagementWeights(rank.sortKey)
-  if (w.likes.enabled || w.reposts.enabled || w.replies.enabled || w.quotes.enabled) {
-    return 'engagement'
+  const enabledCount = [w.likes, w.reposts, w.replies, w.quotes].filter(s => s.enabled).length
+  // If 2+ engagement signals detected, it's engagement mode
+  // If exactly 1 signal and expr is just that field (or field * literal), also engagement
+  if (enabledCount >= 2) return 'engagement'
+  if (enabledCount === 1) {
+    // Single field or single field * weight — still engagement
+    const expr = rank.sortKey
+    if (expr.type === 'field') return 'engagement'
+    if (expr.type === 'binary' && expr.op === '*') return 'engagement'
   }
 
   return 'custom'

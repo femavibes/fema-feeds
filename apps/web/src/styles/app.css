@@ -3052,20 +3052,22 @@ body {
 }
 
 .feed-sorting-signal-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 0.5rem;
 }
 
 .feed-sorting-signal-row .option-toggle-row {
-  flex: 1;
+  min-width: 0;
 }
 
 .feed-sorting-weight-input {
   display: flex;
   align-items: center;
   gap: 0.2rem;
-  flex-shrink: 0;
+  width: 4.5rem;
+  justify-content: flex-end;
 }
 
 .feed-sorting-weight-label {

@@ -64,9 +64,9 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
       return
     }
     if (next === 'custom') {
-      if (!draft.rank?.sortKey) {
-        onChange({ ...draft, rank: { sortKey: { type: 'field', field: 'like_count' } } })
-      }
+      // Set a default custom expr that won't be detected as engagement
+      const customDefault: L2Expr = { type: 'binary', op: '+', left: { type: 'field', field: 'like_count' }, right: { type: 'field', field: 'editor_score' } }
+      onChange({ ...draft, rank: { sortKey: customDefault } })
       return
     }
     onChange(applySortMode(draft, next, undefined, DEFAULT_SORT_TUNING))
@@ -133,24 +133,26 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
                     }
                     ariaLabel={`Include ${sig.label.toLowerCase()}`}
                   />
-                  {signal.enabled && (
-                    <label className="feed-sorting-weight-input">
-                      <span className="feed-sorting-weight-label">×</span>
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={signal.weight}
-                        onChange={(e) => {
-                          const w = Math.max(1, parseInt(e.target.value) || 1)
-                          updateWeights({
-                            ...engagementWeights,
-                            [sig.key]: { ...signal, weight: w },
-                          })
-                        }}
-                      />
-                    </label>
-                  )}
+                  <label className="feed-sorting-weight-input">
+                    {signal.enabled ? (
+                      <>
+                        <span className="feed-sorting-weight-label">×</span>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={signal.weight}
+                          onChange={(e) => {
+                            const w = Math.max(1, parseInt(e.target.value) || 1)
+                            updateWeights({
+                              ...engagementWeights,
+                              [sig.key]: { ...signal, weight: w },
+                            })
+                          }}
+                        />
+                      </>
+                    ) : null}
+                  </label>
                 </div>
               )
             })}
