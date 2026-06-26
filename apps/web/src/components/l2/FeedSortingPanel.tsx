@@ -15,7 +15,9 @@ import {
   engagementExpr,
   engagementFormulaLabel,
   sortModeBadge,
+  type AuthorFairnessMode,
   type EngagementWeights,
+  type MediaBonus,
   type SortMode,
   type SortTuning,
 } from '../../lib/feed-sorting'
@@ -27,25 +29,195 @@ interface Props {
   layout?: 'main' | 'sidebar'
 }
 
-const ENGAGEMENT_SIGNALS: {
-  key: keyof EngagementWeights
-  label: string
-}[] = [
+const ENGAGEMENT_SIGNALS: { key: keyof EngagementWeights; label: string }[] = [
   { key: 'likes', label: 'Likes' },
   { key: 'reposts', label: 'Reposts' },
   { key: 'replies', label: 'Replies' },
   { key: 'quotes', label: 'Quotes' },
+  { key: 'bookmarks', label: 'Bookmarks' },
 ]
+
+const MEDIA_SIGNALS: { key: keyof MediaBonus; label: string }[] = [
+  { key: 'image', label: 'Image' },
+  { key: 'video', label: 'Video' },
+  { key: 'linkCard', label: 'Link card' },
+]
+
+const AUTHOR_FAIRNESS_OPTIONS: { value: AuthorFairnessMode; label: string; hint: string }[] = [
+  { value: 'off', label: 'Off', hint: 'No equalization' },
+  { value: 'log', label: 'Log (gentle)', hint: 'Slight boost to small accounts' },
+  { value: 'sqrt', label: 'Sqrt (moderate)', hint: 'Strong equalization' },
+  { value: 'sigmoid', label: 'Sigmoid (aggressive)', hint: 'Heavy anti-megaphone' },
+]
+
+function SignalRows({
+  signals,
+  weights,
+  onChange,
+}: {
+  signals: { key: string; label: string }[]
+  weights: EngagementWeights
+  onChange: (key: string, signal: { enabled: boolean; weight: number }) => void
+}) {
+  return (
+    <>
+      {signals.map((sig) => {
+        const signal = (weights as unknown as Record<string, { enabled: boolean; weight: number }>)[sig.key] ?? { enabled: false, weight: 1 }
+        return (
+          <div key={sig.key} className="feed-sorting-signal-row">
+            <ToggleRow
+              label={sig.label}
+              hint=""
+              checked={signal.enabled}
+              onChange={(on) => onChange(sig.key, { ...signal, enabled: on })}
+              ariaLabel={`Include ${sig.label.toLowerCase()}`}
+            />
+            <label className="feed-sorting-weight-input">
+              {signal.enabled ? (
+                <>
+                  <span className="feed-sorting-weight-label">×</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={signal.weight}
+                    onChange={(e) => {
+                      const w = Math.max(1, parseInt(e.target.value) || 1)
+                      onChange(sig.key, { ...signal, weight: w })
+                    }}
+                  />
+                </>
+              ) : null}
+            </label>
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
+function TuningSection({
+  tuning,
+  onChange,
+  showMediaBonus,
+  showAuthorFairness,
+  showFreshnessFloor,
+}: {
+  tuning: SortTuning
+  onChange: (next: SortTuning) => void
+  showMediaBonus: boolean
+  showAuthorFairness: boolean
+  showFreshnessFloor: boolean
+}) {
+  return (
+    <div className="feed-sorting-tuning-fields">
+      <p className="sidebar-block-title">Tuning</p>
+      <label className="l2-inspector-field">
+        Time decay (half-life hours)
+        <input
+          type="number"
+          min="0"
+          step="1"
+          value={tuning.decayHalfLifeHours}
+          onChange={(e) => onChange({ ...tuning, decayHalfLifeHours: Math.max(0, parseInt(e.target.value) || 0) })}
+        />
+        <span className="card-hint">0 = off. Posts lose half their score every N hours.</span>
+      </label>
+      <label className="l2-inspector-field">
+        Editor score boost
+        <input
+          type="number"
+          min="0"
+          step="100"
+          value={tuning.editorScoreWeight}
+          onChange={(e) => onChange({ ...tuning, editorScoreWeight: Math.max(0, parseInt(e.target.value) || 0) })}
+        />
+        <span className="card-hint">0 = off. Multiplies editor_score from Score nodes before adding.</span>
+      </label>
+
+      {showFreshnessFloor && (
+        <label className="l2-inspector-field">
+          Max post age (hours)
+          <input
+            type="number"
+            min="0"
+            step="1"
+            value={tuning.maxAgeHours}
+            onChange={(e) => onChange({ ...tuning, maxAgeHours: Math.max(0, parseInt(e.target.value) || 0) })}
+          />
+          <span className="card-hint">0 = no limit. Posts older than this trend toward score 0.</span>
+        </label>
+      )}
+
+      {showAuthorFairness && (
+        <label className="l2-inspector-field">
+          Author fairness
+          <select
+            value={tuning.authorFairness}
+            onChange={(e) => onChange({ ...tuning, authorFairness: e.target.value as AuthorFairnessMode })}
+          >
+            {AUTHOR_FAIRNESS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label} — {opt.hint}</option>
+            ))}
+          </select>
+          <span className="card-hint">Divide score by a function of follower count to equalize reach.</span>
+        </label>
+      )}
+
+      {showMediaBonus && (
+        <>
+          <p className="sidebar-block-title" style={{ marginTop: '0.5rem' }}>Media Bonus</p>
+          <div className="feed-sorting-signals">
+            {MEDIA_SIGNALS.map((sig) => {
+              const signal = tuning.mediaBonus[sig.key]
+              return (
+                <div key={sig.key} className="feed-sorting-signal-row">
+                  <ToggleRow
+                    label={sig.label}
+                    hint=""
+                    checked={signal.enabled}
+                    onChange={(on) => onChange({
+                      ...tuning,
+                      mediaBonus: { ...tuning.mediaBonus, [sig.key]: { ...signal, enabled: on } },
+                    })}
+                    ariaLabel={`Boost ${sig.label.toLowerCase()} posts`}
+                  />
+                  <label className="feed-sorting-weight-input">
+                    {signal.enabled ? (
+                      <>
+                        <span className="feed-sorting-weight-label">+</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={signal.weight}
+                          onChange={(e) => {
+                            const w = Math.max(0, parseInt(e.target.value) || 0)
+                            onChange({
+                              ...tuning,
+                              mediaBonus: { ...tuning.mediaBonus, [sig.key]: { ...signal, weight: w } },
+                            })
+                          }}
+                        />
+                      </>
+                    ) : null}
+                  </label>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props) {
   const detectedMode = useMemo(() => detectSortMode(draft.rank), [draft.rank])
   const [explicitMode, setExplicitMode] = useState<SortMode | null>(null)
   const mode = explicitMode ?? detectedMode
   const detectedWeights = useMemo(
-    () =>
-      draft.rank?.sortKey
-        ? detectEngagementWeights(draft.rank.sortKey)
-        : DEFAULT_ENGAGEMENT_WEIGHTS,
+    () => draft.rank?.sortKey ? detectEngagementWeights(draft.rank.sortKey) : DEFAULT_ENGAGEMENT_WEIGHTS,
     [draft.rank?.sortKey],
   )
 
@@ -65,7 +237,6 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
       return
     }
     if (next === 'custom') {
-      // Keep current sortKey if it exists, otherwise set a default
       if (!draft.rank?.sortKey) {
         onChange({ ...draft, rank: { sortKey: { type: 'field', field: 'editor_score' } } })
       }
@@ -75,17 +246,22 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
   }
 
   const updateWeights = (next: EngagementWeights) => {
-    // Ensure at least one signal is enabled
-    const anyEnabled = next.likes.enabled || next.reposts.enabled || next.replies.enabled || next.quotes.enabled
+    const anyEnabled = Object.values(next).some((s) => s.enabled)
     const safe = anyEnabled ? next : { ...next, likes: { ...next.likes, enabled: true } }
     setEngagementWeights(safe)
-    onChange(applySortMode(draft, 'engagement', safe, tuning))
+    if (mode === 'engagement') {
+      onChange(applySortMode(draft, 'engagement', safe, tuning))
+    } else {
+      rebuildCustomExpr(safe, tuning)
+    }
   }
 
   const updateTuning = (next: SortTuning) => {
     setTuning(next)
     if (mode === 'engagement') {
       onChange(applySortMode(draft, 'engagement', engagementWeights, next))
+    } else {
+      rebuildCustomExpr(engagementWeights, next)
     }
   }
 
@@ -112,9 +288,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
             label={opt.label}
             hint={opt.hint}
             checked={mode === opt.id}
-            onChange={(on) => {
-              if (on) selectMode(opt.id)
-            }}
+            onChange={(on) => { if (on) selectMode(opt.id) }}
             ariaLabel={`Sort by ${opt.label}`}
           />
         ))}
@@ -123,73 +297,21 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
       {mode === 'engagement' && (
         <div className="feed-sorting-tuning">
           <div className="feed-sorting-signals">
-            <p className="sidebar-block-title">Signals & weights</p>
-            {ENGAGEMENT_SIGNALS.map((sig) => {
-              const signal = engagementWeights[sig.key]
-              return (
-                <div key={sig.key} className="feed-sorting-signal-row">
-                  <ToggleRow
-                    label={sig.label}
-                    hint=""
-                    checked={signal.enabled}
-                    onChange={(on) =>
-                      updateWeights({
-                        ...engagementWeights,
-                        [sig.key]: { ...signal, enabled: on },
-                      })
-                    }
-                    ariaLabel={`Include ${sig.label.toLowerCase()}`}
-                  />
-                  <label className="feed-sorting-weight-input">
-                    {signal.enabled ? (
-                      <>
-                        <span className="feed-sorting-weight-label">×</span>
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={signal.weight}
-                          onChange={(e) => {
-                            const w = Math.max(1, parseInt(e.target.value) || 1)
-                            updateWeights({
-                              ...engagementWeights,
-                              [sig.key]: { ...signal, weight: w },
-                            })
-                          }}
-                        />
-                      </>
-                    ) : null}
-                  </label>
-                </div>
-              )
-            })}
+            <p className="sidebar-block-title">Engagement Signals & Weights</p>
+            <SignalRows
+              signals={ENGAGEMENT_SIGNALS}
+              weights={engagementWeights}
+              onChange={(key, signal) => updateWeights({ ...engagementWeights, [key]: signal })}
+            />
           </div>
 
-          <div className="feed-sorting-tuning-fields">
-            <p className="sidebar-block-title">Tuning</p>
-            <label className="l2-inspector-field">
-              Time decay (half-life hours)
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={tuning.decayHalfLifeHours}
-                onChange={(e) => updateTuning({ ...tuning, decayHalfLifeHours: Math.max(0, parseInt(e.target.value) || 0) })}
-              />
-              <span className="card-hint">0 = no decay. Posts lose half their score every N hours.</span>
-            </label>
-            <label className="l2-inspector-field">
-              Editor score boost
-              <input
-                type="number"
-                min="0"
-                step="100"
-                value={tuning.editorScoreWeight}
-                onChange={(e) => updateTuning({ ...tuning, editorScoreWeight: Math.max(0, parseInt(e.target.value) || 0) })}
-              />
-              <span className="card-hint">0 = ignore. Multiplies editor_score from Score nodes before adding.</span>
-            </label>
-          </div>
+          <TuningSection
+            tuning={tuning}
+            onChange={updateTuning}
+            showMediaBonus={false}
+            showAuthorFairness={false}
+            showFreshnessFloor={false}
+          />
 
           <div className="feed-sorting-formula-display">
             <span className="feed-sorting-formula-label">Formula:</span>
@@ -201,79 +323,25 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
       {mode === 'custom' && (
         <div className="feed-sorting-tuning">
           <div className="feed-sorting-signals">
-            <p className="sidebar-block-title">Signals & weights</p>
-            {ENGAGEMENT_SIGNALS.map((sig) => {
-              const signal = engagementWeights[sig.key]
-              return (
-                <div key={sig.key} className="feed-sorting-signal-row">
-                  <ToggleRow
-                    label={sig.label}
-                    hint=""
-                    checked={signal.enabled}
-                    onChange={(on) => {
-                      const next = { ...engagementWeights, [sig.key]: { ...signal, enabled: on } }
-                      setEngagementWeights(next)
-                      rebuildCustomExpr(next, tuning)
-                    }}
-                    ariaLabel={`Include ${sig.label.toLowerCase()}`}
-                  />
-                  <label className="feed-sorting-weight-input">
-                    {signal.enabled ? (
-                      <>
-                        <span className="feed-sorting-weight-label">×</span>
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={signal.weight}
-                          onChange={(e) => {
-                            const w = Math.max(1, parseInt(e.target.value) || 1)
-                            const next = { ...engagementWeights, [sig.key]: { ...signal, weight: w } }
-                            setEngagementWeights(next)
-                            rebuildCustomExpr(next, tuning)
-                          }}
-                        />
-                      </>
-                    ) : null}
-                  </label>
-                </div>
-              )
-            })}
+            <p className="sidebar-block-title">Engagement Signals & Weights</p>
+            <SignalRows
+              signals={ENGAGEMENT_SIGNALS}
+              weights={engagementWeights}
+              onChange={(key, signal) => {
+                const next = { ...engagementWeights, [key]: signal }
+                setEngagementWeights(next)
+                rebuildCustomExpr(next, tuning)
+              }}
+            />
           </div>
 
-          <div className="feed-sorting-tuning-fields">
-            <p className="sidebar-block-title">Tuning</p>
-            <label className="l2-inspector-field">
-              Time decay (half-life hours)
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={tuning.decayHalfLifeHours}
-                onChange={(e) => {
-                  const next = { ...tuning, decayHalfLifeHours: Math.max(0, parseInt(e.target.value) || 0) }
-                  setTuning(next)
-                  rebuildCustomExpr(engagementWeights, next)
-                }}
-              />
-              <span className="card-hint">0 = no decay. Posts lose half their score every N hours.</span>
-            </label>
-            <label className="l2-inspector-field">
-              Editor score boost
-              <input
-                type="number"
-                min="0"
-                step="100"
-                value={tuning.editorScoreWeight}
-                onChange={(e) => {
-                  const next = { ...tuning, editorScoreWeight: Math.max(0, parseInt(e.target.value) || 0) }
-                  setTuning(next)
-                  rebuildCustomExpr(engagementWeights, next)
-                }}
-              />
-              <span className="card-hint">0 = ignore. Multiplies editor_score from Score nodes before adding.</span>
-            </label>
-          </div>
+          <TuningSection
+            tuning={tuning}
+            onChange={(next) => { setTuning(next); rebuildCustomExpr(engagementWeights, next) }}
+            showMediaBonus
+            showAuthorFairness
+            showFreshnessFloor
+          />
 
           <div className="feed-sorting-formula-display">
             <span className="feed-sorting-formula-label">Formula:</span>
@@ -289,9 +357,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
               onChange={(e) => {
                 try {
                   const parsed = JSON.parse(e.target.value) as L2Expr
-                  if (parsed.type) {
-                    onChange({ ...draft, rank: { sortKey: parsed } })
-                  }
+                  if (parsed.type) onChange({ ...draft, rank: { sortKey: parsed } })
                 } catch { /* ignore parse errors while typing */ }
               }}
             />

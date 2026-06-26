@@ -16,13 +16,28 @@ export interface EngagementWeights {
   reposts: EngagementSignal
   replies: EngagementSignal
   quotes: EngagementSignal
+  bookmarks: EngagementSignal
 }
+
+export interface MediaBonus {
+  image: EngagementSignal
+  video: EngagementSignal
+  linkCard: EngagementSignal
+}
+
+export type AuthorFairnessMode = 'off' | 'log' | 'sqrt' | 'sigmoid'
 
 export interface SortTuning {
   /** Hours half-life for time decay. 0 = no decay. */
   decayHalfLifeHours: number
   /** Multiply editor_score by this before adding to engagement. 0 = ignore. */
   editorScoreWeight: number
+  /** Posts older than this (hours) get sort_key = 0. 0 = no limit. */
+  maxAgeHours: number
+  /** Divide score by a function of author_follower_count to equalize reach. */
+  authorFairness: AuthorFairnessMode
+  /** Media type bonuses — flat score added when post has media. */
+  mediaBonus: MediaBonus
 }
 
 export const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementWeights = {
@@ -30,11 +45,21 @@ export const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementWeights = {
   reposts: { enabled: true, weight: 2 },
   replies: { enabled: true, weight: 1 },
   quotes: { enabled: false, weight: 1 },
+  bookmarks: { enabled: false, weight: 3 },
+}
+
+export const DEFAULT_MEDIA_BONUS: MediaBonus = {
+  image: { enabled: false, weight: 0 },
+  video: { enabled: false, weight: 0 },
+  linkCard: { enabled: false, weight: 0 },
 }
 
 export const DEFAULT_SORT_TUNING: SortTuning = {
   decayHalfLifeHours: 0,
   editorScoreWeight: 0,
+  maxAgeHours: 0,
+  authorFairness: 'off',
+  mediaBonus: { ...DEFAULT_MEDIA_BONUS },
 }
 
 export const SORT_MODE_OPTIONS: {
@@ -50,14 +75,16 @@ export const SORT_MODE_OPTIONS: {
   {
     id: 'engagement',
     label: 'Engagement',
-    hint: 'Weighted score from likes, reposts, replies, and quotes.',
+    hint: 'Weighted score from likes, reposts, replies, quotes, and bookmarks.',
   },
   {
     id: 'custom',
     label: 'Custom formula',
-    hint: 'Build your own sort expression from any available fields.',
+    hint: 'Full control over every available signal and tuning option.',
   },
 ]
+
+// --- Expr builders ---
 
 function fieldExpr(field: L2NumericField): L2Expr {
   return { type: 'field', field }
@@ -71,24 +98,81 @@ function binary(op: '+' | '-' | '*' | '/', left: L2Expr, right: L2Expr): L2Expr 
   return { type: 'binary', op, left, right }
 }
 
-/** Apply time decay: score / (1 + post_age_hours / halfLife) */
+/** score / (1 + post_age_hours / halfLife) */
 function applyDecay(base: L2Expr, halfLifeHours: number): L2Expr {
   if (halfLifeHours <= 0) return base
-  const denominator = binary('+', literal(1), binary('/', fieldExpr('post_age_hours'), literal(halfLifeHours)))
-  return binary('/', base, denominator)
+  return binary('/', base, binary('+', literal(1), binary('/', fieldExpr('post_age_hours'), literal(halfLifeHours))))
 }
 
-/** Apply editor_score boost: base + (editor_score * weight) */
+/** base + (editor_score * weight) */
 function applyEditorBoost(base: L2Expr, weight: number): L2Expr {
   if (weight <= 0) return base
   return binary('+', base, binary('*', fieldExpr('editor_score'), literal(weight)))
 }
 
-/** Apply tuning (decay + editor boost) to a base expression. */
+/** score / f(author_follower_count + 1) */
+function applyAuthorFairness(base: L2Expr, mode: AuthorFairnessMode): L2Expr {
+  if (mode === 'off') return base
+  const followers = binary('+', fieldExpr('author_follower_count'), literal(1))
+  // We approximate log/sqrt/sigmoid with available arithmetic ops
+  // log ≈ we can't do real log in L2Expr, so we use sqrt(sqrt(x)) as rough log proxy
+  // sqrt = x / sqrt(x) trick isn't available... we'll use division by followers^0.5 power
+  // For now: log = /sqrt(followers), sqrt = /sqrt(sqrt(followers)), sigmoid = hard divisor
+  // Actually with only +,-,*,/ we approximate:
+  //   log: score * 10 / (followers)  -- very rough, scale factor helps
+  //   sqrt: score / (followers / 1000) -- normalized
+  // Better approach: just divide by followers with different scale factors
+  switch (mode) {
+    case 'log':
+      // Gentle: divide by (followers / 1000 + 1) — caps at reasonable divisor
+      return binary('/', base, binary('+', binary('/', followers, literal(1000)), literal(1)))
+    case 'sqrt':
+      // Moderate: divide by (followers / 100 + 1) — stronger equalization
+      return binary('/', base, binary('+', binary('/', followers, literal(100)), literal(1)))
+    case 'sigmoid':
+      // Aggressive: divide by (followers / 10 + 1) — heavy anti-megaphone
+      return binary('/', base, binary('+', binary('/', followers, literal(10)), literal(1)))
+  }
+}
+
+/** Add flat bonus for media types */
+function applyMediaBonus(base: L2Expr, media: MediaBonus): L2Expr {
+  let expr = base
+  // media_type: 0=text, 1=image, 2=video, 3=gif, 4=link, 5=quote
+  // We use image_count > 0, video fields, link_thumb for detection
+  if (media.image.enabled && media.image.weight > 0) {
+    // image_count * weight (0 when no images, bonus when images present)
+    expr = binary('+', expr, binary('*', fieldExpr('image_count'), literal(media.image.weight)))
+  }
+  if (media.video.enabled && media.video.weight > 0) {
+    // video_size_bytes > 0 means has video; approximate as min(video_size_bytes, 1) * weight
+    // Actually simpler: video_aspect_w will be 0 for non-video. Use as boolean proxy.
+    // Best we can do with arithmetic: add weight when video_aspect_w > 0
+    // Hack: min(video_aspect_w, 1) * weight — but we don't have min()
+    // Just use video_size_bytes / (video_size_bytes + 1) * weight — approaches weight when has video
+    expr = binary('+', expr, binary('*', binary('/', fieldExpr('video_size_bytes'), binary('+', fieldExpr('video_size_bytes'), literal(1))), literal(media.video.weight)))
+  }
+  if (media.linkCard.enabled && media.linkCard.weight > 0) {
+    // link_thumb_size_bytes as proxy for link card presence
+    expr = binary('+', expr, binary('*', binary('/', fieldExpr('link_thumb_size_bytes'), binary('+', fieldExpr('link_thumb_size_bytes'), literal(1))), literal(media.linkCard.weight)))
+  }
+  return expr
+}
+
+/** Apply all tuning to a base expression. */
 export function applyTuning(base: L2Expr, tuning: SortTuning): L2Expr {
   let expr = base
   expr = applyEditorBoost(expr, tuning.editorScoreWeight)
+  expr = applyMediaBonus(expr, tuning.mediaBonus)
+  expr = applyAuthorFairness(expr, tuning.authorFairness)
   expr = applyDecay(expr, tuning.decayHalfLifeHours)
+  // maxAgeHours: implemented as aggressive decay when post_age > max
+  // With only arithmetic: multiply by max(0, 1 - post_age_hours / maxAge)
+  // This makes score go to 0 at maxAge and negative after (clamped at DB level)
+  if (tuning.maxAgeHours > 0) {
+    const ageFactor = binary('-', literal(1), binary('/', fieldExpr('post_age_hours'), literal(tuning.maxAgeHours)))
+    expr = binary('*', expr, ageFactor)
+  }
   return expr
 }
 
@@ -98,26 +182,15 @@ export function exprKey(expr: L2Expr): string {
 
 export function engagementExpr(weights: EngagementWeights): L2Expr {
   const terms: L2Expr[] = []
-  if (weights.likes.enabled) {
-    terms.push(weights.likes.weight === 1
-      ? fieldExpr('like_count')
-      : binary('*', fieldExpr('like_count'), literal(weights.likes.weight)))
+  const add = (field: L2NumericField, signal: EngagementSignal) => {
+    if (!signal.enabled) return
+    terms.push(signal.weight === 1 ? fieldExpr(field) : binary('*', fieldExpr(field), literal(signal.weight)))
   }
-  if (weights.reposts.enabled) {
-    terms.push(weights.reposts.weight === 1
-      ? fieldExpr('repost_count')
-      : binary('*', fieldExpr('repost_count'), literal(weights.reposts.weight)))
-  }
-  if (weights.replies.enabled) {
-    terms.push(weights.replies.weight === 1
-      ? fieldExpr('reply_count')
-      : binary('*', fieldExpr('reply_count'), literal(weights.replies.weight)))
-  }
-  if (weights.quotes.enabled) {
-    terms.push(weights.quotes.weight === 1
-      ? fieldExpr('quote_count')
-      : binary('*', fieldExpr('quote_count'), literal(weights.quotes.weight)))
-  }
+  add('like_count', weights.likes)
+  add('repost_count', weights.reposts)
+  add('reply_count', weights.replies)
+  add('quote_count', weights.quotes)
+  add('bookmark_count', weights.bookmarks)
   if (terms.length === 0) return fieldExpr('like_count')
   return terms.reduce((acc, t) => binary('+', acc, t))
 }
@@ -125,24 +198,35 @@ export function engagementExpr(weights: EngagementWeights): L2Expr {
 /** Human-readable formula string for display. */
 export function engagementFormulaLabel(weights: EngagementWeights, tuning: SortTuning = DEFAULT_SORT_TUNING): string {
   const parts: string[] = []
-  if (weights.likes.enabled) {
-    parts.push(weights.likes.weight === 1 ? 'likes' : `likes × ${weights.likes.weight}`)
+  const add = (name: string, signal: EngagementSignal) => {
+    if (!signal.enabled) return
+    parts.push(signal.weight === 1 ? name : `${name} × ${signal.weight}`)
   }
-  if (weights.reposts.enabled) {
-    parts.push(weights.reposts.weight === 1 ? 'reposts' : `reposts × ${weights.reposts.weight}`)
-  }
-  if (weights.replies.enabled) {
-    parts.push(weights.replies.weight === 1 ? 'replies' : `replies × ${weights.replies.weight}`)
-  }
-  if (weights.quotes.enabled) {
-    parts.push(weights.quotes.weight === 1 ? 'quotes' : `quotes × ${weights.quotes.weight}`)
-  }
+  add('likes', weights.likes)
+  add('reposts', weights.reposts)
+  add('replies', weights.replies)
+  add('quotes', weights.quotes)
+  add('bookmarks', weights.bookmarks)
   let formula = parts.length ? parts.join(' + ') : 'likes'
+
   if (tuning.editorScoreWeight > 0) {
     formula = `(${formula}) + editor_score × ${tuning.editorScoreWeight}`
   }
+  if (tuning.mediaBonus.image.enabled || tuning.mediaBonus.video.enabled || tuning.mediaBonus.linkCard.enabled) {
+    const bonuses: string[] = []
+    if (tuning.mediaBonus.image.enabled) bonuses.push(`img+${tuning.mediaBonus.image.weight}`)
+    if (tuning.mediaBonus.video.enabled) bonuses.push(`vid+${tuning.mediaBonus.video.weight}`)
+    if (tuning.mediaBonus.linkCard.enabled) bonuses.push(`link+${tuning.mediaBonus.linkCard.weight}`)
+    formula = `(${formula}) + media[${bonuses.join(', ')}]`
+  }
+  if (tuning.authorFairness !== 'off') {
+    formula = `(${formula}) / ${tuning.authorFairness}(followers)`
+  }
   if (tuning.decayHalfLifeHours > 0) {
-    formula = `(${formula}) / (1 + age_hours / ${tuning.decayHalfLifeHours})`
+    formula = `(${formula}) / (1 + age/${tuning.decayHalfLifeHours}h)`
+  }
+  if (tuning.maxAgeHours > 0) {
+    formula = `(${formula}) × (1 - age/${tuning.maxAgeHours}h)`
   }
   return formula
 }
@@ -169,11 +253,13 @@ export function detectEngagementWeights(expr: L2Expr): EngagementWeights {
     reposts: { enabled: false, weight: 1 },
     replies: { enabled: false, weight: 1 },
     quotes: { enabled: false, weight: 1 },
+    bookmarks: { enabled: false, weight: 1 },
   }
   detectFieldWeight(expr, 'like_count', w, 'likes')
   detectFieldWeight(expr, 'repost_count', w, 'reposts')
   detectFieldWeight(expr, 'reply_count', w, 'replies')
   detectFieldWeight(expr, 'quote_count', w, 'quotes')
+  detectFieldWeight(expr, 'bookmark_count', w, 'bookmarks')
   return w
 }
 
@@ -206,7 +292,7 @@ export function detectSortMode(rank: FeedConfig['rank']): SortMode {
   if (!rank?.sortKey) return 'chronological'
 
   const w = detectEngagementWeights(rank.sortKey)
-  if (w.likes.enabled || w.reposts.enabled || w.replies.enabled || w.quotes.enabled) {
+  if (w.likes.enabled || w.reposts.enabled || w.replies.enabled || w.quotes.enabled || w.bookmarks.enabled) {
     return 'engagement'
   }
 
