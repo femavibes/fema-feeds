@@ -26,3 +26,4 @@ export {
 } from './ingest-stress-test.js'
 export { projectsForIngestBenchmark } from './ingest-test-config.js'
 export type { IngestLastSession } from './runner.js'
+export { backfillPostEngagement, startEngagementRefresh, type EngagementRefreshStats } from './engagement-backfill.js'

@@ -76,3 +76,38 @@ export async function getPostEngagement(
     updatedAt: new Date(r.updated_at as string).toISOString(),
   }
 }
+
+/** Set absolute engagement counts (used for backfill from Bluesky API). */
+export async function setPostEngagement(
+  pool: pg.Pool,
+  postUri: string,
+  counts: { likeCount: number; repostCount: number; replyCount: number; quoteCount: number },
+): Promise<void> {
+  await pool.query(
+    `UPDATE post_engagement
+     SET like_count = GREATEST(like_count, $2),
+         repost_count = GREATEST(repost_count, $3),
+         reply_count = GREATEST(reply_count, $4),
+         quote_count = GREATEST(quote_count, $5),
+         updated_at = NOW()
+     WHERE post_uri = $1`,
+    [postUri, counts.likeCount, counts.repostCount, counts.replyCount, counts.quoteCount],
+  )
+}
+
+/** Fetch recent pool posts needing engagement refresh. */
+export async function getPoolPostsForEngagementRefresh(
+  pool: pg.Pool,
+  limit: number,
+  maxAgeHours: number,
+): Promise<string[]> {
+  const res = await pool.query<{ post_uri: string }>(
+    `SELECT pe.post_uri FROM post_engagement pe
+     JOIN ingested_posts ip ON ip.post_uri = pe.post_uri
+     WHERE ip.indexed_at > NOW() - INTERVAL '1 hour' * $2
+     ORDER BY pe.updated_at ASC
+     LIMIT $1`,
+    [limit, maxAgeHours],
+  )
+  return res.rows.map((r) => r.post_uri)
+}

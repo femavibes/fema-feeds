@@ -20,6 +20,7 @@ import {
   startLabelStreamIfEnabled,
   type EngagementHandlerStats,
 } from './enrich.js'
+import { backfillPostEngagement, startEngagementRefresh, type EngagementRefreshStats } from './engagement-backfill.js'
 import type { EnrichmentSettings, FeedConfig } from '@cfb/core-types'
 import { matchedProjectIdsFromL1, processPostForFeeds, reevalPostInPool, seedFollowRingsFromFeeds, seedFollowRingsFromProjects, loadL1FollowRingsForProjects, loadIngestGateExtrasForProjects } from '@cfb/l2-worker'
 
@@ -113,7 +114,11 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
   const engagementStats: EngagementHandlerStats = { bumps: 0, ignored: 0, errors: 0 }
   let enrichmentSettings: EnrichmentSettings | null = null
   let stopEngagement: (() => void) | null = null
+  let stopEngagementRefresh: (() => void) | null = null
+  let engagementRefreshStats: EngagementRefreshStats | null = null
   let stopLabelStream: (() => void) | null = null
+  let backfillOk = 0
+  let backfillErr = 0
   let getLabelStreamStats: (() => import('@cfb/label-stream').LabelStreamStats) | null = null
   let l2Evaluated = 0
   let l2Matched = 0
@@ -259,7 +264,11 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
           persistL1Matches(pool, { post: resolved, matches: matched }).then(
             () => {
               saved++
-              if (enrichmentSettings) {
+              if (enrichmentSettings?.enabled) {
+                void backfillPostEngagement(pool, resolved.uri).then(
+                  (ok) => { if (ok) backfillOk++; else backfillErr++ },
+                  () => { backfillErr++ },
+                )
                 void maybeEnrichAuthor(pool, resolved.authorDid, enrichmentSettings).then((r) => {
                   if (r === 'ok') profileFetches++
                   if (r === 'error') profileErrors++
@@ -310,6 +319,12 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       )
       stopEngagement = engagement?.stop ?? null
 
+      const refreshIntervalMs = Number(process.env.ENGAGEMENT_REFRESH_INTERVAL_SEC ?? 60) * 1000
+      const refreshMaxAge = Number(process.env.ENGAGEMENT_REFRESH_MAX_AGE_HOURS ?? 48)
+      const refresh = startEngagementRefresh(pool, refreshIntervalMs, refreshMaxAge)
+      stopEngagementRefresh = refresh.stop
+      engagementRefreshStats = refresh.getStats()
+
       const labelStream = await startLabelStreamIfEnabled(pool, enrichmentSettings, {
         projectsDir: options.projectsDir,
         feedsDir,
@@ -331,6 +346,8 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
     stopJetstream = null
     stopEngagement?.()
     stopEngagement = null
+    stopEngagementRefresh?.()
+    stopEngagementRefresh = null
     stopLabelStream?.()
     stopLabelStream = null
     getLabelStreamStats = null

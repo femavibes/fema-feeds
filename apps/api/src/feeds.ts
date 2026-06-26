@@ -30,6 +30,7 @@ import { buildFeedPublishInfo, applyFeedInjector, applyFeedRanker, resolveFeedge
 import { countImportableConditions, importFeedGenRules, resolveFeedMatch } from '@cfb/l2-graph'
 
 import { loadPostMetrics, loadMentionDidsForFeed, loadFollowRingsForFeed, previewFeedPoolMatches, reevalPoolForFeeds, seedFollowRingsFromFeeds } from '@cfb/l2-worker'
+import { setPostEngagement } from '@cfb/storage-postgres'
 
 import { seedAuthorListsFromFeeds } from '@cfb/list-cache'
 
@@ -1315,9 +1316,31 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
       if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
 
       // Use local DB only — same source as the actual feed system
-      const metrics = await loadPostMetrics(pool, post.uri, post.authorDid)
+      let metrics = await loadPostMetrics(pool, post.uri, post.authorDid)
       if (!metrics || (!metrics.likeCount && !metrics.repostCount && !metrics.replyCount && !metrics.authorFollowerCount)) {
         return c.json({ error: 'Post not in our database. Ingest it first to test scoring.' }, 404)
+      }
+
+      // Auto-backfill engagement from Bluesky API if all engagement is zero
+      if (!metrics.likeCount && !metrics.repostCount && !metrics.replyCount && !metrics.quoteCount) {
+        try {
+          const params = new URLSearchParams({ uris: post.uri })
+          const base = process.env.BSKY_PUBLIC_API ?? 'https://public.api.bsky.app'
+          const apiRes = await fetch(`${base}/xrpc/app.bsky.feed.getPosts?${params}`)
+          if (apiRes.ok) {
+            const data = (await apiRes.json()) as { posts?: Array<{ uri: string; likeCount?: number; repostCount?: number; replyCount?: number; quoteCount?: number }> }
+            const view = data.posts?.[0]
+            if (view) {
+              await setPostEngagement(pool, post.uri, {
+                likeCount: view.likeCount ?? 0,
+                repostCount: view.repostCount ?? 0,
+                replyCount: view.replyCount ?? 0,
+                quoteCount: view.quoteCount ?? 0,
+              })
+              metrics = await loadPostMetrics(pool, post.uri, post.authorDid)
+            }
+          }
+        } catch { /* best effort */ }
       }
 
       const { buildL2Runtime, numericFieldValue, evalExpr } = await import('@cfb/l2-eval')

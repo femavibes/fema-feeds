@@ -184,9 +184,10 @@ interface Props {
   sortKey?: number | null
   editorScore?: number
   onSelectNode?: TraceSelectHandler
+  onSortTest?: (postUri: string) => void
 }
 
-export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey, editorScore, onSelectNode }: Props) {
+export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey, editorScore, onSelectNode, onSortTest }: Props) {
   const sample = normalizePoolMatchSample(rawSample)
   const selectTraceNode = onSelectNode
     ? (nodeId: string) => onSelectNode(nodeId, sample.trace)
@@ -268,6 +269,21 @@ export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey
             <span className="l2-match-pool-score" title={`Editor score: ${editorScore}`}>
               +{editorScore}
             </span>
+          ) : null}
+          {onSortTest ? (
+            <button
+              type="button"
+              className="l2-match-pool-sort-test-btn"
+              onClick={() => onSortTest(sample.uri)}
+              title="Test in sort tester"
+              aria-label="Test this post in sort tester"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+                <rect x="1" y="7" width="2" height="4" rx="0.5" fill="currentColor" />
+                <rect x="5" y="4" width="2" height="7" rx="0.5" fill="currentColor" />
+                <rect x="9" y="1" width="2" height="10" rx="0.5" fill="currentColor" />
+              </svg>
+            </button>
           ) : null}
           {sample.trace.length > 0 ? (
             <button

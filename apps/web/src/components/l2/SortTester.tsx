@@ -1,28 +1,37 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FeedConfig } from '@cfb/core-types'
 import { api, type SortTestResult } from '../../api/client'
 
+function atUriToBskyUrl(uri: string): string {
+  const m = uri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/)
+  if (!m) return uri
+  return `https://bsky.app/profile/${m[1]}/post/${m[2]}`
+}
+
 interface Props {
   draft: FeedConfig
+  testUri?: string | null
+  onTestUriConsumed?: () => void
 }
 
 function fieldLabel(field: string): string {
   return field.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-export function SortTester({ draft }: Props) {
+export function SortTester({ draft, testUri, onTestUriConsumed }: Props) {
   const [url, setUrl] = useState('')
   const [result, setResult] = useState<SortTestResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const test = async () => {
-    if (!url.trim()) return
+  const test = async (overrideUrl?: string) => {
+    const target = overrideUrl ?? url
+    if (!target.trim()) return
     setLoading(true)
     setError(null)
     setResult(null)
     try {
-      const res = await api.sortTest(draft.feedId, { url: url.trim(), feed: draft })
+      const res = await api.sortTest(draft.feedId, { url: target.trim(), feed: draft })
       setResult(res)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to test post')
@@ -30,6 +39,16 @@ export function SortTester({ draft }: Props) {
       setLoading(false)
     }
   }
+
+  // When testUri prop changes, auto-run
+  useEffect(() => {
+    if (testUri) {
+      const bskyUrl = atUriToBskyUrl(testUri)
+      setUrl(bskyUrl)
+      void test(bskyUrl)
+      onTestUriConsumed?.()
+    }
+  }, [testUri])
 
   const nonZeroFields = result?.fields ?? []
 

@@ -1,0 +1,46 @@
+# Custom Feed Builder — self-hosted Bluesky feed platform.
+#
+# Usage:
+#   1. Save this file as docker-compose.yml
+#   2. docker compose up -d
+#   3. Open http://localhost:3000
+#
+# All data persists in Docker volumes. To reset: docker compose down -v
+
+services:
+  api:
+    image: ghcr.io/femavibes/fema-feeds:latest
+    container_name: cfb-api
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://cfb:cfb_dev@postgres:5432/custom_feed_builder
+      API_PORT: '3000'
+      JETSTREAM_URL: ${JETSTREAM_URL:-wss://jetstream1.us-east.bsky.network/subscribe}
+      BSKY_PUBLIC_API: ${BSKY_PUBLIC_API:-https://public.api.bsky.app}
+    volumes:
+      - cfb_config:/app/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: cfb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cfb
+      POSTGRES_PASSWORD: cfb_dev
+      POSTGRES_DB: custom_feed_builder
+    volumes:
+      - cfb_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cfb -d custom_feed_builder']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  cfb_pgdata:
+  cfb_config:

@@ -45,6 +45,8 @@ export {
   bumpEngagementIfInPool,
   getPostEngagement,
   adjustEngagement,
+  setPostEngagement,
+  getPoolPostsForEngagementRefresh,
 } from './post-engagement.js'
 export { loadRankerCandidates } from './ranker-candidates.js'
 export {

@@ -4,7 +4,6 @@ import type { FeedConfig, L2Expr } from '@cfb/core-types'
 
 import { ToggleRow } from '../ToggleRow'
 import { SortPackFeedSection } from '../sort-packs/SortPackFeedSection'
-import { SortTester } from './SortTester'
 import {
   DEFAULT_ENGAGEMENT_WEIGHTS,
   DEFAULT_SORT_TUNING,
@@ -590,8 +589,6 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
       ) : null}
 
       <SortPackFeedSection draft={draft} onChange={onChange} />
-
-      <SortTester draft={draft} />
     </div>
   )
 }

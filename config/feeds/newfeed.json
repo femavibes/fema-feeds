@@ -19,9 +19,9 @@
         "updatePolicy": "pinned"
       },
       {
-        "type": "keyword",
         "id": "kw-mqu4gjk7",
         "op": "includes",
+        "type": "keyword",
         "terms": [
           "awesome"
         ],
@@ -60,12 +60,33 @@
       {
         "id": "score-mqu17b0s",
         "type": "score",
-        "points": 1
+        "points": 4
       }
     ]
   },
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
   "visualLayout": {
+    "edges": [
+      {
+        "id": "e-score-mqu17b0s-end",
+        "branch": true,
+        "source": "score-mqu17b0s",
+        "target": "end"
+      },
+      {
+        "id": "e-start-kw-mqu4gjk7",
+        "branch": true,
+        "source": "start",
+        "target": "kw-mqu4gjk7"
+      },
+      {
+        "id": "e-kw-mqu4gjk7-score-mqu17b0s",
+        "branch": true,
+        "source": "kw-mqu4gjk7",
+        "target": "score-mqu17b0s"
+      }
+    ],
+    "labels": {},
     "positions": {
       "end": {
         "x": 625.3333333333334,
@@ -78,6 +99,10 @@
       "kw-mqr5iidp": {
         "x": 428.3552769070011,
         "y": -36.517769287704645
+      },
+      "kw-mqu4gjk7": {
+        "x": 79.66055930568945,
+        "y": -67.3523531082783
       },
       "lang-mqr5fm50": {
         "x": 382.3333333333333,
@@ -98,38 +123,14 @@
       "score-mqu17b0s": {
         "x": 455.93056894889094,
         "y": -255.65670202507235
-      },
-      "kw-mqu4gjk7": {
-        "x": 79.66055930568945,
-        "y": -67.3523531082783
       }
     },
-    "edges": [
-      {
-        "id": "e-score-mqu17b0s-end",
-        "branch": true,
-        "source": "score-mqu17b0s",
-        "target": "end"
-      },
-      {
-        "id": "e-start-kw-mqu4gjk7",
-        "source": "start",
-        "target": "kw-mqu4gjk7",
-        "branch": true
-      },
-      {
-        "id": "e-kw-mqu4gjk7-score-mqu17b0s",
-        "source": "kw-mqu4gjk7",
-        "target": "score-mqu17b0s",
-        "branch": true
-      }
-    ],
-    "labels": {},
     "nodeSources": {
       "kw-mqqx683z": "native",
       "kw-mqqx6d0g": "native",
       "kw-mqr4v1d0": "native",
       "kw-mqr5iidp": "native",
+      "kw-mqu4gjk7": "native",
       "tag-mqr42f0m": "native",
       "tag-mqr42g0b": "native",
       "url-mqr42cxu": "native",
@@ -177,15 +178,38 @@
       "regex-mqr42flq": "native",
       "score-mqu12xpv": "native",
       "score-mqu17b0s": "native",
-      "author-mqr58ve0": "native",
-      "kw-mqu4gjk7": "native"
+      "author-mqr58ve0": "native"
     }
   },
-  "liveAt": "2026-06-25T23:17:24.598Z",
+  "liveAt": "2026-06-26T07:15:59.654Z",
   "rank": {
     "sortKey": {
-      "type": "field",
-      "field": "like_count"
+      "op": "/",
+      "left": {
+        "type": "field",
+        "field": "like_count"
+      },
+      "type": "binary",
+      "right": {
+        "op": "+",
+        "left": {
+          "type": "literal",
+          "value": 1
+        },
+        "type": "binary",
+        "right": {
+          "op": "/",
+          "left": {
+            "type": "field",
+            "field": "post_age_hours"
+          },
+          "type": "binary",
+          "right": {
+            "type": "literal",
+            "value": 6
+          }
+        }
+      }
     }
   },
   "injector": {

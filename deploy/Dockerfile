@@ -12,6 +12,15 @@ FROM node:22-alpine
 RUN corepack enable pnpm
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app /app
+
+COPY --from=build /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/apps ./apps
+COPY --from=build /app/database ./database
+COPY deploy/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
+
 EXPOSE 3000
-CMD ["pnpm", "--filter", "@cfb/api", "start"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["node", "apps/api/dist/main.js"]

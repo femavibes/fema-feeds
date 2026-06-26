@@ -294,6 +294,7 @@ export function ProjectWorkspace({
             settingsDirty={settingsDirty}
             settingsAutosaveState={settingsAutosaveState}
             settingsSaving={settingsSaving}
+            activeView={feedView}
             onBusyChange={setFeedBusy}
             onFeedChange={setFeedDraft}
             onSettingsChange={handleSettingsChange}

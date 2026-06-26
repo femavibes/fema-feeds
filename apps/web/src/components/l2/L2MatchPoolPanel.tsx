@@ -14,6 +14,8 @@ interface Props {
   /** Sidebar feed tab uses "Feed" labels; visual inspector uses "Matches". */
   variant?: 'matches' | 'feed'
   onSelectNode?: TraceSelectHandler
+  /** Called when user clicks the sort-test icon on a post. */
+  onSortTest?: (postUri: string) => void
 }
 
 const SCAN_PRESETS = [200, 500, 1000, 2000]
@@ -30,6 +32,7 @@ export function L2MatchPoolPanel({
   compact = false,
   variant = 'matches',
   onSelectNode,
+  onSortTest,
 }: Props) {
   const [result, setResult] = useState<PoolMatchResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -182,6 +185,7 @@ export function L2MatchPoolPanel({
                     sortKey={post.sortKey}
                     editorScore={post.editorScore}
                     onSelectNode={onSelectNode}
+                    onSortTest={onSortTest}
                   />
                 ))}
               </ul>

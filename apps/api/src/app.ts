@@ -4,6 +4,7 @@ import { spawn } from 'node:child_process'
 import { resolve } from 'node:path'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { registerStaticServing } from './static-serve.js'
 import { config as loadEnv } from 'dotenv'
 import type { ProjectL1Config, NormalizedPost } from '@cfb/core-types'
 import { compileAllProjects, finalizeProjectForSave, emptyPrefilter } from '@cfb/l1-compile'
@@ -1187,6 +1188,10 @@ export function createApp(options?: {
     void bootstrapDuckDnsFromEnv().then(() => syncStoredDuckDns())
     duckdnsTimer = setInterval(() => void syncStoredDuckDns(), 5 * 60 * 1000)
   }
+
+  // In production (Docker), serve the web UI static files
+  const webDistDir = resolve(import.meta.dirname, '../../web/dist')
+  void registerStaticServing(app, webDistDir)
 
   return Object.assign(app, {
     ingest,
