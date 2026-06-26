@@ -3101,6 +3101,24 @@ body {
   font-family: var(--font-mono, monospace);
 }
 
+.feed-sorting-tuning-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+}
+
+.feed-sorting-tuning-fields .l2-inspector-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+}
+
+.feed-sorting-tuning-fields input[type="number"] {
+  width: 5rem;
+}
+
 .feed-sorting-tuning-section {
   padding-top: 0.25rem;
 }

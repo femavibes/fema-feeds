@@ -49,7 +49,6 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
 
   const [engagementWeights, setEngagementWeights] = useState<EngagementWeights>(detectedWeights)
   const [tuning, setTuning] = useState<SortTuning>(DEFAULT_SORT_TUNING)
-  const [showTuning, setShowTuning] = useState(false)
 
   useEffect(() => {
     setEngagementWeights(detectedWeights)
@@ -64,8 +63,8 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
       return
     }
     if (next === 'custom') {
-      // Set a default custom expr that won't be detected as engagement
-      const customDefault: L2Expr = { type: 'binary', op: '+', left: { type: 'field', field: 'like_count' }, right: { type: 'field', field: 'editor_score' } }
+      // Default custom expr that won't be detected as engagement
+      const customDefault: L2Expr = { type: 'field', field: 'editor_score' }
       onChange({ ...draft, rank: { sortKey: customDefault } })
       return
     }
@@ -163,40 +162,29 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
             <code className="feed-sorting-formula">{engagementFormulaLabel(engagementWeights, tuning)}</code>
           </div>
 
-          <div className="feed-sorting-tuning-section">
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm feed-sorting-tuning-toggle"
-              onClick={() => setShowTuning((v) => !v)}
-            >
-              {showTuning ? '▾ Advanced tuning' : '▸ Advanced tuning'}
-            </button>
-            {showTuning && (
-              <div className="feed-sorting-advanced-tuning">
-                <label className="l2-inspector-field">
-                  Time decay (half-life hours)
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={tuning.decayHalfLifeHours}
-                    onChange={(e) => updateTuning({ ...tuning, decayHalfLifeHours: Math.max(0, parseInt(e.target.value) || 0) })}
-                  />
-                  <span className="card-hint">0 = no decay. Posts lose half their score every N hours.</span>
-                </label>
-                <label className="l2-inspector-field">
-                  Editor score boost
-                  <input
-                    type="number"
-                    min="0"
-                    step="100"
-                    value={tuning.editorScoreWeight}
-                    onChange={(e) => updateTuning({ ...tuning, editorScoreWeight: Math.max(0, parseInt(e.target.value) || 0) })}
-                  />
-                  <span className="card-hint">0 = ignore. Multiplies editor_score from Score nodes before adding.</span>
-                </label>
-              </div>
-            )}
+          <div className="feed-sorting-tuning-fields">
+            <label className="l2-inspector-field">
+              Time decay (half-life hours)
+              <input
+                type="number"
+                min="0"
+                step="1"
+                value={tuning.decayHalfLifeHours}
+                onChange={(e) => updateTuning({ ...tuning, decayHalfLifeHours: Math.max(0, parseInt(e.target.value) || 0) })}
+              />
+              <span className="card-hint">0 = no decay. Posts lose half their score every N hours.</span>
+            </label>
+            <label className="l2-inspector-field">
+              Editor score boost
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={tuning.editorScoreWeight}
+                onChange={(e) => updateTuning({ ...tuning, editorScoreWeight: Math.max(0, parseInt(e.target.value) || 0) })}
+              />
+              <span className="card-hint">0 = ignore. Multiplies editor_score from Score nodes before adding.</span>
+            </label>
           </div>
         </div>
       )}
