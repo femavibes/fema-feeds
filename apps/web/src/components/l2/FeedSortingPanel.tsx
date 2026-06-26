@@ -160,7 +160,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
 
           <div className="feed-sorting-formula-display">
             <span className="feed-sorting-formula-label">Formula:</span>
-            <code className="feed-sorting-formula">{engagementFormulaLabel(engagementWeights)}</code>
+            <code className="feed-sorting-formula">{engagementFormulaLabel(engagementWeights, tuning)}</code>
           </div>
 
           <div className="feed-sorting-tuning-section">

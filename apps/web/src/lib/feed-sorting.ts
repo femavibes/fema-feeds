@@ -123,7 +123,7 @@ export function engagementExpr(weights: EngagementWeights): L2Expr {
 }
 
 /** Human-readable formula string for display. */
-export function engagementFormulaLabel(weights: EngagementWeights): string {
+export function engagementFormulaLabel(weights: EngagementWeights, tuning: SortTuning = DEFAULT_SORT_TUNING): string {
   const parts: string[] = []
   if (weights.likes.enabled) {
     parts.push(weights.likes.weight === 1 ? 'likes' : `likes × ${weights.likes.weight}`)
@@ -137,7 +137,14 @@ export function engagementFormulaLabel(weights: EngagementWeights): string {
   if (weights.quotes.enabled) {
     parts.push(weights.quotes.weight === 1 ? 'quotes' : `quotes × ${weights.quotes.weight}`)
   }
-  return parts.length ? parts.join(' + ') : 'likes'
+  let formula = parts.length ? parts.join(' + ') : 'likes'
+  if (tuning.editorScoreWeight > 0) {
+    formula = `(${formula}) + editor_score × ${tuning.editorScoreWeight}`
+  }
+  if (tuning.decayHalfLifeHours > 0) {
+    formula = `(${formula}) / (1 + age_hours / ${tuning.decayHalfLifeHours})`
+  }
+  return formula
 }
 
 export function rankExprForMode(
