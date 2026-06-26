@@ -1309,33 +1309,34 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
     }
 
     try {
-      const { resolvePostInput, parsePostUri } = await import('@cfb/post-resolve')
-      const { extractPostInput } = await import('@cfb/post-resolve')
+      const { resolvePostInput } = await import('@cfb/post-resolve')
       const post = await resolvePostInput(body.url)
 
-      // Fetch engagement metrics directly from Bluesky public API
-      const bskyBase = process.env.BSKY_PUBLIC_API ?? 'https://public.api.bsky.app'
-      const postsRes = await fetch(`${bskyBase}/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(post.uri)}`)
-      let bskyMetrics: import('@cfb/core-types').PostMetrics = {}
-      if (postsRes.ok) {
-        const postsData = (await postsRes.json()) as { posts?: Array<{ likeCount?: number; repostCount?: number; replyCount?: number; quoteCount?: number; author?: { followersCount?: number; followsCount?: number; postsCount?: number } }> }
-        const view = postsData.posts?.[0]
-        if (view) {
-          bskyMetrics = {
-            likeCount: view.likeCount ?? 0,
-            repostCount: view.repostCount ?? 0,
-            replyCount: view.replyCount ?? 0,
-            quoteCount: view.quoteCount ?? 0,
-            authorFollowerCount: view.author?.followersCount ?? 0,
-            authorFollowsCount: view.author?.followsCount ?? 0,
-            authorPostsCount: view.author?.postsCount ?? 0,
+      // Try local DB first (same source as the actual feed system)
+      let metrics = pool ? await loadPostMetrics(pool, post.uri, post.authorDid) : undefined
+
+      // Fallback to Bluesky public API if we don't have local metrics
+      const hasLocalMetrics = metrics && (metrics.likeCount || metrics.repostCount || metrics.replyCount || metrics.authorFollowerCount)
+      if (!hasLocalMetrics) {
+        const bskyBase = process.env.BSKY_PUBLIC_API ?? 'https://public.api.bsky.app'
+        const postsRes = await fetch(`${bskyBase}/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(post.uri)}`)
+        if (postsRes.ok) {
+          const postsData = (await postsRes.json()) as { posts?: Array<{ likeCount?: number; repostCount?: number; replyCount?: number; quoteCount?: number; author?: { followersCount?: number; followsCount?: number; postsCount?: number } }> }
+          const view = postsData.posts?.[0]
+          if (view) {
+            metrics = {
+              ...metrics,
+              likeCount: view.likeCount ?? 0,
+              repostCount: view.repostCount ?? 0,
+              replyCount: view.replyCount ?? 0,
+              quoteCount: view.quoteCount ?? 0,
+              authorFollowerCount: view.author?.followersCount ?? 0,
+              authorFollowsCount: view.author?.followsCount ?? 0,
+              authorPostsCount: view.author?.postsCount ?? 0,
+            }
           }
         }
       }
-
-      // Merge: prefer Bluesky live metrics over local DB
-      const localMetrics = pool ? await loadPostMetrics(pool, post.uri, post.authorDid) : undefined
-      const metrics = { ...localMetrics, ...bskyMetrics }
 
       const { buildL2Runtime, numericFieldValue, evalExpr } = await import('@cfb/l2-eval')
       const ctx = buildL2Runtime(post, metrics)
