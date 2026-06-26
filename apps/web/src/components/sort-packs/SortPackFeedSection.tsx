@@ -4,11 +4,7 @@ import type { FeedConfig, SortPackPackage } from '@cfb/core-types'
 import { api } from '../../api/client'
 import {
   applySortPack,
-  DEFAULT_ENGAGEMENT_WEIGHTS,
-  detectSortMode,
   hasSortPackRef,
-  rankExprForMode,
-  type EngagementWeights,
 } from '../../lib/feed-sorting'
 
 interface Props {
@@ -21,10 +17,6 @@ export function SortPackFeedSection({ draft, onChange }: Props) {
     Awaited<ReturnType<typeof api.listSortPackSubscriptions>>['subscriptions']
   >([])
   const [upgradeBusy, setUpgradeBusy] = useState(false)
-  const [saveOpen, setSaveOpen] = useState(false)
-  const [saveName, setSaveName] = useState('')
-  const [saveBusy, setSaveBusy] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
   const [upgradeHint, setUpgradeHint] = useState<string | null>(null)
 
   const packRef = draft.rank?.packRef
@@ -51,31 +43,6 @@ export function SortPackFeedSection({ draft, onChange }: Props) {
 
   const applyPack = (pkg: SortPackPackage) => {
     onChange(applySortPack(draft, pkg, 'pinned'))
-  }
-
-  const saveCurrentSort = async () => {
-    const mode = detectSortMode(draft.rank)
-    const weights: EngagementWeights = DEFAULT_ENGAGEMENT_WEIGHTS
-    const sortKey = draft.rank?.sortKey ?? rankExprForMode(mode, weights)
-    if (!sortKey) {
-      setSaveError('Choose a non-chronological sort first.')
-      return
-    }
-    setSaveBusy(true)
-    setSaveError(null)
-    try {
-      await api.createSortPack({
-        name: saveName.trim() || 'Custom sort',
-        sortKey,
-        visibility: 'collection',
-      })
-      setSaveOpen(false)
-      setSaveName('')
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : 'Save failed')
-    } finally {
-      setSaveBusy(false)
-    }
   }
 
   const applyUpgrade = async () => {
@@ -133,37 +100,6 @@ export function SortPackFeedSection({ draft, onChange }: Props) {
         </ul>
       ) : (
         <p className="card-hint">Subscribe to sort packs in Marketplace → Browse.</p>
-      )}
-
-      {!saveOpen ? (
-        <button type="button" className="btn btn-secondary btn-sm sort-pack-save-trigger" onClick={() => setSaveOpen(true)}>
-          Save sort to collection
-        </button>
-      ) : (
-        <div className="feed-sorting-save-pack">
-          <label className="field-label">
-            Name
-            <input
-              value={saveName}
-              onChange={(e) => setSaveName(e.target.value)}
-              placeholder="Discussion-heavy sort"
-            />
-          </label>
-          {saveError ? <p className="field-error">{saveError}</p> : null}
-          <div className="feed-sorting-save-pack-actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={saveBusy}
-              onClick={() => void saveCurrentSort()}
-            >
-              {saveBusy ? 'Saving…' : 'Save'}
-            </button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setSaveOpen(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
       )}
     </div>
   )

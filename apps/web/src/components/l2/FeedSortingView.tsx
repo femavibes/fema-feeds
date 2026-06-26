@@ -1,6 +1,8 @@
 import type { FeedConfig } from '@cfb/core-types'
 
+import { useState } from 'react'
 import { FeedSortingPanel } from './FeedSortingPanel'
+import { SaveSortPackModal } from '../sort-packs/SaveSortPackModal'
 import { DEFAULT_ENGAGEMENT_WEIGHTS, detectEngagementWeights, detectSortMode, sortModeBadge } from '../../lib/feed-sorting'
 
 interface Props {
@@ -27,6 +29,7 @@ export function FeedSortingView({
   settingsSaving,
   onSaveSettings,
 }: Props) {
+  const [saveModalOpen, setSaveModalOpen] = useState(false)
   const mode = detectSortMode(draft.rank)
   const weights = draft.rank?.sortKey
     ? detectEngagementWeights(draft.rank.sortKey)
@@ -43,10 +46,7 @@ export function FeedSortingView({
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            onClick={() => {
-              /* handled by SortPackFeedSection inside the panel */
-              document.querySelector<HTMLButtonElement>('.sort-pack-save-trigger')?.click()
-            }}
+            onClick={() => setSaveModalOpen(true)}
           >
             Save sort to collection
           </button>
@@ -75,6 +75,8 @@ export function FeedSortingView({
           </button>
         </div>
       ) : null}
+
+      <SaveSortPackModal draft={draft} open={saveModalOpen} onClose={() => setSaveModalOpen(false)} />
     </div>
   )
 }
