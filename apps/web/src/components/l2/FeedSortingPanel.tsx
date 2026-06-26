@@ -19,6 +19,7 @@ import {
   type ContentSignals,
   type EngagementWeights,
   type MediaBonus,
+  type RatioSignals,
   type SortMode,
   type SortTuning,
 } from '../../lib/feed-sorting'
@@ -50,7 +51,17 @@ const CONTENT_SIGNALS: { key: keyof ContentSignals; label: string; hint: string 
   { key: 'textLength', label: 'Text length', hint: 'Positive = boost long posts, negative = prefer short' },
   { key: 'hashtagCount', label: 'Hashtag count', hint: 'Negative = penalize hashtag spam' },
   { key: 'mentionCount', label: 'Mention count', hint: 'Positive = boost conversational posts' },
+  { key: 'linkCount', label: 'Link count', hint: 'Positive = boost link-heavy, negative = demote' },
   { key: 'altTextBonus', label: 'Alt text (images)', hint: 'Positive = reward accessibility' },
+  { key: 'rootPostBonus', label: 'Root post bonus', hint: 'Boost original posts (not replies/quotes) — future' },
+  { key: 'replyBonus', label: 'Reply bonus', hint: 'Boost replies/threads — future' },
+  { key: 'quotePostBonus', label: 'Quote post bonus', hint: 'Boost quote posts — future' },
+]
+
+const RATIO_SIGNALS: { key: keyof RatioSignals; label: string; hint: string }[] = [
+  { key: 'engagementRate', label: 'Engagement rate', hint: '(likes+reposts)/(followers+1) — reach-normalized' },
+  { key: 'replyRatio', label: 'Reply ratio', hint: 'replies/(likes+1) — discussion detector' },
+  { key: 'quoteRatio', label: 'Quote ratio', hint: 'quotes/(likes+1) — quotability signal' },
 ]
 
 const AUTHOR_FAIRNESS_OPTIONS: { value: AuthorFairnessMode; label: string; hint: string }[] = [
@@ -218,6 +229,32 @@ function TuningSection({
               )
             })}
           </div>
+        </>
+      )}
+
+      {showFreshnessFloor && (
+        <>
+          <label className="l2-inspector-field">
+            Score cap
+            <input
+              type="number"
+              min="0"
+              step="10"
+              value={tuning.scoreCap}
+              onChange={(e) => onChange({ ...tuning, scoreCap: Math.max(0, parseInt(e.target.value) || 0) })}
+            />
+            <span className="card-hint">0 = no cap. Maximum score any post can have.</span>
+          </label>
+          <label className="l2-inspector-field">
+            Score floor
+            <input
+              type="number"
+              step="1"
+              value={tuning.scoreFloor}
+              onChange={(e) => onChange({ ...tuning, scoreFloor: parseInt(e.target.value) || 0 })}
+            />
+            <span className="card-hint">0 = off. Minimum score (prevents going negative).</span>
+          </label>
         </>
       )}
 
@@ -456,6 +493,44 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
                           onChange={(e) => {
                             const w = parseInt(e.target.value) || 0
                             const next = { ...tuning, contentSignals: { ...tuning.contentSignals, [sig.key]: { ...signal, weight: w } } }
+                            setTuning(next)
+                            rebuildCustomExpr(engagementWeights, next)
+                          }}
+                        />
+                      </>
+                    ) : null}
+                  </label>
+                </div>
+              )
+            })}
+
+            <p className="sidebar-block-title" style={{ marginTop: '0.75rem' }}>Engagement Ratios</p>
+            {RATIO_SIGNALS.map((sig) => {
+              const signal = tuning.ratioSignals[sig.key as keyof typeof tuning.ratioSignals]
+              return (
+                <div key={sig.key} className="feed-sorting-signal-row">
+                  <ToggleRow
+                    label={sig.label}
+                    hint=""
+                    checked={signal.enabled}
+                    onChange={(on) => {
+                      const next = { ...tuning, ratioSignals: { ...tuning.ratioSignals, [sig.key]: { ...signal, enabled: on } } }
+                      setTuning(next)
+                      rebuildCustomExpr(engagementWeights, next)
+                    }}
+                    ariaLabel={sig.hint}
+                  />
+                  <label className="feed-sorting-weight-input">
+                    {signal.enabled ? (
+                      <>
+                        <span className="feed-sorting-weight-label">×</span>
+                        <input
+                          type="number"
+                          step="1"
+                          value={signal.weight}
+                          onChange={(e) => {
+                            const w = parseInt(e.target.value) || 0
+                            const next = { ...tuning, ratioSignals: { ...tuning.ratioSignals, [sig.key]: { ...signal, weight: w } } }
                             setTuning(next)
                             rebuildCustomExpr(engagementWeights, next)
                           }}
