@@ -1,17 +1,21 @@
 import type { FeedConfig, L2Expr, L2NumericField } from '@cfb/core-types'
 
-import { defaultRankExpr } from './l2-form'
-
-export type SortMode = 'chronological' | 'engagement' | 'likes' | 'discussion' | 'author_reach' | 'pack' | 'custom'
+export type SortMode = 'chronological' | 'engagement' | 'pack' | 'custom'
 
 export function hasSortPackRef(rank: FeedConfig['rank']): boolean {
   return Boolean(rank?.packRef?.packageId)
 }
 
+export interface EngagementSignal {
+  enabled: boolean
+  weight: number
+}
+
 export interface EngagementWeights {
-  likes: boolean
-  reposts: boolean
-  replies: boolean
+  likes: EngagementSignal
+  reposts: EngagementSignal
+  replies: EngagementSignal
+  quotes: EngagementSignal
 }
 
 export interface SortTuning {
@@ -22,9 +26,10 @@ export interface SortTuning {
 }
 
 export const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementWeights = {
-  likes: true,
-  reposts: true,
-  replies: false,
+  likes: { enabled: true, weight: 1 },
+  reposts: { enabled: true, weight: 2 },
+  replies: { enabled: true, weight: 1 },
+  quotes: { enabled: false, weight: 1 },
 }
 
 export const DEFAULT_SORT_TUNING: SortTuning = {
@@ -45,22 +50,7 @@ export const SORT_MODE_OPTIONS: {
   {
     id: 'engagement',
     label: 'Engagement',
-    hint: 'Score from likes, reposts, and replies — tune which signals count below.',
-  },
-  {
-    id: 'likes',
-    label: 'Most liked',
-    hint: 'Posts with the highest like count rise to the top.',
-  },
-  {
-    id: 'discussion',
-    label: 'Discussion',
-    hint: 'Replies plus reposts — surfaces posts people are talking about.',
-  },
-  {
-    id: 'author_reach',
-    label: 'Author reach',
-    hint: 'Posts from accounts with more followers rank higher.',
+    hint: 'Weighted score from likes, reposts, replies, and quotes.',
   },
   {
     id: 'custom',
@@ -79,15 +69,6 @@ function literal(value: number): L2Expr {
 
 function binary(op: '+' | '-' | '*' | '/', left: L2Expr, right: L2Expr): L2Expr {
   return { type: 'binary', op, left, right }
-}
-
-function sumFields(fields: Array<'like_count' | 'repost_count' | 'reply_count' | 'author_follower_count'>): L2Expr {
-  const [first, ...rest] = fields
-  if (!first) return defaultRankExpr()
-  return rest.reduce<L2Expr>(
-    (acc, f) => binary('+', acc, fieldExpr(f)),
-    fieldExpr(first),
-  )
 }
 
 /** Apply time decay: score / (1 + post_age_hours / halfLife) */
@@ -116,14 +97,47 @@ export function exprKey(expr: L2Expr): string {
 }
 
 export function engagementExpr(weights: EngagementWeights): L2Expr {
-  const fields: Array<'like_count' | 'repost_count' | 'reply_count'> = []
-  if (weights.likes) fields.push('like_count')
-  if (weights.reposts) fields.push('repost_count')
-  if (weights.replies) fields.push('reply_count')
-  if (fields.length === 0) {
-    return defaultRankExpr()
+  const terms: L2Expr[] = []
+  if (weights.likes.enabled) {
+    terms.push(weights.likes.weight === 1
+      ? fieldExpr('like_count')
+      : binary('*', fieldExpr('like_count'), literal(weights.likes.weight)))
   }
-  return sumFields(fields)
+  if (weights.reposts.enabled) {
+    terms.push(weights.reposts.weight === 1
+      ? fieldExpr('repost_count')
+      : binary('*', fieldExpr('repost_count'), literal(weights.reposts.weight)))
+  }
+  if (weights.replies.enabled) {
+    terms.push(weights.replies.weight === 1
+      ? fieldExpr('reply_count')
+      : binary('*', fieldExpr('reply_count'), literal(weights.replies.weight)))
+  }
+  if (weights.quotes.enabled) {
+    terms.push(weights.quotes.weight === 1
+      ? fieldExpr('quote_count')
+      : binary('*', fieldExpr('quote_count'), literal(weights.quotes.weight)))
+  }
+  if (terms.length === 0) return fieldExpr('like_count')
+  return terms.reduce((acc, t) => binary('+', acc, t))
+}
+
+/** Human-readable formula string for display. */
+export function engagementFormulaLabel(weights: EngagementWeights): string {
+  const parts: string[] = []
+  if (weights.likes.enabled) {
+    parts.push(weights.likes.weight === 1 ? 'likes' : `likes × ${weights.likes.weight}`)
+  }
+  if (weights.reposts.enabled) {
+    parts.push(weights.reposts.weight === 1 ? 'reposts' : `reposts × ${weights.reposts.weight}`)
+  }
+  if (weights.replies.enabled) {
+    parts.push(weights.replies.weight === 1 ? 'replies' : `replies × ${weights.replies.weight}`)
+  }
+  if (weights.quotes.enabled) {
+    parts.push(weights.quotes.weight === 1 ? 'quotes' : `quotes × ${weights.quotes.weight}`)
+  }
+  return parts.length ? parts.join(' + ') : 'likes'
 }
 
 export function rankExprForMode(
@@ -131,91 +145,68 @@ export function rankExprForMode(
   weights: EngagementWeights = DEFAULT_ENGAGEMENT_WEIGHTS,
   tuning: SortTuning = DEFAULT_SORT_TUNING,
 ): L2Expr | null {
-  let base: L2Expr | null = null
   switch (mode) {
     case 'chronological':
       return null
     case 'engagement':
-      base = engagementExpr(weights)
-      break
-    case 'likes':
-      base = fieldExpr('like_count')
-      break
-    case 'discussion':
-      base = sumFields(['reply_count', 'repost_count'])
-      break
-    case 'author_reach':
-      base = fieldExpr('author_follower_count')
-      break
+      return applyTuning(engagementExpr(weights), tuning)
     case 'pack':
     case 'custom':
       return null
   }
-  if (!base) return null
-  return applyTuning(base, tuning)
 }
 
 export function detectEngagementWeights(expr: L2Expr): EngagementWeights {
-  const key = exprKey(expr)
-  const withReplies = exprKey(engagementExpr({ likes: true, reposts: true, replies: true }))
-  const defaultKey = exprKey(defaultRankExpr())
-  const likesOnly = exprKey(fieldExpr('like_count'))
-  const repostsOnly = exprKey(fieldExpr('repost_count'))
-  const repliesOnly = exprKey(fieldExpr('reply_count'))
+  const w: EngagementWeights = {
+    likes: { enabled: false, weight: 1 },
+    reposts: { enabled: false, weight: 1 },
+    replies: { enabled: false, weight: 1 },
+    quotes: { enabled: false, weight: 1 },
+  }
+  detectFieldWeight(expr, 'like_count', w, 'likes')
+  detectFieldWeight(expr, 'repost_count', w, 'reposts')
+  detectFieldWeight(expr, 'reply_count', w, 'replies')
+  detectFieldWeight(expr, 'quote_count', w, 'quotes')
+  if (!w.likes.enabled && !w.reposts.enabled && !w.replies.enabled && !w.quotes.enabled) {
+    w.likes.enabled = true
+  }
+  return w
+}
 
-  if (key === withReplies) return { likes: true, reposts: true, replies: true }
-  if (key === defaultKey) return { ...DEFAULT_ENGAGEMENT_WEIGHTS }
-  if (key === likesOnly) return { likes: true, reposts: false, replies: false }
-  if (key === repostsOnly) return { likes: false, reposts: true, replies: false }
-  if (key === repliesOnly) return { likes: false, reposts: false, replies: true }
-
-  const likesReplies = exprKey(engagementExpr({ likes: true, reposts: false, replies: true }))
-  const repostsReplies = exprKey(engagementExpr({ likes: false, reposts: true, replies: true }))
-  if (key === likesReplies) return { likes: true, reposts: false, replies: true }
-  if (key === repostsReplies) return { likes: false, reposts: true, replies: true }
-
-  return { ...DEFAULT_ENGAGEMENT_WEIGHTS }
+function detectFieldWeight(
+  expr: L2Expr,
+  field: L2NumericField,
+  out: EngagementWeights,
+  key: keyof EngagementWeights,
+): void {
+  if (expr.type === 'field' && expr.field === field) {
+    out[key] = { enabled: true, weight: 1 }
+  } else if (expr.type === 'binary') {
+    if (expr.op === '*') {
+      if (expr.left.type === 'field' && expr.left.field === field && expr.right.type === 'literal') {
+        out[key] = { enabled: true, weight: expr.right.value }
+        return
+      }
+      if (expr.right.type === 'field' && expr.right.field === field && expr.left.type === 'literal') {
+        out[key] = { enabled: true, weight: expr.left.value }
+        return
+      }
+    }
+    detectFieldWeight(expr.left, field, out, key)
+    detectFieldWeight(expr.right, field, out, key)
+  }
 }
 
 export function detectSortMode(rank: FeedConfig['rank']): SortMode {
   if (rank?.packRef) return 'pack'
   if (!rank?.sortKey) return 'chronological'
 
-  const key = exprKey(rank.sortKey)
-  // Check basic presets (no tuning)
-  for (const mode of ['likes', 'discussion', 'author_reach'] as const) {
-    const preset = rankExprForMode(mode)
-    if (preset && exprKey(preset) === key) return mode
-  }
-
-  const engagementVariants: EngagementWeights[] = [
-    DEFAULT_ENGAGEMENT_WEIGHTS,
-    { likes: true, reposts: true, replies: true },
-    { likes: true, reposts: false, replies: false },
-    { likes: false, reposts: true, replies: false },
-    { likes: false, reposts: false, replies: true },
-    { likes: true, reposts: false, replies: true },
-    { likes: false, reposts: true, replies: true },
-  ]
-  for (const weights of engagementVariants) {
-    if (exprKey(engagementExpr(weights)) === key) return 'engagement'
-  }
-
-  // If it doesn't match any preset exactly, it's a custom formula
-  // (could be a tuned preset — still show as the base mode)
-  // Try to detect tuned presets by checking if the expr contains known fields
-  if (containsField(rank.sortKey, 'like_count') || containsField(rank.sortKey, 'repost_count') || containsField(rank.sortKey, 'reply_count')) {
+  const w = detectEngagementWeights(rank.sortKey)
+  if (w.likes.enabled || w.reposts.enabled || w.replies.enabled || w.quotes.enabled) {
     return 'engagement'
   }
-  if (containsField(rank.sortKey, 'author_follower_count')) return 'author_reach'
 
   return 'custom'
-}
-
-function containsField(expr: L2Expr, field: L2NumericField): boolean {
-  if (expr.type === 'field') return expr.field === field
-  if (expr.type === 'binary') return containsField(expr.left, field) || containsField(expr.right, field)
-  return false
 }
 
 export function applySortPack(
@@ -253,7 +244,6 @@ export function applySortMode(
   tuning: SortTuning = DEFAULT_SORT_TUNING,
 ): FeedConfig {
   if (mode === 'custom') {
-    // Custom mode keeps whatever sortKey is currently set (user edits it)
     return clearSortPackRef(draft)
   }
   const expr = rankExprForMode(mode, weights, tuning)
@@ -269,19 +259,8 @@ export function sortModeBadge(mode: SortMode, weights: EngagementWeights): strin
   switch (mode) {
     case 'chronological':
       return 'Post time'
-    case 'likes':
-      return 'Likes'
-    case 'discussion':
-      return 'Discussion'
-    case 'author_reach':
-      return 'Followers'
-    case 'engagement': {
-      const parts: string[] = []
-      if (weights.likes) parts.push('likes')
-      if (weights.reposts) parts.push('reposts')
-      if (weights.replies) parts.push('replies')
-      return parts.length ? `Engagement (${parts.join(' + ')})` : 'Engagement'
-    }
+    case 'engagement':
+      return 'Engagement'
     case 'pack':
       return 'Sort pack'
     case 'custom':

@@ -4,6 +4,7 @@ import type { FeedConfig, SortPackPackage } from '@cfb/core-types'
 import { api } from '../../api/client'
 import {
   applySortPack,
+  DEFAULT_ENGAGEMENT_WEIGHTS,
   detectSortMode,
   hasSortPackRef,
   rankExprForMode,
@@ -54,7 +55,7 @@ export function SortPackFeedSection({ draft, onChange }: Props) {
 
   const saveCurrentSort = async () => {
     const mode = detectSortMode(draft.rank)
-    const weights: EngagementWeights = { likes: true, reposts: true, replies: false }
+    const weights: EngagementWeights = DEFAULT_ENGAGEMENT_WEIGHTS
     const sortKey = draft.rank?.sortKey ?? rankExprForMode(mode, weights)
     if (!sortKey) {
       setSaveError('Choose a non-chronological sort first.')

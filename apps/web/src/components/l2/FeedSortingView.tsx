@@ -1,7 +1,7 @@
 import type { FeedConfig } from '@cfb/core-types'
 
 import { FeedSortingPanel } from './FeedSortingPanel'
-import { detectEngagementWeights, detectSortMode, sortModeBadge } from '../../lib/feed-sorting'
+import { DEFAULT_ENGAGEMENT_WEIGHTS, detectEngagementWeights, detectSortMode, sortModeBadge } from '../../lib/feed-sorting'
 
 interface Props {
   draft: FeedConfig
@@ -30,7 +30,7 @@ export function FeedSortingView({
   const mode = detectSortMode(draft.rank)
   const weights = draft.rank?.sortKey
     ? detectEngagementWeights(draft.rank.sortKey)
-    : { likes: true, reposts: true, replies: false }
+    : DEFAULT_ENGAGEMENT_WEIGHTS
 
   return (
     <div className="workspace-page feed-sorting-view">

@@ -3040,9 +3040,67 @@ body {
 }
 
 .feed-sorting-panel-main .feed-sorting-tuning {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.15rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.feed-sorting-signals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.feed-sorting-signal-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.feed-sorting-signal-row .option-toggle-row {
+  flex: 1;
+}
+
+.feed-sorting-weight-input {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+
+.feed-sorting-weight-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.feed-sorting-weight-input input[type="number"] {
+  width: 3.5rem;
+  font-size: 0.8rem;
+  padding: 0.15rem 0.3rem;
+  text-align: center;
+}
+
+.feed-sorting-formula-display {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.4rem 0;
+}
+
+.feed-sorting-formula-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.feed-sorting-formula {
+  font-size: 0.8rem;
+  color: var(--accent);
+  font-family: var(--font-mono, monospace);
+}
+
+.feed-sorting-tuning-section {
+  padding-top: 0.25rem;
 }
 
 .feed-sorting-tuning-toggle {

@@ -13,6 +13,7 @@ import {
   applySortMode,
   detectEngagementWeights,
   detectSortMode,
+  engagementFormulaLabel,
   sortModeBadge,
   type EngagementWeights,
   type SortMode,
@@ -26,14 +27,14 @@ interface Props {
   layout?: 'main' | 'sidebar'
 }
 
-const ENGAGEMENT_TUNING: {
+const ENGAGEMENT_SIGNALS: {
   key: keyof EngagementWeights
   label: string
-  hint: string
 }[] = [
-  { key: 'likes', label: 'Likes', hint: 'Include like count in the score' },
-  { key: 'reposts', label: 'Reposts', hint: 'Include repost count in the score' },
-  { key: 'replies', label: 'Replies', hint: 'Include reply count in the score' },
+  { key: 'likes', label: 'Likes' },
+  { key: 'reposts', label: 'Reposts' },
+  { key: 'replies', label: 'Replies' },
+  { key: 'quotes', label: 'Quotes' },
 ]
 
 export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props) {
@@ -55,38 +56,34 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
   }, [draft.feedId, detectedWeights])
 
   const mode = detectedMode
-  const weights =
-    mode === 'engagement' ? engagementWeights : detectedWeights
   const usingPack = mode === 'pack'
 
   const selectMode = (next: SortMode) => {
     if (next === 'engagement') {
-      onChange(applySortMode(draft, next, engagementWeights, tuning))
+      onChange(applySortMode(draft, next, engagementWeights, DEFAULT_SORT_TUNING))
       return
     }
     if (next === 'custom') {
-      // Enter custom mode — keep current sortKey or set a default
       if (!draft.rank?.sortKey) {
         onChange({ ...draft, rank: { sortKey: { type: 'field', field: 'like_count' } } })
       }
       return
     }
-    onChange(applySortMode(draft, next, undefined, tuning))
+    onChange(applySortMode(draft, next, undefined, DEFAULT_SORT_TUNING))
   }
 
-  const updateEngagementWeights = (next: EngagementWeights) => {
-    const withFallback =
-      !next.likes && !next.reposts && !next.replies
-        ? { ...next, likes: true }
-        : next
-    setEngagementWeights(withFallback)
-    onChange(applySortMode(draft, 'engagement', withFallback, tuning))
+  const updateWeights = (next: EngagementWeights) => {
+    // Ensure at least one signal is enabled
+    const anyEnabled = next.likes.enabled || next.reposts.enabled || next.replies.enabled || next.quotes.enabled
+    const safe = anyEnabled ? next : { ...next, likes: { ...next.likes, enabled: true } }
+    setEngagementWeights(safe)
+    onChange(applySortMode(draft, 'engagement', safe, tuning))
   }
 
   const updateTuning = (next: SortTuning) => {
     setTuning(next)
-    if (mode !== 'chronological' && mode !== 'pack' && mode !== 'custom') {
-      onChange(applySortMode(draft, mode, engagementWeights, next))
+    if (mode === 'engagement') {
+      onChange(applySortMode(draft, 'engagement', engagementWeights, next))
     }
   }
 
@@ -97,7 +94,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
       {!isMain ? (
         <p className="card-hint feed-sorting-hint">
           Controls feed skeleton order — higher scores appear first. Autosaves to your draft; use{' '}
-          <strong>Update</strong> to go live. Personalization and FYP-style ranking coming later.
+          <strong>Update</strong> to go live.
         </p>
       ) : null}
 
@@ -109,11 +106,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
             hint={opt.hint}
             checked={mode === opt.id}
             onChange={(on) => {
-              if (on) {
-                selectMode(opt.id)
-              } else if (mode === opt.id) {
-                selectMode('chronological')
-              }
+              if (on) selectMode(opt.id)
             }}
             ariaLabel={`Sort by ${opt.label}`}
           />
@@ -122,59 +115,87 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
 
       {mode === 'engagement' && (
         <div className="feed-sorting-tuning">
-          <p className="sidebar-block-title">Tune engagement</p>
-          <div className="option-toggle-list" role="group" aria-label="Engagement signals">
-            {ENGAGEMENT_TUNING.map((opt) => (
-              <ToggleRow
-                key={opt.key}
-                label={opt.label}
-                hint={opt.hint}
-                checked={engagementWeights[opt.key]}
-                onChange={(on) =>
-                  updateEngagementWeights({ ...engagementWeights, [opt.key]: on })
-                }
-                ariaLabel={`Include ${opt.label.toLowerCase()} in engagement score`}
-              />
-            ))}
+          <p className="sidebar-block-title">Signals & weights</p>
+          <div className="feed-sorting-signals">
+            {ENGAGEMENT_SIGNALS.map((sig) => {
+              const signal = engagementWeights[sig.key]
+              return (
+                <div key={sig.key} className="feed-sorting-signal-row">
+                  <ToggleRow
+                    label={sig.label}
+                    hint=""
+                    checked={signal.enabled}
+                    onChange={(on) =>
+                      updateWeights({
+                        ...engagementWeights,
+                        [sig.key]: { ...signal, enabled: on },
+                      })
+                    }
+                    ariaLabel={`Include ${sig.label.toLowerCase()}`}
+                  />
+                  {signal.enabled && (
+                    <label className="feed-sorting-weight-input">
+                      <span className="feed-sorting-weight-label">×</span>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={signal.weight}
+                        onChange={(e) => {
+                          const w = Math.max(1, parseInt(e.target.value) || 1)
+                          updateWeights({
+                            ...engagementWeights,
+                            [sig.key]: { ...signal, weight: w },
+                          })
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+              )
+            })}
           </div>
-        </div>
-      )}
 
-      {mode !== 'chronological' && mode !== 'pack' && mode !== 'custom' && (
-        <div className="feed-sorting-tuning">
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm feed-sorting-tuning-toggle"
-            onClick={() => setShowTuning((v) => !v)}
-          >
-            {showTuning ? '▾ Advanced tuning' : '▸ Advanced tuning'}
-          </button>
-          {showTuning && (
-            <div className="feed-sorting-advanced-tuning">
-              <label className="l2-inspector-field">
-                Time decay (half-life hours)
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={tuning.decayHalfLifeHours}
-                  onChange={(e) => updateTuning({ ...tuning, decayHalfLifeHours: Math.max(0, parseInt(e.target.value) || 0) })}
-                />
-                <span className="card-hint">0 = no decay. Posts lose half their score every N hours.</span>
-              </label>
-              <label className="l2-inspector-field">
-                Editor score boost
-                <input
-                  type="number"
-                  min="0"
-                  step="100"
-                  value={tuning.editorScoreWeight}
-                  onChange={(e) => updateTuning({ ...tuning, editorScoreWeight: Math.max(0, parseInt(e.target.value) || 0) })}
-                />
-                <span className="card-hint">0 = ignore. Multiplies editor_score from Score nodes before adding to engagement.</span>
-              </label>
-            </div>
-          )}
+          <div className="feed-sorting-formula-display">
+            <span className="feed-sorting-formula-label">Formula:</span>
+            <code className="feed-sorting-formula">{engagementFormulaLabel(engagementWeights)}</code>
+          </div>
+
+          <div className="feed-sorting-tuning-section">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm feed-sorting-tuning-toggle"
+              onClick={() => setShowTuning((v) => !v)}
+            >
+              {showTuning ? '▾ Advanced tuning' : '▸ Advanced tuning'}
+            </button>
+            {showTuning && (
+              <div className="feed-sorting-advanced-tuning">
+                <label className="l2-inspector-field">
+                  Time decay (half-life hours)
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={tuning.decayHalfLifeHours}
+                    onChange={(e) => updateTuning({ ...tuning, decayHalfLifeHours: Math.max(0, parseInt(e.target.value) || 0) })}
+                  />
+                  <span className="card-hint">0 = no decay. Posts lose half their score every N hours.</span>
+                </label>
+                <label className="l2-inspector-field">
+                  Editor score boost
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={tuning.editorScoreWeight}
+                    onChange={(e) => updateTuning({ ...tuning, editorScoreWeight: Math.max(0, parseInt(e.target.value) || 0) })}
+                  />
+                  <span className="card-hint">0 = ignore. Multiplies editor_score from Score nodes before adding.</span>
+                </label>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -201,7 +222,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
 
       {!isMain ? (
         <div className="feed-sorting-status">
-          <span className="badge badge-on">{sortModeBadge(mode, weights)}</span>
+          <span className="badge badge-on">{sortModeBadge(mode, engagementWeights)}</span>
           <span className="card-hint feed-sorting-status-hint">
             {usingPack
               ? 'Sort pack resolved at eval — Update live to rebuild candidates.'
