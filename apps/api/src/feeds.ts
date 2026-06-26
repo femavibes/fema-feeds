@@ -1286,9 +1286,65 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
   })
 
+  // Sort tester — evaluate a post URL against the current sort formula
+  app.post('/api/feeds/:id/sort-test', async (c) => {
+    const id = c.req.param('id')
+    const body = await c.req.json<{ url: string; feed?: FeedConfig }>().catch(() => null)
+    if (!body?.url) return c.json({ error: 'url required' }, 400)
+
+    let feed: FeedConfig
+    if (body.feed) {
+      feed = body.feed
+    } else {
+      try {
+        const state = await loadFeedEditorState(feedsDir, id, pool)
+        feed = state.editor
+      } catch {
+        return c.json({ error: 'feed not found' }, 404)
+      }
+    }
+
+    if (!feed.rank?.sortKey) {
+      return c.json({ error: 'Feed has no sort formula (chronological mode)' }, 400)
+    }
+
+    try {
+      const { resolvePostInput } = await import('@cfb/post-resolve')
+      const post = await resolvePostInput(body.url)
+
+      const metrics = pool ? await loadPostMetrics(pool, post.uri, post.authorDid) : undefined
+      const { buildL2Runtime, numericFieldValue, evalExpr } = await import('@cfb/l2-eval')
+      const ctx = buildL2Runtime(post, metrics)
+
+      // Evaluate the full sort expression
+      const sortKey = evalExpr(ctx, feed.rank.sortKey)
+
+      // Build breakdown: evaluate each top-level numeric field
+      const fields: Array<{ field: string; value: number }> = [
+        'like_count', 'repost_count', 'reply_count', 'quote_count', 'bookmark_count',
+        'author_follower_count', 'author_follows_count', 'author_posts_count',
+        'facet_tag_count', 'text_length', 'post_age_hours',
+        'image_count', 'video_size_bytes', 'link_thumb_size_bytes',
+        'facet_link_count', 'facet_mention_count', 'editor_score',
+      ].map((field) => ({
+        field,
+        value: numericFieldValue(ctx, field as any),
+      }))
+
+      return c.json({
+        url: body.url,
+        uri: post.uri,
+        authorDid: post.authorDid,
+        sortKey,
+        fields,
+        formula: JSON.stringify(feed.rank.sortKey),
+      })
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : 'Failed to resolve post' }, 422)
+    }
+  })
+
 }
-
-
 
 function walkFeedAuthorListIds(feed: FeedConfig): string[] {
 

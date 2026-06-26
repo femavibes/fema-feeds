@@ -196,6 +196,15 @@ export interface PoolMatchSample {
   trace: L2NodeTrace[]
 }
 
+export interface SortTestResult {
+  url: string
+  uri: string
+  authorDid: string
+  sortKey: number
+  fields: Array<{ field: string; value: number }>
+  formula: string
+}
+
 export interface PoolMatchResult {
   poolTotal: number
   scanned: number
@@ -483,6 +492,14 @@ export const api = {
     apiFetch<PoolMatchResult>(`/api/feeds/${id}/match-pool`, {
       method: 'POST',
       body: JSON.stringify(body ?? {}),
+    }),
+  sortTest: (
+    id: string,
+    body: { url: string; feed?: FeedConfig },
+  ) =>
+    apiFetch<SortTestResult>(`/api/feeds/${id}/sort-test`, {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
   feedPublishInfo: (id: string) => apiFetch<FeedPublishInfo>(`/api/feeds/${id}/publish`),
   getFeedSkeleton: (id: string, limit = 50) =>

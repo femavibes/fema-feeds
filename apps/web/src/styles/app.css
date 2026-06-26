@@ -8538,3 +8538,72 @@ body.l2-visual-open #root {
   gap: 0.5rem;
   justify-content: flex-end;
 }
+
+.sort-tester {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.sort-tester-input {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.sort-tester-input input {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.sort-tester-result {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sort-tester-score {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.sort-tester-score-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.sort-tester-score-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-family: var(--font-mono, monospace);
+}
+
+.sort-tester-breakdown-title {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.sort-tester-table {
+  width: 100%;
+  font-size: 0.8rem;
+  border-collapse: collapse;
+}
+
+.sort-tester-table td {
+  padding: 0.15rem 0.5rem 0.15rem 0;
+}
+
+.sort-tester-field {
+  color: var(--text-muted);
+}
+
+.sort-tester-value {
+  font-family: var(--font-mono, monospace);
+  text-align: right;
+  font-weight: 500;
+}
