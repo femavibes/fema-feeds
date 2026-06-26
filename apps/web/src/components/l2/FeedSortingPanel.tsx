@@ -390,15 +390,91 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
                 rebuildCustomExpr(next, tuning)
               }}
             />
+
+            <p className="sidebar-block-title" style={{ marginTop: '0.75rem' }}>Media Bonus</p>
+            {MEDIA_SIGNALS.map((sig) => {
+              const signal = tuning.mediaBonus[sig.key]
+              return (
+                <div key={sig.key} className="feed-sorting-signal-row">
+                  <ToggleRow
+                    label={sig.label}
+                    hint=""
+                    checked={signal.enabled}
+                    onChange={(on) => {
+                      const next = { ...tuning, mediaBonus: { ...tuning.mediaBonus, [sig.key]: { ...signal, enabled: on } } }
+                      setTuning(next)
+                      rebuildCustomExpr(engagementWeights, next)
+                    }}
+                    ariaLabel={`Boost ${sig.label.toLowerCase()} posts`}
+                  />
+                  <label className="feed-sorting-weight-input">
+                    {signal.enabled ? (
+                      <>
+                        <span className="feed-sorting-weight-label">+</span>
+                        <input
+                          type="number"
+                          step="1"
+                          value={signal.weight}
+                          onChange={(e) => {
+                            const w = parseInt(e.target.value) || 0
+                            const next = { ...tuning, mediaBonus: { ...tuning.mediaBonus, [sig.key]: { ...signal, weight: w } } }
+                            setTuning(next)
+                            rebuildCustomExpr(engagementWeights, next)
+                          }}
+                        />
+                      </>
+                    ) : null}
+                  </label>
+                </div>
+              )
+            })}
+
+            <p className="sidebar-block-title" style={{ marginTop: '0.75rem' }}>Content Signals</p>
+            {CONTENT_SIGNALS.map((sig) => {
+              const signal = tuning.contentSignals[sig.key]
+              return (
+                <div key={sig.key} className="feed-sorting-signal-row">
+                  <ToggleRow
+                    label={sig.label}
+                    hint=""
+                    checked={signal.enabled}
+                    onChange={(on) => {
+                      const next = { ...tuning, contentSignals: { ...tuning.contentSignals, [sig.key]: { ...signal, enabled: on } } }
+                      setTuning(next)
+                      rebuildCustomExpr(engagementWeights, next)
+                    }}
+                    ariaLabel={sig.hint}
+                  />
+                  <label className="feed-sorting-weight-input">
+                    {signal.enabled ? (
+                      <>
+                        <span className="feed-sorting-weight-label">×</span>
+                        <input
+                          type="number"
+                          step="1"
+                          value={signal.weight}
+                          onChange={(e) => {
+                            const w = parseInt(e.target.value) || 0
+                            const next = { ...tuning, contentSignals: { ...tuning.contentSignals, [sig.key]: { ...signal, weight: w } } }
+                            setTuning(next)
+                            rebuildCustomExpr(engagementWeights, next)
+                          }}
+                        />
+                      </>
+                    ) : null}
+                  </label>
+                </div>
+              )
+            })}
           </div>
 
           <TuningSection
             tuning={tuning}
             onChange={(next) => { setTuning(next); rebuildCustomExpr(engagementWeights, next) }}
-            showMediaBonus
+            showMediaBonus={false}
             showAuthorFairness
             showFreshnessFloor
-            showContentSignals
+            showContentSignals={false}
           />
 
           <div className="feed-sorting-formula-display">
