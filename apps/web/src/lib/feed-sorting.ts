@@ -2,7 +2,7 @@ import type { FeedConfig, L2Expr, L2NumericField } from '@cfb/core-types'
 
 import { defaultRankExpr } from './l2-form'
 
-export type SortMode = 'chronological' | 'engagement' | 'likes' | 'discussion' | 'author_reach' | 'pack'
+export type SortMode = 'chronological' | 'engagement' | 'likes' | 'discussion' | 'author_reach' | 'pack' | 'custom'
 
 export function hasSortPackRef(rank: FeedConfig['rank']): boolean {
   return Boolean(rank?.packRef?.packageId)
@@ -14,10 +14,22 @@ export interface EngagementWeights {
   replies: boolean
 }
 
+export interface SortTuning {
+  /** Hours half-life for time decay. 0 = no decay. */
+  decayHalfLifeHours: number
+  /** Multiply editor_score by this before adding to engagement. 0 = ignore. */
+  editorScoreWeight: number
+}
+
 export const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementWeights = {
   likes: true,
   reposts: true,
   replies: false,
+}
+
+export const DEFAULT_SORT_TUNING: SortTuning = {
+  decayHalfLifeHours: 0,
+  editorScoreWeight: 0,
 }
 
 export const SORT_MODE_OPTIONS: {
@@ -50,19 +62,53 @@ export const SORT_MODE_OPTIONS: {
     label: 'Author reach',
     hint: 'Posts from accounts with more followers rank higher.',
   },
+  {
+    id: 'custom',
+    label: 'Custom formula',
+    hint: 'Build your own sort expression from any available fields.',
+  },
 ]
 
 function fieldExpr(field: L2NumericField): L2Expr {
   return { type: 'field', field }
 }
 
+function literal(value: number): L2Expr {
+  return { type: 'literal', value }
+}
+
+function binary(op: '+' | '-' | '*' | '/', left: L2Expr, right: L2Expr): L2Expr {
+  return { type: 'binary', op, left, right }
+}
+
 function sumFields(fields: Array<'like_count' | 'repost_count' | 'reply_count' | 'author_follower_count'>): L2Expr {
   const [first, ...rest] = fields
   if (!first) return defaultRankExpr()
   return rest.reduce<L2Expr>(
-    (acc, f) => ({ type: 'binary', op: '+', left: acc, right: fieldExpr(f) }),
+    (acc, f) => binary('+', acc, fieldExpr(f)),
     fieldExpr(first),
   )
+}
+
+/** Apply time decay: score / (1 + post_age_hours / halfLife) */
+function applyDecay(base: L2Expr, halfLifeHours: number): L2Expr {
+  if (halfLifeHours <= 0) return base
+  const denominator = binary('+', literal(1), binary('/', fieldExpr('post_age_hours'), literal(halfLifeHours)))
+  return binary('/', base, denominator)
+}
+
+/** Apply editor_score boost: base + (editor_score * weight) */
+function applyEditorBoost(base: L2Expr, weight: number): L2Expr {
+  if (weight <= 0) return base
+  return binary('+', base, binary('*', fieldExpr('editor_score'), literal(weight)))
+}
+
+/** Apply tuning (decay + editor boost) to a base expression. */
+export function applyTuning(base: L2Expr, tuning: SortTuning): L2Expr {
+  let expr = base
+  expr = applyEditorBoost(expr, tuning.editorScoreWeight)
+  expr = applyDecay(expr, tuning.decayHalfLifeHours)
+  return expr
 }
 
 export function exprKey(expr: L2Expr): string {
@@ -80,21 +126,33 @@ export function engagementExpr(weights: EngagementWeights): L2Expr {
   return sumFields(fields)
 }
 
-export function rankExprForMode(mode: SortMode, weights: EngagementWeights = DEFAULT_ENGAGEMENT_WEIGHTS): L2Expr | null {
+export function rankExprForMode(
+  mode: SortMode,
+  weights: EngagementWeights = DEFAULT_ENGAGEMENT_WEIGHTS,
+  tuning: SortTuning = DEFAULT_SORT_TUNING,
+): L2Expr | null {
+  let base: L2Expr | null = null
   switch (mode) {
     case 'chronological':
       return null
     case 'engagement':
-      return engagementExpr(weights)
+      base = engagementExpr(weights)
+      break
     case 'likes':
-      return fieldExpr('like_count')
+      base = fieldExpr('like_count')
+      break
     case 'discussion':
-      return sumFields(['reply_count', 'repost_count'])
+      base = sumFields(['reply_count', 'repost_count'])
+      break
     case 'author_reach':
-      return fieldExpr('author_follower_count')
+      base = fieldExpr('author_follower_count')
+      break
     case 'pack':
+    case 'custom':
       return null
   }
+  if (!base) return null
+  return applyTuning(base, tuning)
 }
 
 export function detectEngagementWeights(expr: L2Expr): EngagementWeights {
@@ -124,6 +182,7 @@ export function detectSortMode(rank: FeedConfig['rank']): SortMode {
   if (!rank?.sortKey) return 'chronological'
 
   const key = exprKey(rank.sortKey)
+  // Check basic presets (no tuning)
   for (const mode of ['likes', 'discussion', 'author_reach'] as const) {
     const preset = rankExprForMode(mode)
     if (preset && exprKey(preset) === key) return mode
@@ -142,7 +201,21 @@ export function detectSortMode(rank: FeedConfig['rank']): SortMode {
     if (exprKey(engagementExpr(weights)) === key) return 'engagement'
   }
 
-  return 'engagement'
+  // If it doesn't match any preset exactly, it's a custom formula
+  // (could be a tuned preset — still show as the base mode)
+  // Try to detect tuned presets by checking if the expr contains known fields
+  if (containsField(rank.sortKey, 'like_count') || containsField(rank.sortKey, 'repost_count') || containsField(rank.sortKey, 'reply_count')) {
+    return 'engagement'
+  }
+  if (containsField(rank.sortKey, 'author_follower_count')) return 'author_reach'
+
+  return 'custom'
+}
+
+function containsField(expr: L2Expr, field: L2NumericField): boolean {
+  if (expr.type === 'field') return expr.field === field
+  if (expr.type === 'binary') return containsField(expr.left, field) || containsField(expr.right, field)
+  return false
 }
 
 export function applySortPack(
@@ -177,8 +250,13 @@ export function applySortMode(
   draft: FeedConfig,
   mode: SortMode,
   weights: EngagementWeights = DEFAULT_ENGAGEMENT_WEIGHTS,
+  tuning: SortTuning = DEFAULT_SORT_TUNING,
 ): FeedConfig {
-  const expr = rankExprForMode(mode, weights)
+  if (mode === 'custom') {
+    // Custom mode keeps whatever sortKey is currently set (user edits it)
+    return clearSortPackRef(draft)
+  }
+  const expr = rankExprForMode(mode, weights, tuning)
   const cleared = clearSortPackRef(draft)
   if (!expr) {
     const { rank: _rank, ...rest } = cleared
@@ -206,5 +284,7 @@ export function sortModeBadge(mode: SortMode, weights: EngagementWeights): strin
     }
     case 'pack':
       return 'Sort pack'
+    case 'custom':
+      return 'Custom formula'
   }
 }

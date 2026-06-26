@@ -11,24 +11,23 @@
     "logic": "any",
     "children": [
       {
-        "id": "kw-mqqx683z",
-        "op": "includes",
-        "type": "keyword",
-        "terms": [
-          "HAHAHA"
-        ],
-        "fields": [
-          "text"
-        ],
-        "runAtIngest": true
-      },
-      {
         "id": "logic-mqtrox63",
         "type": "logic_block_ref",
         "label": "Keyword Awesome",
         "packageId": "99cc4f99-f350-4f27-a7e2-ad0a1caa2142",
         "versionPin": "1.0.2",
         "updatePolicy": "pinned"
+      },
+      {
+        "type": "keyword",
+        "id": "kw-mqu4gjk7",
+        "op": "includes",
+        "terms": [
+          "awesome"
+        ],
+        "fields": [
+          "text"
+        ]
       },
       {
         "id": "group-mqr5i44v",
@@ -57,6 +56,11 @@
             "runAtIngest": true
           }
         ]
+      },
+      {
+        "id": "score-mqu17b0s",
+        "type": "score",
+        "points": 1
       }
     ]
   },
@@ -71,10 +75,6 @@
         "x": -128,
         "y": 28.666666666666664
       },
-      "kw-mqqx683z": {
-        "x": 30.53848741577559,
-        "y": -376.2569600140408
-      },
       "kw-mqr5iidp": {
         "x": 428.3552769070011,
         "y": -36.517769287704645
@@ -88,32 +88,40 @@
         "y": 210.00000000000003
       },
       "group-mqr5i44v": {
-        "x": 316.13653779171017,
-        "y": -246.84360849878092
+        "x": 97.80674029894251,
+        "y": -489.9654342782731
       },
       "logic-mqtrox63": {
-        "x": 53.33698130414942,
-        "y": 57.19288645690836
+        "x": -195.39718777331757,
+        "y": -382.20794928722535
+      },
+      "score-mqu17b0s": {
+        "x": 455.93056894889094,
+        "y": -255.65670202507235
+      },
+      "kw-mqu4gjk7": {
+        "x": 79.66055930568945,
+        "y": -67.3523531082783
       }
     },
     "edges": [
       {
-        "id": "e-start-kw-mqqx683z",
+        "id": "e-score-mqu17b0s-end",
         "branch": true,
-        "source": "start",
-        "target": "kw-mqqx683z"
-      },
-      {
-        "id": "e-kw-mqqx683z-group-mqr5i44v",
-        "branch": true,
-        "source": "kw-mqqx683z",
-        "target": "group-mqr5i44v"
-      },
-      {
-        "id": "e-group-mqr5i44v-end",
-        "branch": true,
-        "source": "group-mqr5i44v",
+        "source": "score-mqu17b0s",
         "target": "end"
+      },
+      {
+        "id": "e-start-kw-mqu4gjk7",
+        "source": "start",
+        "target": "kw-mqu4gjk7",
+        "branch": true
+      },
+      {
+        "id": "e-kw-mqu4gjk7-score-mqu17b0s",
+        "source": "kw-mqu4gjk7",
+        "target": "score-mqu17b0s",
+        "branch": true
       }
     ],
     "labels": {},
@@ -134,6 +142,8 @@
       "group-mqr5f8cf": "native",
       "group-mqr5hxz1": "native",
       "group-mqr5i44v": "native",
+      "group-mqu3ro6o": "native",
+      "group-mqu3ropr": "native",
       "logic-mqtqlurv": "collection",
       "logic-mqtqn0cu": "collection",
       "logic-mqtrox63": "collection",
@@ -163,9 +173,32 @@
       "logic-mqttmzyu": "subscription",
       "logic-mqttn1b7": "subscription",
       "logic-mqttn2it": "subscription",
+      "logic-mqu13p13": "collection",
       "regex-mqr42flq": "native",
-      "author-mqr58ve0": "native"
+      "score-mqu12xpv": "native",
+      "score-mqu17b0s": "native",
+      "author-mqr58ve0": "native",
+      "kw-mqu4gjk7": "native"
     }
   },
-  "liveAt": "2026-06-25T18:26:28.936Z"
+  "liveAt": "2026-06-25T23:17:24.598Z",
+  "rank": {
+    "sortKey": {
+      "type": "field",
+      "field": "like_count"
+    }
+  },
+  "injector": {
+    "label": "Static URI injector (demo)",
+    "slots": {
+      "every": 8,
+      "maxPerPage": 2
+    },
+    "config": {
+      "uris": []
+    },
+    "packageId": "dff16711-0712-4f70-b8b7-54e3ec657412",
+    "disclosure": "This feed may include promoted posts configured by the publisher.",
+    "versionPin": "1.0.0"
+  }
 }

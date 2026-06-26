@@ -264,6 +264,11 @@ export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey
             {formatWhen(sample.indexedAt)}
             {sortKey != null && ` · sort ${Math.round(sortKey)}`}
           </span>
+          {editorScore != null && editorScore > 0 ? (
+            <span className="l2-match-pool-score" title={`Editor score: ${editorScore}`}>
+              +{editorScore}
+            </span>
+          ) : null}
           {sample.trace.length > 0 ? (
             <button
               type="button"
@@ -275,11 +280,6 @@ export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey
             >
               <TraceRulesIcon />
             </button>
-          ) : null}
-          {editorScore != null && editorScore > 0 ? (
-            <span className="l2-match-pool-score" title={`Editor score: ${editorScore}`}>
-              +{editorScore}
-            </span>
           ) : null}
         </div>
       </div>

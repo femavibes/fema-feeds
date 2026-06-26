@@ -58,7 +58,14 @@ export function normalizePoolMatchResult<T extends { posts: unknown[]; rejects: 
 ): T & { posts: PoolMatchSample[]; rejects: PoolMatchSample[] } {
   return {
     ...result,
-    posts: result.posts.map(normalizePoolMatchSample),
+    posts: result.posts.map((p) => {
+      const extra = p as { sortKey?: number | null; editorScore?: number }
+      return {
+        ...normalizePoolMatchSample(p),
+        ...(extra.sortKey != null ? { sortKey: extra.sortKey } : {}),
+        ...(extra.editorScore != null ? { editorScore: extra.editorScore } : {}),
+      }
+    }),
     rejects: result.rejects.map(normalizePoolMatchSample),
   }
 }

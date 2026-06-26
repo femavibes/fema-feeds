@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import type { FeedConfig } from '@cfb/core-types'
+import type { FeedConfig, L2Expr } from '@cfb/core-types'
 
 import { ToggleRow } from '../ToggleRow'
 import { SortPackFeedSection } from '../sort-packs/SortPackFeedSection'
@@ -8,6 +8,7 @@ import { InjectorFeedSection } from '../plugins/InjectorFeedSection'
 import { RankerFeedSection } from '../plugins/RankerFeedSection'
 import {
   DEFAULT_ENGAGEMENT_WEIGHTS,
+  DEFAULT_SORT_TUNING,
   SORT_MODE_OPTIONS,
   applySortMode,
   detectEngagementWeights,
@@ -15,7 +16,9 @@ import {
   sortModeBadge,
   type EngagementWeights,
   type SortMode,
+  type SortTuning,
 } from '../../lib/feed-sorting'
+import { L2_NUMERIC_FIELDS, fieldLabel } from '../../lib/l2-form'
 
 interface Props {
   draft: FeedConfig
@@ -44,6 +47,8 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
   )
 
   const [engagementWeights, setEngagementWeights] = useState<EngagementWeights>(detectedWeights)
+  const [tuning, setTuning] = useState<SortTuning>(DEFAULT_SORT_TUNING)
+  const [showTuning, setShowTuning] = useState(false)
 
   useEffect(() => {
     setEngagementWeights(detectedWeights)
@@ -56,10 +61,17 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
 
   const selectMode = (next: SortMode) => {
     if (next === 'engagement') {
-      onChange(applySortMode(draft, next, engagementWeights))
+      onChange(applySortMode(draft, next, engagementWeights, tuning))
       return
     }
-    onChange(applySortMode(draft, next))
+    if (next === 'custom') {
+      // Enter custom mode — keep current sortKey or set a default
+      if (!draft.rank?.sortKey) {
+        onChange({ ...draft, rank: { sortKey: { type: 'field', field: 'like_count' } } })
+      }
+      return
+    }
+    onChange(applySortMode(draft, next, undefined, tuning))
   }
 
   const updateEngagementWeights = (next: EngagementWeights) => {
@@ -68,7 +80,14 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
         ? { ...next, likes: true }
         : next
     setEngagementWeights(withFallback)
-    onChange(applySortMode(draft, 'engagement', withFallback))
+    onChange(applySortMode(draft, 'engagement', withFallback, tuning))
+  }
+
+  const updateTuning = (next: SortTuning) => {
+    setTuning(next)
+    if (mode !== 'chronological' && mode !== 'pack' && mode !== 'custom') {
+      onChange(applySortMode(draft, mode, engagementWeights, next))
+    }
   }
 
   const isMain = layout === 'main'
@@ -118,6 +137,65 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {mode !== 'chronological' && mode !== 'pack' && mode !== 'custom' && (
+        <div className="feed-sorting-tuning">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm feed-sorting-tuning-toggle"
+            onClick={() => setShowTuning((v) => !v)}
+          >
+            {showTuning ? '▾ Advanced tuning' : '▸ Advanced tuning'}
+          </button>
+          {showTuning && (
+            <div className="feed-sorting-advanced-tuning">
+              <label className="l2-inspector-field">
+                Time decay (half-life hours)
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={tuning.decayHalfLifeHours}
+                  onChange={(e) => updateTuning({ ...tuning, decayHalfLifeHours: Math.max(0, parseInt(e.target.value) || 0) })}
+                />
+                <span className="card-hint">0 = no decay. Posts lose half their score every N hours.</span>
+              </label>
+              <label className="l2-inspector-field">
+                Editor score boost
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={tuning.editorScoreWeight}
+                  onChange={(e) => updateTuning({ ...tuning, editorScoreWeight: Math.max(0, parseInt(e.target.value) || 0) })}
+                />
+                <span className="card-hint">0 = ignore. Multiplies editor_score from Score nodes before adding to engagement.</span>
+              </label>
+            </div>
+          )}
+        </div>
+      )}
+
+      {mode === 'custom' && (
+        <div className="feed-sorting-tuning">
+          <p className="sidebar-block-title">Custom formula</p>
+          <p className="card-hint">Raw L2Expr JSON — a visual builder is coming soon.</p>
+          <textarea
+            className="feed-sorting-custom-expr"
+            rows={6}
+            value={JSON.stringify(draft.rank?.sortKey ?? { type: 'field', field: 'like_count' }, null, 2)}
+            onChange={(e) => {
+              try {
+                const parsed = JSON.parse(e.target.value) as L2Expr
+                if (parsed.type) {
+                  onChange({ ...draft, rank: { sortKey: parsed } })
+                }
+              } catch { /* ignore parse errors while typing */ }
+            }}
+          />
+          <p className="card-hint">Available fields: {L2_NUMERIC_FIELDS.map(f => fieldLabel(f)).join(', ')}</p>
         </div>
       )}
 
