@@ -3054,11 +3054,12 @@ body {
 .feed-sorting-signal-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .feed-sorting-signal-row .toggle-row {
-  width: auto;
+  width: 7rem;
+  flex-shrink: 0;
 }
 
 .feed-sorting-signal-label {
