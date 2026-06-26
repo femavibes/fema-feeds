@@ -114,8 +114,8 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
 
       {mode === 'engagement' && (
         <div className="feed-sorting-tuning">
-          <p className="sidebar-block-title">Signals & weights</p>
           <div className="feed-sorting-signals">
+            <p className="sidebar-block-title">Signals & weights</p>
             {ENGAGEMENT_SIGNALS.map((sig) => {
               const signal = engagementWeights[sig.key]
               return (
@@ -157,12 +157,8 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
             })}
           </div>
 
-          <div className="feed-sorting-formula-display">
-            <span className="feed-sorting-formula-label">Formula:</span>
-            <code className="feed-sorting-formula">{engagementFormulaLabel(engagementWeights, tuning)}</code>
-          </div>
-
           <div className="feed-sorting-tuning-fields">
+            <p className="sidebar-block-title">Tuning</p>
             <label className="l2-inspector-field">
               Time decay (half-life hours)
               <input
@@ -185,6 +181,11 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
               />
               <span className="card-hint">0 = ignore. Multiplies editor_score from Score nodes before adding.</span>
             </label>
+          </div>
+
+          <div className="feed-sorting-formula-display">
+            <span className="feed-sorting-formula-label">Formula:</span>
+            <code className="feed-sorting-formula">{engagementFormulaLabel(engagementWeights, tuning)}</code>
           </div>
         </div>
       )}

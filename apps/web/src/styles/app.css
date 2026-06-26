@@ -3040,9 +3040,9 @@ body {
 }
 
 .feed-sorting-panel-main .feed-sorting-tuning {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1.5rem;
 }
 
 .feed-sorting-signals {
@@ -3085,6 +3085,7 @@ body {
 }
 
 .feed-sorting-formula-display {
+  grid-column: 1 / -1;
   display: flex;
   align-items: baseline;
   gap: 0.4rem;
@@ -3107,7 +3108,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  padding-top: 0.25rem;
 }
 
 .feed-sorting-tuning-fields .l2-inspector-field {
