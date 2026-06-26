@@ -111,6 +111,9 @@ importers:
       '@cfb/core-types':
         specifier: workspace:*
         version: link:../../packages/core-types
+      '@cfb/feed-config':
+        specifier: workspace:*
+        version: link:../../packages/feed-config
       '@cfb/ingest-jetstream':
         specifier: workspace:*
         version: link:../../packages/ingest-jetstream

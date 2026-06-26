@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@cfb/core-types": "workspace:*",
+    "@cfb/feed-config": "workspace:*",
     "@cfb/list-cache": "workspace:*",
     "@cfb/list-sources": "workspace:*",
     "@cfb/l1-compile": "workspace:*",
