@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import type { FeedConfig, L2Expr } from '@cfb/core-types'
 
-import { ToggleSwitch } from '../ToggleSwitch'
+import { ToggleRow } from '../ToggleRow'
 import { SortPackFeedSection } from '../sort-packs/SortPackFeedSection'
 import { InjectorFeedSection } from '../plugins/InjectorFeedSection'
 import { RankerFeedSection } from '../plugins/RankerFeedSection'
@@ -97,19 +97,18 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
         </p>
       ) : null}
 
-      <div className="feed-sorting-modes" role="radiogroup" aria-label="Sort mode">
+      <div className="option-toggle-list feed-sorting-modes" role="radiogroup" aria-label="Sort mode">
         {SORT_MODE_OPTIONS.map((opt) => (
-          <label key={opt.id} className={`feed-sorting-mode-option${mode === opt.id ? ' active' : ''}`}>
-            <input
-              type="radio"
-              name="sort-mode"
-              value={opt.id}
-              checked={mode === opt.id}
-              onChange={() => selectMode(opt.id)}
-            />
-            <span className="feed-sorting-mode-label">{opt.label}</span>
-            <span className="feed-sorting-mode-hint">{opt.hint}</span>
-          </label>
+          <ToggleRow
+            key={opt.id}
+            label={opt.label}
+            hint={opt.hint}
+            checked={mode === opt.id}
+            onChange={(on) => {
+              if (on) selectMode(opt.id)
+            }}
+            ariaLabel={`Sort by ${opt.label}`}
+          />
         ))}
       </div>
 
@@ -121,7 +120,9 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
               const signal = engagementWeights[sig.key]
               return (
                 <div key={sig.key} className="feed-sorting-signal-row">
-                  <ToggleSwitch
+                  <ToggleRow
+                    label={sig.label}
+                    hint=""
                     checked={signal.enabled}
                     onChange={(on) =>
                       updateWeights({
@@ -131,7 +132,6 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
                     }
                     ariaLabel={`Include ${sig.label.toLowerCase()}`}
                   />
-                  <span className="feed-sorting-signal-label">{sig.label}</span>
                   <label className="feed-sorting-weight-input">
                     {signal.enabled ? (
                       <>

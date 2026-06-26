@@ -3034,36 +3034,9 @@ body {
 }
 
 .feed-sorting-panel-main .feed-sorting-modes {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.feed-sorting-mode-option {
-  display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  padding: 0.3rem 0;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-
-.feed-sorting-mode-option.active .feed-sorting-mode-label {
-  font-weight: 600;
-  color: var(--accent);
-}
-
-.feed-sorting-mode-label {
-  font-weight: 500;
-}
-
-.feed-sorting-mode-hint {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.feed-sorting-mode-option input[type="radio"] {
-  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.15rem 1.5rem;
 }
 
 .feed-sorting-panel-main .feed-sorting-tuning {

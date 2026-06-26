@@ -174,9 +174,6 @@ export function detectEngagementWeights(expr: L2Expr): EngagementWeights {
   detectFieldWeight(expr, 'repost_count', w, 'reposts')
   detectFieldWeight(expr, 'reply_count', w, 'replies')
   detectFieldWeight(expr, 'quote_count', w, 'quotes')
-  if (!w.likes.enabled && !w.reposts.enabled && !w.replies.enabled && !w.quotes.enabled) {
-    w.likes.enabled = true
-  }
   return w
 }
 
