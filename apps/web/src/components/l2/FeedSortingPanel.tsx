@@ -16,6 +16,7 @@ import {
   engagementFormulaLabel,
   sortModeBadge,
   type AuthorFairnessMode,
+  type ContentSignals,
   type EngagementWeights,
   type MediaBonus,
   type SortMode,
@@ -41,6 +42,15 @@ const MEDIA_SIGNALS: { key: keyof MediaBonus; label: string }[] = [
   { key: 'image', label: 'Image' },
   { key: 'video', label: 'Video' },
   { key: 'linkCard', label: 'Link card' },
+]
+
+const CONTENT_SIGNALS: { key: keyof ContentSignals; label: string; hint: string }[] = [
+  { key: 'authorFollowers', label: 'Author followers', hint: 'Positive = boost reach, negative = demote big accounts' },
+  { key: 'authorPosts', label: 'Author posts', hint: 'Positive = boost prolific posters, negative = prefer casual' },
+  { key: 'textLength', label: 'Text length', hint: 'Positive = boost long posts, negative = prefer short' },
+  { key: 'hashtagCount', label: 'Hashtag count', hint: 'Negative = penalize hashtag spam' },
+  { key: 'mentionCount', label: 'Mention count', hint: 'Positive = boost conversational posts' },
+  { key: 'altTextBonus', label: 'Alt text (images)', hint: 'Positive = reward accessibility' },
 ]
 
 const AUTHOR_FAIRNESS_OPTIONS: { value: AuthorFairnessMode; label: string; hint: string }[] = [
@@ -78,11 +88,11 @@ function SignalRows({
                   <span className="feed-sorting-weight-label">×</span>
                   <input
                     type="number"
-                    min="1"
+                    
                     step="1"
                     value={signal.weight}
                     onChange={(e) => {
-                      const w = Math.max(1, parseInt(e.target.value) || 1)
+                      const w = parseInt(e.target.value) || 0
                       onChange(sig.key, { ...signal, weight: w })
                     }}
                   />
@@ -102,12 +112,14 @@ function TuningSection({
   showMediaBonus,
   showAuthorFairness,
   showFreshnessFloor,
+  showContentSignals,
 }: {
   tuning: SortTuning
   onChange: (next: SortTuning) => void
   showMediaBonus: boolean
   showAuthorFairness: boolean
   showFreshnessFloor: boolean
+  showContentSignals: boolean
 }) {
   return (
     <div className="feed-sorting-tuning-fields">
@@ -196,6 +208,50 @@ function TuningSection({
                             onChange({
                               ...tuning,
                               mediaBonus: { ...tuning.mediaBonus, [sig.key]: { ...signal, weight: w } },
+                            })
+                          }}
+                        />
+                      </>
+                    ) : null}
+                  </label>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+
+      {showContentSignals && (
+        <>
+          <p className="sidebar-block-title" style={{ marginTop: '0.5rem' }}>Content Signals</p>
+          <div className="feed-sorting-signals">
+            {CONTENT_SIGNALS.map((sig) => {
+              const signal = tuning.contentSignals[sig.key]
+              return (
+                <div key={sig.key} className="feed-sorting-signal-row">
+                  <ToggleRow
+                    label={sig.label}
+                    hint=""
+                    checked={signal.enabled}
+                    onChange={(on) => onChange({
+                      ...tuning,
+                      contentSignals: { ...tuning.contentSignals, [sig.key]: { ...signal, enabled: on } },
+                    })}
+                    ariaLabel={sig.hint}
+                  />
+                  <label className="feed-sorting-weight-input">
+                    {signal.enabled ? (
+                      <>
+                        <span className="feed-sorting-weight-label">×</span>
+                        <input
+                          type="number"
+                          step="1"
+                          value={signal.weight}
+                          onChange={(e) => {
+                            const w = parseInt(e.target.value) || 0
+                            onChange({
+                              ...tuning,
+                              contentSignals: { ...tuning.contentSignals, [sig.key]: { ...signal, weight: w } },
                             })
                           }}
                         />
@@ -311,6 +367,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
             showMediaBonus={false}
             showAuthorFairness={false}
             showFreshnessFloor={false}
+            showContentSignals={false}
           />
 
           <div className="feed-sorting-formula-display">
@@ -341,6 +398,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
             showMediaBonus
             showAuthorFairness
             showFreshnessFloor
+            showContentSignals
           />
 
           <div className="feed-sorting-formula-display">

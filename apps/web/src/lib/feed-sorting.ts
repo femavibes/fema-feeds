@@ -19,6 +19,15 @@ export interface EngagementWeights {
   bookmarks: EngagementSignal
 }
 
+export interface ContentSignals {
+  authorFollowers: EngagementSignal
+  authorPosts: EngagementSignal
+  textLength: EngagementSignal
+  hashtagCount: EngagementSignal
+  mentionCount: EngagementSignal
+  altTextBonus: EngagementSignal
+}
+
 export interface MediaBonus {
   image: EngagementSignal
   video: EngagementSignal
@@ -38,6 +47,8 @@ export interface SortTuning {
   authorFairness: AuthorFairnessMode
   /** Media type bonuses — flat score added when post has media. */
   mediaBonus: MediaBonus
+  /** Content signals — additional fields that affect score. */
+  contentSignals: ContentSignals
 }
 
 export const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementWeights = {
@@ -46,6 +57,15 @@ export const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementWeights = {
   replies: { enabled: true, weight: 1 },
   quotes: { enabled: false, weight: 1 },
   bookmarks: { enabled: false, weight: 3 },
+}
+
+export const DEFAULT_CONTENT_SIGNALS: ContentSignals = {
+  authorFollowers: { enabled: false, weight: 0 },
+  authorPosts: { enabled: false, weight: 0 },
+  textLength: { enabled: false, weight: 0 },
+  hashtagCount: { enabled: false, weight: 0 },
+  mentionCount: { enabled: false, weight: 0 },
+  altTextBonus: { enabled: false, weight: 0 },
 }
 
 export const DEFAULT_MEDIA_BONUS: MediaBonus = {
@@ -60,6 +80,7 @@ export const DEFAULT_SORT_TUNING: SortTuning = {
   maxAgeHours: 0,
   authorFairness: 'off',
   mediaBonus: { ...DEFAULT_MEDIA_BONUS },
+  contentSignals: { ...DEFAULT_CONTENT_SIGNALS },
 }
 
 export const SORT_MODE_OPTIONS: {
@@ -159,16 +180,34 @@ function applyMediaBonus(base: L2Expr, media: MediaBonus): L2Expr {
   return expr
 }
 
+/** Add content signal bonuses/penalties */
+function applyContentSignals(base: L2Expr, signals: ContentSignals): L2Expr {
+  let expr = base
+  const add = (field: L2NumericField, signal: EngagementSignal) => {
+    if (!signal.enabled || signal.weight === 0) return
+    expr = binary('+', expr, signal.weight === 1 ? fieldExpr(field) : binary('*', fieldExpr(field), literal(signal.weight)))
+  }
+  add('author_follower_count', signals.authorFollowers)
+  add('author_posts_count', signals.authorPosts)
+  add('text_length', signals.textLength)
+  add('facet_tag_count', signals.hashtagCount)
+  add('facet_mention_count', signals.mentionCount)
+  // Alt text bonus: image_count acts as proxy (posts with images that have alt text)
+  // We use image_count * weight as a rough proxy since we can't check alt directly in L2Expr
+  if (signals.altTextBonus.enabled && signals.altTextBonus.weight !== 0) {
+    expr = binary('+', expr, binary('*', fieldExpr('image_count'), literal(signals.altTextBonus.weight)))
+  }
+  return expr
+}
+
 /** Apply all tuning to a base expression. */
 export function applyTuning(base: L2Expr, tuning: SortTuning): L2Expr {
   let expr = base
   expr = applyEditorBoost(expr, tuning.editorScoreWeight)
+  expr = applyContentSignals(expr, tuning.contentSignals)
   expr = applyMediaBonus(expr, tuning.mediaBonus)
   expr = applyAuthorFairness(expr, tuning.authorFairness)
   expr = applyDecay(expr, tuning.decayHalfLifeHours)
-  // maxAgeHours: implemented as aggressive decay when post_age > max
-  // With only arithmetic: multiply by max(0, 1 - post_age_hours / maxAge)
-  // This makes score go to 0 at maxAge and negative after (clamped at DB level)
   if (tuning.maxAgeHours > 0) {
     const ageFactor = binary('-', literal(1), binary('/', fieldExpr('post_age_hours'), literal(tuning.maxAgeHours)))
     expr = binary('*', expr, ageFactor)
@@ -211,6 +250,29 @@ export function engagementFormulaLabel(weights: EngagementWeights, tuning: SortT
 
   if (tuning.editorScoreWeight > 0) {
     formula = `(${formula}) + editor_score × ${tuning.editorScoreWeight}`
+  }
+  // Content signals
+  const cParts: string[] = []
+  if (tuning.contentSignals.authorFollowers.enabled && tuning.contentSignals.authorFollowers.weight !== 0) {
+    cParts.push(`followers × ${tuning.contentSignals.authorFollowers.weight}`)
+  }
+  if (tuning.contentSignals.authorPosts.enabled && tuning.contentSignals.authorPosts.weight !== 0) {
+    cParts.push(`author_posts × ${tuning.contentSignals.authorPosts.weight}`)
+  }
+  if (tuning.contentSignals.textLength.enabled && tuning.contentSignals.textLength.weight !== 0) {
+    cParts.push(`text_len × ${tuning.contentSignals.textLength.weight}`)
+  }
+  if (tuning.contentSignals.hashtagCount.enabled && tuning.contentSignals.hashtagCount.weight !== 0) {
+    cParts.push(`tags × ${tuning.contentSignals.hashtagCount.weight}`)
+  }
+  if (tuning.contentSignals.mentionCount.enabled && tuning.contentSignals.mentionCount.weight !== 0) {
+    cParts.push(`mentions × ${tuning.contentSignals.mentionCount.weight}`)
+  }
+  if (tuning.contentSignals.altTextBonus.enabled && tuning.contentSignals.altTextBonus.weight !== 0) {
+    cParts.push(`alt_text × ${tuning.contentSignals.altTextBonus.weight}`)
+  }
+  if (cParts.length > 0) {
+    formula = `(${formula}) + ${cParts.join(' + ')}`
   }
   if (tuning.mediaBonus.image.enabled || tuning.mediaBonus.video.enabled || tuning.mediaBonus.linkCard.enabled) {
     const bonuses: string[] = []
