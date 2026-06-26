@@ -1309,10 +1309,34 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
     }
 
     try {
-      const { resolvePostInput } = await import('@cfb/post-resolve')
+      const { resolvePostInput, parsePostUri } = await import('@cfb/post-resolve')
+      const { extractPostInput } = await import('@cfb/post-resolve')
       const post = await resolvePostInput(body.url)
 
-      const metrics = pool ? await loadPostMetrics(pool, post.uri, post.authorDid) : undefined
+      // Fetch engagement metrics directly from Bluesky public API
+      const bskyBase = process.env.BSKY_PUBLIC_API ?? 'https://public.api.bsky.app'
+      const postsRes = await fetch(`${bskyBase}/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(post.uri)}`)
+      let bskyMetrics: import('@cfb/core-types').PostMetrics = {}
+      if (postsRes.ok) {
+        const postsData = (await postsRes.json()) as { posts?: Array<{ likeCount?: number; repostCount?: number; replyCount?: number; quoteCount?: number; author?: { followersCount?: number; followsCount?: number; postsCount?: number } }> }
+        const view = postsData.posts?.[0]
+        if (view) {
+          bskyMetrics = {
+            likeCount: view.likeCount ?? 0,
+            repostCount: view.repostCount ?? 0,
+            replyCount: view.replyCount ?? 0,
+            quoteCount: view.quoteCount ?? 0,
+            authorFollowerCount: view.author?.followersCount ?? 0,
+            authorFollowsCount: view.author?.followsCount ?? 0,
+            authorPostsCount: view.author?.postsCount ?? 0,
+          }
+        }
+      }
+
+      // Merge: prefer Bluesky live metrics over local DB
+      const localMetrics = pool ? await loadPostMetrics(pool, post.uri, post.authorDid) : undefined
+      const metrics = { ...localMetrics, ...bskyMetrics }
+
       const { buildL2Runtime, numericFieldValue, evalExpr } = await import('@cfb/l2-eval')
       const ctx = buildL2Runtime(post, metrics)
 
