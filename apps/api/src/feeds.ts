@@ -1315,9 +1315,9 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
       // Try local DB first (same source as the actual feed system)
       let metrics = pool ? await loadPostMetrics(pool, post.uri, post.authorDid) : undefined
 
-      // Fallback to Bluesky public API if we don't have local metrics
-      const hasLocalMetrics = metrics && (metrics.likeCount || metrics.repostCount || metrics.replyCount || metrics.authorFollowerCount)
-      if (!hasLocalMetrics) {
+      // Fallback to Bluesky public API if we don't have engagement metrics locally
+      const hasEngagementMetrics = metrics && (metrics.likeCount || metrics.repostCount || metrics.replyCount)
+      if (!hasEngagementMetrics) {
         const bskyBase = process.env.BSKY_PUBLIC_API ?? 'https://public.api.bsky.app'
         const postsRes = await fetch(`${bskyBase}/xrpc/app.bsky.feed.getPosts?uris=${encodeURIComponent(post.uri)}`)
         if (postsRes.ok) {
