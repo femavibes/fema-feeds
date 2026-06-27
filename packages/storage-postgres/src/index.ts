@@ -221,6 +221,8 @@ export {
   getIngestedPost,
   listPostsForProject,
   listAllPoolPosts,
+  listPoolPostsFiltered,
+  countPoolPostsFiltered,
   countPostsForProject,
   countAllPoolPosts,
   getProjectIdsForPost,

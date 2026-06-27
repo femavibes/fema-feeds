@@ -70,16 +70,28 @@ export async function listPostsForProject(
   pool: pg.Pool,
   projectId: string,
   limit: number,
-  offset = 0,
+  cursor?: string,
 ): Promise<IngestedPostRow[]> {
+  if (cursor) {
+    const res = await pool.query(
+      `SELECT p.post_uri, p.cid, p.author_did, p.indexed_at, p.summary_json
+       FROM ingested_posts p
+       INNER JOIN ingested_post_projects ip ON ip.post_uri = p.post_uri
+       WHERE ip.project_id = $1 AND p.indexed_at < $2
+       ORDER BY p.indexed_at DESC
+       LIMIT $3`,
+      [projectId, cursor, limit],
+    )
+    return res.rows.map(rowFromDbLocal)
+  }
   const res = await pool.query(
     `SELECT p.post_uri, p.cid, p.author_did, p.indexed_at, p.summary_json
      FROM ingested_posts p
      INNER JOIN ingested_post_projects ip ON ip.post_uri = p.post_uri
      WHERE ip.project_id = $1
      ORDER BY p.indexed_at DESC
-     LIMIT $2 OFFSET $3`,
-    [projectId, limit, offset],
+     LIMIT $2`,
+    [projectId, limit],
   )
   return res.rows.map(rowFromDbLocal)
 }
@@ -87,16 +99,65 @@ export async function listPostsForProject(
 export async function listAllPoolPosts(
   pool: pg.Pool,
   limit: number,
-  offset = 0,
+  cursor?: string,
 ): Promise<IngestedPostRow[]> {
+  if (cursor) {
+    const res = await pool.query(
+      `SELECT post_uri, cid, author_did, indexed_at, summary_json
+       FROM ingested_posts
+       WHERE indexed_at < $1
+       ORDER BY indexed_at DESC
+       LIMIT $2`,
+      [cursor, limit],
+    )
+    return res.rows.map(rowFromDbLocal)
+  }
   const res = await pool.query(
     `SELECT post_uri, cid, author_did, indexed_at, summary_json
      FROM ingested_posts
      ORDER BY indexed_at DESC
-     LIMIT $1 OFFSET $2`,
-    [limit, offset],
+     LIMIT $1`,
+    [limit],
   )
   return res.rows.map(rowFromDbLocal)
+}
+
+/** List pool posts with an additional SQL WHERE clause for pre-filtering. */
+export async function listPoolPostsFiltered(
+  pool: pg.Pool,
+  limit: number,
+  offset: number,
+  where: string,
+  whereParams: unknown[],
+  cursor?: string,
+): Promise<IngestedPostRow[]> {
+  const cursorClause = cursor
+    ? ` AND indexed_at < $${whereParams.length + 1}`
+    : ''
+  const cursorParams = cursor ? [cursor] : []
+  const allParams = [...whereParams, ...cursorParams]
+  const res = await pool.query(
+    `SELECT post_uri, cid, author_did, indexed_at, summary_json
+     FROM ingested_posts
+     WHERE ${where}${cursorClause}
+     ORDER BY indexed_at DESC
+     LIMIT $${allParams.length + 1}`,
+    [...allParams, limit],
+  )
+  return res.rows.map(rowFromDbLocal)
+}
+
+/** Count pool posts matching a WHERE clause. */
+export async function countPoolPostsFiltered(
+  pool: pg.Pool,
+  where: string,
+  whereParams: unknown[],
+): Promise<number> {
+  const res = await pool.query<{ count: string }>(
+    `SELECT COUNT(*) as count FROM ingested_posts WHERE ${where}`,
+    whereParams,
+  )
+  return Number(res.rows[0]?.count ?? 0)
 }
 
 export async function countPostsForProject(pool: pg.Pool, projectId: string): Promise<number> {

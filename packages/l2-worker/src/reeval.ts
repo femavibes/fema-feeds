@@ -21,7 +21,7 @@ export async function reevalPoolForFeeds(
   options: { projectId?: string; batchSize?: number } = {},
 ): Promise<ReevalResult> {
   const batchSize = options.batchSize ?? 200
-  let offset = 0
+  let cursor: string | undefined
   let posts = 0
   let evaluated = 0
   let matched = 0
@@ -29,8 +29,8 @@ export async function reevalPoolForFeeds(
 
   for (;;) {
     const rows = options.projectId
-      ? await listPostsForProject(pool, options.projectId, batchSize, offset)
-      : await listAllPoolPosts(pool, batchSize, offset)
+      ? await listPostsForProject(pool, options.projectId, batchSize, cursor)
+      : await listAllPoolPosts(pool, batchSize, cursor)
     if (rows.length === 0) break
 
     for (const row of rows) {
@@ -46,7 +46,7 @@ export async function reevalPoolForFeeds(
     }
 
     if (rows.length < batchSize) break
-    offset += batchSize
+    cursor = rows[rows.length - 1]!.indexedAt
   }
 
   return { posts, evaluated, matched, written }

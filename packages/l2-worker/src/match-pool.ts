@@ -4,13 +4,16 @@ import { evaluateFeedL2 } from '@cfb/l2-eval'
 import type pg from 'pg'
 import {
   countAllPoolPosts,
+  countPoolPostsFiltered,
   countPostsForProject,
   getAuthorProfilesByDids,
   getPostEngagementBatch,
   getProjectIdsForPostsBatch,
   listAllPoolPosts,
+  listPoolPostsFiltered,
   listPostsForProject,
   normalizedPostFromRow,
+  type IngestedPostRow,
 } from '@cfb/storage-postgres'
 import { loadAuthorListsForFeeds } from './author-lists.js'
 import { loadFollowRingsForFeed } from './follow-ring-cache.js'
@@ -23,6 +26,7 @@ import {
   type PoolMatchItem,
   type PoolMatchSample,
 } from './pool-match-sample.js'
+import { extractPoolPreFilter } from './pool-prefilter.js'
 
 export type {
   PoolMatchAuthor,
@@ -62,9 +66,13 @@ export async function previewFeedPoolMatches(
   const scanLimit = Math.min(Math.max(options.scanLimit ?? 500, 1), 250_000)
   const rejectLimit = Math.min(Math.max(options.rejectLimit ?? 8, 0), 50)
 
+  const preFilter = extractPoolPreFilter(feed)
+
   const poolTotal =
     feed.poolScope === 'global'
-      ? await countAllPoolPosts(pool)
+      ? preFilter
+        ? await countPoolPostsFiltered(pool, preFilter.where, preFilter.params)
+        : await countAllPoolPosts(pool)
       : await countPostsForProject(pool, feed.projectId)
 
   if (poolTotal === 0) {
@@ -95,24 +103,36 @@ export async function previewFeedPoolMatches(
   let scanned = 0
   let matchCount = 0
   let rejectCount = 0
-  let dbOffset = 0
+  let cursor: string | undefined
   const batchSize = 200
 
   while (scanned < scanLimit) {
-    const rows =
-      feed.poolScope === 'global'
-        ? await listAllPoolPosts(pool, batchSize, dbOffset)
-        : await listPostsForProject(pool, feed.projectId, batchSize, dbOffset)
+    // Early termination: stop if we have enough results to display
+    if (matches.length >= limit && rejects.length >= rejectLimit) break
+
+    let rows: IngestedPostRow[]
+    if (preFilter) {
+      rows = await listPoolPostsFiltered(
+        pool, batchSize, 0, preFilter.where, preFilter.params, cursor,
+      )
+    } else if (feed.poolScope === 'global') {
+      rows = await listAllPoolPosts(pool, batchSize, cursor)
+    } else {
+      rows = await listPostsForProject(pool, feed.projectId, batchSize, cursor)
+    }
     if (rows.length === 0) break
 
     const posts = rows.map(normalizedPostFromRow)
+    // Update cursor to the last row's indexedAt for next batch
+    cursor = posts[posts.length - 1]!.indexedAt
+
     const postUris = posts.map((p) => p.uri)
     const authorDids = [...new Set(posts.map((p) => p.authorDid))]
 
     // Batch-load all metrics in 3 queries instead of 2*N
     const [engagementMap, projectIdsMap, authorProfiles] = await Promise.all([
       getPostEngagementBatch(pool, postUris),
-      feed.poolScope === 'global'
+      feed.poolScope === 'global' && !preFilter
         ? getProjectIdsForPostsBatch(pool, postUris)
         : Promise.resolve(null),
       getAuthorProfilesByDids(pool, authorDids),
@@ -124,7 +144,7 @@ export async function previewFeedPoolMatches(
       if (scanned >= scanLimit) break
       scanned++
 
-      if (feed.poolScope === 'global' && projectIdsMap) {
+      if (feed.poolScope === 'global' && !preFilter && projectIdsMap) {
         const projectIds = projectIdsMap.get(post.uri) ?? []
         if (!postInFeedScope(feed, projectIds)) continue
       }
@@ -167,7 +187,6 @@ export async function previewFeedPoolMatches(
     }
 
     if (rows.length < batchSize) break
-    dbOffset += batchSize
   }
 
   const allSamples = [...matches, ...rejects]
