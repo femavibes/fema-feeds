@@ -4100,7 +4100,7 @@ input.readonly {
 }
 
 .feed-setup-summary::before {
-  content: '▸ ';
+  content: 'ÃƒÂ¢Ã¢â‚¬â€œÃ‚Â¸ ';
   display: inline-block;
   transition: transform 0.15s;
 }
@@ -5606,7 +5606,7 @@ input.readonly {
   margin-top: 1rem;
 }
 
-/* ── Fullscreen rule editors (visual + JSON) ── */
+/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Fullscreen rule editors (visual + JSON) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
 body.l2-editor-open,
 body.l2-visual-open {
   overflow: hidden;
@@ -7001,6 +7001,106 @@ body.l2-visual-open #root {
   color: var(--text-muted);
 }
 
+/* Labels condition editor */
+.l2-labels-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.l2-labels-section-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.l2-labels-labeler-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.l2-labels-labeler-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.l2-labels-builtin-badge {
+  font-size: 0.65rem;
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+.l2-labels-known,
+.l2-labels-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.l2-labels-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.l2-labels-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s, color 0.1s;
+}
+
+.l2-labels-chip:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.l2-labels-chip--active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.l2-labels-chip--custom {
+  cursor: default;
+}
+
+.l2-labels-chip-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 0.15rem;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.l2-labels-chip-remove:hover {
+  color: var(--danger, #e55);
+}
+
+.l2-labels-custom-input {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.l2-labels-custom-input input {
+  flex: 1;
+  min-width: 0;
+}
+
 .l2-author-list-editor {
   display: flex;
   flex-direction: column;
@@ -7422,7 +7522,7 @@ body.l2-visual-open #root {
   padding-right: 0.1rem;
 }
 
-/* Thin scrollbars — Matches tab, term lists, visual editor (portaled outside .app) */
+/* Thin scrollbars ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â Matches tab, term lists, visual editor (portaled outside .app) */
 .scrollbar-modern,
 .app,
 .app *,
@@ -8329,11 +8429,10 @@ body.l2-visual-open #root {
   line-height: 1.35;
   color: var(--text);
   text-decoration: none;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
+
 
 .l2-match-pool-link:hover {
   color: var(--accent);
@@ -8631,4 +8730,21 @@ body.l2-visual-open #root {
 .l2-match-pool-sort-test-btn:hover {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.marketplace-scope-badge.is-dual {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  width: auto;
+  height: 1.65rem;
+  padding: 0 0.3rem;
+  color: color-mix(in srgb, var(--accent) 80%, var(--text));
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated));
+}
+
+.marketplace-scope-badge.is-dual .marketplace-scope-badge-icon {
+  width: 0.9rem;
+  height: 0.9rem;
 }

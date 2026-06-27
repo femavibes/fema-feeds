@@ -18,7 +18,7 @@ interface Props {
   onSortTest?: (postUri: string) => void
 }
 
-const SCAN_PRESETS = [200, 500, 1000, 2000]
+const SCAN_PRESETS = [10000, 30000, 50000, 100000]
 
 function rejectedCount(result: PoolMatchResult): number {
   if (typeof result.rejectCount === 'number') return result.rejectCount
@@ -37,7 +37,7 @@ export function L2MatchPoolPanel({
   const [result, setResult] = useState<PoolMatchResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [scanLimit, setScanLimit] = useState(500)
+  const [scanLimit, setScanLimit] = useState(50000)
   const [matchLimit, setMatchLimit] = useState(compact ? 20 : 30)
   const [rejectLimit, setRejectLimit] = useState(6)
   const runSeq = useRef(0)
@@ -122,8 +122,8 @@ export function L2MatchPoolPanel({
             <input
               type="number"
               min={50}
-              max={5000}
-              step={50}
+              max={250000}
+              step={1000}
               value={scanLimit}
               disabled={loading}
               onChange={(e) => setScanLimit(Number.parseInt(e.target.value, 10) || 500)}

@@ -77,6 +77,32 @@ export async function getPostEngagement(
   }
 }
 
+/** Batch-fetch engagement for multiple post URIs. */
+export async function getPostEngagementBatch(
+  pool: pg.Pool,
+  postUris: string[],
+): Promise<Map<string, PostEngagement>> {
+  if (postUris.length === 0) return new Map()
+  const res = await pool.query(
+    `SELECT post_uri, like_count, repost_count, quote_count, reply_count, bookmark_count, updated_at
+     FROM post_engagement WHERE post_uri = ANY($1::text[])`,
+    [postUris],
+  )
+  const map = new Map<string, PostEngagement>()
+  for (const r of res.rows) {
+    map.set(r.post_uri as string, {
+      postUri: r.post_uri as string,
+      likeCount: Number(r.like_count),
+      repostCount: Number(r.repost_count),
+      quoteCount: Number(r.quote_count),
+      replyCount: Number(r.reply_count),
+      bookmarkCount: Number(r.bookmark_count),
+      updatedAt: new Date(r.updated_at as string).toISOString(),
+    })
+  }
+  return map
+}
+
 /** Set absolute engagement counts (used for backfill from Bluesky API). */
 export async function setPostEngagement(
   pool: pg.Pool,

@@ -1,11 +1,13 @@
-import type { FeedConfig, L2NodeTrace } from '@cfb/core-types'
+import type { FeedConfig, L2NodeTrace, PostMetrics } from '@cfb/core-types'
 import { resolveFeedMatch } from '@cfb/l2-graph'
 import { evaluateFeedL2 } from '@cfb/l2-eval'
 import type pg from 'pg'
 import {
   countAllPoolPosts,
   countPostsForProject,
-  getProjectIdsForPost,
+  getAuthorProfilesByDids,
+  getPostEngagementBatch,
+  getProjectIdsForPostsBatch,
   listAllPoolPosts,
   listPostsForProject,
   normalizedPostFromRow,
@@ -14,7 +16,6 @@ import { loadAuthorListsForFeeds } from './author-lists.js'
 import { loadFollowRingsForFeed } from './follow-ring-cache.js'
 import { loadMentionDidsForFeed } from './mention-accounts.js'
 import { buildLogicBlockEvalInput } from './logic-block-eval.js'
-import { loadPostMetrics } from './metrics.js'
 import { enrichPoolMatchPreviews } from './pool-match-enrich.js'
 import {
   buildPoolMatchSample,
@@ -58,7 +59,7 @@ export async function previewFeedPoolMatches(
   options: { limit?: number; scanLimit?: number; rejectLimit?: number } = {},
 ): Promise<PoolMatchResult> {
   const limit = Math.min(Math.max(options.limit ?? 30, 1), 100)
-  const scanLimit = Math.min(Math.max(options.scanLimit ?? 500, 1), 5000)
+  const scanLimit = Math.min(Math.max(options.scanLimit ?? 500, 1), 250_000)
   const rejectLimit = Math.min(Math.max(options.rejectLimit ?? 8, 0), 50)
 
   const poolTotal =
@@ -88,13 +89,14 @@ export async function previewFeedPoolMatches(
     mentionDids,
     followRings,
   })
+  const resolvedMatch = resolveFeedMatch(feed)
   const matches: PoolMatchItem[] = []
   const rejects: PoolMatchSample[] = []
   let scanned = 0
   let matchCount = 0
   let rejectCount = 0
   let dbOffset = 0
-  const batchSize = 50
+  const batchSize = 200
 
   while (scanned < scanLimit) {
     const rows =
@@ -103,20 +105,46 @@ export async function previewFeedPoolMatches(
         : await listPostsForProject(pool, feed.projectId, batchSize, dbOffset)
     if (rows.length === 0) break
 
-    for (const row of rows) {
+    const posts = rows.map(normalizedPostFromRow)
+    const postUris = posts.map((p) => p.uri)
+    const authorDids = [...new Set(posts.map((p) => p.authorDid))]
+
+    // Batch-load all metrics in 3 queries instead of 2*N
+    const [engagementMap, projectIdsMap, authorProfiles] = await Promise.all([
+      getPostEngagementBatch(pool, postUris),
+      feed.poolScope === 'global'
+        ? getProjectIdsForPostsBatch(pool, postUris)
+        : Promise.resolve(null),
+      getAuthorProfilesByDids(pool, authorDids),
+    ])
+
+    const profileMap = new Map(authorProfiles.map((p) => [p.did, p]))
+
+    for (const post of posts) {
       if (scanned >= scanLimit) break
       scanned++
 
-      const post = normalizedPostFromRow(row)
-      if (feed.poolScope === 'global') {
-        const projectIds = await getProjectIdsForPost(pool, post.uri)
+      if (feed.poolScope === 'global' && projectIdsMap) {
+        const projectIds = projectIdsMap.get(post.uri) ?? []
         if (!postInFeedScope(feed, projectIds)) continue
       }
 
-      const metrics = await loadPostMetrics(pool, post.uri, post.authorDid)
+      const engagement = engagementMap.get(post.uri)
+      const profile = profileMap.get(post.authorDid)
+      const metrics: PostMetrics = {
+        likeCount: engagement?.likeCount ?? 0,
+        repostCount: engagement?.repostCount ?? 0,
+        replyCount: engagement?.replyCount ?? 0,
+        quoteCount: engagement?.quoteCount ?? 0,
+        bookmarkCount: engagement?.bookmarkCount ?? 0,
+        authorFollowerCount: profile?.followersCount ?? 0,
+        authorFollowsCount: profile?.followsCount ?? 0,
+        authorPostsCount: profile?.postsCount ?? 0,
+      }
+
       const result = evaluateFeedL2(
         post,
-        { ...feed, match: resolveFeedMatch(feed) },
+        { ...feed, match: resolvedMatch },
         { ...evalInput, metrics, preview: true },
       )
 

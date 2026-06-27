@@ -27,6 +27,7 @@ import {
 import { KeywordMatchToggles } from '../KeywordMatchToggles'
 import { TermListEditor } from '../TermListEditor'
 import { ToggleRow } from '../ToggleRow'
+import { LabelsConditionEditor } from './LabelsConditionEditor'
 import { LanguagePicker } from './LanguagePicker'
 import { AuthorListConditionEditor } from './AuthorListConditionEditor'
 import { FollowRingCacheHint } from './FollowRingCacheHint'
@@ -481,16 +482,22 @@ export function ConditionRow({
         )}
 
         {node.type === 'labels' && (
-          <div className="l2-condition-stack">
-            <ConditionHead title="Labels" onRemove={onRemove} showRemove={showRemove} />
-            <select
-              disabled={readOnly}
-              value={node.op}
-              onChange={(e) => onChange({ ...node, op: e.target.value as 'includes' | 'excludes' })}
-            >
-              <option value="includes">includes</option>
-              <option value="excludes">excludes</option>
-            </select>
+          <div className="l2-condition-stack l2-condition-labels">
+            <ConditionHead
+              title="Labels"
+              onRemove={onRemove}
+              showRemove={showRemove}
+              trailing={
+                <select
+                  disabled={readOnly}
+                  value={node.op}
+                  onChange={(e) => onChange({ ...node, op: e.target.value as 'includes' | 'excludes' })}
+                >
+                  <option value="includes">includes</option>
+                  <option value="excludes">excludes</option>
+                </select>
+              }
+            />
             <select
               disabled={readOnly}
               value={node.scope}
@@ -498,6 +505,7 @@ export function ConditionRow({
                 onChange({
                   ...node,
                   scope: e.target.value as 'all' | 'self' | 'labeler',
+                  labelerDids: e.target.value !== 'labeler' ? undefined : node.labelerDids,
                 })
               }
               title="Self-labels on record vs labeler-applied moderation"
@@ -506,10 +514,10 @@ export function ConditionRow({
               <option value="self">self only</option>
               <option value="labeler">labeler only</option>
             </select>
-            <input
-              value={formatTags(node.values)}
-              onChange={(e) => onChange({ ...node, values: parseTags(e.target.value) })}
-              placeholder="porn, sexual, nudity"
+            <LabelsConditionEditor
+              node={node}
+              onChange={(next) => onChange(next)}
+              readOnly={readOnly}
             />
           </div>
         )}

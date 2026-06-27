@@ -1,0 +1,48 @@
+# Global marketplace registry — marketplace.fema.monster via Cloudflare Tunnel.
+#
+# Usage:
+#   1. docker compose -f docker-compose.marketplace.yml up -d
+#   2. Cloudflare tunnel routes marketplace.fema.monster → http://localhost:3005
+#   3. Log in as fema.monster to moderate global listings
+
+services:
+  api:
+    image: ghcr.io/femavibes/fema-feeds:latest
+    container_name: cfb-marketplace
+    restart: unless-stopped
+    ports:
+      - '3005:3000'
+    environment:
+      DATABASE_URL: postgresql://cfb:cfb_dev@postgres:5432/custom_feed_builder
+      API_PORT: '3000'
+      BSKY_PUBLIC_API: https://public.api.bsky.app
+      BSKY_SERVICE_URL: https://bsky.social
+      OAUTH_PUBLIC_URL: https://marketplace.fema.monster
+      SITE_HOST: marketplace.fema.monster
+      CFB_APP_PROFILE: registry
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+    volumes:
+      - cfb_marketplace_config:/app/config
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: cfb-marketplace-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cfb
+      POSTGRES_PASSWORD: cfb_dev
+      POSTGRES_DB: custom_feed_builder
+    volumes:
+      - cfb_marketplace_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cfb -d custom_feed_builder']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  cfb_marketplace_pgdata:
+  cfb_marketplace_config:

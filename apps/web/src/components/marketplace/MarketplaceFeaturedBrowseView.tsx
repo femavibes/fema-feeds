@@ -93,6 +93,7 @@ export function MarketplaceFeaturedBrowseView({
           ownerDid={pkg.ownerDid}
           subscribed={logicSubscribedIds.has(pkg.id)}
           selected={selection?.kind === 'logic_block' && selection.pkg.id === pkg.id}
+          sources={(pkg as any)._sources}
           onClick={() => onSelect({ kind: 'logic_block', pkg })}
         />
       ),
@@ -116,6 +117,7 @@ export function MarketplaceFeaturedBrowseView({
           ownerDid={pkg.ownerDid}
           subscribed={sortSubscribedIds.has(pkg.id)}
           selected={selection?.kind === 'sort_pack' && selection.pkg.id === pkg.id}
+          sources={(pkg as any)._sources}
           onClick={() => onSelect({ kind: 'sort_pack', pkg })}
         />
       ),
@@ -139,6 +141,7 @@ export function MarketplaceFeaturedBrowseView({
           ownerDid={pkg.ownerDid}
           subscribed={injectorSubscribedIds.has(pkg.id)}
           selected={selection?.kind === 'injector' && selection.pkg.id === pkg.id}
+          sources={(pkg as any)._sources}
           onClick={() => onSelect({ kind: 'injector', pkg })}
         />
       ),
@@ -162,6 +165,7 @@ export function MarketplaceFeaturedBrowseView({
           ownerDid={pkg.ownerDid}
           subscribed={rankerSubscribedIds.has(pkg.id)}
           selected={selection?.kind === 'ranker' && selection.pkg.id === pkg.id}
+          sources={(pkg as any)._sources}
           onClick={() => onSelect({ kind: 'ranker', pkg })}
         />
       ),

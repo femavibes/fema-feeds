@@ -162,10 +162,30 @@ export function trustLabel(pkg: Pick<LogicBlockPackage, 'trustTier' | 'visibilit
 export function LogicBlockTrustBadge({
   tier,
   visibility,
+  sources,
 }: {
   tier: LogicBlockPackage['trustTier']
   visibility: LogicBlockPackage['visibility']
+  sources?: string[]
 }) {
+  const hasBoth = sources && sources.includes('global') && sources.includes('deployment')
+
+  if (hasBoth) {
+    return (
+      <span
+        className="marketplace-scope-badge is-dual"
+        title="Global marketplace + this deployment"
+        aria-label="Global marketplace + this deployment"
+      >
+        <MarketplaceGlobeIcon className="marketplace-scope-badge-icon" />
+        <MarketplaceDeploymentIcon className="marketplace-scope-badge-icon" />
+        {(tier === 'global_verified' || tier === 'deployment_verified') && (
+          <MarketplaceVerifiedMark className="marketplace-scope-badge-mark" />
+        )}
+      </span>
+    )
+  }
+
   if (tier === 'global_verified') {
     return (
       <span

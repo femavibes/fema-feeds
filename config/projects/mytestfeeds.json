@@ -1,0 +1,111 @@
+{
+  "projectId": "mytestfeeds",
+  "name": "My Test Feeds",
+  "enabled": true,
+  "prefilter": {
+    "match": {
+      "type": "group",
+      "id": "prefilter-root",
+      "logic": "any",
+      "children": [
+        {
+          "type": "group",
+          "id": "group-mqvkew8u",
+          "logic": "all",
+          "children": [
+            {
+              "type": "language",
+              "id": "lang-mqvkesam",
+              "allow": [
+                "en"
+              ],
+              "unknown": "exclude"
+            },
+            {
+              "type": "post_kind",
+              "id": "kind-mqvkfdlw",
+              "kinds": [
+                "root"
+              ],
+              "op": "is"
+            }
+          ]
+        }
+      ]
+    },
+    "visualLayout": {
+      "positions": {
+        "start": {
+          "x": -428.21113601303955,
+          "y": -32.97385297513363
+        },
+        "end": {
+          "x": 524,
+          "y": -5.333333333333332
+        },
+        "group-mqvkew8u": {
+          "x": -31.809626374052783,
+          "y": -120.75950528034072
+        },
+        "kind-mqvkfdlw": {
+          "x": 46.18272841051317,
+          "y": 1.5954733266389176
+        }
+      },
+      "edges": [
+        {
+          "id": "e-start-group-mqvkew8u",
+          "source": "start",
+          "target": "group-mqvkew8u",
+          "branch": true
+        },
+        {
+          "id": "e-group-mqvkew8u-end",
+          "source": "group-mqvkew8u",
+          "target": "end",
+          "branch": true
+        }
+      ],
+      "labels": {},
+      "nodeSources": {
+        "lang-mqvfa5pa": "native",
+        "labels-mqvfarze": "native",
+        "kind-mqvfbfiw": "native",
+        "group-mqvfbszv": "native",
+        "tag-mqvfglym": "native",
+        "regex-mqvfgmzq": "native",
+        "lang-mqvkesam": "native",
+        "group-mqvkew8u": "native",
+        "kind-mqvkfdlw": "native"
+      }
+    }
+  },
+  "ingestGate": {
+    "includeBranches": [],
+    "excludeBranches": [],
+    "restrictBranches": [
+      {
+        "type": "post_kind",
+        "kinds": [
+          "root"
+        ],
+        "sourceFeedId": "__prefilter__",
+        "sourceNodeId": "kind-mqvkfdlw"
+      },
+      {
+        "type": "language",
+        "allow": [
+          "en"
+        ],
+        "unknown": "exclude",
+        "sourceFeedId": "__prefilter__",
+        "sourceNodeId": "lang-mqvkesam"
+      }
+    ]
+  },
+  "compiledL1Meta": {
+    "compiledAt": "2026-06-26T23:31:57.106Z",
+    "source": "prefilter"
+  },
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+}

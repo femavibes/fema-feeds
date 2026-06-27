@@ -7,10 +7,18 @@ import { globalMarketplaceRegistryRole, globalMarketplaceRemoteUrl } from './glo
 
 export type CatalogScope = 'deployment' | 'global' | 'all'
 
-function mergeById<T extends { id: string }>(primary: T[], secondary: T[]): T[] {
-  const byId = new Map<string, T>()
-  for (const item of primary) byId.set(item.id, item)
-  for (const item of secondary) byId.set(item.id, item)
+function mergeById<T extends { id: string; visibility?: string }>(primary: T[], secondary: T[]): T[] {
+  const byId = new Map<string, T & { _sources?: string[] }>()
+  for (const item of primary) byId.set(item.id, { ...item, _sources: [item.visibility ?? 'global'] })
+  for (const item of secondary) {
+    const existing = byId.get(item.id)
+    if (existing) {
+      // Item exists in both — keep primary (global) data but mark dual source
+      existing._sources = [...new Set([...(existing._sources ?? []), item.visibility ?? 'deployment'])]
+    } else {
+      byId.set(item.id, { ...item, _sources: [item.visibility ?? 'deployment'] })
+    }
+  }
   return [...byId.values()]
 }
 

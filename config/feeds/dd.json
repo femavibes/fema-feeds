@@ -1,7 +1,7 @@
 {
-  "feedId": "test",
-  "projectId": "urbanism",
-  "name": "TEST",
+  "feedId": "dd",
+  "projectId": "dd",
+  "name": "dd",
   "enabled": false,
   "published": false,
   "poolScope": "project_only",
@@ -11,5 +11,5 @@
     "logic": "any",
     "children": []
   },
-  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+  "ownerDid": "did:plc:blcfmz3gu4g42jozkb6bd5xl"
 }

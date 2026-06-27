@@ -135,3 +135,22 @@ export async function getProjectIdsForPost(
   )
   return res.rows.map((r) => r.project_id)
 }
+
+/** Batch-fetch project IDs for multiple post URIs. */
+export async function getProjectIdsForPostsBatch(
+  pool: pg.Pool,
+  postUris: string[],
+): Promise<Map<string, string[]>> {
+  if (postUris.length === 0) return new Map()
+  const res = await pool.query<{ post_uri: string; project_id: string }>(
+    `SELECT post_uri, project_id FROM ingested_post_projects WHERE post_uri = ANY($1::text[])`,
+    [postUris],
+  )
+  const map = new Map<string, string[]>()
+  for (const r of res.rows) {
+    const arr = map.get(r.post_uri) ?? []
+    arr.push(r.project_id)
+    map.set(r.post_uri, arr)
+  }
+  return map
+}

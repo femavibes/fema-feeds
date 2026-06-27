@@ -44,6 +44,7 @@ export {
   ensurePostEngagement,
   bumpEngagementIfInPool,
   getPostEngagement,
+  getPostEngagementBatch,
   adjustEngagement,
   setPostEngagement,
   getPoolPostsForEngagementRefresh,
@@ -223,5 +224,6 @@ export {
   countPostsForProject,
   countAllPoolPosts,
   getProjectIdsForPost,
+  getProjectIdsForPostsBatch,
   type IngestedPostRow,
 } from './pool-post.js'

@@ -21,6 +21,7 @@ interface Props {
   subtitle?: string
   subscribed?: boolean
   selected?: boolean
+  sources?: string[]
   onClick: () => void
 }
 
@@ -38,6 +39,7 @@ export function MarketplaceCatalogCard({
   subtitle,
   subscribed,
   selected,
+  sources,
   onClick,
 }: Props) {
   const presentation = resolveListingPresentation({
@@ -59,7 +61,7 @@ export function MarketplaceCatalogCard({
       <div className="marketplace-catalog-card-body">
         <div className="marketplace-catalog-card-head">
           <span className="marketplace-catalog-card-name">{name}</span>
-          <LogicBlockTrustBadge tier={trustTier} visibility={visibility} />
+          <LogicBlockTrustBadge tier={trustTier} visibility={visibility} sources={sources} />
         </div>
         <MarketplaceListingRating
           average={presentation.ratingAverage}
