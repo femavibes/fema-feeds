@@ -1,6 +1,7 @@
 import { useIngestRunner } from '../lib/use-ingest-runner'
 import { IngestBenchmarkPanel } from './IngestBenchmarkPanel'
 import { IngestToggle } from './IngestToggle'
+import { MergedPrefilterPanel } from './MergedPrefilterPanel'
 
 interface Props {
   onStatusChange?: () => void
@@ -23,6 +24,10 @@ export function IngestSettingsSection({ onStatusChange }: Props) {
           error={error}
           onToggle={toggle}
         />
+      </section>
+      <section className="settings-section">
+        <h3 className="settings-section-title">Active Prefilter</h3>
+        <MergedPrefilterPanel />
       </section>
       <IngestBenchmarkPanel
         ingestRunning={running}

@@ -1,0 +1,144 @@
+{
+  "projectId": "urbanism",
+  "name": "Urbanism",
+  "enabled": true,
+  "prefilter": {
+    "match": {
+      "type": "group",
+      "id": "prefilter-root",
+      "logic": "any",
+      "children": [
+        {
+          "type": "group",
+          "id": "group-mqvkew8u",
+          "logic": "all",
+          "children": [
+            {
+              "type": "post_kind",
+              "id": "kind-mqvkfdlw",
+              "kinds": [
+                "root"
+              ],
+              "op": "is"
+            },
+            {
+              "type": "regex",
+              "id": "regex-mqwj4tp4",
+              "op": "matches",
+              "pattern": "",
+              "fields": [
+                "text"
+              ],
+              "caseInsensitive": true
+            },
+            {
+              "type": "hashtag",
+              "id": "tag-mqwj4wag",
+              "op": "includes",
+              "tags": []
+            }
+          ]
+        }
+      ]
+    },
+    "visualLayout": {
+      "positions": {
+        "start": {
+          "x": -428.21113601303955,
+          "y": -32.97385297513363
+        },
+        "end": {
+          "x": 524,
+          "y": -5.333333333333332
+        },
+        "group-mqvkew8u": {
+          "x": -56.42480404878355,
+          "y": -260.0110818402462
+        },
+        "kind-mqvkfdlw": {
+          "x": 46.18272841051317,
+          "y": 1.5954733266389176
+        },
+        "regex-mqwj4tp4": {
+          "x": 28.224587155539542,
+          "y": -206.52856139030564
+        },
+        "tag-mqwj4wag": {
+          "x": 85.8944319934802,
+          "y": -148.85871655236497
+        }
+      },
+      "edges": [
+        {
+          "id": "e-start-group-mqvkew8u",
+          "source": "start",
+          "target": "group-mqvkew8u",
+          "branch": true
+        },
+        {
+          "id": "e-group-mqvkew8u-end",
+          "source": "group-mqvkew8u",
+          "target": "end",
+          "branch": true
+        }
+      ],
+      "labels": {},
+      "nodeSources": {
+        "lang-mqvfa5pa": "native",
+        "labels-mqvfarze": "native",
+        "kind-mqvfbfiw": "native",
+        "group-mqvfbszv": "native",
+        "tag-mqvfglym": "native",
+        "regex-mqvfgmzq": "native",
+        "lang-mqvkesam": "native",
+        "group-mqvkew8u": "native",
+        "kind-mqvkfdlw": "native",
+        "regex-mqwj4tp4": "native",
+        "tag-mqwj4wag": "native"
+      }
+    }
+  },
+  "ingestGate": {
+    "includeBranches": [
+      {
+        "type": "all",
+        "rules": [
+          {
+            "type": "hashtag",
+            "op": "includes",
+            "tags": [],
+            "sourceFeedId": "__prefilter__",
+            "sourceNodeId": "tag-mqwj4wag"
+          },
+          {
+            "type": "regex",
+            "op": "includes",
+            "pattern": "",
+            "fields": [
+              "text"
+            ],
+            "caseInsensitive": true,
+            "sourceFeedId": "__prefilter__",
+            "sourceNodeId": "regex-mqwj4tp4"
+          }
+        ]
+      }
+    ],
+    "excludeBranches": [],
+    "restrictBranches": [
+      {
+        "type": "post_kind",
+        "kinds": [
+          "root"
+        ],
+        "sourceFeedId": "__prefilter__",
+        "sourceNodeId": "kind-mqvkfdlw"
+      }
+    ]
+  },
+  "compiledL1Meta": {
+    "compiledAt": "2026-06-27T15:43:39.121Z",
+    "source": "prefilter"
+  },
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+}

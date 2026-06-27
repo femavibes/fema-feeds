@@ -1,0 +1,15 @@
+{
+  "feedId": "urbanism",
+  "projectId": "urbanism",
+  "name": "U+ LIVE",
+  "enabled": false,
+  "published": false,
+  "poolScope": "project_only",
+  "match": {
+    "type": "group",
+    "id": "root",
+    "logic": "any",
+    "children": []
+  },
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+}

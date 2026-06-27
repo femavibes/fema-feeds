@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FeedConfig, ProjectL1Config } from '@cfb/core-types'
 import type { ListCacheEntry } from '../api/client'
 import type { IngestionWorkspaceView } from '../lib/workspace-views'
@@ -35,6 +35,12 @@ export function ProjectIngestionWorkspace({
 }: Props) {
   const [editorDraft, setEditorDraft] = useState<FeedConfig | null>(null)
   const [editorDirty, setEditorDirty] = useState(false)
+
+  // Reset editor state when switching projects
+  useEffect(() => {
+    setEditorDraft(null)
+    setEditorDirty(false)
+  }, [draft.projectId])
 
   const feedDraft = useMemo(() => prefilterToFeedDraft(draft), [draft])
   const activeDraft = editorDraft ?? feedDraft

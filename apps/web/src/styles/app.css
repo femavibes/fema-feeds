@@ -8748,3 +8748,61 @@ body.l2-visual-open #root {
   width: 0.9rem;
   height: 0.9rem;
 }
+
+.merged-prefilter-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.merged-prefilter-section-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.merged-prefilter-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.merged-prefilter-item {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.merged-prefilter-item.restrict {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.merged-prefilter-item.exclude {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+
+.merged-prefilter-per-project {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.merged-prefilter-per-project summary {
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.merged-prefilter-project {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  font-size: 0.75rem;
+}

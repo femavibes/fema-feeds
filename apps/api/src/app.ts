@@ -310,6 +310,22 @@ export function createApp(options?: {
     }),
   )
 
+  app.get('/api/ingest/merged-prefilter', async (c) => {
+    try {
+      const projects = await loadAllProjects(dir)
+      const gates = projects
+        .filter((p) => p.enabled && p.ingestGate)
+        .map((p) => ({
+          projectId: p.projectId,
+          name: p.name,
+          ingestGate: p.ingestGate,
+        }))
+      return c.json({ projects: gates })
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : 'Failed to load' }, 500)
+    }
+  })
+
   app.get('/api/ingest/smoke-tests', async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
     const limit = Number.parseInt(c.req.query('limit') ?? '10', 10)
