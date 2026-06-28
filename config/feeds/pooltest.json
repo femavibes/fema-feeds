@@ -1,15 +1,66 @@
 {
   "feedId": "pooltest",
-  "projectId": "examples-prefilter",
+  "projectId": "pooltest",
   "name": "pooltest",
-  "enabled": false,
-  "published": false,
+  "enabled": true,
   "poolScope": "project_only",
   "match": {
-    "type": "group",
     "id": "root",
+    "type": "group",
     "logic": "any",
-    "children": []
+    "children": [
+      {
+        "type": "keyword",
+        "id": "kw-mqy6llex",
+        "op": "includes",
+        "terms": [
+          "urbanism",
+          "bike",
+          "urbanist",
+          "bikes",
+          "cycling"
+        ],
+        "fields": [
+          "text"
+        ]
+      }
+    ]
   },
-  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "published": false,
+  "visualLayout": {
+    "positions": {
+      "start": {
+        "x": -142,
+        "y": 22
+      },
+      "end": {
+        "x": 302,
+        "y": 7.333333333333332
+      },
+      "kw-mqy6llex": {
+        "x": -2.6666666666666856,
+        "y": -38.96875
+      }
+    },
+    "edges": [
+      {
+        "id": "e-start-kw-mqy6llex",
+        "source": "start",
+        "target": "kw-mqy6llex",
+        "branch": true
+      },
+      {
+        "id": "e-kw-mqy6llex-end",
+        "source": "kw-mqy6llex",
+        "target": "end",
+        "branch": true
+      }
+    ],
+    "labels": {},
+    "nodeSources": {
+      "kw-mqy6llex": "native"
+    }
+  },
+  "liveAt": "2026-06-28T19:28:40.167Z"
 }

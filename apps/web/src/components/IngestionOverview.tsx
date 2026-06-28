@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import type { PrefilterMode, ProjectL1Config } from '@cfb/core-types'
+import { api } from '../api/client'
 import { formatCsv, parseCsv } from '../lib/l1-form'
 
 interface Props {
@@ -19,6 +21,16 @@ const MODE_LABELS: Record<PrefilterMode, { label: string; hint: string }> = {
 }
 
 export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
+  const [poolCount, setPoolCount] = useState<number | null>(null)
+  const [totalPool, setTotalPool] = useState<number | null>(null)
+
+  useEffect(() => {
+    api.stats().then((s) => {
+      setPoolCount(s.byProject[draft.projectId] ?? 0)
+      setTotalPool(s.poolSize)
+    }).catch(() => {})
+  }, [draft.projectId])
+
   return (
     <div className="workspace-page ingestion-overview">
       <header className="workspace-context-head">
@@ -74,6 +86,14 @@ export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
           <div className="workspace-overview-stat">
             <span className="workspace-overview-stat-label">Project</span>
             <span className="workspace-overview-stat-value">{draft.projectId}</span>
+          </div>
+          <div className="workspace-overview-stat">
+            <span className="workspace-overview-stat-label">Project pool</span>
+            <span className="workspace-overview-stat-value">{poolCount !== null ? poolCount.toLocaleString() : `\u2026`}</span>
+          </div>
+          <div className="workspace-overview-stat">
+            <span className="workspace-overview-stat-label">Total pool</span>
+            <span className="workspace-overview-stat-value">{totalPool !== null ? totalPool.toLocaleString() : `\u2026`}</span>
           </div>
         </div>
         <p className="card-hint workspace-overview-hint">
