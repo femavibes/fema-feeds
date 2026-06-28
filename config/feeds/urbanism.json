@@ -2,14 +2,94 @@
   "feedId": "urbanism",
   "projectId": "urbanism",
   "name": "U+ LIVE",
-  "enabled": false,
+  "enabled": true,
   "published": false,
   "poolScope": "project_only",
   "match": {
-    "type": "group",
     "id": "root",
+    "type": "group",
     "logic": "any",
-    "children": []
+    "children": [
+      {
+        "id": "group-mqvtbjl3",
+        "type": "group",
+        "logic": "all",
+        "children": [
+          {
+            "id": "kw-mqvtcj5u",
+            "op": "includes",
+            "type": "keyword",
+            "terms": [
+              "urbanism",
+              "urbanist"
+            ],
+            "fields": [
+              "text",
+              "image_alt",
+              "video_alt",
+              "link_title",
+              "link_description",
+              "link_uri",
+              "facet_link",
+              "facet_mention"
+            ],
+            "wholeWord": true
+          },
+          {
+            "type": "group",
+            "id": "group-mqy96dck",
+            "logic": "any",
+            "children": []
+          }
+        ]
+      }
+    ]
   },
-  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "visualLayout": {
+    "positions": {
+      "end": {
+        "x": 509.3333333333334,
+        "y": -54.66666666666667
+      },
+      "start": {
+        "x": -342,
+        "y": -50.66666666666667
+      },
+      "kw-mqvtcj5u": {
+        "x": -26,
+        "y": -36.96875
+      },
+      "group-mqvtbjl3": {
+        "x": -20.580172987358623,
+        "y": -338.9833873918829
+      },
+      "group-mqy96dck": {
+        "x": 16.658682634730596,
+        "y": 122.16367265469063
+      }
+    },
+    "edges": [
+      {
+        "id": "e-start-group-mqvtbjl3",
+        "branch": true,
+        "source": "start",
+        "target": "group-mqvtbjl3"
+      },
+      {
+        "id": "e-group-mqvtbjl3-end",
+        "branch": true,
+        "source": "group-mqvtbjl3",
+        "target": "end"
+      }
+    ],
+    "labels": {},
+    "nodeSources": {
+      "kw-mqvtbzia": "native",
+      "kw-mqvtcj5u": "native",
+      "group-mqvtbjl3": "native",
+      "group-mqy96dck": "native"
+    }
+  },
+  "liveAt": "2026-06-28T20:40:52.893Z"
 }

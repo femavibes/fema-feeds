@@ -787,7 +787,16 @@ export function createApp(options?: {
     })
   })
 
-  app.post('/api/projects/:id/dry-run', async (c) => {
+  app.post('/api/projects/:id/purge-pool', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const gate = await requireMasterIfMultiUser(c, pool)
+    if (!('ok' in gate)) return gate
+    const id = c.req.param('id')
+    await deleteProjectData(pool, id)
+    return c.json({ ok: true, projectId: id })
+  })
+
+    app.post('/api/projects/:id/dry-run', async (c) => {
     const id = c.req.param('id')
     const body = (await c.req.json<{ durationSec?: number; project?: ProjectL1Config }>().catch(
       () => null,

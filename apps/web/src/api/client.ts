@@ -413,6 +413,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body ?? {}),
     }),
+  purgeProjectPool: (id: string) =>
+    apiFetch<{ ok: boolean; projectId: string }>(`/api/projects/${id}/purge-pool`, { method: 'POST' }),
   dryRun: (id: string, durationSec: number, project?: ProjectL1Config) =>
     apiFetch<DryRunResult>(`/api/projects/${id}/dry-run`, {
       method: 'POST',

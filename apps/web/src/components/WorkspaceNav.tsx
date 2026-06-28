@@ -50,6 +50,7 @@ const INGESTION_ITEMS: { id: IngestionWorkspaceView; label: string }[] = [
   { id: 'visual', label: 'Visual editor' },
   { id: 'json', label: 'JSON editor' },
   { id: 'prefilter', label: 'Prefilter' },
+  { id: 'settings', label: 'Settings' },
 ]
 
 const MARKETPLACE_ITEMS: { id: MarketplaceWorkspaceView; label: string }[] = [

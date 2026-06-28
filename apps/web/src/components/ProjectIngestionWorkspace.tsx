@@ -13,6 +13,7 @@ import { IngestionOverview } from './IngestionOverview'
 import { ProjectPrefilterCompiledPage } from './ProjectPrefilterCompiledPage'
 import { L2JsonEditor } from './l2/L2JsonEditor'
 import { L2VisualEditor } from './l2/visual/L2VisualEditor'
+import { ProjectSettingsPage } from './ProjectSettingsPage'
 
 interface Props {
   draft: ProjectL1Config
@@ -68,6 +69,10 @@ export function ProjectIngestionWorkspace({
     return (
       <IngestionOverview draft={draft} projectDirty={projectDirty} onChange={onChange} />
     )
+  }
+
+  if (view === 'settings') {
+    return <ProjectSettingsPage draft={draft} />
   }
 
   if (view === 'prefilter') {
