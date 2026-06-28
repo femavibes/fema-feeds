@@ -1,10 +1,21 @@
-import type { ProjectL1Config } from '@cfb/core-types'
+import type { PrefilterMode, ProjectL1Config } from '@cfb/core-types'
 import { formatCsv, parseCsv } from '../lib/l1-form'
 
 interface Props {
   draft: ProjectL1Config
   projectDirty: boolean
   onChange?: (next: ProjectL1Config) => void
+}
+
+const MODE_LABELS: Record<PrefilterMode, { label: string; hint: string }> = {
+  manual: {
+    label: 'Manual',
+    hint: 'You build the prefilter. Default = keep unless blocked.',
+  },
+  strict: {
+    label: 'Strict',
+    hint: 'Auto-derived from feeds. Default = drop unless a feed wants it.',
+  },
 }
 
 export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
@@ -42,14 +53,42 @@ export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
             )}
           </div>
           <div className="workspace-overview-stat">
+            <span className="workspace-overview-stat-label">Prefilter mode</span>
+            {onChange ? (
+              <select
+                value={draft.prefilterMode ?? 'manual'}
+                onChange={(e) =>
+                  onChange({ ...draft, prefilterMode: e.target.value as PrefilterMode })
+                }
+                className="prefilter-mode-select"
+              >
+                <option value="manual">Manual</option>
+                <option value="strict">Strict</option>
+              </select>
+            ) : (
+              <span className="badge badge-muted">
+                {MODE_LABELS[draft.prefilterMode ?? 'manual'].label}
+              </span>
+            )}
+          </div>
+          <div className="workspace-overview-stat">
             <span className="workspace-overview-stat-label">Project</span>
             <span className="workspace-overview-stat-value">{draft.projectId}</span>
           </div>
         </div>
         <p className="card-hint workspace-overview-hint">
-          Use <strong>Visual editor</strong> or <strong>JSON editor</strong> to build pool rules.{' '}
-          <strong>Prefilter</strong> shows the compiled jetstream gate. Save the project in the
-          sidebar to persist.
+          {(draft.prefilterMode ?? 'manual') === 'strict' ? (
+            <>
+              <strong>Strict mode:</strong> Only posts matching at least one feed&apos;s ingest-eligible
+              logic enter the pool. Excludes stay L2-only. Recompiles when feeds change.
+            </>
+          ) : (
+            <>
+              Use <strong>Visual editor</strong> or <strong>JSON editor</strong> to build pool rules.{' '}
+              <strong>Prefilter</strong> shows the compiled jetstream gate. Save the project in the
+              sidebar to persist.
+            </>
+          )}
         </p>
       </section>
 
