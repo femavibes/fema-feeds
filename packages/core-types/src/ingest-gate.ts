@@ -166,6 +166,16 @@ export type IngestGateBranch =
 
 
 
+  | {
+      type: 'url'
+      op: 'includes' | 'excludes'
+      patterns: string[]
+      sources: import('./post-record.js').PostUrlSource[]
+      caseSensitive?: boolean
+      sourceFeedId?: string
+      sourceNodeId?: string
+    }
+
 export interface IngestGateAllRule {
 
   type: 'all'

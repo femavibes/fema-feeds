@@ -12,6 +12,7 @@ export type IngestEligibleNodeType = Extract<
   | 'labels'
   | 'follow_ring'
   | 'author'
+  | 'url'
 >
 
 const DEFAULT_RUN_AT_INGEST: Partial<Record<IngestEligibleNodeType, boolean>> = {
@@ -24,6 +25,7 @@ const DEFAULT_RUN_AT_INGEST: Partial<Record<IngestEligibleNodeType, boolean>> = 
   labels: true,
   follow_ring: true,
   author: true,
+  url: true,
 }
 
 export function isIngestEligibleNodeType(type: string): type is IngestEligibleNodeType {

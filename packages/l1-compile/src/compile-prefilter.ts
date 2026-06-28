@@ -91,6 +91,15 @@ export function branchFromPrefilterNode(scopeId: string, node: L2RuleNode): Inge
         dids: node.dids ? [...node.dids] : undefined,
         ...meta,
       }
+    case 'url':
+      return {
+        type: 'url',
+        op: node.op,
+        patterns: [...node.patterns],
+        sources: [...node.sources],
+        caseSensitive: node.caseSensitive,
+        ...meta,
+      }
     default:
       return null
   }

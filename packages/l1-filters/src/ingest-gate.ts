@@ -15,7 +15,7 @@ import type {
 import {
 
   collectSearchableText,
-
+  collectPostUrls,
   labelScopeMatches,
 
   textContainsAny,
@@ -177,6 +177,18 @@ function evalIncludeBranch(
 
     }
 
+    case 'url': {
+      if (branch.patterns.length === 0) return false
+      const urls = collectPostUrls(post, branch.sources)
+      const match = branch.patterns.some((p) => {
+        const pattern = branch.caseSensitive ? p : p.toLowerCase()
+        return urls.some((u) => {
+          const hay = branch.caseSensitive ? u : u.toLowerCase()
+          return hay.includes(pattern)
+        })
+      })
+      return match
+    }
     default:
 
       return false
@@ -335,7 +347,7 @@ function evalExcludeBranch(
 
   }
 
-  if (branch.type === 'keyword' || branch.type === 'regex' || branch.type === 'hashtag') {
+  if (branch.type === 'keyword' || branch.type === 'regex' || branch.type === 'hashtag' || branch.type === 'url') {
 
     return evalIncludeBranch({ ...branch, op: 'includes' } as IngestGateBranch, post, extras)
 
