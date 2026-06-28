@@ -77,6 +77,7 @@ import {
 import { feedgenEnvFromProcess } from './feedgen-env.js'
 
 import { mergeDraftIntoLive, newFeedShell, normalizeFeedDraft } from './feed-lifecycle.js'
+import { recompileStrictGateIfNeeded } from './strict-recompile.js'
 import { loadAllFeeds } from '@cfb/feed-config'
 import { loadProject, saveProject } from '@cfb/project-config'
 import { seedFollowRingsFromProjects } from '@cfb/l2-worker'
@@ -240,6 +241,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     }
 
+    recompileStrictGateIfNeeded(projectsDir, feedsDir, shell.projectId)
     return c.json({ feed: shell }, 201)
 
   })
@@ -561,6 +563,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
       rebuilding: true,
       project: updatedProject,
     })
+    recompileStrictGateIfNeeded(projectsDir, feedsDir, nextLive.projectId)
   })
 
   app.get('/api/feeds/:id/rebuild-status', async (c) => {
@@ -675,9 +678,11 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
 
+    let feedProjectId = ''  
     try {
 
-      await loadFeed(feedsDir, id)
+      const f = await loadFeed(feedsDir, id)
+      feedProjectId = f.projectId
 
     } catch {
 
@@ -966,9 +971,11 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     const id = c.req.param('id')
 
+    let feedProjectId = ''  
     try {
 
-      await loadFeed(feedsDir, id)
+      const f = await loadFeed(feedsDir, id)
+      feedProjectId = f.projectId
 
     } catch {
 
@@ -1091,9 +1098,11 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     const id = c.req.param('id')
 
+    let feedProjectId = ''  
     try {
 
-      await loadFeed(feedsDir, id)
+      const f = await loadFeed(feedsDir, id)
+      feedProjectId = f.projectId
 
     } catch {
 
@@ -1113,6 +1122,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     }
 
+    if (feedProjectId) recompileStrictGateIfNeeded(projectsDir, feedsDir, feedProjectId)
     return c.json({ ok: true, feedId: id })
 
   })
