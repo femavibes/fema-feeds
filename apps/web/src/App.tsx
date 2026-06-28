@@ -103,7 +103,9 @@ export function App() {
   }, [user?.did, user?.isMaster, checkMasterOnboarding])
 
   useEffect(() => {
-    document.title = appProfile === 'registry' ? 'CFB Marketplace' : 'Custom Feed Builder'
+    document.title = appProfile === 'registry' ? 'CFB Marketplace' : 'WaffleIndex'
+    const link = document.querySelector('link[rel=icon]') as HTMLLinkElement | null
+    if (link) link.href = appProfile === 'registry' ? '/marketplace-icon.svg' : '/fema.jpg'
   }, [appProfile])
 
   const dismissMasterOnboarding = () => {
@@ -358,7 +360,7 @@ export function App() {
         >
           <span className="brand-mark" />
           <div>
-            <h1>{appProfile === 'registry' ? 'FEMA Marketplace' : 'Custom Feed Builder'}</h1>
+            <h1>{appProfile === 'registry' ? 'FEMA Marketplace' : 'WaffleIndex' /* WIP app name */}</h1>
             <p>{workspaceSubtitle}</p>
           </div>
         </button>
