@@ -358,7 +358,9 @@ export function App() {
           onClick={() => setBuilderSection(appProfile === 'registry' ? 'marketplace' : 'project')}
           aria-label={appProfile === 'registry' ? 'Back to marketplace' : 'Back to projects'}
         >
-          <span className="brand-mark" />
+          {appProfile === 'registry'
+            ? <img className="brand-mark brand-mark-img" src="/marketplace-icon.svg" alt="Marketplace" />
+            : <img className="brand-mark brand-mark-img" src="/fema.jpg" alt="WaffleIndex" />}
           <div>
             <h1>{appProfile === 'registry' ? 'FEMA Marketplace' : 'WaffleIndex' /* WIP app name */}</h1>
             <p>{workspaceSubtitle}</p>
@@ -371,14 +373,6 @@ export function App() {
           ) : null}
         </div>
       </header>
-
-      {showMasterOnboarding ? (
-        <MasterOnboardingModal
-          onDismiss={dismissMasterOnboarding}
-          onOpenAccessSettings={openAccessSettings}
-          onWhitelistSaved={dismissMasterOnboarding}
-        />
-      ) : null}
 
       {(message || error) && (
         <div className={`banner ${error ? 'banner-error' : 'banner-ok'}`}>
