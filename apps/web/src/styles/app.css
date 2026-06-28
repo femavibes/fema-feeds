@@ -8892,10 +8892,10 @@ body.l2-visual-open #root {
 
 /* Registry mode visual distinction */
 .app-registry {
-  --bg-app: #1a1525;
+  --bg-app: #0f1f15;
   background: var(--bg-app);
 }
 .app-registry .app-header {
-  background: #221a30;
-  border-bottom-color: #3d2d5c;
+  background: #142a1b;
+  border-bottom-color: #1e4d2b;
 }
