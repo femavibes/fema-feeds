@@ -94,7 +94,7 @@ export function FeedL2Workspace({
       if (options?.silent) setAutosaveState('saving')
       try {
         const saved = await onSaveDraft(next)
-        setEditorDraft(structuredClone(saved))
+        if (!options?.silent) setEditorDraft(structuredClone(saved))
         onChange(saved)
         setEditorDirty(false)
         setJsonUnsaved(false)
