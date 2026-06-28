@@ -13,7 +13,7 @@ import type {
 } from '@cfb/core-types'
 import { buildIngestGateFromPaths } from './ingest-path-dnf.js'
 import { optimizeIngestGate } from './ingest-gate-optimize.js'
-import { extractStrictIncludePaths } from './strict-extract.js'
+import { extractStrictIncludePaths, type LogicBlockResolver } from './strict-extract.js'
 
 export interface StrictCompileResult {
   strictIncludeGate: CompiledIngestGate
@@ -27,13 +27,14 @@ export interface StrictCompileResult {
 export function compileStrictGate(
   project: ProjectL1Config,
   feeds: FeedConfig[],
+  resolver?: LogicBlockResolver,
 ): StrictCompileResult {
   const projectFeeds = feeds.filter((f) => f.projectId === project.projectId && f.enabled)
   const allPaths: IngestGateBranch[][] = []
   const contributingFeeds: string[] = []
 
   for (const feed of projectFeeds) {
-    const paths = extractStrictIncludePaths(feed)
+    const paths = extractStrictIncludePaths(feed, resolver)
     if (paths.length > 0) {
       allPaths.push(...paths)
       contributingFeeds.push(feed.feedId)

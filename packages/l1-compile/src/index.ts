@@ -44,7 +44,7 @@ export {
   nodeIncludedInPrefilter,
   branchFromPrefilterNode,
 } from './compile-prefilter.js'
-export { extractStrictIncludePaths } from './strict-extract.js'
+export { extractStrictIncludePaths, type LogicBlockResolver } from './strict-extract.js'
 export { compileStrictGate, applyStrictGate, type StrictCompileResult } from './strict-compile.js'
 export { buildAutomaton, type AhoCorasickAutomaton, type AhoCorasickMatch } from './aho-corasick.js'
 export { buildOptimizedStrictGate, evalOptimizedStrictGate, type OptimizedStrictGate } from './strict-gate-optimize.js'

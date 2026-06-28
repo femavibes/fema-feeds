@@ -13,7 +13,7 @@ import {
   seedAuthorListsFromProjects,
 } from '@cfb/list-cache'
 import { loadAllProjects } from '@cfb/project-config'
-import { createPool, persistL1Matches, getGlobalPrefilter, getGlobalPurgeSettings, runPurgeSweep, type Pool } from '@cfb/storage-postgres'
+import { createPool, persistL1Matches, getGlobalPrefilter, getGlobalPurgeSettings, runPurgeSweep, listDeploymentCatalog, type Pool } from '@cfb/storage-postgres'
 import {
   loadEnrichmentSettings,
   maybeEnrichAuthor,
@@ -172,7 +172,9 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       globalPrefilterGate = null
     }
     compileAllProjects(configs)
-    strictGateState = buildStrictGates(configs, feeds)
+    const hasStrictProjects = configs.some((c) => c.prefilterMode === 'strict' && c.enabled)
+    const logicBlockPkgs = hasStrictProjects && pool ? await listDeploymentCatalog(pool).catch(() => []) : []
+    strictGateState = buildStrictGates(configs, feeds, logicBlockPkgs)
   }
 
   function resetSessionCounters(): void {
