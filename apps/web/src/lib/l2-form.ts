@@ -109,7 +109,6 @@ export function emptyFeed(projectId: string, feedId: string, name: string): Feed
     projectId,
     name,
     enabled: false,
-    published: false,
     poolScope: 'project_only',
     match: {
       type: 'group',

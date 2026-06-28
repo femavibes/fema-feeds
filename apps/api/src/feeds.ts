@@ -454,7 +454,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
           projectId: live.projectId,
 
-          enabled: live.enabled,
+          enabled: body.enabled ?? live.enabled,
 
           published: live.published,
 
@@ -470,6 +470,11 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     )
 
+    // Persist enabled/published changes to live file immediately
+    if (body.enabled !== undefined && body.enabled !== live.enabled) {
+      await saveFeed(feedsDir, { ...live, enabled: body.enabled })
+      live = { ...live, enabled: body.enabled }
+    }
     await saveFeedDraft(pool, id, userDid, draft)
     await seedAuthorListsFromFeeds(pool, [draft])
     await seedFollowRingsFromFeeds(pool, [draft])
