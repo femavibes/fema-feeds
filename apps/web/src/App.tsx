@@ -102,6 +102,10 @@ export function App() {
     void checkMasterOnboarding(true)
   }, [user?.did, user?.isMaster, checkMasterOnboarding])
 
+  useEffect(() => {
+    document.title = appProfile === 'registry' ? 'CFB Marketplace' : 'Custom Feed Builder'
+  }, [appProfile])
+
   const dismissMasterOnboarding = () => {
     localStorage.setItem(MASTER_ONBOARDING_DISMISS_KEY, '1')
     setShowMasterOnboarding(false)
