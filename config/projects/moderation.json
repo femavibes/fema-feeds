@@ -1,0 +1,23 @@
+{
+  "projectId": "moderation",
+  "name": "Moderation",
+  "enabled": true,
+  "prefilter": {
+    "match": {
+      "type": "group",
+      "id": "prefilter-root",
+      "logic": "any",
+      "children": []
+    }
+  },
+  "ingestGate": {
+    "includeBranches": [],
+    "excludeBranches": [],
+    "restrictBranches": []
+  },
+  "compiledL1Meta": {
+    "compiledAt": "2026-06-28T06:22:04.666Z",
+    "source": "prefilter"
+  },
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+}

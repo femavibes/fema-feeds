@@ -1,0 +1,23 @@
+{
+  "projectId": "examples-prefilter",
+  "name": "Prefilter Examples",
+  "enabled": true,
+  "prefilter": {
+    "match": {
+      "type": "group",
+      "id": "prefilter-root",
+      "logic": "any",
+      "children": []
+    }
+  },
+  "ingestGate": {
+    "includeBranches": [],
+    "excludeBranches": [],
+    "restrictBranches": []
+  },
+  "compiledL1Meta": {
+    "compiledAt": "2026-06-28T04:53:23.904Z",
+    "source": "prefilter"
+  },
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+}

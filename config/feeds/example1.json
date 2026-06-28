@@ -1,0 +1,203 @@
+{
+  "feedId": "example1",
+  "projectId": "examples-prefilter",
+  "name": "Example 1",
+  "enabled": true,
+  "published": false,
+  "poolScope": "project_only",
+  "match": {
+    "id": "root",
+    "type": "group",
+    "logic": "any",
+    "children": [
+      {
+        "type": "author",
+        "id": "author-mqxckvhl",
+        "op": "in_list",
+        "dids": []
+      },
+      {
+        "type": "group",
+        "id": "group-mqxbd5pl",
+        "logic": "all",
+        "children": [
+          {
+            "type": "keyword",
+            "id": "kw-mqxbd40z",
+            "op": "excludes",
+            "terms": [
+              "badword 1",
+              "badword 2"
+            ],
+            "fields": [
+              "text"
+            ]
+          },
+          {
+            "type": "language",
+            "id": "lang-mqxbdn1a",
+            "allow": [
+              "en"
+            ],
+            "unknown": "exclude"
+          },
+          {
+            "type": "url",
+            "id": "url-mqxck0jg",
+            "op": "excludes",
+            "patterns": [
+              "porn.com"
+            ],
+            "sources": [
+              "link_card",
+              "facet_link",
+              "bridgy_original"
+            ]
+          },
+          {
+            "type": "group",
+            "id": "group-mqxbed4j",
+            "logic": "any",
+            "children": [
+              {
+                "type": "keyword",
+                "id": "kw-mqxbemg1",
+                "op": "includes",
+                "terms": [
+                  "goodkeyword",
+                  "anothergoodkeyword"
+                ],
+                "fields": [
+                  "text"
+                ]
+              },
+              {
+                "type": "hashtag",
+                "id": "tag-mqxci705",
+                "op": "includes",
+                "tags": [
+                  "goodhashtag",
+                  "anothergoodhashtag"
+                ]
+              },
+              {
+                "type": "group",
+                "id": "group-mqxcj1z0",
+                "logic": "all",
+                "children": [
+                  {
+                    "type": "keyword",
+                    "id": "kw-mqxcj7j3",
+                    "op": "includes",
+                    "terms": [
+                      "keywordwithaurl",
+                      "anotherkeywordwithaurl"
+                    ],
+                    "fields": [
+                      "text"
+                    ]
+                  },
+                  {
+                    "type": "url",
+                    "id": "url-mqxcjaoz",
+                    "op": "includes",
+                    "patterns": [
+                      "nytimes.com"
+                    ],
+                    "sources": [
+                      "link_card",
+                      "facet_link",
+                      "bridgy_original"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "visualLayout": {
+    "positions": {
+      "start": {
+        "x": -338.5200945626477,
+        "y": 71.77895981087474
+      },
+      "end": {
+        "x": 599.4926122931441,
+        "y": 78.92553191489364
+      },
+      "group-mqxbd5pl": {
+        "x": -58.02482269503545,
+        "y": -361.464137300532
+      },
+      "lang-mqxbdn1a": {
+        "x": 18,
+        "y": 4.03125
+      },
+      "group-mqxbed4j": {
+        "x": 15.364066193853418,
+        "y": 258.82387706855786
+      },
+      "kw-mqxbemg1": {
+        "x": 92.66666666666667,
+        "y": 82.69791666666667
+      },
+      "tag-mqxci705": {
+        "x": 106.16548463356979,
+        "y": 152.84454417848704
+      },
+      "author-mqxckvhl": {
+        "x": -66.57801418439718,
+        "y": 431.92708333333326
+      },
+      "group-mqxcj1z0": {
+        "x": 16,
+        "y": 194
+      }
+    },
+    "edges": [
+      {
+        "id": "e-start-group-mqxbd5pl",
+        "source": "start",
+        "target": "group-mqxbd5pl",
+        "branch": true
+      },
+      {
+        "id": "e-group-mqxbd5pl-end",
+        "source": "group-mqxbd5pl",
+        "target": "end",
+        "branch": true
+      },
+      {
+        "id": "e-start-author-mqxckvhl",
+        "source": "start",
+        "target": "author-mqxckvhl",
+        "branch": true
+      },
+      {
+        "id": "e-author-mqxckvhl-end",
+        "source": "author-mqxckvhl",
+        "target": "end",
+        "branch": true
+      }
+    ],
+    "labels": {},
+    "nodeSources": {
+      "kw-mqxbd40z": "native",
+      "group-mqxbd5pl": "native",
+      "lang-mqxbdn1a": "native",
+      "group-mqxbed4j": "native",
+      "kw-mqxbemg1": "native",
+      "tag-mqxci705": "native",
+      "group-mqxcj1z0": "native",
+      "kw-mqxcj7j3": "native",
+      "url-mqxcjaoz": "native",
+      "url-mqxck0jg": "native",
+      "author-mqxckvhl": "native"
+    }
+  },
+  "liveAt": "2026-06-28T06:20:57.772Z"
+}
