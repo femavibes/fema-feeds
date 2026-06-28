@@ -144,6 +144,16 @@ export function SettingsPage({
               <span className="settings-stat-label">lists due for poll</span>
             </div>
           </div>
+          {stats?.byProject && Object.keys(stats.byProject).length > 0 && (
+            <table className="settings-table" style={{ marginTop: '0.75rem' }}>
+              <thead><tr><th>Project</th><th>Posts in pool</th></tr></thead>
+              <tbody>
+                {Object.entries(stats.byProject).sort((a, b) => b[1] - a[1]).map(([id, count]) => (
+                  <tr key={id}><td>{id}</td><td>{count.toLocaleString()}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
           <div className="settings-actions">
             <button type="button" className="btn btn-ghost btn-sm" onClick={onRefresh}>
               Refresh stats
