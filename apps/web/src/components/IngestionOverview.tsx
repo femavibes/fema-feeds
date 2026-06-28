@@ -80,7 +80,8 @@ export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
           {(draft.prefilterMode ?? 'manual') === 'strict' ? (
             <>
               <strong>Strict mode:</strong> Only posts matching at least one feed&apos;s ingest-eligible
-              logic enter the pool. Excludes stay L2-only. Recompiles when feeds change.
+              logic enter the pool. The project prefilter editor is not used &mdash; excludes live in
+              the global prefilter or in feed L2 rules.
               {draft.strictGateMeta && (
                 <span className="strict-gate-meta">
                   {' '}— {draft.strictGateMeta.pathCount} include path{draft.strictGateMeta.pathCount !== 1 ? 's' : ''}{' '}

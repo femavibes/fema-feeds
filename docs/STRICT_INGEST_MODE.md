@@ -21,15 +21,14 @@ The goal: **default to DROP unless a feed specifically wants the post.** Pool si
 Jetstream post arrives
   → Global prefilter (deployment-wide exclusions, always runs, both modes)
   → Project evaluation:
-      1. EXCLUDE pass (cheap, fast):
-         - Project-level exclusions (manual, from visual editor)
-         - Language, labels, blocked keywords
-         - If ANY exclusion matches → DROP immediately
-      2. INCLUDE pass (auto-derived from feeds):
-         - Evaluate the compiled strict include gate (combined from all enabled feeds)
-         - If ANY feed's ingest-eligible logic matches → KEEP (tag post for project)
-         - If NO feed matches → DROP (default)
+      - Manual mode: standard L1 eval (project prefilter visual editor controls everything)
+      - Strict mode: ONLY the strict include gate runs (derived from feeds)
+        - If ANY feed's ingest-eligible logic matches → KEEP (tag post for project)
+        - If NO feed matches → DROP (default)
 ```
+
+In strict mode, the project prefilter visual editor is **not used**. Excludes live in the
+global prefilter (deployment-wide) or in feed L2 graphs (handled at serve time).
 
 ### What "Ingest-Eligible" Means
 

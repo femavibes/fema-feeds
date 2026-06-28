@@ -274,18 +274,23 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
         globalPrefilterReject++
         return
       }
-      const result = evaluateMergedL1(resolved, configs, {
+      // Split configs by mode
+      const manualConfigs = configs.filter((c) => c.prefilterMode !== 'strict')
+      const strictConfigs = configs.filter((c) => c.prefilterMode === 'strict')
+
+      // Manual mode projects: standard L1 evaluation
+      const result = evaluateMergedL1(resolved, manualConfigs, {
         accountFollowRings,
         ingestGateExtrasByProject,
       })
-      let matched = getMatchedProjects(result)
-      // Strict mode: filter out projects where post doesn't pass the strict include gate
-      if (strictGateState.gates.size > 0) {
-        matched = matched.filter((m) => {
-          const project = configs.find((c) => c.projectId === m.projectId)
-          return !project || postPassesStrictGate(resolved, project, strictGateState)
-        })
-      }
+      const manualMatched = getMatchedProjects(result)
+
+      // Strict mode projects: only strict gate (no manual prefilter L1)
+      const strictMatched = strictConfigs
+        .filter((c) => c.enabled && postPassesStrictGate(resolved, c, strictGateState))
+        .map((c) => ({ projectId: c.projectId, matched: true, matchedVia: 'jetstream' as const, trace: [] }))
+
+      const matched = [...manualMatched, ...strictMatched]
       if (matched.length > 0) {
         l1Pass++
         if (pool) {

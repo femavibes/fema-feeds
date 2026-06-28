@@ -1,7 +1,7 @@
 {
   "projectId": "moderation",
   "name": "Moderation",
-  "enabled": true,
+  "enabled": false,
   "prefilter": {
     "match": {
       "type": "group",
@@ -16,7 +16,7 @@
     "restrictBranches": []
   },
   "compiledL1Meta": {
-    "compiledAt": "2026-06-28T06:22:04.666Z",
+    "compiledAt": "2026-06-28T16:43:45.670Z",
     "source": "prefilter"
   },
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
