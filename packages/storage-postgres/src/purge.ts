@@ -64,7 +64,7 @@ function postMatchesRule(post: PurgeCandidate, rule: PurgeRule, now: Date): bool
   if (c.hasMedia === false && post.has_media) return false
   if (c.labeledNsfw && !post.labeled_nsfw) return false
   if (c.isTextOnly && !post.is_text_only) return false
-  if (c.belowEditorScore && post.editor_score > 0) return false
+  if (c.minEditorScore !== undefined && post.editor_score >= c.minEditorScore) return false
   // Engagement thresholds — post needs at least this many to survive
   const engagement = post.like_count + post.repost_count + post.reply_count + post.quote_count
   if (c.maxEngagement !== undefined && engagement >= c.maxEngagement) return false

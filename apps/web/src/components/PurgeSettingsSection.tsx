@@ -12,7 +12,7 @@ function formatCondition(c: PurgeCondition): string {
   if (c.hasMedia === true) parts.push('has media')
   if (c.isTextOnly) parts.push('text-only')
   if (c.labeledNsfw) parts.push('labeled NSFW')
-  if (c.belowEditorScore) parts.push('editor score ≤ 0')
+  if (c.minEditorScore !== undefined) parts.push(`editor score < ${c.minEditorScore}`)
   if (c.minLikes !== undefined) parts.push(`likes < ${c.minLikes}`)
   if (c.minReposts !== undefined) parts.push(`reposts < ${c.minReposts}`)
   if (c.minQuotes !== undefined) parts.push(`quotes < ${c.minQuotes}`)
@@ -197,16 +197,21 @@ export function PurgeSettingsSection() {
                   hint="No images or video attached"
                   disabled={saving}
                 />
-                <ToggleRow
-                  label="Only if editor score ≤ 0"
-                  checked={rule.condition?.belowEditorScore ?? false}
-                  onChange={(v) => updateConditionField(i, 'belowEditorScore', v || undefined)}
-                  ariaLabel="Only purge posts with low editor score"
-                  hint="Post was not manually boosted"
-                  disabled={saving}
-                />
 
                 <div className="purge-engagement-grid">
+                  <label>
+                    Min editor score
+                    <input
+                      type="number"
+                      value={rule.condition?.minEditorScore ?? ''}
+                      placeholder="—"
+                      onChange={(e) => {
+                        const v = e.target.value.trim()
+                        updateConditionField(i, 'minEditorScore', v ? Number(v) : undefined)
+                      }}
+                      disabled={saving}
+                    />
+                  </label>
                   <label>
                     Post kind
                     <select

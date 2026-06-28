@@ -18,8 +18,8 @@ export interface PurgeCondition {
   labeledNsfw?: boolean
   /** If true, only purge text-only posts (no media, no link card, no quote) */
   isTextOnly?: boolean
-  /** If true, only purge posts with editor_score <= 0 (deprioritized or neutral) */
-  belowEditorScore?: boolean
+  /** Only purge posts with editor_score below this value (post needs at least this to survive) */
+  minEditorScore?: number
 }
 
 /** A single purge rule: after N hours, optionally with a condition. */
