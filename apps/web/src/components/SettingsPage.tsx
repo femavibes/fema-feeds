@@ -146,20 +146,26 @@ export function SettingsPage({
           </div>
           {stats?.byProject && Object.keys(stats.byProject).length > 0 && (
             <table className="settings-table" style={{ marginTop: '0.75rem' }}>
-              <thead><tr><th>Project</th><th>Posts in pool</th></tr></thead>
+              <thead><tr><th>Project</th><th>Posts</th><th></th></tr></thead>
               <tbody>
                 {Object.entries(stats.byProject).sort((a, b) => b[1] - a[1]).map(([id, count]) => (
-                  <tr key={id}><td>{id}</td><td>{count.toLocaleString()}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {stats?.byProject && Object.keys(stats.byProject).length > 0 && (
-            <table className="settings-table" style={{ marginTop: '0.75rem' }}>
-              <thead><tr><th>Project</th><th>Posts in pool</th></tr></thead>
-              <tbody>
-                {Object.entries(stats.byProject).sort((a, b) => b[1] - a[1]).map(([id, count]) => (
-                  <tr key={id}><td>{id}</td><td>{count.toLocaleString()}</td></tr>
+                  <tr key={id}>
+                    <td>{id}</td>
+                    <td>{count.toLocaleString()}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: 'var(--danger, #ef4444)', fontSize: '0.75rem' }}
+                        onClick={() => {
+                          if (window.confirm('Delete all pool posts for "' + id + '"?'))
+                            void api.purgeProjectPool(id).then(() => onRefresh())
+                        }}
+                      >
+                        Delete pool
+                      </button>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>
