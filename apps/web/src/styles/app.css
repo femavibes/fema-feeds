@@ -8899,3 +8899,10 @@ body.l2-visual-open #root {
   background: #142a1b;
   border-bottom-color: #1e4d2b;
 }
+
+.brand-mark-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+}
