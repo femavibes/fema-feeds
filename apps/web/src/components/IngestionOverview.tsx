@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { PrefilterMode, ProjectL1Config } from '@cfb/core-types'
 import { api } from '../api/client'
-import { formatCsv, parseCsv } from '../lib/l1-form'
 
 interface Props {
   draft: ProjectL1Config
@@ -122,24 +121,6 @@ export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
         </p>
       </section>
 
-      <section className="card workspace-overview-card">
-        <h3 className="workspace-overview-card-title">Author blocklist</h3>
-        <p className="card-hint">DIDs blocked at ingest for this project (comma-separated).</p>
-        {onChange ? (
-          <label>
-            Blocked DIDs
-            <input
-              value={formatCsv(draft.authorBlocklist)}
-              onChange={(e) =>
-                onChange({ ...draft, authorBlocklist: parseCsv(e.target.value) || undefined })
-              }
-              placeholder="did:plc:…"
-            />
-          </label>
-        ) : (
-          <p className="card-hint">{formatCsv(draft.authorBlocklist) || 'None'}</p>
-        )}
-      </section>
     </div>
   )
 }
