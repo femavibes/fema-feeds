@@ -156,6 +156,12 @@ export interface ProjectL1Config {
   ingestGate?: CompiledIngestGate
   /** When ingest gate was last compiled. */
   compiledL1Meta?: CompiledL1Meta
+  /** Prefilter mode: manual (user-built, default) or strict (auto-derived from feeds). */
+  prefilterMode?: import('./strict-ingest.js').PrefilterMode
+  /** Compiled strict include gate (auto-derived from feeds when prefilterMode=strict). */
+  strictIncludeGate?: CompiledIngestGate
+  /** Metadata about strict gate compilation. */
+  strictGateMeta?: import('./strict-ingest.js').StrictGateMeta
 }
 
 export type { ProjectPrefilter } from './prefilter.js'
@@ -217,5 +223,6 @@ export * from './post-record.js'
 export * from './labels.js'
 export * from './marketplace.js'
 export * from './purge.js'
+export * from './strict-ingest.js'
 export { collectSearchableText, collectPostUrls, urlMatchesAny, textContainsAny, textMatchesRegex, compileRegex, REGEX_ENGINE_LABEL, DEFAULT_URL_SOURCES } from './post-search.js'
 export type { KeywordMatchOptions } from './post-search.js'

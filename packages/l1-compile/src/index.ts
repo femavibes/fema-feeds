@@ -44,6 +44,8 @@ export {
   nodeIncludedInPrefilter,
   branchFromPrefilterNode,
 } from './compile-prefilter.js'
+export { extractStrictIncludePaths } from './strict-extract.js'
+export { compileStrictGate, applyStrictGate, type StrictCompileResult } from './strict-compile.js'
 export {
   formatIngestLeafLabel,
   formatBranchWithSource,

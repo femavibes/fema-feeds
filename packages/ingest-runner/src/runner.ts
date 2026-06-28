@@ -4,6 +4,7 @@ import { startJetstreamIngest } from '@cfb/ingest-jetstream'
 import { compileAllProjects, compileProjectPrefilter } from '@cfb/l1-compile'
 import { evaluateMergedL1, getMatchedProjects } from '@cfb/l1-eval'
 import { evaluateIngestGate } from '@cfb/l1-filters'
+import { buildStrictGates, postPassesStrictGate } from './strict-gate.js'
 import { refreshAllProjectAuthorLists } from '@cfb/list-sources'
 import { loadAllFeeds } from '@cfb/feed-config'
 import {
@@ -145,6 +146,7 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
   > = {}
   let globalPrefilterGate: CompiledIngestGate | null = null
   let globalPrefilterReject = 0
+  let strictGateState: import('./strict-gate.js').StrictGateState = { gates: new Map() }
 
   async function reloadConfigs(): Promise<void> {
     const raw = await loadAllProjects(options.projectsDir)
@@ -170,6 +172,7 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       globalPrefilterGate = null
     }
     compileAllProjects(configs)
+    strictGateState = buildStrictGates(configs, feeds)
   }
 
   function resetSessionCounters(): void {
@@ -275,7 +278,14 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
         accountFollowRings,
         ingestGateExtrasByProject,
       })
-      const matched = getMatchedProjects(result)
+      let matched = getMatchedProjects(result)
+      // Strict mode: filter out projects where post doesn't pass the strict include gate
+      if (strictGateState.gates.size > 0) {
+        matched = matched.filter((m) => {
+          const project = configs.find((c) => c.projectId === m.projectId)
+          return !project || postPassesStrictGate(resolved, project, strictGateState)
+        })
+      }
       if (matched.length > 0) {
         l1Pass++
         if (pool) {
