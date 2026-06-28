@@ -2,14 +2,137 @@
   "feedId": "moderation",
   "projectId": "mytestfeeds",
   "name": "Moderation",
-  "enabled": false,
+  "enabled": true,
   "published": false,
-  "poolScope": "project_only",
+  "poolScope": "global",
   "match": {
-    "type": "group",
     "id": "root",
+    "type": "group",
     "logic": "any",
-    "children": []
+    "children": [
+      {
+        "id": "group-mqvl3xks",
+        "type": "group",
+        "logic": "all",
+        "children": [
+          {
+            "id": "labels-mqvl4ep1",
+            "op": "includes",
+            "type": "labels",
+            "scope": "labeler",
+            "values": [
+              "porn",
+              "sexual",
+              "nudity",
+              "graphic-media"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "logic-mqvpy9sz",
+        "type": "logic_block_ref",
+        "label": "Moderation",
+        "packageId": "a995b3c3-e07f-4144-a02c-9a270b374fb3",
+        "versionPin": "1.0.0",
+        "updatePolicy": "pinned"
+      },
+      {
+        "id": "kw-mqvl2eud",
+        "op": "includes",
+        "type": "keyword",
+        "terms": [
+          "pussy",
+          "dick",
+          "ass",
+          "cum"
+        ],
+        "fields": [
+          "text"
+        ]
+      }
+    ]
   },
-  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "visualLayout": {
+    "positions": {
+      "end": {
+        "x": 441.75969518635884,
+        "y": 4.629935616920669
+      },
+      "start": {
+        "x": -284.6666666666667,
+        "y": 58
+      },
+      "kw-mqvl2eud": {
+        "x": 304.47284467582114,
+        "y": -466.2404101277602
+      },
+      "group-mqvl3xks": {
+        "x": -61.22369120201374,
+        "y": -246.204595233929
+      },
+      "logic-mqvpy9sz": {
+        "x": 94.72426723579775,
+        "y": -412.24445035519534
+      },
+      "labels-mqvl4ep1": {
+        "x": 66.66666666666667,
+        "y": 2.3645833333333335
+      }
+    },
+    "edges": [
+      {
+        "id": "e-start-group-mqvl3xks",
+        "branch": true,
+        "source": "start",
+        "target": "group-mqvl3xks"
+      },
+      {
+        "id": "e-group-mqvl3xks-end",
+        "branch": true,
+        "source": "group-mqvl3xks",
+        "target": "end"
+      }
+    ],
+    "labels": {},
+    "nodeSources": {
+      "kw-mqvl2eud": "native",
+      "group-mqvl3xks": "native",
+      "logic-mqvpy9sz": "subscription",
+      "labels-mqvl4563": "native",
+      "labels-mqvl4ep1": "native"
+    }
+  },
+  "liveAt": "2026-06-27T19:47:29.681Z",
+  "rank": {
+    "sortKey": {
+      "op": "+",
+      "left": {
+        "op": "+",
+        "left": {
+          "type": "field",
+          "field": "like_count"
+        },
+        "type": "binary",
+        "right": {
+          "op": "*",
+          "left": {
+            "type": "field",
+            "field": "repost_count"
+          },
+          "type": "binary",
+          "right": {
+            "type": "literal",
+            "value": 2
+          }
+        }
+      },
+      "type": "binary",
+      "right": {
+        "type": "field",
+        "field": "reply_count"
+      }
+    }
+  }
 }

@@ -344,7 +344,7 @@ export function App() {
             : 'Select a project'
 
   return (
-    <div className="app">
+    <div className={`app${appProfile === 'registry' ? ' app-registry' : ''}`}>
       <header className="app-header">
         <button
           type="button"

@@ -7,7 +7,6 @@ export function feedRulesFingerprint(feed: FeedConfig): string {
     description: feed.description,
     poolScope: feed.poolScope,
     match: feed.match,
-    visualLayout: feed.visualLayout,
     rank: feed.rank,
   })
 }

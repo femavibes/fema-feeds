@@ -40,6 +40,7 @@ interface Props {
     hasUnpublishedDraft: boolean
   }) => void
   onRefreshList?: (listId: string) => Promise<void>
+  onUpdateLive?: () => Promise<void>
 }
 
 export function FeedL2Workspace({
@@ -61,6 +62,7 @@ export function FeedL2Workspace({
   onNavigatorReady,
   onFeedUpgradeApplied,
   onRefreshList,
+  onUpdateLive,
 }: Props) {
   const [editorDraft, setEditorDraft] = useState<FeedConfig | null>(null)
   const [editorDirty, setEditorDirty] = useState(false)
@@ -329,6 +331,7 @@ export function FeedL2Workspace({
           autosaveState={autosaveState}
           hideSaveDraft
           revertToLive={revertToLive}
+          onUpdateLive={onUpdateLive}
           onDraftChange={handleEditorDraftChange}
           onSaveDraft={handleSaveDraft}
           onReset={handleReset}

@@ -1,4 +1,4 @@
-import type { DeploymentAccessSettings, DeploymentInfo } from '@cfb/core-types'
+import type { DeploymentAccessSettings, DeploymentInfo, ProjectPrefilter } from '@cfb/core-types'
 import {
   DEFAULT_DEPLOYMENT_ACCESS,
   publicHostForSlug,
@@ -98,4 +98,14 @@ export async function bootstrapMasterFromEnv(pool: pg.Pool): Promise<void> {
   const access = await getDeploymentAccess(pool)
   if (access.masterDid) return
   await saveDeploymentAccess(pool, { ...access, masterDid })
+}
+
+export async function getGlobalPrefilter(pool: pg.Pool): Promise<ProjectPrefilter | null> {
+  const row = await getSettingsJson<ProjectPrefilter>(pool, 'global_prefilter')
+  if (!row?.match) return null
+  return row as ProjectPrefilter
+}
+
+export async function saveGlobalPrefilter(pool: pg.Pool, prefilter: ProjectPrefilter): Promise<void> {
+  await saveSettingsJson(pool, 'global_prefilter', prefilter)
 }

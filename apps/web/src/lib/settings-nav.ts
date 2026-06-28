@@ -1,9 +1,11 @@
 import type { SettingsWorkspaceView } from './workspace-views'
 
 export const SETTINGS_NAV_ITEMS: { id: SettingsWorkspaceView; label: string }[] = [
+  { id: 'user', label: 'User' },
   { id: 'publishing', label: 'Publishing' },
   { id: 'ingest', label: 'Ingest' },
   { id: 'pool', label: 'Pool & lists' },
+  { id: 'purge', label: 'Purge' },
   { id: 'labelers', label: 'Labelers' },
   { id: 'enrichment', label: 'Enrichment' },
   { id: 'access', label: 'Access' },
@@ -12,6 +14,7 @@ export const SETTINGS_NAV_ITEMS: { id: SettingsWorkspaceView; label: string }[] 
 
 const MASTER_ONLY_VIEWS = new Set<SettingsWorkspaceView>([
   'ingest',
+  'purge',
   'labelers',
   'enrichment',
   'access',

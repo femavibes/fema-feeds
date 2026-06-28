@@ -4,7 +4,10 @@ import { duckdnsPublicHost, duckdnsPublicUrl, inferFeedgenPublishMode, isTailsca
 import { DevRestart } from './DevRestart'
 import { GlobalRegistryDevStatus } from './logic-blocks/GlobalRegistryDevStatus'
 import { IngestSettingsSection } from './IngestSettingsSection'
+import { GlobalPrefilterEditor } from './GlobalPrefilterEditor'
+import { PurgeSettingsSection } from './PurgeSettingsSection'
 import { WhitelistEditor } from './WhitelistEditor'
+import { useNsfwBlur } from '../lib/nsfw-blur'
 import type {
   FeedgenSettingsPublic,
   FeedgenSettingsResponse,
@@ -43,12 +46,14 @@ const VIEW_HINTS: Record<SettingsWorkspaceView, string> = {
     'Bluesky needs a stable public HTTPS URL for your feedgen. Pick where you run the app (home PC vs VPS), then follow the setup — no router hacking required for home deploys.',
   ingest: 'Live firehose ingestion and L1 filtering. When on, matching posts are saved to the pool.',
   pool: 'Posts in your ingestion pool and cached author lists across projects.',
+  purge: 'Automatic cleanup of old or low-engagement posts from the pool. Keeps database size manageable.',
   labelers:
     'Moderation labels are applied after posting. Bluesky Moderation is enabled by default; add custom labeler DIDs to query at ingest and during label refresh sweeps.',
   enrichment:
     'Real-time label streams subscribe to enabled labelers; the refresh sweeper re-queries as a fallback. Run workers: label-stream and/or refresh-labels.',
   access:
     'The master account controls deployment-wide access. Friends sign in with their own Bluesky accounts to build their own feeds.',
+  user: 'Personal display preferences for this account.',
   developer: 'Restart local API / UI after code changes.',
 }
 
@@ -56,9 +61,11 @@ const VIEW_TITLES: Record<SettingsWorkspaceView, string> = {
   publishing: 'Feed publishing',
   ingest: 'Jetstream ingest',
   pool: 'Pool & lists',
+  purge: 'Post purge',
   labelers: 'Labelers',
   enrichment: 'Enrichment & label refresh',
   access: 'Deployment access',
+  user: 'User preferences',
   developer: 'Developer',
 }
 
@@ -79,12 +86,17 @@ export function SettingsPage({
   highlightPublishing,
 }: Props) {
   const publishingRef = useRef<HTMLElement>(null)
+  const [showGlobalPrefilter, setShowGlobalPrefilter] = useState(false)
 
   useEffect(() => {
     if (highlightPublishing && view === 'publishing' && publishingRef.current) {
       publishingRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }, [highlightPublishing, view])
+
+  if (showGlobalPrefilter && view === 'ingest' && isMaster) {
+    return <GlobalPrefilterEditor onClose={() => setShowGlobalPrefilter(false)} />
+  }
 
   return (
     <div className="workspace-page settings-page">
@@ -106,7 +118,10 @@ export function SettingsPage({
       )}
 
       {view === 'ingest' && isMaster && (
-        <IngestSettingsSection onStatusChange={() => onRefresh()} />
+        <IngestSettingsSection
+          onStatusChange={() => onRefresh()}
+          onOpenGlobalPrefilter={() => setShowGlobalPrefilter(true)}
+        />
       )}
 
       {view === 'ingest' && !isMaster && (
@@ -162,6 +177,16 @@ export function SettingsPage({
         </section>
       )}
 
+      {view === 'purge' && isMaster && (
+        <section className="settings-section">
+          <PurgeSettingsSection />
+        </section>
+      )}
+
+      {view === 'purge' && !isMaster && (
+        <p className="card-hint">Only the deployment master can configure purge settings.</p>
+      )}
+
       {view === 'labelers' && isMaster && (
         <section className="settings-section">
           <LabelerManager
@@ -192,6 +217,8 @@ export function SettingsPage({
 
       {view === 'access' && <DeploymentAccessSection isMaster={isMaster} />}
 
+      {view === 'user' && <UserPreferencesSection />}
+
       {view === 'developer' && isMaster && (
         <section className="settings-section settings-section-dev">
           <GlobalRegistryDevStatus />
@@ -219,6 +246,27 @@ function DeploymentAccessSection({ isMaster }: { isMaster: boolean }) {
       ) : (
         <p className="card-hint">Only the deployment master can edit the login whitelist.</p>
       )}
+    </section>
+  )
+}
+
+function UserPreferencesSection() {
+  const { blurNsfw, setBlurNsfw } = useNsfwBlur()
+
+  return (
+    <section className="settings-section">
+      <label className="settings-check">
+        <input
+          type="checkbox"
+          checked={blurNsfw}
+          onChange={(e) => setBlurNsfw(e.target.checked)}
+        />
+        Blur NSFW media
+      </label>
+      <p className="card-hint">
+        When enabled, images on posts labeled as porn, sexual, nudity, or graphic-media are blurred
+        until you click to reveal.
+      </p>
     </section>
   )
 }

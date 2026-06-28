@@ -194,6 +194,7 @@ export interface PoolMatchSample {
   media: PoolMatchMediaPreview[]
   quote?: PoolMatchQuotePreview
   trace: L2NodeTrace[]
+  labelVals?: string[]
 }
 
 export interface SortTestResult {
@@ -917,4 +918,36 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ visibility }),
     }),
+  getGlobalPrefilter: () =>
+    apiFetch<{ prefilter: import('@cfb/core-types').ProjectPrefilter }>('/api/settings/global-prefilter'),
+  saveGlobalPrefilter: (prefilter: import('@cfb/core-types').ProjectPrefilter) =>
+    apiFetch<{ prefilter: import('@cfb/core-types').ProjectPrefilter }>('/api/settings/global-prefilter', {
+      method: 'PUT',
+      body: JSON.stringify({ prefilter }),
+    }),
+  getGlobalPurgeSettings: () =>
+    apiFetch<{ settings: import('@cfb/core-types').GlobalPurgeSettings }>('/api/settings/purge'),
+  saveGlobalPurgeSettings: (settings: import('@cfb/core-types').GlobalPurgeSettings) =>
+    apiFetch<{ settings: import('@cfb/core-types').GlobalPurgeSettings }>('/api/settings/purge', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    }),
+  runPurgeSweep: (dryRun = false) =>
+    apiFetch<{ scanned: number; purged: number; dryRun: boolean }>('/api/settings/purge/run', {
+      method: 'POST',
+      body: JSON.stringify({ dryRun }),
+    }),
+  getUserPreferences: () =>
+    apiFetch<{ prefs: { blurNsfw: boolean } }>('/api/user/preferences'),
+  saveUserPreferences: (prefs: { blurNsfw?: boolean }) =>
+    apiFetch<{ prefs: { blurNsfw: boolean } }>('/api/user/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(prefs),
+    }),
+  feedRebuildStatus: (feedId: string) =>
+    apiFetch<{ active: boolean; feedId: string; processed?: number; total?: number; matched?: number; finishedAt?: string | null; result?: { posts: number; matched: number } | null }>(
+      `/api/feeds/${feedId}/rebuild-status`,
+    ),
+  clearFeedRebuildStatus: (feedId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/feeds/${feedId}/rebuild-status/clear`, { method: 'POST' }),
 }

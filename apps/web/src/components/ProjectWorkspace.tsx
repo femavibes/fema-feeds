@@ -4,7 +4,7 @@ import type { FeedConfig, ProjectL1Config } from '@cfb/core-types'
 
 import { api, type ListCacheEntry } from '../api/client'
 
-import { persistFeedDraft } from '../lib/feed-draft'
+import { persistFeedDraft, prepareFeedDraftPayload } from '../lib/feed-draft'
 import type { FeedWorkspaceView, IngestionWorkspaceView } from '../lib/workspace-views'
 
 import { ProjectIngestionWorkspace } from './ProjectIngestionWorkspace'
@@ -205,6 +205,19 @@ export function ProjectWorkspace({
     })()
   }
 
+  const handleUpdateLive = useCallback(async () => {
+    if (!feedDraft) return
+    onNotify(null, null)
+    try {
+      const res = await api.updateFeed(prepareFeedDraftPayload(feedDraft))
+      setFeedDraft(structuredClone(res.feed))
+      onLiveUpdated(res.live, res.hasUnpublishedDraft, res.project)
+      onNotify('Live rules updated — rebuilding candidates…', null)
+    } catch (e) {
+      onNotify(null, e instanceof Error ? e.message : 'Update failed')
+    }
+  }, [feedDraft, onNotify, onLiveUpdated])
+
   const deleteFeed = async () => {
     if (!feedDraft) return
     if (!window.confirm(`Delete feed "${feedDraft.name}"?`)) return
@@ -267,6 +280,7 @@ export function ProjectWorkspace({
                 onLiveUpdated(result.live, result.hasUnpublishedDraft)
               }}
               onRefreshList={onRefreshList}
+              onUpdateLive={handleUpdateLive}
             />
           ) : (
             <div className="empty-state">Loading feed…</div>

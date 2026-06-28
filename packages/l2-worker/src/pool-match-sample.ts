@@ -27,6 +27,7 @@ export interface PoolMatchSample {
   media: PoolMatchMediaPreview[]
   quote?: PoolMatchQuotePreview
   trace: L2NodeTrace[]
+  labelVals?: string[]
 }
 
 export interface PoolMatchItem extends PoolMatchSample {
@@ -52,6 +53,7 @@ export function buildPoolMatchSample(
     facetTags: [...post.facetTags, ...post.hiddenFacetTags].slice(0, 8),
     media: [],
     trace,
+    labelVals: post.allLabelVals && post.allLabelVals.length > 0 ? post.allLabelVals : undefined,
   }
 }
 

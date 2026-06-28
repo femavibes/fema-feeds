@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -69,6 +69,8 @@ interface Props {
   paletteItemFilter?: (item: import('./palette').PaletteItem) => boolean
   /** Discard autosaved draft and restore live rules (feed editor). */
   revertToLive?: { enabled: boolean; onRevert: () => void }
+  /** Update live button inside the visual editor toolbar. */
+  onUpdateLive?: () => Promise<void>
   /** Optional panel rendered at top of the right inspector rail. */
   metadataPanel?: ReactNode
   projectAuthorLists?: AuthorListConfig[]
@@ -95,6 +97,7 @@ export function L2VisualEditor({
   readOnly = false,
   hideSaveDraft = false,
   revertToLive,
+  onUpdateLive,
   metadataPanel,
   prefilterMode = false,
   paletteItemFilter,
@@ -123,6 +126,18 @@ export function L2VisualEditor({
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [testTrace, setTestTrace] = useState<L2NodeTrace[] | null>(null)
+  const [updatingLive, setUpdatingLive] = useState(false)
+  const updatingLiveRef = useRef(false)
+
+  const handleUpdateLiveClick = useCallback(() => {
+    if (!onUpdateLive || updatingLiveRef.current) return
+    updatingLiveRef.current = true
+    setUpdatingLive(true)
+    onUpdateLive().then(
+      () => { updatingLiveRef.current = false; setUpdatingLive(false) },
+      () => { updatingLiveRef.current = false; setUpdatingLive(false) },
+    )
+  }, [onUpdateLive])
 
   const handleSelectNode = useCallback((nodeId: string, trace?: L2NodeTrace[]) => {
     setSelectedId(nodeId)
@@ -514,33 +529,20 @@ export function L2VisualEditor({
           {statusMessage ? <span className="l2-json-status">{statusMessage}</span> : null}
         </div>
         <div className="l2-visual-toolbar-actions">
-          <div className="l2-visual-history-actions">
-            {!readOnly ? (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={!canUndo}
-                  onClick={undo}
-                  title="Undo (Ctrl+Z)"
-                >
-                  Undo
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={!canRedo}
-                  onClick={redo}
-                  title="Redo (Ctrl+Shift+Z)"
-                >
-                  Redo
-                </button>
-              </>
-            ) : null}
-          </div>
           {!readOnly ? (
             <>
               <span className="l2-editor-switch" aria-hidden="true" />
+              {onUpdateLive ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={saving || updatingLive}
+                  onClick={() => void handleUpdateLiveClick()}
+                  title="Make draft rules live and rebuild the candidate list from the L1 pool"
+                >
+                  {updatingLive ? 'Updating…' : 'Update Live'}
+                </button>
+              ) : null}
               {hideSaveDraft && revertToLive ? (
                 <button
                   type="button"

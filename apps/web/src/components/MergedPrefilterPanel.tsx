@@ -6,14 +6,16 @@ interface IngestGateBranch {
   [key: string]: unknown
 }
 
+interface IngestGate {
+  includeBranches?: IngestGateBranch[]
+  excludeBranches?: IngestGateBranch[]
+  restrictBranches?: IngestGateBranch[]
+}
+
 interface ProjectGate {
   projectId: string
   name: string
-  ingestGate: {
-    includeBranches?: IngestGateBranch[]
-    excludeBranches?: IngestGateBranch[]
-    restrictBranches?: IngestGateBranch[]
-  }
+  ingestGate: IngestGate
 }
 
 function branchLabel(b: IngestGateBranch): string {
@@ -27,6 +29,7 @@ function branchLabel(b: IngestGateBranch): string {
 
 export function MergedPrefilterPanel() {
   const [gates, setGates] = useState<ProjectGate[]>([])
+  const [globalGate, setGlobalGate] = useState<IngestGate | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -34,9 +37,10 @@ export function MergedPrefilterPanel() {
     setLoading(true)
     fetch('/api/ingest/merged-prefilter')
       .then((r) => r.json())
-      .then((data: { projects?: ProjectGate[]; error?: string }) => {
+      .then((data: { projects?: ProjectGate[]; globalGate?: IngestGate | null; error?: string }) => {
         if (data.error) { setError(data.error); return }
         setGates(data.projects ?? [])
+        setGlobalGate(data.globalGate ?? null)
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Failed'))
       .finally(() => setLoading(false))
@@ -44,7 +48,14 @@ export function MergedPrefilterPanel() {
 
   if (loading) return <p className="card-hint">Loading prefilter…</p>
   if (error) return <p className="field-error">{error}</p>
-  if (gates.length === 0) return <p className="card-hint">No projects with prefilters configured.</p>
+
+  const hasGlobal = globalGate && (
+    (globalGate.restrictBranches?.length ?? 0) +
+    (globalGate.excludeBranches?.length ?? 0) +
+    (globalGate.includeBranches?.length ?? 0)
+  ) > 0
+
+  if (gates.length === 0 && !hasGlobal) return <p className="card-hint">No prefilters configured.</p>
 
   const allRestrict = gates.flatMap((g) => g.ingestGate.restrictBranches ?? [])
   const allExclude = gates.flatMap((g) => g.ingestGate.excludeBranches ?? [])
@@ -52,10 +63,47 @@ export function MergedPrefilterPanel() {
 
   return (
     <div className="merged-prefilter-panel">
-      <p className="card-hint">
-        Combined ingest gate from {gates.length} project{gates.length > 1 ? 's' : ''}.
-        Posts must pass these rules to enter the pool from Jetstream.
-      </p>
+      {hasGlobal && (
+        <div className="merged-prefilter-section merged-prefilter-global">
+          <h4 className="merged-prefilter-section-title">
+            <span className="badge badge-warning">Global</span> Deployment prefilter
+          </h4>
+          {(globalGate!.restrictBranches ?? []).length > 0 && (
+            <ul className="merged-prefilter-list">
+              {globalGate!.restrictBranches!.map((b, i) => (
+                <li key={`gr-${i}`} className="merged-prefilter-item restrict">
+                  <span className="badge badge-muted">restrict</span> {branchLabel(b)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {(globalGate!.excludeBranches ?? []).length > 0 && (
+            <ul className="merged-prefilter-list">
+              {globalGate!.excludeBranches!.map((b, i) => (
+                <li key={`ge-${i}`} className="merged-prefilter-item exclude">
+                  <span className="badge badge-muted">exclude</span> {branchLabel(b)}
+                </li>
+              ))}
+            </ul>
+          )}
+          {(globalGate!.includeBranches ?? []).length > 0 && (
+            <ul className="merged-prefilter-list">
+              {globalGate!.includeBranches!.map((b, i) => (
+                <li key={`gi-${i}`} className="merged-prefilter-item include">
+                  <span className="badge badge-muted">include</span> {branchLabel(b)}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {gates.length > 0 && (
+        <p className="card-hint">
+          Combined ingest gate from {gates.length} project{gates.length > 1 ? 's' : ''}.
+          Posts must pass these rules to enter the pool from Jetstream.
+        </p>
+      )}
 
       {allRestrict.length > 0 && (
         <div className="merged-prefilter-section">
@@ -90,21 +138,23 @@ export function MergedPrefilterPanel() {
         </div>
       )}
 
-      {allRestrict.length === 0 && allExclude.length === 0 && allInclude.length === 0 && (
+      {allRestrict.length === 0 && allExclude.length === 0 && allInclude.length === 0 && gates.length > 0 && (
         <p className="card-hint">All project prefilters are empty — no early rejection at Jetstream level.</p>
       )}
 
-      <details className="merged-prefilter-per-project">
-        <summary>Per-project breakdown</summary>
-        {gates.map((g) => (
-          <div key={g.projectId} className="merged-prefilter-project">
-            <strong>{g.name}</strong>
-            <span className="card-hint">
-              {(g.ingestGate.restrictBranches?.length ?? 0) + (g.ingestGate.excludeBranches?.length ?? 0) + (g.ingestGate.includeBranches?.length ?? 0)} rules
-            </span>
-          </div>
-        ))}
-      </details>
+      {gates.length > 0 && (
+        <details className="merged-prefilter-per-project">
+          <summary>Per-project breakdown</summary>
+          {gates.map((g) => (
+            <div key={g.projectId} className="merged-prefilter-project">
+              <strong>{g.name}</strong>
+              <span className="card-hint">
+                {(g.ingestGate.restrictBranches?.length ?? 0) + (g.ingestGate.excludeBranches?.length ?? 0) + (g.ingestGate.includeBranches?.length ?? 0)} rules
+              </span>
+            </div>
+          ))}
+        </details>
+      )}
     </div>
   )
 }

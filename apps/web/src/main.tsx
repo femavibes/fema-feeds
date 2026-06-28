@@ -3,11 +3,14 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { NsfwBlurProvider } from './lib/nsfw-blur'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <NsfwBlurProvider>
+        <App />
+      </NsfwBlurProvider>
     </ErrorBoundary>
   </StrictMode>,
 )

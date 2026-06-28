@@ -1,8 +1,9 @@
-import type { ProjectL1Config } from '@cfb/core-types'
+import type { ProjectL1Config, CompiledIngestGate } from '@cfb/core-types'
 import { resolve } from 'node:path'
 import { startJetstreamIngest } from '@cfb/ingest-jetstream'
-import { compileAllProjects } from '@cfb/l1-compile'
+import { compileAllProjects, compileProjectPrefilter } from '@cfb/l1-compile'
 import { evaluateMergedL1, getMatchedProjects } from '@cfb/l1-eval'
+import { evaluateIngestGate } from '@cfb/l1-filters'
 import { refreshAllProjectAuthorLists } from '@cfb/list-sources'
 import { loadAllFeeds } from '@cfb/feed-config'
 import {
@@ -11,7 +12,7 @@ import {
   seedAuthorListsFromProjects,
 } from '@cfb/list-cache'
 import { loadAllProjects } from '@cfb/project-config'
-import { createPool, persistL1Matches, type Pool } from '@cfb/storage-postgres'
+import { createPool, persistL1Matches, getGlobalPrefilter, getGlobalPurgeSettings, runPurgeSweep, type Pool } from '@cfb/storage-postgres'
 import {
   loadEnrichmentSettings,
   maybeEnrichAuthor,
@@ -117,6 +118,7 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
   let stopEngagementRefresh: (() => void) | null = null
   let engagementRefreshStats: EngagementRefreshStats | null = null
   let stopLabelStream: (() => void) | null = null
+  let stopPurgeSweep: (() => void) | null = null
   let backfillOk = 0
   let backfillErr = 0
   let getLabelStreamStats: (() => import('@cfb/label-stream').LabelStreamStats) | null = null
@@ -141,6 +143,8 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
     string,
     { followRingDids: Record<string, string[]>; authorListDids: Record<string, string[]> }
   > = {}
+  let globalPrefilterGate: CompiledIngestGate | null = null
+  let globalPrefilterReject = 0
 
   async function reloadConfigs(): Promise<void> {
     const raw = await loadAllProjects(options.projectsDir)
@@ -153,8 +157,17 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       configs = await loadHydratedProjects(pool, raw)
       accountFollowRings = await loadL1FollowRingsForProjects(pool, configs)
       ingestGateExtrasByProject = await loadIngestGateExtrasForProjects(pool, configs, feeds)
+      // Load global prefilter
+      const gp = await getGlobalPrefilter(pool)
+      if (gp?.match?.children?.length) {
+        const compiled = compileProjectPrefilter('__global__', gp)
+        globalPrefilterGate = compiled.ingestGate
+      } else {
+        globalPrefilterGate = null
+      }
     } else {
       configs = await refreshAllProjectAuthorLists(raw)
+      globalPrefilterGate = null
     }
     compileAllProjects(configs)
   }
@@ -253,6 +266,11 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
           },
         )
       }
+      // Global prefilter — reject before any per-project evaluation
+      if (globalPrefilterGate && !evaluateIngestGate(globalPrefilterGate, resolved)) {
+        globalPrefilterReject++
+        return
+      }
       const result = evaluateMergedL1(resolved, configs, {
         accountFollowRings,
         ingestGateExtrasByProject,
@@ -333,6 +351,20 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       getLabelStreamStats = labelStream?.getStats ?? null
     }
 
+    // Start purge sweep timer (runs regardless of enrichment)
+    if (pool) {
+      const purgeSettings = await getGlobalPurgeSettings(pool)
+      if (purgeSettings.enabled && purgeSettings.policy.rules.length > 0) {
+        const purgeMs = purgeSettings.sweepIntervalMinutes * 60 * 1000
+        const purgeTimer = setInterval(() => {
+          void runPurgeSweep(pool).catch((e) =>
+            console.error('[purge] sweep error', e),
+          )
+        }, purgeMs)
+        stopPurgeSweep = () => clearInterval(purgeTimer)
+      }
+    }
+
     stopJetstream = stop
     running = true
     startedAt = new Date().toISOString()
@@ -351,6 +383,8 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
     stopLabelStream?.()
     stopLabelStream = null
     getLabelStreamStats = null
+    stopPurgeSweep?.()
+    stopPurgeSweep = null
     if (reloadTimer) {
       clearInterval(reloadTimer)
       reloadTimer = null

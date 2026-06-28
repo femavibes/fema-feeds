@@ -40,6 +40,16 @@ export async function resolveOAuthPublicUrl(
     if (dep?.publicUrl && isValidOAuthPublicUrl(dep.publicUrl)) {
       return dep.publicUrl.replace(/\/$/, '')
     }
+
+    // Check user_settings feedgen (where Settings → Publishing saves the URL)
+    try {
+      const res = await pool.query<{ value_json: { publicBaseUrl?: string; cloudflarePublicUrl?: string } }>(
+        `SELECT value_json FROM user_settings WHERE key = 'feedgen' LIMIT 1`,
+      )
+      const row = res.rows[0]?.value_json
+      const url = row?.cloudflarePublicUrl?.trim() || row?.publicBaseUrl?.trim()
+      if (url && isValidOAuthPublicUrl(url)) return url.replace(/\/$/, '')
+    } catch { /* table may not exist yet */ }
   }
 
   return null

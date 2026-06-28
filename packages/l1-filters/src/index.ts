@@ -20,7 +20,9 @@ import {
   keywordExcludeStep,
 } from './hashtag-keyword.js'
 import { followRingStep } from './follow-ring.js'
-import { ingestGateStep } from './ingest-gate.js'
+import { ingestGateStep, evaluateIngestGate } from './ingest-gate.js'
+
+export { evaluateIngestGate }
 
 /** All L1 steps keyed by id. Order is enforced by @cfb/l1-eval using L1_STEP_ORDER. */
 export const L1_FILTER_STEPS: Record<string, L1FilterStep> = {

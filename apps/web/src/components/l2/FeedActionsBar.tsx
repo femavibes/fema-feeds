@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import type { FeedConfig, ProjectL1Config } from '@cfb/core-types'
 
 import { api } from '../../api/client'
 
 import { prepareFeedDraftPayload } from '../../lib/feed-draft'
+import { FeedRebuildProgress } from './FeedRebuildProgress'
 
 type VersionFilter = 'all' | 'named' | 'live'
 
@@ -46,6 +47,14 @@ export function FeedActionsBar({
   const [versionHelpOpen, setVersionHelpOpen] = useState(false)
   const [namingVersion, setNamingVersion] = useState<number | null>(null)
   const [namingLabel, setNamingLabel] = useState('')
+  const [localBusy, setLocalBusy] = useState(false)
+  const [rebuilding, setRebuilding] = useState(false)
+  const updateLiveRef = useRef(false)
+
+  const handleRebuildComplete = useCallback((matched: number) => {
+    setRebuilding(false)
+    onNotify(`Rebuild complete — ${matched} post${matched !== 1 ? 's' : ''} match feed rules`, null)
+  }, [onNotify])
 
   const namedCount = useMemo(() => versions.filter((v) => v.label).length, [versions])
   const liveCount = useMemo(() => versions.filter((v) => v.kind === 'live').length, [versions])
@@ -62,27 +71,30 @@ export function FeedActionsBar({
     return res.versions
   }
 
-  const updateLive = async () => {
+  const updateLive = () => {
+    if (updateLiveRef.current) return
+    updateLiveRef.current = true
+    setLocalBusy(true)
     onBusyChange(true)
     onNotify(null, null)
-    try {
-      const res = await api.updateFeed(prepareFeedDraftPayload(feedDraft))
-      onFeedChange(structuredClone(res.feed))
-      onLiveUpdated(res.live, res.hasUnpublishedDraft, res.project)
-      const n = res.reeval.matched
-      const matchNote =
-        n === 0
-          ? 'no L2 matches in pool yet'
-          : n === 1
-            ? '1 post matches feed rules'
-            : `${n} posts match feed rules`
-      onNotify(`Live rules updated (v${res.version}) — ${matchNote}`, null)
-      if (showVersions) await refreshVersions()
-    } catch (e) {
-      onNotify(null, e instanceof Error ? e.message : 'Update failed')
-    } finally {
-      onBusyChange(false)
-    }
+    api.updateFeed(prepareFeedDraftPayload(feedDraft)).then(
+      async (res) => {
+        onFeedChange(structuredClone(res.feed))
+        onLiveUpdated(res.live, res.hasUnpublishedDraft, res.project)
+        onNotify('Live rules updated — rebuilding candidates…', null)
+        setRebuilding(true)
+        if (showVersions) await refreshVersions()
+        updateLiveRef.current = false
+        setLocalBusy(false)
+        onBusyChange(false)
+      },
+      (e) => {
+        onNotify(null, e instanceof Error ? e.message : 'Update failed')
+        updateLiveRef.current = false
+        setLocalBusy(false)
+        onBusyChange(false)
+      },
+    )
   }
 
   const loadVersions = async (filter: VersionFilter = versionFilter) => {
@@ -105,7 +117,7 @@ export function FeedActionsBar({
       const res = await api.restoreFeedVersion(feedDraft.feedId, version)
       onFeedChange(structuredClone(res.feed))
       onLiveUpdated(res.live, res.hasUnpublishedDraft)
-      onNotify(`Restored v${version} into draft — click Update live to publish`, null)
+      onNotify(`Restored v${version} into draft — click Update Live to publish`, null)
     } catch (e) {
       onNotify(null, e instanceof Error ? e.message : 'Restore failed')
     } finally {
@@ -188,11 +200,11 @@ export function FeedActionsBar({
         <button
           type="button"
           className="btn btn-primary"
-          disabled={busy}
-          onClick={() => void updateLive()}
+          disabled={busy || localBusy}
+          onClick={() => updateLive()}
           title="Make draft rules live and rebuild the candidate list from the L1 pool"
         >
-          {busy ? 'Updating…' : 'Update live'}
+          {busy || localBusy ? 'Updating…' : 'Update Live'}
         </button>
         <button
           type="button"
@@ -203,6 +215,13 @@ export function FeedActionsBar({
           Version history
         </button>
       </div>
+
+      {rebuilding ? (
+        <FeedRebuildProgress
+          feedId={feedDraft.feedId}
+          onComplete={handleRebuildComplete}
+        />
+      ) : null}
 
       {showVersions && (
         <div className={`feed-versions card${layout === 'sidebar' ? ' feed-versions-sidebar' : ''}`}>
@@ -221,7 +240,7 @@ export function FeedActionsBar({
           {versionHelpOpen ? (
             <div className="feed-versions-help">
               <p>
-                <strong>Update live</strong> adds a live snapshot. <strong>Bookmark draft</strong>{' '}
+                <strong>Update Live</strong> adds a live snapshot. <strong>Bookmark draft</strong>{' '}
                 saves your current draft without going live. Use <strong>Name</strong> on any entry to
                 label it — named versions show under the Named tab.
               </p>

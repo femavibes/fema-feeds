@@ -81,6 +81,8 @@ export {
   saveDeploymentAccess,
   bootstrapDeploymentFromEnv,
   bootstrapMasterFromEnv,
+  getGlobalPrefilter,
+  saveGlobalPrefilter,
 } from './deployment-settings.js'
 export {
   upsertUser,
@@ -229,3 +231,14 @@ export {
   getProjectIdsForPostsBatch,
   type IngestedPostRow,
 } from './pool-post.js'
+export {
+  getUserPreferences,
+  saveUserPreferences,
+  type UserPreferences,
+} from './user-preferences.js'
+export {
+  getGlobalPurgeSettings,
+  saveGlobalPurgeSettings,
+  runPurgeSweep,
+  type PurgeSweepResult,
+} from './purge.js'

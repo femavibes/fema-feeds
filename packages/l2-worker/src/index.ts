@@ -15,7 +15,7 @@ export {
   matchedProjectIdsFromL1,
   type ProcessPostResult,
 } from './process-post.js'
-export { reevalPoolForFeeds, type ReevalResult } from './reeval.js'
+export { reevalPoolForFeeds, startBackgroundReeval, getRebuildStatus, clearRebuildStatus, type ReevalResult, type ReevalProgress } from './reeval.js'
 export { previewFeedPoolMatches, type PoolMatchItem, type PoolMatchResult } from './match-pool.js'
 export type {
   PoolMatchAuthor,

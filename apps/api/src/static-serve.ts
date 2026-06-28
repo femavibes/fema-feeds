@@ -50,6 +50,8 @@ export async function registerStaticServing(app: Hono, webDir: string): Promise<
         // Cache assets with hashed filenames indefinitely
         if (pathname.startsWith('/assets/')) {
           headers['cache-control'] = 'public, max-age=31536000, immutable'
+        } else if (ext === '.html') {
+          headers['cache-control'] = 'no-cache, no-store, must-revalidate'
         }
         return c.body(body, 200, headers)
       }
@@ -58,7 +60,10 @@ export async function registerStaticServing(app: Hono, webDir: string): Promise<
     // SPA fallback: serve index.html
     try {
       const body = await readFile(indexPath)
-      return c.body(body, 200, { 'content-type': 'text/html; charset=utf-8' })
+      return c.body(body, 200, {
+        'content-type': 'text/html; charset=utf-8',
+        'cache-control': 'no-cache, no-store, must-revalidate',
+      })
     } catch {
       return c.notFound()
     }

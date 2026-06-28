@@ -339,6 +339,9 @@ importers:
       '@cfb/l1-eval':
         specifier: workspace:*
         version: link:../l1-eval
+      '@cfb/l1-filters':
+        specifier: workspace:*
+        version: link:../l1-filters
       '@cfb/l2-worker':
         specifier: workspace:*
         version: link:../l2-worker

@@ -406,4 +406,31 @@ export const ingestGateStep: L1FilterStep = {
 
 }
 
+/**
+ * Evaluate a compiled ingest gate against a post without project context.
+ * Returns true if the post passes (is allowed), false if rejected.
+ */
+export function evaluateIngestGate(
+  gate: CompiledIngestGate,
+  post: import('@cfb/core-types').NormalizedPost,
+  extras?: { followRingDids?: Record<string, string[]>; authorListDids?: Record<string, string[]> },
+): boolean {
+  const ex = extras ?? {}
+
+  for (const branch of gate.restrictBranches ?? []) {
+    if (!evalIncludeBranch(branch, post, ex)) return false
+  }
+
+  for (const branch of gate.excludeBranches) {
+    if (evalExcludeBranch(branch, post, ex)) return false
+  }
+
+  if (gate.includeBranches.length === 0) return true
+
+  for (const rule of gate.includeBranches) {
+    if (evalIncludeRule(rule, post, ex)) return true
+  }
+
+  return false
+}
 

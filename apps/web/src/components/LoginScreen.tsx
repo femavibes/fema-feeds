@@ -8,6 +8,7 @@ interface Props {
 export function LoginScreen({ onLoggedIn }: Props) {
   const [handle, setHandle] = useState('')
   const [appPassword, setAppPassword] = useState('')
+  const [oauthHandle, setOauthHandle] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [authStatus, setAuthStatus] = useState<import('../api/client').AuthStatus | null>(null)
@@ -67,6 +68,21 @@ export function LoginScreen({ onLoggedIn }: Props) {
     }
   }
 
+  const loginWithOAuth = async () => {
+    const trimmed = oauthHandle.trim()
+    if (!trimmed) return
+    setBusy(true)
+    setError(null)
+    try {
+      const normalized = trimmed.includes('.') ? trimmed : `${trimmed}.bsky.social`
+      const res = await api.authLogin(normalized)
+      window.location.href = res.url
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'OAuth login failed')
+      setBusy(false)
+    }
+  }
+
   const canUseAppPassword = authStatus?.appPasswordLogin ?? false
 
   return (
@@ -122,15 +138,44 @@ export function LoginScreen({ onLoggedIn }: Props) {
         <section className="login-section login-section-muted">
           <div className="login-section-heading">
             <h3 className="login-section-title">Bluesky OAuth</h3>
-            <span className="badge badge-muted">Coming soon</span>
+            {!authStatus?.oauthConfigured && <span className="badge badge-muted">Needs HTTPS</span>}
           </div>
-          <p className="card-hint">
-            One-click sign-in will need a public HTTPS URL on your deployment (e.g.{' '}
-            <code>feedbuilder.fema.monster</code>). Paused while the home-server tunnel is down.
-          </p>
-          <button type="button" className="btn btn-secondary" disabled>
-            Continue with Bluesky OAuth
-          </button>
+          {authStatus?.oauthConfigured ? (
+            <>
+              <p className="card-hint">
+                One-click sign-in — no app password needed. Uses your deployment&apos;s public URL.
+              </p>
+              <label>
+                Handle
+                <input
+                  value={oauthHandle}
+                  disabled={busy}
+                  onChange={(e) => setOauthHandle(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && void loginWithOAuth()}
+                  placeholder="you.bsky.social"
+                  autoComplete="username"
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={busy || !oauthHandle.trim()}
+                onClick={() => void loginWithOAuth()}
+              >
+                {busy ? 'Redirecting…' : 'Continue with Bluesky'}
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="card-hint">
+                One-click sign-in requires a public HTTPS URL on your deployment (e.g.{' '}
+                <code>feedbuilder.fema.monster</code>). Set one up in Settings → Publishing.
+              </p>
+              <button type="button" className="btn btn-secondary" disabled>
+                Continue with Bluesky
+              </button>
+            </>
+          )}
         </section>
       </div>
     </div>

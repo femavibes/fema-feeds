@@ -38,6 +38,7 @@ export function normalizePoolMatchSample(raw: unknown): PoolMatchSample {
   const s = (raw && typeof raw === 'object' ? raw : {}) as Partial<PoolMatchSample> & {
     authorDid?: string
     embedChips?: unknown
+    labelVals?: string[]
   }
 
   return {
@@ -50,6 +51,7 @@ export function normalizePoolMatchSample(raw: unknown): PoolMatchSample {
     media: Array.isArray(s.media) ? s.media : [],
     quote: normalizeQuote(s.quote),
     trace: Array.isArray(s.trace) ? s.trace : [],
+    labelVals: Array.isArray(s.labelVals) ? s.labelVals : undefined,
   }
 }
 

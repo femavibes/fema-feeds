@@ -3,6 +3,7 @@ import { DEFAULT_FEEDGEN_SETTINGS } from '@cfb/core-types'
 import type pg from 'pg'
 import type { FeedgenEnvFallback } from './feedgen-settings.js'
 import { mergeResolvedFeedgenSettings } from './feedgen-resolve.js'
+import { getDeploymentAccess } from './deployment-settings.js'
 
 export async function getUserFeedgenSettings(
   pool: pg.Pool,
@@ -38,8 +39,20 @@ export async function resolveUserFeedgenSettings(
   const resolved = mergeResolvedFeedgenSettings(fromDb, env, {
     cloudflareTokenSet: Boolean(fromDb.cloudflareTunnelToken?.trim()),
   })
+
+  // If user has no publicBaseUrl, inherit from the master's settings
+  let publicBaseUrl = resolved.publicBaseUrl
+  if (!publicBaseUrl || publicBaseUrl === `http://localhost:${env.apiPort ?? '3000'}`) {
+    const access = await getDeploymentAccess(pool)
+    if (access.masterDid && access.masterDid !== ownerDid) {
+      const masterSettings = await getUserFeedgenSettings(pool, access.masterDid)
+      publicBaseUrl = masterSettings.cloudflarePublicUrl?.trim() || masterSettings.publicBaseUrl?.trim() || publicBaseUrl
+    }
+  }
+
   return {
     ...resolved,
+    publicBaseUrl,
     generatorDid: resolved.generatorDid?.trim() || ownerDid,
   }
 }

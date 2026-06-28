@@ -16,6 +16,7 @@
     "@cfb/ingest-jetstream": "workspace:*",
     "@cfb/l1-compile": "workspace:*",
     "@cfb/l1-eval": "workspace:*",
+    "@cfb/l1-filters": "workspace:*",
     "@cfb/l2-worker": "workspace:*",
     "@cfb/label-resolve": "workspace:*",
     "@cfb/label-stream": "workspace:*",

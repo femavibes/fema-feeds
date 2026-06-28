@@ -7,7 +7,7 @@ import { cors } from 'hono/cors'
 import { registerStaticServing } from './static-serve.js'
 import { config as loadEnv } from 'dotenv'
 import type { ProjectL1Config, NormalizedPost } from '@cfb/core-types'
-import { compileAllProjects, finalizeProjectForSave, emptyPrefilter } from '@cfb/l1-compile'
+import { compileAllProjects, finalizeProjectForSave, emptyPrefilter, normalizePrefilter, compileProjectPrefilter } from '@cfb/l1-compile'
 import { evaluateProjectL1 } from '@cfb/l1-eval'
 import {
   loadAllProjects,
@@ -39,6 +39,13 @@ import {
   setLabelerEnabled,
   deleteLabelerSource,
   listEnabledLabelerDids,
+  getUserPreferences,
+  saveUserPreferences,
+  getGlobalPrefilter,
+  saveGlobalPrefilter,
+  getGlobalPurgeSettings,
+  saveGlobalPurgeSettings,
+  runPurgeSweep,
   type Pool,
 } from '@cfb/storage-postgres'
 import {
@@ -164,6 +171,16 @@ export function createApp(options?: {
     credentials: true,
   }))
   app.use('/xrpc/*', cors())
+
+  // Prevent Cloudflare from caching API/xrpc responses
+  app.use('/api/*', async (c, next) => {
+    await next()
+    c.header('Cache-Control', 'no-store')
+  })
+  app.use('/xrpc/*', async (c, next) => {
+    await next()
+    c.header('Cache-Control', 'no-store')
+  })
 
   app.onError((err, c) => {
     console.error('[api]', err)
@@ -320,10 +337,67 @@ export function createApp(options?: {
           name: p.name,
           ingestGate: p.ingestGate,
         }))
-      return c.json({ projects: gates })
+      const globalPrefilter = pool ? await getGlobalPrefilter(pool) : null
+      let globalGate = null
+      if (globalPrefilter?.match?.children?.length) {
+        const compiled = compileProjectPrefilter('__global__', globalPrefilter)
+        globalGate = compiled.ingestGate
+      }
+      return c.json({ projects: gates, globalGate })
     } catch (e) {
       return c.json({ error: e instanceof Error ? e.message : 'Failed to load' }, 500)
     }
+  })
+
+  app.get('/api/settings/global-prefilter', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const gate = await requireMaster(c, pool)
+    if (!('ok' in gate)) return gate
+    const prefilter = await getGlobalPrefilter(pool)
+    return c.json({ prefilter: prefilter ?? emptyPrefilter() })
+  })
+
+  app.put('/api/settings/global-prefilter', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const gate = await requireMaster(c, pool)
+    if (!('ok' in gate)) return gate
+    const body = await c.req.json<{ prefilter: import('@cfb/core-types').ProjectPrefilter }>()
+    if (!body.prefilter?.match) return c.json({ error: 'prefilter.match required' }, 400)
+    const normalized = normalizePrefilter(body.prefilter)
+    await saveGlobalPrefilter(pool, normalized)
+    return c.json({ prefilter: normalized })
+  })
+
+  app.get('/api/settings/purge', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const gate = await requireMaster(c, pool)
+    if (!('ok' in gate)) return gate
+    const settings = await getGlobalPurgeSettings(pool)
+    return c.json({ settings })
+  })
+
+  app.put('/api/settings/purge', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const gate = await requireMaster(c, pool)
+    if (!('ok' in gate)) return gate
+    const body = await c.req.json<import('@cfb/core-types').GlobalPurgeSettings>()
+    if (!body.policy) return c.json({ error: 'policy required' }, 400)
+    const settings: import('@cfb/core-types').GlobalPurgeSettings = {
+      enabled: body.enabled ?? false,
+      policy: { rules: body.policy.rules ?? [] },
+      sweepIntervalMinutes: body.sweepIntervalMinutes ?? 30,
+    }
+    await saveGlobalPurgeSettings(pool, settings)
+    return c.json({ settings })
+  })
+
+  app.post('/api/settings/purge/run', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const gate = await requireMaster(c, pool)
+    if (!('ok' in gate)) return gate
+    const body = (await c.req.json<{ dryRun?: boolean }>().catch(() => null)) ?? {}
+    const result = await runPurgeSweep(pool, { dryRun: body.dryRun })
+    return c.json(result)
   })
 
   app.get('/api/ingest/smoke-tests', async (c) => {
@@ -1077,6 +1151,25 @@ export function createApp(options?: {
         createdAt: r.createdAt.toISOString(),
       })),
     })
+  })
+
+  app.get('/api/user/preferences', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ prefs: { blurNsfw: true } })
+    const prefs = await getUserPreferences(pool, userDid)
+    return c.json({ prefs: { blurNsfw: true, ...prefs } })
+  })
+
+  app.put('/api/user/preferences', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+    const body = (await c.req.json<{ blurNsfw?: boolean }>().catch(() => null)) ?? {}
+    const current = await getUserPreferences(pool, userDid)
+    const merged = { ...current, ...body }
+    await saveUserPreferences(pool, userDid, merged)
+    return c.json({ prefs: { blurNsfw: true, ...merged } })
   })
 
   app.post('/api/labelers', async (c) => {

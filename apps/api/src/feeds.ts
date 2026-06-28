@@ -29,7 +29,7 @@ import { buildFeedPublishInfo, applyFeedInjector, applyFeedRanker, resolveFeedge
 
 import { countImportableConditions, importFeedGenRules, resolveFeedMatch } from '@cfb/l2-graph'
 
-import { loadPostMetrics, loadMentionDidsForFeed, loadFollowRingsForFeed, previewFeedPoolMatches, reevalPoolForFeeds, seedFollowRingsFromFeeds } from '@cfb/l2-worker'
+import { loadPostMetrics, loadMentionDidsForFeed, loadFollowRingsForFeed, previewFeedPoolMatches, startBackgroundReeval, getRebuildStatus, clearRebuildStatus, seedFollowRingsFromFeeds } from '@cfb/l2-worker'
 import { setPostEngagement } from '@cfb/storage-postgres'
 
 import { seedAuthorListsFromFeeds } from '@cfb/list-cache'
@@ -546,30 +546,34 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
 
 
-    const reeval = await reevalPoolForFeeds(pool, [nextLive], {
-
+    // Start background rebuild — return immediately
+    startBackgroundReeval(pool, [nextLive], {
       projectId: nextLive.poolScope === 'global' ? undefined : nextLive.projectId,
-
+      feedId: id,
     })
-
-
 
     return c.json({
-
       feed: nextLive,
-
       live: nextLive,
-
       hasUnpublishedDraft: false,
-
       version,
-
-      reeval,
-
+      reeval: { posts: 0, evaluated: 0, matched: 0, written: 0 },
+      rebuilding: true,
       project: updatedProject,
-
     })
+  })
 
+  app.get('/api/feeds/:id/rebuild-status', async (c) => {
+    const id = c.req.param('id')
+    const status = getRebuildStatus(id)
+    if (!status) return c.json({ active: false, feedId: id })
+    return c.json(status)
+  })
+
+  app.post('/api/feeds/:id/rebuild-status/clear', async (c) => {
+    const id = c.req.param('id')
+    clearRebuildStatus(id)
+    return c.json({ ok: true })
   })
 
 

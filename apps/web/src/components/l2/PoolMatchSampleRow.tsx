@@ -5,6 +5,7 @@ import type {
   PoolMatchSample,
 } from '../../api/client'
 import { normalizePoolMatchSample } from '../../lib/pool-match-sample'
+import { useNsfwBlur, isNsfwPost } from '../../lib/nsfw-blur'
 import { formatTraceHighlight, L2TraceList } from './L2TraceList'
 import type { TraceSelectHandler } from './visual/L2PreviewRail'
 
@@ -73,11 +74,28 @@ function mediaAspectStyle(item: PoolMatchMediaPreview): CSSProperties | undefine
   return { aspectRatio: `${ar.width} / ${ar.height}` }
 }
 
-function MatchMediaGrid({ media, postUrl }: { media: PoolMatchMediaPreview[]; postUrl: string }) {
+function MatchMediaGrid({ media, postUrl, nsfwBlur }: { media: PoolMatchMediaPreview[]; postUrl: string; nsfwBlur?: boolean }) {
+  const [revealed, setRevealed] = useState(false)
   if (media.length === 0) return null
+  const blurred = nsfwBlur && !revealed
 
   return (
-    <div className={`l2-match-media-grid l2-match-media-grid-${Math.min(media.length, 4)}`}>
+    <div className={`l2-match-media-grid-wrap${nsfwBlur ? ' nsfw-blur-wrap' : ''}`}>
+      {nsfwBlur && revealed ? (
+        <button
+          type="button"
+          className="nsfw-reblur-btn"
+          onClick={() => setRevealed(false)}
+          title="Re-blur media"
+        >
+          Hide
+        </button>
+      ) : null}
+      <div
+        className={`l2-match-media-grid l2-match-media-grid-${Math.min(media.length, 4)}${blurred ? ' nsfw-blur' : ''}`}
+        onClick={blurred ? (e) => { e.preventDefault(); e.stopPropagation(); setRevealed(true) } : undefined}
+        title={blurred ? 'Click to reveal' : undefined}
+      >
       {media.map((item, i) => {
         const target = item.kind === 'link' && item.href ? item.href : postUrl
         const label =
@@ -111,6 +129,7 @@ function MatchMediaGrid({ media, postUrl }: { media: PoolMatchMediaPreview[]; po
           </a>
         )
       })}
+      </div>
     </div>
   )
 }
@@ -189,6 +208,7 @@ interface Props {
 
 export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey, editorScore, onSelectNode, onSortTest }: Props) {
   const sample = normalizePoolMatchSample(rawSample)
+  const { blurNsfw } = useNsfwBlur()
   const selectTraceNode = onSelectNode
     ? (nodeId: string) => onSelectNode(nodeId, sample.trace)
     : undefined
@@ -246,7 +266,7 @@ export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey
           {sample.text.trim() || <span className="mono">(no text)</span>}
         </a>
 
-        <MatchMediaGrid media={sample.media} postUrl={postUrl} />
+        <MatchMediaGrid media={sample.media} postUrl={postUrl} nsfwBlur={blurNsfw && isNsfwPost(sample.labelVals)} />
 
         {sample.quote ? <QuotePreview quote={sample.quote} /> : null}
 
