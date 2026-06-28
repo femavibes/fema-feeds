@@ -188,7 +188,7 @@ export function TermListEditor({
       <div className="term-list-editor">
         {visible.map(({ term, index }) => (
           <div
-            key={`${index}-${term}`}
+            key={index}
             className={`term-list-row${dupes.has(index) ? ' term-list-row--duplicate' : ''}${
               searchNorm && termKey(term, caseSensitive, stripHash, stripAt) === termKey(searchNorm, caseSensitive, stripHash, stripAt)
                 ? ' term-list-row--search-hit'
