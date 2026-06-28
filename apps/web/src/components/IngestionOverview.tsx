@@ -81,6 +81,15 @@ export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
             <>
               <strong>Strict mode:</strong> Only posts matching at least one feed&apos;s ingest-eligible
               logic enter the pool. Excludes stay L2-only. Recompiles when feeds change.
+              {draft.strictGateMeta && (
+                <span className="strict-gate-meta">
+                  {' '}— {draft.strictGateMeta.pathCount} include path{draft.strictGateMeta.pathCount !== 1 ? 's' : ''}{' '}
+                  from {draft.strictGateMeta.contributingFeeds.length} feed{draft.strictGateMeta.contributingFeeds.length !== 1 ? 's' : ''}
+                  {draft.strictGateMeta.contributingFeeds.length === 0 && (
+                    <> — <em>no feeds contributing, nothing will be ingested</em></>
+                  )}
+                </span>
+              )}
             </>
           ) : (
             <>

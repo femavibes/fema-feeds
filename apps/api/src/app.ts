@@ -7,7 +7,7 @@ import { cors } from 'hono/cors'
 import { registerStaticServing } from './static-serve.js'
 import { config as loadEnv } from 'dotenv'
 import type { ProjectL1Config, NormalizedPost } from '@cfb/core-types'
-import { compileAllProjects, finalizeProjectForSave, emptyPrefilter, normalizePrefilter, compileProjectPrefilter } from '@cfb/l1-compile'
+import { compileAllProjects, finalizeProjectForSave, emptyPrefilter, normalizePrefilter, compileProjectPrefilter, compileStrictGate, applyStrictGate } from '@cfb/l1-compile'
 import { evaluateProjectL1 } from '@cfb/l1-eval'
 import {
   loadAllProjects,
@@ -686,10 +686,15 @@ export function createApp(options?: {
     }
     const access = assertProjectAccess(existing, getUserDid(c))
     if (!access.ok) return c.json({ error: 'not found' }, access.status)
-    const project = stampProjectForSave(
+    let project = stampProjectForSave(
       finalizeProjectForSave(body, existing),
       getUserDid(c),
     )
+    // Compile strict gate if in strict mode
+    if (project.prefilterMode === 'strict') {
+      const allFeeds = await loadAllFeeds(feedDir)
+      project = applyStrictGate(project, compileStrictGate(project, allFeeds))
+    }
     await saveProject(dir, project)
     if (pool) {
       const projects = await loadAllProjects(dir)
