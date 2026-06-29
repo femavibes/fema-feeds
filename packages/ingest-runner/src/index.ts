@@ -27,3 +27,11 @@ export {
 export { projectsForIngestBenchmark } from './ingest-test-config.js'
 export type { IngestLastSession } from './runner.js'
 export { backfillPostEngagement, startEngagementRefresh, type EngagementRefreshStats } from './engagement-backfill.js'
+
+export {
+  runEnricherSweep,
+  createEnricherSweepTimer,
+  type EnricherSweepConfig,
+  type EnricherSweepStats,
+  type EnricherSweepResult,
+} from './enricher-sweep.js'

@@ -873,8 +873,8 @@ A custom logic block that depends on an enricher declares a dependency. A bundle
 ### Phase 1: Foundation
 1. Enrichment storage schema — `post_enrichments` table — **DONE** ✅
 2. Enricher package type + manifest — new kind, trigger config
-3. Enricher runtime — background sweep worker
-4. Enrichment field access in native logic blocks — `enrichment.*` operand
+3. Enricher runtime — background sweep worker — **DONE** ✅
+4. Enrichment field access in native logic blocks — `enrichment_field` L2Expr node — **DONE** ✅
 5. Expanded L2Expr operators — log, sqrt, clamp, conditionals, ratio — **DONE** ✅
 6. Formula Builder UI — composable algorithm builder — **DONE** ✅
 
