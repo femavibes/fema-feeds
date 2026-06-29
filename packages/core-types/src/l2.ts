@@ -63,6 +63,7 @@ export type L2UnaryOp = 'log' | 'sqrt' | 'abs' | 'floor' | 'ceil' | 'neg'
 export type L2Expr =
   | { type: 'literal'; value: number }
   | { type: 'field'; field: L2NumericField }
+  | { type: 'enrichment_field'; enricherId: string; field: string }
   | { type: 'binary'; op: L2ArithmeticOp; left: L2Expr; right: L2Expr }
   | { type: 'unary'; op: L2UnaryOp; operand: L2Expr }
   | { type: 'clamp'; value: L2Expr; min: L2Expr; max: L2Expr }

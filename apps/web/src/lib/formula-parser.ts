@@ -197,10 +197,19 @@ class Parser {
 
       // Field reference
       const field = FORMULA_FIELDS[name]
-      if (!field) {
-        throw { message: `Unknown field "${name}"`, pos: t.pos } as ParseError
+      if (field) {
+        return { type: 'field', field }
       }
-      return { type: 'field', field }
+
+      // Enrichment field: enrichment.enricherId.fieldName
+      if (name === 'enrichment' && this.peek().type === 'ident') {
+        // Expect dot-separated: we tokenize dots as part of ident or as separate?
+        // Since our tokenizer doesn't handle dots in identifiers, handle via underscores:
+        // enrichment_videoanalyzer_bitrate OR use a different syntax
+        throw { message: `Use enrichment("enricherId", "field") syntax`, pos: t.pos } as ParseError
+      }
+
+      throw { message: `Unknown field "${name}"`, pos: t.pos } as ParseError
     }
 
     throw { message: `Unexpected "${t.value || 'end'}"`, pos: t.pos } as ParseError
@@ -237,6 +246,11 @@ class Parser {
         // parseCondOrExpr already built the full cond node as args[0]
         if (args.length === 1 && args[0]?.type === 'cond') return args[0]
         throw { message: 'if() syntax: if(field > value, then_expr, else_expr)', pos } as ParseError
+
+      case 'enrich': {
+        // enrich(enricher_id, field_name) — not yet supported in text parser
+        throw { message: 'enrich() not yet supported in text mode — use the JSON editor to add enrichment_field nodes', pos } as ParseError
+      }
 
       default:
         throw { message: `Unknown function "${name}"`, pos } as ParseError
@@ -296,6 +310,8 @@ export function exprToFormula(expr: L2Expr): string {
       const alias = Object.entries(FORMULA_FIELDS).find(([, v]) => v === expr.field)
       return alias ? alias[0] : expr.field
     }
+    case 'enrichment_field':
+      return `enrich(${expr.enricherId}, ${expr.field})`
     case 'binary': {
       const l = exprToFormula(expr.left)
       const r = exprToFormula(expr.right)

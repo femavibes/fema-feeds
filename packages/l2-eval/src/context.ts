@@ -7,6 +7,8 @@ export interface L2RuntimeContext {
   /** Denormalized ingest snapshot — media type, alt text, tag counts, labels. */
   rankSnapshot: PostRankSnapshot
   nowMs: number
+  /** Enrichment data keyed by enricherId → field → value. */
+  enrichment?: Record<string, Record<string, unknown>>
 }
 
 export function buildL2Runtime(

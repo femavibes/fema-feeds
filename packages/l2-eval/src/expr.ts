@@ -8,6 +8,12 @@ export function evalExpr(ctx: L2RuntimeContext, expr: L2Expr): number {
       return expr.value
     case 'field':
       return numericFieldValue(ctx, expr.field)
+    case 'enrichment_field': {
+      const data = ctx.enrichment?.[expr.enricherId]
+      if (!data) return 0
+      const val = data[expr.field]
+      return typeof val === 'number' ? val : 0
+    }
     case 'binary': {
       const left = evalExpr(ctx, expr.left)
       const right = evalExpr(ctx, expr.right)
