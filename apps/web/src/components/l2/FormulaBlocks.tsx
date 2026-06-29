@@ -203,6 +203,9 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
   const [multiMode, setMultiMode] = useState(false)
   const [showCondition, setShowCondition] = useState(false)
   const [condition, setCondition] = useState<ConditionNode>(defaultCondition())
+  const [conditionOriginalText, setConditionOriginalText] = useState<string | null>(null)
+  const [conditionOriginalIdx, setConditionOriginalIdx] = useState<number | null>(null)
+  const [showFnPicker, setShowFnPicker] = useState(false)
 
   // Derive blocks from formula text directly (works even if expr is null/invalid)
   const { blocks, ops } = formulaToBlocks(formulaText)
@@ -461,47 +464,80 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
           {multiMode ? '✓ Multi-select' : '☐ Multi-select'}
         </button>
         {selectedIdxs.size > 0 && (
-          <button
-            type="button"
-            className={`formula-blocks-multi-btn${showCondition ? ' formula-blocks-multi-btn-active' : ''}`}
-            onClick={() => {
-              if (showCondition) {
-                setShowCondition(false)
-              } else {
-                // If selected block is already an if(), parse it back for editing
-                const sorted = [...selectedIdxs].sort((a, b) => a - b)
-                if (sorted.length === 1) {
-                  const block = blocks[sorted[0]!]
-                  if (block && block.text.startsWith('if(')) {
-                    const parsed = parseConditionFromText(block.text)
-                    if (parsed) {
-                      setCondition(parsed.condition)
-                      const next = [...blocks]
-                      next[sorted[0]!] = { text: parsed.thenExpr, negated: block.negated }
-                      rebuild(next, ops)
+          <>
+            <button
+              type="button"
+              className={`formula-blocks-multi-btn${showCondition ? ' formula-blocks-multi-btn-active' : ''}`}
+              onClick={() => {
+                if (showCondition) {
+                  setShowCondition(false)
+                } else {
+                  const sorted = [...selectedIdxs].sort((a, b) => a - b)
+                  if (sorted.length === 1) {
+                    const block = blocks[sorted[0]!]
+                    if (block && block.text.startsWith('if(')) {
+                      const parsed = parseConditionFromText(block.text)
+                      if (parsed) {
+                        setCondition(parsed.condition)
+                        setConditionOriginalText(block.text)
+                        setConditionOriginalIdx(sorted[0]!)
+                        const next = [...blocks]
+                        next[sorted[0]!] = { text: parsed.thenExpr, negated: block.negated }
+                        rebuild(next, ops)
+                      }
+                    } else {
+                      setConditionOriginalText(null)
+                      setConditionOriginalIdx(null)
                     }
+                  } else {
+                    setConditionOriginalText(null)
+                    setConditionOriginalIdx(null)
                   }
+                  setShowCondition(true)
                 }
-                setShowCondition(true)
-              }
-            }}
-            title="Wrap selected in a condition"
-          >
-            ⚡ if()
-          </button>
-        )}
-        {selectedIdxs.size > 1 && (
-          <button
-            type="button"
-            className="formula-blocks-multi-btn"
-            onClick={() => blockActionsRef_wrapGroup()}
-            title="Group selected blocks in parentheses"
-          >
-            ( )
-          </button>
-        )}
-        {selectedIdxs.size > 1 && (
-          <span className="formula-blocks-selection-count">{selectedIdxs.size} selected</span>
+              }}
+              title="Wrap selected in a condition"
+            >
+              ⚡ if()
+            </button>
+            {selectedIdxs.size > 1 && (
+              <button
+                type="button"
+                className="formula-blocks-multi-btn"
+                onClick={() => blockActionsRef_wrapGroup()}
+                title="Group selected blocks in parentheses"
+              >
+                ( )
+              </button>
+            )}
+            <div className="formula-blocks-fn-wrap">
+              <button
+                type="button"
+                className={`formula-blocks-multi-btn${showFnPicker ? ' formula-blocks-multi-btn-active' : ''}`}
+                onClick={() => setShowFnPicker(!showFnPicker)}
+                title="Wrap selected in a function"
+              >
+                ƒ
+              </button>
+              {showFnPicker && (
+                <div className="formula-blocks-fn-dropdown">
+                  {['log', 'sqrt', 'abs', 'floor', 'ceil', 'min', 'max', 'clamp', 'pow'].map((fn) => (
+                    <button
+                      key={fn}
+                      type="button"
+                      className="formula-blocks-fn-option"
+                      onClick={() => { wrapSelectedWith(fn); setShowFnPicker(false) }}
+                    >
+                      {fn}()
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {selectedIdxs.size > 1 && (
+              <span className="formula-blocks-selection-count">{selectedIdxs.size} selected</span>
+            )}
+          </>
         )}
       </div>
 
@@ -522,7 +558,20 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
             <button type="button" className="btn btn-secondary btn-sm" onClick={applyCondition}>
               Apply
             </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setShowCondition(false); setCondition(defaultCondition()) }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
+              // Restore original if we were editing an existing condition
+              if (conditionOriginalText !== null && conditionOriginalIdx !== null) {
+                const next = [...blocks]
+                if (next[conditionOriginalIdx]) {
+                  next[conditionOriginalIdx] = { text: conditionOriginalText, negated: next[conditionOriginalIdx]!.negated }
+                  rebuild(next, ops)
+                }
+              }
+              setShowCondition(false)
+              setCondition(defaultCondition())
+              setConditionOriginalText(null)
+              setConditionOriginalIdx(null)
+            }}>
               Cancel
             </button>
           </div>
@@ -561,7 +610,7 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
                   autoFocus
                 />
               ) : (
-                <span className="formula-block-label" onClick={() => startEdit(i)} title="Click to edit">
+                <span className="formula-block-label" onDoubleClick={() => startEdit(i)} title="Double-click to edit">
                   {block.text}
                 </span>
               )}
