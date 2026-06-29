@@ -32,6 +32,23 @@ export function evaluateFeedL2(
     sortKey = evalExpr(ctx, feed.rank.sortKey)
   }
 
+
+  // Apply sort modifiers (add/multiply stack)
+  if (matched && sortKey != null && feed.rank?.modifiers?.length && input.evalSortModifier) {
+    let addTotal = 0
+    let mulTotal = 1
+    for (const mod of feed.rank.modifiers) {
+      const result = input.evalSortModifier(mod, ctx.post, ctx.metrics, ctx.enrichment)
+      if (result == null) continue
+      if (mod.mode === 'add') {
+        addTotal += result * (mod.weight ?? 1)
+      } else {
+        mulTotal *= result
+      }
+    }
+    sortKey = (sortKey + addTotal) * mulTotal
+  }
+
   return { feedId: feed.feedId, matched, sortKey, editorScore, trace }
 }
 
