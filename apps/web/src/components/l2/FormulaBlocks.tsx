@@ -255,17 +255,26 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
     const nextOps = [...ops]
 
     if (fn === 'neg') {
-      // Toggle negate on all selected
       for (const idx of sorted) {
         next[idx] = { ...next[idx]!, negated: !next[idx]!.negated }
       }
     } else if (sorted.length === 1) {
-      // Single block: wrap its text
       const idx = sorted[0]!
-      next[idx] = { ...next[idx]!, text: `${fn}(${next[idx]!.text})` }
+      const block = next[idx]!
+      // Check if already wrapped in a function — swap it
+      const fnMatch = block.text.match(/^(log|sqrt|abs|floor|ceil|min|max|clamp|pow)\((.+)\)$/)
+      if (fnMatch && fnMatch[1] !== fn) {
+        // Swap function
+        next[idx] = { ...block, text: `${fn}(${fnMatch[2]})` }
+      } else if (fnMatch && fnMatch[1] === fn) {
+        // Same function — unwrap
+        next[idx] = { ...block, text: fnMatch[2]! }
+      } else {
+        // Not wrapped — wrap it
+        next[idx] = { ...block, text: `${fn}(${block.text})` }
+      }
     } else {
-      // Multiple blocks: merge them into one wrapped block
-      const parts: string[] = []
+      const parts = []
       for (let i = 0; i < sorted.length; i++) {
         const idx = sorted[i]!
         const block = next[idx]!
@@ -280,10 +289,8 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
       }
       const merged = parts.join(' ')
       const wrapped = `${fn}(${merged})`
-      // Replace first selected with wrapped, remove the rest
       const firstIdx = sorted[0]!
       next[firstIdx] = { text: wrapped, negated: false }
-      // Remove subsequent selected blocks (in reverse to keep indices stable)
       for (let i = sorted.length - 1; i > 0; i--) {
         const removeIdx = sorted[i]!
         next.splice(removeIdx, 1)
