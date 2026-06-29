@@ -4159,7 +4159,7 @@ input.readonly {
 }
 
 .feed-setup-summary::before {
-  content: 'ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ ';
+  content: 'ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¸ ';
   display: inline-block;
   transition: transform 0.15s;
 }
@@ -5665,7 +5665,7 @@ input.readonly {
   margin-top: 1rem;
 }
 
-/* ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ Fullscreen rule editors (visual + JSON) ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚ÂÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ */
+/* ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ Fullscreen rule editors (visual + JSON) ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚ÂÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ */
 body.l2-editor-open,
 body.l2-visual-open {
   overflow: hidden;
@@ -7581,7 +7581,7 @@ body.l2-visual-open #root {
   padding-right: 0.1rem;
 }
 
-/* Thin scrollbars ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â Matches tab, term lists, visual editor (portaled outside .app) */
+/* Thin scrollbars ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â Matches tab, term lists, visual editor (portaled outside .app) */
 .scrollbar-modern,
 .app,
 .app *,
@@ -9214,6 +9214,7 @@ body.l2-visual-open #root {
   border-radius: 0.25rem;
   background: var(--bg-card);
   cursor: pointer;
+  color: #fff;
   transition: border-color 0.1s;
 }
 .formula-editor-chip:hover {
@@ -9251,4 +9252,248 @@ body.l2-visual-open #root {
   font-size: 0.7rem;
   font-family: monospace;
   opacity: 0.7;
+}
+
+/* Formula Blocks */
+.formula-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.formula-blocks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.formula-block {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--bg-card);
+  cursor: grab;
+  transition: border-color 0.1s, opacity 0.1s;
+}
+.formula-block:hover {
+  border-color: var(--accent);
+}
+.formula-block-dragging {
+  opacity: 0.4;
+}
+.formula-block-drop-target {
+  border-color: var(--accent);
+  border-style: dashed;
+}
+.formula-block-sign {
+  font-size: 0.85rem;
+  font-weight: 700;
+  width: 1.4rem;
+  text-align: center;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 0.2rem;
+  cursor: pointer;
+  color: var(--success, #4a8);
+}
+.formula-block-sign-neg {
+  color: var(--danger);
+}
+.formula-block-icon {
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+.formula-block-label {
+  flex: 1;
+  font-family: monospace;
+  font-size: 0.78rem;
+  cursor: text;
+  padding: 0.1rem 0.2rem;
+  border-radius: 0.2rem;
+}
+.formula-block-label:hover {
+  background: var(--bg);
+}
+.formula-block-edit {
+  flex: 1;
+  font-family: monospace;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.3rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.2rem;
+  background: var(--bg);
+}
+.formula-block-drag {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: grab;
+  user-select: none;
+  opacity: 0.5;
+}
+.formula-block-remove {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0 0.2rem;
+  opacity: 0.5;
+}
+.formula-block-remove:hover {
+  opacity: 1;
+  color: var(--danger);
+}
+.formula-blocks-add-panel {
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.formula-blocks-add-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.formula-blocks-add-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  background: var(--bg-card);
+  cursor: pointer;
+}
+.formula-blocks-add-item:hover {
+  border-color: var(--accent);
+}
+.formula-blocks-add-custom {
+  display: flex;
+  gap: 0.3rem;
+}
+.formula-blocks-add-input {
+  flex: 1;
+  font-family: monospace;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+}
+.formula-editor-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.formula-block-error {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg-card));
+}
+.formula-block-error-text {
+  color: var(--danger);
+  font-size: 0.75rem;
+}
+.formula-block-op-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0 0.15rem 1.8rem;
+}
+.formula-block-op-btn {
+  font-size: 0.75rem;
+  font-weight: 700;
+  width: 1.6rem;
+  height: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 0.2rem;
+  background: var(--bg);
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.1s;
+}
+.formula-block-op-btn:hover {
+  border-color: var(--accent);
+}
+.formula-block-op-btn-active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.formula-block-op-toggle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  width: 1.4rem;
+  text-align: center;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 0.2rem;
+  cursor: pointer;
+  color: var(--accent);
+  transition: border-color 0.1s;
+}
+.formula-block-op-toggle:hover {
+  border-color: var(--accent);
+}
+.formula-block-invalid {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 5%, var(--bg-card));
+}
+.formula-block-invalid .formula-block-label {
+  color: var(--danger);
+}
+.formula-block-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.formula-blocks-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.formula-blocks-multi-btn {
+  font-size: 0.72rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.formula-blocks-multi-btn:hover {
+  border-color: var(--accent);
+}
+.formula-blocks-multi-btn-active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.formula-blocks-selection-count {
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+.formula-blocks-condition-editor {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  padding: 0.5rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-card));
+}
+.formula-blocks-cond-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.formula-blocks-cond-else {
+  min-width: 6rem;
+  font-family: monospace;
 }

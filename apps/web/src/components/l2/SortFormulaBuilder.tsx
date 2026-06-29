@@ -6,6 +6,7 @@ import {
   FORMULA_FIELDS,
   FORMULA_FUNCTIONS,
 } from '../../lib/formula-parser'
+import { FormulaBlocks, type FormulaBlockActions } from './FormulaBlocks'
 
 interface Props {
   draft: { rank?: { sortKey?: L2Expr } }
@@ -35,8 +36,12 @@ export function SortFormulaBuilder({ draft, onChange }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [errorPos, setErrorPos] = useState<number | null>(null)
   const [copied, setCopied] = useState(false)
-  const [compiledExpr, setCompiledExpr] = useState<L2Expr | null>(null)
+  const [compiledExpr, setCompiledExpr] = useState<L2Expr | null>(() => {
+    const result = parseFormula(draft.rank?.sortKey ? exprToFormula(draft.rank.sortKey) : 'likes + reposts * 2 + replies')
+    return result.ok ? result.expr : null
+  })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const blockActionsRef = useRef<FormulaBlockActions | null>(null)
 
   const compile = useCallback((formula: string) => {
     const result = parseFormula(formula)
@@ -61,17 +66,54 @@ export function SortFormulaBuilder({ draft, onChange }: Props) {
     compile(value)
   }
 
-  const insertAtCursor = (snippet: string) => {
+  const insertRaw = (snippet: string) => {
     const el = textareaRef.current
-    if (!el) { setText((prev) => prev + snippet); compile(text + snippet); return }
+    if (!el) {
+      const next = text + snippet
+      setText(next)
+      compile(next)
+      return
+    }
     const start = el.selectionStart
     const end = el.selectionEnd
     const next = text.slice(0, start) + snippet + text.slice(end)
     setText(next)
     compile(next)
+    const newPos = start + snippet.length
     requestAnimationFrame(() => {
       el.focus()
-      el.selectionStart = el.selectionEnd = start + snippet.length
+      el.selectionStart = el.selectionEnd = newPos
+    })
+  }
+
+  const insertAtCursor = (snippet: string) => {
+    const el = textareaRef.current
+    if (!el) {
+      const prev = text.trim()
+      const next = prev ? `${prev} + ${snippet}` : snippet
+      setText(next)
+      compile(next)
+      return
+    }
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const before = text.slice(0, start)
+    const after = text.slice(end)
+    // Always insert " + " if there's any non-whitespace before and it doesn't end with an operator or open paren
+    const beforeTrimmed = before.trimEnd()
+    const lastChar = beforeTrimmed.slice(-1)
+    const endsWithOp = lastChar === '' || '+-*/('.includes(lastChar) || beforeTrimmed.endsWith('**')
+    const prefix = endsWithOp ? (before.endsWith(' ') || before === '' ? '' : ' ') : ' + '
+    // Also check if after starts with something that needs spacing
+    const afterChar = after.trimStart().charAt(0)
+    const suffix = afterChar && !'+-*/)'.includes(afterChar) && afterChar !== '' ? ' + ' : ''
+    const next = before + prefix + snippet + suffix + after
+    setText(next)
+    compile(next)
+    const newPos = before.length + prefix.length + snippet.length
+    requestAnimationFrame(() => {
+      el.focus()
+      el.selectionStart = el.selectionEnd = newPos
     })
   }
 
@@ -108,16 +150,22 @@ export function SortFormulaBuilder({ draft, onChange }: Props) {
         {!error && <p className="formula-editor-valid">✓ Valid formula</p>}
       </section>
 
+      {/* Visual blocks */}
+      <section className="formula-editor-blocks">
+        <p className="sidebar-block-title">Blocks <span className="sfb-hint">(drag to reorder, click to edit)</span></p>
+        <FormulaBlocks expr={compiledExpr} formulaText={text} error={error} onUpdate={handleChange} actionsRef={blockActionsRef} />
+      </section>
+
       {/* Fields reference */}
       <section className="formula-editor-ref">
-        <p className="sidebar-block-title">Fields <span className="sfb-hint">(click to insert)</span></p>
+        <p className="sidebar-block-title">Fields <span className="sfb-hint">(click to add block)</span></p>
         <div className="formula-editor-chips">
           {Object.keys(FORMULA_FIELDS).map((name) => (
             <button
               key={name}
               type="button"
               className="formula-editor-chip"
-              onClick={() => insertAtCursor(name)}
+              onClick={() => blockActionsRef.current?.insertBlockAfter(name)}
             >
               {name}
             </button>
@@ -125,23 +173,40 @@ export function SortFormulaBuilder({ draft, onChange }: Props) {
         </div>
       </section>
 
+      {/* Numbers & comparisons */}
+      <section className="formula-editor-ref">
+        <p className="sidebar-block-title">Numbers & values <span className="sfb-hint">(click to add block)</span></p>
+        <div className="formula-editor-chips">
+          {['0', '1', '2', '5', '10', '50', '100', '0.5', '0.7', '24'].map((n) => (
+            <button
+              key={n}
+              type="button"
+              className="formula-editor-chip"
+              onClick={() => blockActionsRef.current?.insertBlockAfter(n)}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </section>
+
       {/* Functions reference */}
       <section className="formula-editor-ref">
-        <p className="sidebar-block-title">Functions <span className="sfb-hint">(click to insert)</span></p>
+        <p className="sidebar-block-title">Functions <span className="sfb-hint">(click to wrap selected block)</span></p>
         <div className="formula-editor-chips">
-          {FORMULA_FUNCTIONS.map((fn) => (
+          {FORMULA_FUNCTIONS.filter((fn) => fn !== 'if').map((fn) => (
             <button
               key={fn}
               type="button"
               className="formula-editor-chip formula-editor-chip-fn"
-              onClick={() => insertAtCursor(fn === 'if' ? 'if(likes > 10, ' : `${fn}(`)}
+              onClick={() => blockActionsRef.current?.wrapSelectedWith(fn)}
             >
               {fn}()
             </button>
           ))}
         </div>
         <p className="card-hint">
-          Operators: + - * / ** (power) &nbsp;|&nbsp; Comparisons (in if): &gt; &gt;= &lt; &lt;= == !=
+          Select a block, then click a function to wrap it.
         </p>
       </section>
 

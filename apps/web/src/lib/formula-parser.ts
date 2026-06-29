@@ -234,25 +234,20 @@ class Parser {
         return { type: 'clamp', value: args[0]!, min: args[1]!, max: args[2]! }
 
       case 'if':
-        return this.parseIfFunction(args, pos)
+        // parseCondOrExpr already built the full cond node as args[0]
+        if (args.length === 1 && args[0]?.type === 'cond') return args[0]
+        throw { message: 'if() syntax: if(field > value, then_expr, else_expr)', pos } as ParseError
 
       default:
         throw { message: `Unknown function "${name}"`, pos } as ParseError
     }
   }
 
-  private parseIfFunction(_args: L2Expr[], pos: number): L2Expr {
-    // if() is special — we need to re-parse because the condition has a compare operator
-    // We handle it by looking at the args: the first "arg" might contain a compare op
-    // Actually, let's reparse: back up and handle if(expr op expr, then, else)
-    throw { message: 'Use if(field > value, then_expr, else_expr) syntax', pos } as ParseError
-  }
-
   private parseArgList(): L2Expr[] {
     const args: L2Expr[] = []
     if (this.peek().type === 'paren' && this.peek().value === ')') return args
 
-    // Special handling for if(): parse condition with compare op
+    // First arg: might be a condition (for if())
     args.push(this.parseCondOrExpr())
     while (this.peek().type === 'comma') {
       this.advance()
@@ -263,15 +258,9 @@ class Parser {
 
   private parseCondOrExpr(): L2Expr {
     const left = this.parseExpr()
-    // Check if next token is a compare operator — if so, this is an if() condition
     if (this.peek().type === 'compare') {
       const op = this.advance().value as L2CompareOp
       const right = this.parseExpr()
-      // Store as a special "cond_placeholder" that parseFunctionCall can use
-      // We need to return something that carries the condition info
-      // Hack: we'll override parseIfFunction differently
-      // Actually, let's handle this inline in parseArgList for if():
-      // The first arg is left, we saw compare, got right. Next should be comma, then, comma, else
       this.expect('comma')
       const thenExpr = this.parseExpr()
       this.expect('comma')
