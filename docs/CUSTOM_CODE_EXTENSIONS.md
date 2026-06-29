@@ -879,9 +879,9 @@ A custom logic block that depends on an enricher declares a dependency. A bundle
 6. Formula Builder UI — composable algorithm builder — **DONE** ✅
 
 ### Phase 2: Custom Code Evaluation
-6. Custom code logic block evaluation — WASM call during L2 eval
-7. Custom code sort packs — same pattern
-8. Sort modifier stacking (add/multiply)
+6. Custom code logic block evaluation — WASM call during L2 eval — **DONE** ✅
+7. Custom code sort packs — SortModifier type — **DONE** ✅
+8. Sort modifier stacking (add/multiply) — **DONE** ✅
 
 ### Phase 3: Personalization & Injectors
 9. Native personalization config + UI tab

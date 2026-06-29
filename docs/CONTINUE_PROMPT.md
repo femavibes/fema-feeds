@@ -73,83 +73,36 @@
   - Sorting vs Personalization distinction
   - Implementation phases
 
+## What Was Also Done (continued)
+
+### Phase 1 Complete ✓
+- Enrichment storage: `post_enrichments` table + full CRUD module
+- Enricher package type: `PluginKind: 'enricher'`, `EnricherManifest`, marketplace browse page
+- Enricher sweep worker: `ingest-runner/src/enricher-sweep.ts` — finds un-enriched posts, batches, calls remote/WASM
+- Enrichment field access: `enrichment_field` L2Expr node type, evaluator resolves from context
+- Expanded L2Expr: log, sqrt, abs, floor, ceil, pow, min, max, clamp, cond, ratio
+- Formula Builder: text editor + visual blocks + condition editor + multi-select + fn dropdown
+
+### Phase 2 Complete ✓
+- Custom code logic blocks: `evalCustomLogicBlock` hook in L2EvalInput — tries custom eval when native resolver returns null
+- Sort modifier type: `SortModifier` with `mode: 'add' | 'multiply'`, `weight` multiplier
+- Modifier stacking: `evalSortModifier` hook in evaluate.ts — base + addTotal × mulTotal pipeline
+
 ## Immediate TODO (Next Session)
 
-### 1. Visual Blocks for Formula Builder — NEXT UP
-The formula text editor works but needs a complementary visual block view:
-- Each "term" in the formula is a draggable block
-- Click to edit, drag to reorder, × to delete
-- Synced with text editor (edit either, both update)
-- Block picker to add new terms
+### Phase 3: Personalization & Injectors
+1. Native personalization config + UI tab (Personalization tab in feed workspace)
+2. Viewer context pipeline (impression tracking, follow graph loading)
+3. Native injectors (pinned posts, rotating posts) with viewer-aware impression caps
+4. Custom injectors with viewer context
 
-### 2. Per-category tier filter in marketplace
-Each browse page needs [All] [Native] [Custom Code] filter bar at top.
+### Phase 4: Sources
+5. Sources tab UI
+6. Source nodes in visual editor (auto-appear when enabled)
+7. Native sources (other project pool, static URI list)
+8. Custom code sources
 
-### 3. Enricher package type
-- Add `'enricher'` to `PluginKind` in core-types
-- Enricher manifest (trigger mode, target scope)
-- Background sweep worker skeleton
-
-### 4. Live preview for formula builder
-- Show real posts from pool scored by current formula
-- Updates as you type/edit
-
-### 5. Native personalization config + UI tab
-- Feed workspace: add Personalization tab
-- Built-in toggles: boost followed, boost mutuals, suppress seen, author diversity
-
-## Architecture Context
-
-### Feed Workspace Tabs (planned)
-```
-Visual Editor | Sorting | Personalization | Injectors | Sources | Settings
-```
-
-### Sort Modes
-```
-Chronological | Engagement | Custom Formula | Formula Builder | Sort Pack
-```
-
-### Marketplace Structure
-```
-Marketplace
-Packages
-├─ Browse (flat list, each with All/Native/Custom Code filter)
-│   ├─ Featured
-│   ├─ Logic Blocks
-│   ├─ Sort Packs
-│   ├─ Enrichers (future)
-│   ├─ Personalization
-│   ├─ Injectors
-│   ├─ Sources (future)
-│   └─ Bundles (future)
-├─ Subscriptions
-└─ Collection
-
-### Pipeline
-```
-Ingest → Pool → Enrichers → L2 eval (logic blocks + sort + modifiers) → candidates
-                                                                          ↓
-                              getFeedSkeleton → Personalization → Injectors → skeleton
-```
-
-### Key New Files
-| File | Purpose |
-|------|---------|
-| `packages/l2-worker/src/list-project-pool.ts` | Pool posts listing with enrichment |
-| `apps/web/src/components/ProjectPoolPanel.tsx` | Pool tab UI |
-| `apps/web/src/lib/formula-parser.ts` | Formula text → L2Expr parser + decompiler |
-| `apps/web/src/lib/sort-formula.ts` | SortFormula config type + compiler |
-| `apps/web/src/components/l2/SortFormulaBuilder.tsx` | Formula text editor UI |
-| `packages/storage-postgres/src/post-enrichments.ts` | Enrichment storage module |
-| `database/migrations/033_post_enrichments.sql` | Enrichment table schema |
-| `docs/CUSTOM_CODE_EXTENSIONS.md` | Full extension system design |
-| `docs/MARKETPLACE_ARCHITECTURE.md` | Backend implementation status |
-
-### Important Technical Notes (carried over + new)
-- CSS file has mixed line endings — PowerShell scripts work better than fsReplace for multi-line edits
-- `L2Expr` now has 7 node types: literal, field, binary (+,-,*,/,**,min,max), unary (log,sqrt,abs,floor,ceil,neg), clamp, cond, ratio
-- Formula parser handles: fields, numbers, +,-,*,/,**, parens, function calls, if(cond, then, else)
-- `post_enrichments` table exists — keyed by (post_uri, enricher_id), JSONB data column
-- Sort mode `'builder'` uses the formula text editor; `'custom'` uses the existing dial system
-- Marketplace sidebar is now flat (no Custom code grouping), label says "Packages"
+### Other UI
+- Per-category tier filter in marketplace (All / Native / Custom Code)
+- Feed workspace tabs (add Personalization, Injectors, Sources)
+- Visual blocks formula builder refinements (live preview, better drag, undo)
