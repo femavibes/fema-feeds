@@ -17,6 +17,7 @@ const TAGLINES: Record<MarketplaceListingKind, string> = {
   sort_pack: 'Native sort formula for feed ranking.',
   injector: 'Post-sort injector for promos and custom slots.',
   ranker: 'Personalization plugin that reorders feed pages at serve time.',
+  enricher: 'Enricher that augments posts with additional data.',
 }
 
 function hashSeed(seed: string): number {

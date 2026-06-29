@@ -4,22 +4,39 @@
   "name": "pr0n",
   "enabled": true,
   "published": false,
-  "poolScope": "project_only",
+  "poolScope": "global",
   "match": {
     "id": "root",
     "type": "group",
     "logic": "any",
     "children": [
       {
-        "type": "keyword",
-        "id": "kw-mqxej97a",
-        "op": "includes",
-        "terms": [
-          "cuckold",
-          "hotwife"
-        ],
-        "fields": [
-          "text"
+        "type": "group",
+        "id": "group-mqzm7a1x",
+        "logic": "all",
+        "children": [
+          {
+            "id": "kw-mqxeskvt",
+            "op": "includes",
+            "type": "keyword",
+            "terms": [
+              "cuckold",
+              "hotwife",
+              "cuck"
+            ],
+            "fields": [
+              "text"
+            ]
+          },
+          {
+            "type": "labels",
+            "id": "labels-mqzm7l2r",
+            "op": "includes",
+            "values": [
+              "porn"
+            ],
+            "scope": "all"
+          }
         ]
       }
     ]
@@ -27,37 +44,61 @@
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
   "visualLayout": {
     "positions": {
+      "end": {
+        "x": 788.8333333333334,
+        "y": 36.666666666666664
+      },
       "start": {
         "x": 20,
         "y": 40
       },
-      "end": {
-        "x": 432,
-        "y": 25.333333333333336
+      "tag-mqxel1u8": {
+        "x": 208.66666666666666,
+        "y": -19.953125
       },
-      "kw-mqxej97a": {
-        "x": 164.66666666666669,
-        "y": -18.635416666666664
+      "group-mqzm7a1x": {
+        "x": 265.49001996007996,
+        "y": -47.83669120093149
       }
     },
-    "edges": [
-      {
-        "id": "e-start-kw-mqxej97a",
-        "source": "start",
-        "target": "kw-mqxej97a",
-        "branch": true
-      },
-      {
-        "id": "e-kw-mqxej97a-end",
-        "source": "kw-mqxej97a",
-        "target": "end",
-        "branch": true
-      }
-    ],
+    "edges": [],
     "labels": {},
     "nodeSources": {
-      "kw-mqxej97a": "native"
+      "kw-mqxej97a": "native",
+      "kw-mqxeskvt": "native",
+      "kw-mqxeslth": "native",
+      "tag-mqxel1u8": "native",
+      "group-mqxekzbd": "native",
+      "group-mqxesfrs": "native",
+      "group-mqzm7a1x": "native",
+      "labels-mqzm7l2r": "native"
     }
   },
-  "liveAt": "2026-06-28T06:22:39.503Z"
+  "liveAt": "2026-06-29T19:33:40.203Z",
+  "rank": {
+    "sortKey": {
+      "op": "log",
+      "type": "unary",
+      "operand": {
+        "op": ">",
+        "else": {
+          "type": "literal",
+          "value": 3
+        },
+        "left": {
+          "type": "field",
+          "field": "like_count"
+        },
+        "then": {
+          "type": "field",
+          "field": "quote_count"
+        },
+        "type": "cond",
+        "right": {
+          "type": "literal",
+          "value": 114
+        }
+      }
+    }
+  }
 }

@@ -1,4 +1,4 @@
-export type MarketplaceBrowseKind = 'logic_blocks' | 'sort_packs' | 'injectors' | 'rankers'
+export type MarketplaceBrowseKind = 'logic_blocks' | 'sort_packs' | 'injectors' | 'rankers' | 'enrichers'
 
 export type MarketplaceProductTier = 'native' | 'custom_code'
 
@@ -66,11 +66,24 @@ export const MARKETPLACE_PRODUCTS: Record<MarketplaceBrowseKind, MarketplaceProd
     browseHint:
       'Subscribe and pick a personalization plugin on a feed\'s Sorting tab. Custom code tier — reorders pages live.',
   },
+  enrichers: {
+    id: 'enrichers',
+    label: 'Enrichers',
+    tier: 'custom_code',
+    summary: 'Augment posts with additional data (ML tags, video analysis, etc.).',
+    runsAt: 'After ingest or background sweep — writes enrichment data to posts.',
+    access:
+      'Publisher-uploaded WASM, worker, or remote HTTP. Verification required to create.',
+    collectionHint:
+      'Verified publishers only. Enrichers write data that logic blocks and sort formulas can read.',
+    browseHint:
+      'Subscribe to add enrichment fields to your pool posts. Other packages can use the enriched data.',
+  },
 }
 
 export const MARKETPLACE_NATIVE_KINDS: MarketplaceBrowseKind[] = ['logic_blocks', 'sort_packs']
 
-export const MARKETPLACE_CUSTOM_CODE_KINDS: MarketplaceBrowseKind[] = ['injectors', 'rankers']
+export const MARKETPLACE_CUSTOM_CODE_KINDS: MarketplaceBrowseKind[] = ['injectors', 'rankers', 'enrichers']
 
 export function marketplaceProduct(kind: MarketplaceBrowseKind): MarketplaceProductDef {
   return MARKETPLACE_PRODUCTS[kind]

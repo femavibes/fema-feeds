@@ -6,6 +6,7 @@ const GLYPH_PATH: Record<MarketplaceListingKind, string> = {
   sort_pack: 'M7 4v16M12 7l5 5-5 5M4 12h13',
   injector: 'M8 12h8M12 8v8M6 6l12 12',
   ranker: 'M5 18V9m7 9V5m7 13v-7',
+  enricher: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
 }
 
 interface Props {

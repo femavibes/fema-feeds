@@ -1,5 +1,5 @@
 /** Marketplace plugin kinds — custom code tiers beyond native JSON packages. */
-export type PluginKind = 'injector' | 'ranker'
+export type PluginKind = 'injector' | 'ranker' | 'enricher'
 
 export type PluginRuntime = 'native' | 'remote' | 'worker' | 'wasm'
 
@@ -109,4 +109,69 @@ export interface RemoteRankerRequest {
 
 export interface RemoteRankerResponse {
   uris: string[]
+}
+
+
+// --- Enrichers ---
+
+/** When the enricher runs against posts. */
+export type EnricherTriggerMode = 'on_ingest' | 'background_sweep' | 'both'
+
+/** Scope: which posts does this enricher process? */
+export type EnricherScope = 'global' | 'project'
+
+/** Enricher-specific manifest fields. */
+export interface EnricherManifest extends PluginManifest {
+  kind: 'enricher'
+  /** Hook export name for WASM enrichers. */
+  hooks: ['on_enrich']
+  /** When to run. */
+  triggerMode: EnricherTriggerMode
+  /** Which posts to target. */
+  scope: EnricherScope
+  /** Fields this enricher writes (for dependency tracking). */
+  outputFields: string[]
+  /** Other enrichers this one depends on (must run first). */
+  dependsOn?: string[]
+  /** Max posts to process per sweep batch. */
+  batchSize?: number
+  /** Skip posts that already have enrichment from this enricher+version. */
+  skipEnriched?: boolean
+}
+
+/** Remote enricher API contract (POST JSON). */
+export interface RemoteEnricherRequest {
+  enricherId: string
+  version: string
+  posts: Array<{
+    uri: string
+    text: string
+    authorDid: string
+    indexedAt: string
+    langs: string[]
+    embed: import('./index.js').EmbedFlags
+    embedDetail?: unknown
+    existingEnrichment?: Record<string, unknown>
+  }>
+  config?: Record<string, unknown>
+}
+
+export interface RemoteEnricherResponse {
+  results: Array<{
+    uri: string
+    data: Record<string, unknown>
+    skipped?: boolean
+    error?: string
+  }>
+}
+
+/** Per-project enricher subscription config. */
+export interface EnricherConfig {
+  packageId: string
+  versionPin: string
+  enabled: boolean
+  /** Override trigger mode (if enricher supports both). */
+  triggerMode?: EnricherTriggerMode
+  /** Custom config passed to the enricher. */
+  config?: Record<string, unknown>
 }

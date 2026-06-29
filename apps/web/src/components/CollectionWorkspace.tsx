@@ -272,7 +272,7 @@ export function CollectionWorkspace() {
 
   const createCustomCode = useCallback(
     async (input: {
-      kind: 'injector' | 'ranker'
+      kind: 'injector' | 'ranker' | 'enricher'
       runtime: 'native' | 'remote' | 'wasm' | 'worker'
       name: string
       slug: string

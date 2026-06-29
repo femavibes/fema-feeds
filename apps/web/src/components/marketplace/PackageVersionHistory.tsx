@@ -1,3 +1,4 @@
+import type { PluginKind } from '@cfb/core-types'
 import { useEffect, useMemo, useState } from 'react'
 
 import { api } from '../../api/client'
@@ -13,7 +14,7 @@ interface VersionRow {
 interface Props {
   productKind: PackageVersionProductKind
   packageId: string
-  pluginKind?: 'injector' | 'ranker'
+  pluginKind?: PluginKind
   latestVersion?: string
   pinnedVersion?: string
   updatePolicy?: 'pinned' | 'notify' | 'auto_minor'
@@ -25,7 +26,7 @@ interface Props {
 async function fetchVersions(
   productKind: PackageVersionProductKind,
   packageId: string,
-  pluginKind?: 'injector' | 'ranker',
+  pluginKind?: PluginKind,
 ): Promise<VersionRow[]> {
   if (productKind === 'logic_block') {
     const res = await api.listLogicBlockVersions(packageId)

@@ -16,8 +16,52 @@
     "restrictBranches": []
   },
   "compiledL1Meta": {
-    "compiledAt": "2026-06-28T16:43:45.670Z",
+    "compiledAt": "2026-06-29T19:34:04.943Z",
     "source": "prefilter"
   },
-  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "prefilterMode": "strict",
+  "strictIncludeGate": {
+    "includeBranches": [
+      {
+        "type": "all",
+        "rules": [
+          {
+            "type": "labels",
+            "op": "includes",
+            "values": [
+              "porn"
+            ],
+            "scope": "all",
+            "sourceFeedId": "pr0n",
+            "sourceNodeId": "labels-mqzm7l2r"
+          },
+          {
+            "type": "keyword",
+            "op": "includes",
+            "terms": [
+              "cuckold",
+              "hotwife",
+              "cuck"
+            ],
+            "fields": [
+              "text"
+            ],
+            "sourceFeedId": "pr0n",
+            "sourceNodeId": "kw-mqxeskvt"
+          }
+        ]
+      }
+    ],
+    "excludeBranches": [],
+    "restrictBranches": []
+  },
+  "strictGateMeta": {
+    "compiledAt": "2026-06-29T19:34:04.946Z",
+    "feedCount": 1,
+    "pathCount": 1,
+    "contributingFeeds": [
+      "pr0n"
+    ]
+  }
 }

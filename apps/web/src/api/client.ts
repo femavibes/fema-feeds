@@ -859,19 +859,19 @@ export const api = {
       feed: import('@cfb/core-types').FeedConfig
       applied: import('@cfb/core-types').SortPackUpgradeHint | null
     }>(`/api/feeds/${feedId}/sort-pack-upgrade/apply`, { method: 'POST', body: '{}' }),
-  listPluginCatalog: (kind: 'injector' | 'ranker', scope: 'deployment' | 'global' | 'all' = 'all') =>
+  listPluginCatalog: (kind: 'injector' | 'ranker' | 'enricher', scope: 'deployment' | 'global' | 'all' = 'all') =>
     apiFetch<{
       packages: import('@cfb/core-types').PluginPackage[]
       scope: 'deployment' | 'global' | 'all'
-      kind: 'injector' | 'ranker'
+      kind: 'injector' | 'ranker' | 'enricher'
       mode: 'local' | 'remote'
     }>(`/api/plugins/catalog?kind=${kind}&scope=${scope}`),
-  listPluginCollection: (kind?: 'injector' | 'ranker') =>
+  listPluginCollection: (kind?: 'injector' | 'ranker' | 'enricher') =>
     apiFetch<{ packages: import('@cfb/core-types').PluginPackage[] }>(
       `/api/plugins/collection${kind ? `?kind=${kind}` : ''}`,
     ),
   createPlugin: (body: {
-    kind: 'injector' | 'ranker'
+    kind: 'injector' | 'ranker' | 'enricher'
     runtime: 'native' | 'remote' | 'wasm' | 'worker'
     name: string
     slug?: string
@@ -903,7 +903,7 @@ export const api = {
     }),
   unsubscribePlugin: (id: string) =>
     apiFetch<{ ok: boolean }>(`/api/plugins/${id}/subscribe`, { method: 'DELETE' }),
-  listPluginSubscriptions: (kind?: 'injector' | 'ranker') =>
+  listPluginSubscriptions: (kind?: 'injector' | 'ranker' | 'enricher') =>
     apiFetch<{
       subscriptions: Array<
         import('@cfb/core-types').PluginSubscription & {

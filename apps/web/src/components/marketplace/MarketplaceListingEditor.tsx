@@ -19,7 +19,7 @@ import {
 export type ListingEditorTarget =
   | { productKind: 'logic_block'; pkg: LogicBlockPackage }
   | { productKind: 'sort_pack'; pkg: SortPackPackage }
-  | { productKind: 'injector' | 'ranker'; pkg: PluginPackage }
+  | { productKind: 'injector' | 'ranker' | 'enricher'; pkg: PluginPackage }
 
 interface Props {
   target: ListingEditorTarget

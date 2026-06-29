@@ -13,7 +13,7 @@ import { api } from '../../api/client'
 export type MarketplaceSubscriptionSelection =
   | { kind: 'logic_block'; pkg: LogicBlockPackage }
   | { kind: 'sort_pack'; pkg: SortPackPackage }
-  | { kind: 'injector' | 'ranker'; pkg: PluginPackage }
+  | { kind: 'injector' | 'ranker' | 'enricher'; pkg: PluginPackage }
 
 type UpdatePolicy = LogicBlockUpdatePolicy | SortPackUpdatePolicy | PluginUpdatePolicy
 

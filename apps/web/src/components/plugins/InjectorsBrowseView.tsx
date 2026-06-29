@@ -38,6 +38,15 @@ const KIND_HINT: Record<
       global: 'No global personalization plugins yet.',
     },
   },
+  enricher: {
+    intro:
+      'Enrichers augment posts with additional data (ML tags, video analysis, etc.). Subscribe to add fields that logic blocks and sort formulas can use.',
+    empty: {
+      all: 'No enrichers yet.',
+      deployment: 'No deployment enrichers yet.',
+      global: 'No global enrichers yet.',
+    },
+  },
 }
 
 export function InjectorsBrowseView({
