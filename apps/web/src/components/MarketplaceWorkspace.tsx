@@ -128,7 +128,7 @@ export function MarketplaceWorkspace() {
         : 'All'
       : marketplaceProduct(productScope).label
   const pageTitle =
-    view === 'browse' || view === 'installed' ? `${copy.title} Ã‚Â· ${scopeLabel}` : copy.title
+    view === 'browse' || view === 'installed' ? `${copy.title} · ${scopeLabel}` : copy.title
   const pageHint =
     view === 'browse'
       ? productScope === 'all'
