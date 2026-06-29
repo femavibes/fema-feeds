@@ -394,6 +394,8 @@ export interface L2EvalInput {
   followRings?: Record<string, string[]>
   /** Resolve marketplace / collection logic blocks at eval time (dereference). */
   resolveLogicBlock?: (ref: import('./logic-blocks.js').LogicBlockRef) => L2RuleGroup | null
+  /** Evaluate a custom code logic block (WASM/remote). Returns match + optional score. */
+  evalCustomLogicBlock?: (ref: import('./logic-blocks.js').LogicBlockRef, post: import('./index.js').NormalizedPost, metrics: PostMetrics, enrichment?: Record<string, Record<string, unknown>>) => { matched: boolean; score?: number } | null
 }
 
 export type L2NodeOutcome = 'pass' | 'fail' | 'skip'

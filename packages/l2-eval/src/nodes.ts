@@ -464,18 +464,38 @@ export function evalRuleNode(
         packageId: node.packageId,
         versionPin: node.versionPin,
       })
-      if (!resolved) {
-        ok = false
-        detail = `logic block ${node.label ?? node.packageId}@${node.versionPin} not found`
-        trace(traces, node, 'fail', detail)
-        return false
+
+      if (resolved) {
+        // Native logic block — evaluate the resolved rule tree
+        ok = evalRuleNode(resolved, ctx, input, traces)
+        detail = ok
+          ? undefined
+          : `logic block ${node.label ?? node.packageId} did not match`
+        trace(traces, node, ok ? 'pass' : 'fail', detail)
+        return ok
       }
-      ok = evalRuleNode(resolved, ctx, input, traces)
-      detail = ok
-        ? undefined
-        : `logic block ${node.label ?? node.packageId} did not match`
-      trace(traces, node, ok ? 'pass' : 'fail', detail)
-      return ok
+
+      // Try custom code logic block evaluation
+      const customEval = input.evalCustomLogicBlock
+      if (customEval) {
+        const result = customEval(
+          { packageId: node.packageId, versionPin: node.versionPin },
+          ctx.post,
+          ctx.metrics,
+          ctx.enrichment,
+        )
+        if (result) {
+          ok = result.matched
+          detail = ok ? undefined : `custom logic block ${node.label ?? node.packageId} did not match`
+          trace(traces, node, ok ? 'pass' : 'fail', detail)
+          return ok
+        }
+      }
+
+      ok = false
+      detail = `logic block ${node.label ?? node.packageId}@${node.versionPin} not found`
+      trace(traces, node, 'fail', detail)
+      return false
     }
   }
 
