@@ -49,11 +49,29 @@ export interface SortPackUpgradeHint {
 }
 
 /** Feed rank: inline expression and/or marketplace sort pack reference. */
+
+/** Sort modifier mode: how a modifier contributes to the final score. */
+export type SortModifierMode = 'add' | 'multiply'
+
+/** A stacked sort modifier — runs custom code and adds/multiplies into the base score. */
+export interface SortModifier {
+  packageId: string
+  versionPin: string
+  label?: string
+  mode: SortModifierMode
+  /** For 'add': multiplied by this before adding. For 'multiply': unused. */
+  weight?: number
+  config?: Record<string, unknown>
+}
+
 export interface FeedRankConfig {
   /** Native sort expression — used when no packRef. */
   sortKey?: L2Expr
   /** Marketplace sort pack — resolved at eval; takes precedence over sortKey when set. */
   packRef?: SortPackRef
+  /** Stacked custom code sort modifiers (add/multiply on top of base score). */
+  modifiers?: SortModifier[]
+
   /** Custom ranker plugin — reorders skeleton at serve time; runs after DB sort, before inject. */
   rankerRef?: RankerRef
 }
