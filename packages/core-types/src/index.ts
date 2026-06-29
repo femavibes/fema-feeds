@@ -226,3 +226,7 @@ export * from './purge.js'
 export * from './strict-ingest.js'
 export { collectSearchableText, collectPostUrls, urlMatchesAny, textContainsAny, textMatchesRegex, compileRegex, REGEX_ENGINE_LABEL, DEFAULT_URL_SOURCES } from './post-search.js'
 export type { KeywordMatchOptions } from './post-search.js'
+
+export { type NativePersonalizationConfig, DEFAULT_PERSONALIZATION } from './personalization.js'
+
+export { type NativeInjectorConfig, type NativePinnedInjector, type NativePinnedPost, type NativeRotatingInjector } from './native-injectors.js'

@@ -18,3 +18,5 @@ export {
   resolveFeedgenServiceDid,
   type DidWebDocument,
 } from './service-did.js'
+
+export { applyNativePersonalization, type ViewerPersonalizationContext } from './native-personalization.js'
