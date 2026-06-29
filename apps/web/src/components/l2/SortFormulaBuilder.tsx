@@ -177,7 +177,7 @@ export function SortFormulaBuilder({ draft, onChange }: Props) {
       <section className="formula-editor-ref">
         <p className="sidebar-block-title">Numbers & values <span className="sfb-hint">(click to add block)</span></p>
         <div className="formula-editor-chips">
-          {['0', '1', '2', '5', '10', '50', '100', '0.5', '0.7', '24'].map((n) => (
+          {['0', '0.5', '1', '2', '3', '10', '50', '100'].map((n) => (
             <button
               key={n}
               type="button"

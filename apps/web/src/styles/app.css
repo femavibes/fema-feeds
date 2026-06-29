@@ -9240,6 +9240,7 @@ body.l2-visual-open #root {
   cursor: pointer;
   text-align: left;
   transition: border-color 0.1s;
+  color: #fff;
 }
 .formula-editor-template:hover {
   border-color: var(--accent);
@@ -9496,4 +9497,92 @@ body.l2-visual-open #root {
 .formula-blocks-cond-else {
   min-width: 6rem;
   font-family: monospace;
+}
+
+/* Condition Editor */
+.cond-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.cond-editor-nested {
+  margin-left: 1rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--accent);
+}
+.cond-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.cond-editor-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 2.5rem;
+}
+.cond-editor-hint {
+  font-size: 0.72rem;
+  opacity: 0.6;
+  font-style: italic;
+}
+.cond-editor-select {
+  font-size: 0.78rem;
+  padding: 0.2rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  background: var(--bg);
+  color: #fff;
+}
+.cond-editor-op {
+  width: 3rem;
+}
+.cond-editor-num {
+  width: 4rem;
+  font-size: 0.78rem;
+  padding: 0.2rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  background: var(--bg);
+  color: #fff;
+}
+.cond-editor-else {
+  display: flex;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+.cond-editor-else-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.cond-editor-option {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.cond-editor-option input[type="radio"] {
+  margin: 0;
+}
+.cond-editor-option select,
+.cond-editor-option input[type="number"] {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.25rem;
+}
+.cond-editor-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+.cond-editor-description {
+  font-size: 0.75rem;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.25rem;
+  margin: 0;
+  line-height: 1.4;
 }

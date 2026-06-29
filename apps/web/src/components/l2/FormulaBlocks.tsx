@@ -1,6 +1,51 @@
 import { useState } from 'react'
 import type { L2Expr } from '@cfb/core-types'
 import { parseFormula, FORMULA_FIELDS } from '../../lib/formula-parser'
+import { ConditionEditor, conditionToFormula, defaultCondition, type ConditionNode } from './ConditionEditor'
+
+/** Try to parse a block text like "if(likes > 100, reposts * 2, 0)" back into a ConditionNode + then expression. */
+function parseConditionFromText(text: string): { condition: ConditionNode; thenExpr: string } | null {
+  const match = text.match(/^if\(([^,]+?)\s*(>|>=|<|<=|==|!=)\s*([^,]+?),\s*(.+),\s*(.+)\)$/)
+  if (!match) return null
+  const [, fieldStr, op, valueStr, thenExpr, elseStr] = match
+  if (!fieldStr || !op || !valueStr || !thenExpr || !elseStr) return null
+
+  const field = fieldStr.trim()
+  const value = parseFloat(valueStr.trim())
+  if (!FORMULA_FIELDS[field] || isNaN(value)) return null
+
+  const condition = defaultCondition()
+  condition.field = field
+  condition.op = op as ConditionNode['op']
+  condition.value = value
+
+  // Parse the else part
+  const elseTrimmed = elseStr.trim()
+  const elseNum = parseFloat(elseTrimmed)
+  if (!isNaN(elseNum) && String(elseNum) === elseTrimmed) {
+    condition.elseMode = 'value'
+    condition.elseValue = elseNum
+  } else if (FORMULA_FIELDS[elseTrimmed]) {
+    condition.elseMode = 'field'
+    condition.elseField = elseTrimmed
+    condition.elseFieldOp = 'none'
+  } else {
+    // Try field op amount pattern
+    const fieldOpMatch = elseTrimmed.match(/^([a-z_]+)\s*([+\-*/])\s*([0-9.]+)$/)
+    if (fieldOpMatch && FORMULA_FIELDS[fieldOpMatch[1]!]) {
+      condition.elseMode = 'field'
+      condition.elseField = fieldOpMatch[1]!
+      condition.elseFieldOp = fieldOpMatch[2] as '+' | '-' | '*' | '/'
+      condition.elseFieldAmount = parseFloat(fieldOpMatch[3]!) || 1
+    } else {
+      // Can't parse else, just use value 0
+      condition.elseMode = 'value'
+      condition.elseValue = 0
+    }
+  }
+
+  return { condition, thenExpr: thenExpr.trim() }
+}
 
 interface Props {
   expr: L2Expr | null
@@ -157,10 +202,7 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
   const [selectedIdxs, setSelectedIdxs] = useState<Set<number>>(new Set())
   const [multiMode, setMultiMode] = useState(false)
   const [showCondition, setShowCondition] = useState(false)
-  const [condField, setCondField] = useState<string>('likes')
-  const [condOp, setCondOp] = useState<string>('>')
-  const [condValue, setCondValue] = useState<number>(100)
-  const [condElse, setCondElse] = useState<string>('0')
+  const [condition, setCondition] = useState<ConditionNode>(defaultCondition())
 
   // Derive blocks from formula text directly (works even if expr is null/invalid)
   const { blocks, ops } = formulaToBlocks(formulaText)
@@ -254,6 +296,38 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
     actionsRef.current = { insertBlockAfter, wrapSelectedWith }
   }
 
+  const blockActionsRef_wrapGroup = () => {
+    if (selectedIdxs.size < 2) return
+    const sorted = [...selectedIdxs].sort((a, b) => a - b)
+    const next = [...blocks]
+    const nextOps = [...ops]
+
+    // Merge selected blocks into one parenthesized block
+    const parts: string[] = []
+    for (let i = 0; i < sorted.length; i++) {
+      const idx = sorted[i]!
+      const block = next[idx]!
+      const val = block.negated ? `-(${block.text})` : block.text
+      if (i === 0) {
+        parts.push(val)
+      } else {
+        const opIdx = sorted[i]! - 1
+        const op = nextOps[opIdx] ?? '+'
+        parts.push(`${op} ${val}`)
+      }
+    }
+    const merged = `(${parts.join(' ')})`
+    const firstIdx = sorted[0]!
+    next[firstIdx] = { text: merged, negated: false }
+    for (let i = sorted.length - 1; i > 0; i--) {
+      const removeIdx = sorted[i]!
+      next.splice(removeIdx, 1)
+      if (removeIdx > 0) nextOps.splice(removeIdx - 1, 1)
+    }
+    rebuild(next, nextOps.slice(0, next.length - 1))
+    setSelectedIdxs(new Set([firstIdx]))
+  }
+
   const applyCondition = () => {
     if (selectedIdxs.size === 0) return
     const sorted = [...selectedIdxs].sort((a, b) => a - b)
@@ -280,7 +354,7 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
       }
     }
     const inner = innerParts.join(' ')
-    const wrapped = `if(${condField} ${condOp} ${condValue}, ${inner}, ${condElse})`
+    const wrapped = conditionToFormula(condition, inner)
 
     // Replace first selected with wrapped, remove the rest
     const firstIdx = sorted[0]!
@@ -294,6 +368,7 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
     rebuild(next, nextOps.slice(0, next.length - 1))
     setSelectedIdxs(new Set([firstIdx]))
     setShowCondition(false)
+    setCondition(defaultCondition())
   }
 
   const rebuild = (newBlocks: Block[], newOps: BlockOp[]) => {
@@ -389,10 +464,40 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
           <button
             type="button"
             className={`formula-blocks-multi-btn${showCondition ? ' formula-blocks-multi-btn-active' : ''}`}
-            onClick={() => setShowCondition(!showCondition)}
+            onClick={() => {
+              if (showCondition) {
+                setShowCondition(false)
+              } else {
+                // If selected block is already an if(), parse it back for editing
+                const sorted = [...selectedIdxs].sort((a, b) => a - b)
+                if (sorted.length === 1) {
+                  const block = blocks[sorted[0]!]
+                  if (block && block.text.startsWith('if(')) {
+                    const parsed = parseConditionFromText(block.text)
+                    if (parsed) {
+                      setCondition(parsed.condition)
+                      const next = [...blocks]
+                      next[sorted[0]!] = { text: parsed.thenExpr, negated: block.negated }
+                      rebuild(next, ops)
+                    }
+                  }
+                }
+                setShowCondition(true)
+              }
+            }}
             title="Wrap selected in a condition"
           >
             ⚡ if()
+          </button>
+        )}
+        {selectedIdxs.size > 1 && (
+          <button
+            type="button"
+            className="formula-blocks-multi-btn"
+            onClick={() => blockActionsRef_wrapGroup()}
+            title="Group selected blocks in parentheses"
+          >
+            ( )
           </button>
         )}
         {selectedIdxs.size > 1 && (
@@ -402,45 +507,25 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
 
       {showCondition && selectedIdxs.size > 0 && (
         <div className="formula-blocks-condition-editor">
-          <span className="formula-blocks-cond-label">If</span>
-          <select className="sfb-inline" value={condField} onChange={(e) => setCondField(e.target.value)}>
-            {Object.keys(FORMULA_FIELDS).map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
-          </select>
-          <select className="sfb-inline" value={condOp} onChange={(e) => setCondOp(e.target.value)}>
-            <option value=">">{'>'}</option>
-            <option value=">=">{'>='}</option>
-            <option value="<">{'<'}</option>
-            <option value="<=">{'<='}</option>
-            <option value="==">{'=='}</option>
-            <option value="!=">{'!='}</option>
-          </select>
-          <input
-            className="sfb-inline sfb-num"
-            type="number"
-            value={condValue}
-            onChange={(e) => setCondValue(parseFloat(e.target.value) || 0)}
+          <ConditionEditor
+            condition={condition}
+            onChange={setCondition}
+            thenExpr={(() => {
+              const sorted = [...selectedIdxs].sort((a, b) => a - b)
+              return sorted.map((idx) => {
+                const b = blocks[idx]!
+                return b.negated ? `-(${b.text})` : b.text
+              }).join(' + ')
+            })()}
           />
-          <span className="formula-blocks-cond-label">else</span>
-          <input
-            className="sfb-inline formula-blocks-cond-else"
-            type="text"
-            value={condElse}
-            placeholder="0"
-            onChange={(e) => setCondElse(e.target.value)}
-          />
-          <button type="button" className="btn btn-secondary btn-sm" onClick={applyCondition}>
-            Apply
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
-            setCondElse(`if(${condField} ${condOp} ${condValue}, 0, 0)`)
-          }}>
-            + else if
-          </button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowCondition(false)}>
-            Cancel
-          </button>
+          <div className="cond-editor-actions">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={applyCondition}>
+              Apply
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setShowCondition(false); setCondition(defaultCondition()) }}>
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
