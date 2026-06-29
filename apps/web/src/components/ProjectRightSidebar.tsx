@@ -3,8 +3,9 @@ import { useState } from 'react'
 import type { ProjectL1Config } from '@cfb/core-types'
 
 import { L1TestPanel } from './L1TestPanel'
+import { ProjectPoolPanel } from './ProjectPoolPanel'
 
-type SidebarTab = 'project' | 'test'
+type SidebarTab = 'project' | 'pool' | 'test'
 
 interface Props {
   draft: ProjectL1Config
@@ -32,7 +33,7 @@ export function ProjectRightSidebar({
         </div>
       </div>
 
-      <div className="sidebar-panel-tabs" role="tablist" aria-label="Project sidebar">
+      <div className="sidebar-panel-tabs sidebar-panel-tabs--triple" role="tablist" aria-label="Project sidebar">
         <button
           type="button"
           role="tab"
@@ -41,6 +42,15 @@ export function ProjectRightSidebar({
           onClick={() => setSidebarTab('project')}
         >
           Save
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={sidebarTab === 'pool'}
+          className={`sidebar-panel-tab${sidebarTab === 'pool' ? ' active' : ''}`}
+          onClick={() => setSidebarTab('pool')}
+        >
+          Pool
         </button>
         <button
           type="button"
@@ -80,6 +90,12 @@ export function ProjectRightSidebar({
                 Save before switching projects, or your edits will be lost.
               </p>
             ) : null}
+          </section>
+        )}
+
+        {sidebarTab === 'pool' && (
+          <section className="sidebar-block">
+            <ProjectPoolPanel projectId={draft.projectId} active={sidebarTab === 'pool'} />
           </section>
         )}
 

@@ -2,79 +2,154 @@
 
 ## First Steps
 1. Read `docs/SESSION_CONTINUE.md` for full context on what was done and what's next
-2. Read `docs/STRICT_INGEST_MODE.md` for the strict ingest mode design decisions
-3. Read `docs/PURGE_SYSTEM.md` for purge system design
+2. Read `docs/CUSTOM_CODE_EXTENSIONS.md` for the full marketplace/plugin/enricher design
+3. Read `docs/MARKETPLACE_ARCHITECTURE.md` for backend implementation status
 
 ## Project Location
 `D:\Custom Feed Builder` on Windows 11
 
-## Immediate TODO (from last session)
+## What Was Done This Session
 
-### 1. Project Pool Tab (Right Sidebar) — NEXT UP
-Add a "Pool" tab to the project right sidebar that shows posts currently in that project's pool.
+### 1. Project Pool Tab ✓
+- New "Pool" tab on project right sidebar (Save | Pool | Test)
+- `GET /api/projects/:id/pool` endpoint with cursor pagination
+- `ProjectPoolPanel` component reusing `PoolMatchSampleRow`
+- `listProjectPoolPosts` in `@cfb/l2-worker` with author/media enrichment
 
-**Key files to read:**
-- `apps/web/src/components/ProjectWorkspace.tsx` — manages feed/project workspace, right sidebar
-- `apps/web/src/components/l2/FeedRightSidebar.tsx` — the right sidebar for feeds (has Deploy/Feed/Settings tabs) — follow this pattern
-- `apps/web/src/components/ProjectRightSidebar.tsx` — the existing project right sidebar (has Save/Test tabs)
-- `apps/web/src/components/l2/L2MatchPoolPanel.tsx` — shows feed candidates with `PoolMatchSampleRow` — reuse this pattern
-- `apps/web/src/components/l2/PoolMatchSampleRow.tsx` — post card component for pool posts
-- `packages/storage-postgres/src/pool-post.ts` — has `listPostsForProject`, `countPostsForProject`
-- `apps/api/src/app.ts` — may need a new endpoint or use existing ones
+### 2. Rename Rankers → Personalization ✓
+- All user-facing labels changed across marketplace, developer guide, feed sections
+- Internal type names (`'ranker'`, `PluginKind`) unchanged (API contract)
 
-**What it should do:**
-- New "Pool" tab on project right sidebar (between Save and Test, or as a new section)
-- Shows recent posts in that project's pool
-- Reuse `PoolMatchSampleRow` for rendering
-- Show count at top
-- Maybe basic filtering later
+### 3. Sort Pack Toggle UX ✓
+- Sort pack is now a proper 4th toggle (last position) in sort mode radio group
+- When active: shows marketplace pack selector at top, read-only dials below in two-column grid
+- Active pack highlighted in list with accent border
+- Sort pack list removed from other mode views
+- Copy button on raw expression (with "Copied!" feedback)
 
-### 2. Other TODOs (lower priority)
-- Post text truncation in visual editor matches panel
-- Rename Rankers → Personalization in UI
-- Ingest status per-project breakdown (real-time)
-- Per-project purge policies
+### 4. Marketplace Sidebar Redesign ✓
+- "Plugins" → "Packages" rename
+- Removed "Custom code" subtitle/grouping
+- Flat list: Featured, Logic blocks, Sort packs, Injectors, Personalization
+- Each category page will have All/Native/Custom Code filter (not yet built)
+
+### 5. Expanded L2Expr Operators ✓
+- New types: `unary` (log, sqrt, abs, floor, ceil, neg), `clamp`, `cond`, `ratio`
+- Extended binary ops: `**` (power), `min`, `max`
+- Evaluator updated in `packages/l2-eval/src/expr.ts`
+- All 37 existing tests pass
+
+### 6. Formula Builder (Sort Mode) ✓
+- New "Formula builder" sort mode (5th toggle: Chronological | Engagement | Custom formula | Formula builder | Sort pack)
+- Formula text editor — users write math formulas directly
+- Parser: `apps/web/src/lib/formula-parser.ts` — text → L2Expr compiler
+- Decompiler: L2Expr → human-readable text
+- Click-to-insert field/function chips
+- 10 template presets (Engagement, Log engagement, Engagement rate, Sqrt fairness, etc.)
+- Real-time validation (valid ✓ / error with position)
+- Compiled JSON output with Copy button
+
+### 7. Sort Formula Compiler ✓
+- `apps/web/src/lib/sort-formula.ts` — SortFormula config type + compiler
+- Per-signal transforms, derived signals, conditionals, decay, limits
+- `compileSortFormula()` → L2Expr
+- (Used internally by builder, may be useful for future programmatic formula building)
+
+### 8. Enrichment Storage ✓
+- `post_enrichments` table (post_uri + enricher_id → JSONB data)
+- Migration: `database/migrations/033_post_enrichments.sql` (applied)
+- Storage module: `packages/storage-postgres/src/post-enrichments.ts`
+- Functions: get, getBatch, upsert, upsertBatch, delete, countUnenriched, listUnenriched
+
+### 9. Custom Code Extensions Design Doc ✓
+- `docs/CUSTOM_CODE_EXTENSIONS.md` — comprehensive design for:
+  - 6 package categories (Logic Blocks, Sort Packs, Enrichers, Personalization, Injectors, Sources)
+  - Bundles + dependencies
+  - Custom code logic blocks + sort packs
+  - Modifier stacking (add/multiply on sort)
+  - Native personalization config
+  - Injectors with viewer context
+  - Sources (custom inputs to visual editor)
+  - Sorting vs Personalization distinction
+  - Implementation phases
+
+## Immediate TODO (Next Session)
+
+### 1. Visual Blocks for Formula Builder — NEXT UP
+The formula text editor works but needs a complementary visual block view:
+- Each "term" in the formula is a draggable block
+- Click to edit, drag to reorder, × to delete
+- Synced with text editor (edit either, both update)
+- Block picker to add new terms
+
+### 2. Per-category tier filter in marketplace
+Each browse page needs [All] [Native] [Custom Code] filter bar at top.
+
+### 3. Enricher package type
+- Add `'enricher'` to `PluginKind` in core-types
+- Enricher manifest (trigger mode, target scope)
+- Background sweep worker skeleton
+
+### 4. Live preview for formula builder
+- Show real posts from pool scored by current formula
+- Updates as you type/edit
+
+### 5. Native personalization config + UI tab
+- Feed workspace: add Personalization tab
+- Built-in toggles: boost followed, boost mutuals, suppress seen, author diversity
 
 ## Architecture Context
 
-### Prefilter Modes (per-project)
-- `manual` (default): User builds prefilter in visual editor. Default = keep unless blocked.
-- `strict`: Auto-derived from feeds exclusively. Default = drop unless a feed's ingest-eligible logic matches. Project prefilter editor is NOT used in strict mode.
-
-### Ingest Pipeline
+### Feed Workspace Tabs (planned)
 ```
-Jetstream post arrives (75/sec)
-  → Global prefilter (deployment_settings key='global_prefilter') — always runs
-  → Per-project evaluation:
-      Manual mode → standard L1 eval (project prefilter compiled gate)
-      Strict mode → optimized strict gate (Aho-Corasick + language pre-check)
-  → Posts that pass enter the pool (ingested_posts + ingested_post_projects)
-  → L2 evaluates pool posts against feed rules → feed_candidates
-  → Purge sweep cleans old/unused posts periodically
+Visual Editor | Sorting | Personalization | Injectors | Sources | Settings
 ```
 
-### Key Packages
-- `packages/core-types/` — shared types (PurgePolicy, PrefilterMode, StrictGateMeta, etc.)
-- `packages/l1-compile/` — prefilter compilation, strict mode extraction/compilation, Aho-Corasick
-- `packages/l1-filters/` — ingest gate evaluation (`evaluateIngestGate`)
-- `packages/ingest-runner/` — main ingest loop, strict gate runtime, purge sweep timer
-- `packages/storage-postgres/` — all DB operations (pool, purge, deployment settings, etc.)
-- `apps/api/` — Hono API server, all endpoints
-- `apps/web/` — React SPA (Vite)
+### Sort Modes
+```
+Chronological | Engagement | Custom Formula | Formula Builder | Sort Pack
+```
 
-### Important Technical Notes
+### Marketplace Structure
+```
+Marketplace
+Packages
+├─ Browse (flat list, each with All/Native/Custom Code filter)
+│   ├─ Featured
+│   ├─ Logic Blocks
+│   ├─ Sort Packs
+│   ├─ Enrichers (future)
+│   ├─ Personalization
+│   ├─ Injectors
+│   ├─ Sources (future)
+│   └─ Bundles (future)
+├─ Subscriptions
+└─ Collection
+
+### Pipeline
+```
+Ingest → Pool → Enrichers → L2 eval (logic blocks + sort + modifiers) → candidates
+                                                                          ↓
+                              getFeedSkeleton → Personalization → Injectors → skeleton
+```
+
+### Key New Files
+| File | Purpose |
+|------|---------|
+| `packages/l2-worker/src/list-project-pool.ts` | Pool posts listing with enrichment |
+| `apps/web/src/components/ProjectPoolPanel.tsx` | Pool tab UI |
+| `apps/web/src/lib/formula-parser.ts` | Formula text → L2Expr parser + decompiler |
+| `apps/web/src/lib/sort-formula.ts` | SortFormula config type + compiler |
+| `apps/web/src/components/l2/SortFormulaBuilder.tsx` | Formula text editor UI |
+| `packages/storage-postgres/src/post-enrichments.ts` | Enrichment storage module |
+| `database/migrations/033_post_enrichments.sql` | Enrichment table schema |
+| `docs/CUSTOM_CODE_EXTENSIONS.md` | Full extension system design |
+| `docs/MARKETPLACE_ARCHITECTURE.md` | Backend implementation status |
+
+### Important Technical Notes (carried over + new)
 - CSS file has mixed line endings — PowerShell scripts work better than fsReplace for multi-line edits
-- The `TermListEditor` key prop was recently fixed (was causing focus loss) — don't change it back to include term value
-- Feed `enabled` toggle now saves directly to live file (not just draft) — this was a recent fix
-- New feeds default to `enabled: true`
-- Orphaned project files can cause permissive ingestion — the runner loads ALL project files regardless of ownerDid
-- `deployment_settings` table stores: enrichment, access, global_prefilter, purge, deployment info
-- Strict mode recompiles on feed create/update-live/delete + every 60s config reload
-- Docker image auto-builds on push to main: `ghcr.io/femavibes/fema-feeds:latest`
-- To update marketplace Docker: `docker compose -f docker-compose.marketplace.yml pull api && docker compose -f docker-compose.marketplace.yml up -d`
-
-## App Branding
-- Main app: "WaffleIndex" (WIP name), fema.jpg icon, fema.jpg favicon
-- Marketplace: "FEMA Marketplace", marketplace-icon.svg (store icon), green background (#0f1f15)
-- Browser tabs dynamically set via useEffect on appProfile
-- `CFB_APP_PROFILE=registry` env var triggers marketplace/registry mode
+- `L2Expr` now has 7 node types: literal, field, binary (+,-,*,/,**,min,max), unary (log,sqrt,abs,floor,ceil,neg), clamp, cond, ratio
+- Formula parser handles: fields, numbers, +,-,*,/,**, parens, function calls, if(cond, then, else)
+- `post_enrichments` table exists — keyed by (post_uri, enricher_id), JSONB data column
+- Sort mode `'builder'` uses the formula text editor; `'custom'` uses the existing dial system
+- Marketplace sidebar is now flat (no Custom code grouping), label says "Packages"

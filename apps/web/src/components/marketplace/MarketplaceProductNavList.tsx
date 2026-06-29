@@ -1,8 +1,8 @@
 import type { MouseEvent } from 'react'
 import type { MarketplaceProductScope } from '../../lib/workspace-views'
 import {
-  MARKETPLACE_CUSTOM_CODE_KINDS,
-  MARKETPLACE_NATIVE_KINDS,
+  MARKETPLACE_PRODUCTS,
+  type MarketplaceBrowseKind,
   marketplaceProduct,
 } from '../../lib/marketplace-products'
 
@@ -20,6 +20,8 @@ export function MarketplaceProductNavList({ activeKind, overviewLabel, onSelect,
     onSelect(kind)
   }
 
+  const allKinds = Object.keys(MARKETPLACE_PRODUCTS) as MarketplaceBrowseKind[]
+
   return (
     <ul className="workspace-nav-nested" aria-label={ariaLabel}>
       <li>
@@ -32,7 +34,7 @@ export function MarketplaceProductNavList({ activeKind, overviewLabel, onSelect,
           {overviewLabel}
         </button>
       </li>
-      {MARKETPLACE_NATIVE_KINDS.map((id) => {
+      {allKinds.map((id) => {
         const product = marketplaceProduct(id)
         return (
           <li key={id}>
@@ -47,26 +49,6 @@ export function MarketplaceProductNavList({ activeKind, overviewLabel, onSelect,
           </li>
         )
       })}
-      <li className="workspace-nav-nested-group">
-        <span className="workspace-nav-nested-heading">Custom code</span>
-        <ul className="workspace-nav-nested-sublist">
-          {MARKETPLACE_CUSTOM_CODE_KINDS.map((id) => {
-            const product = marketplaceProduct(id)
-            return (
-              <li key={id}>
-                <button
-                  type="button"
-                  className={`workspace-nav-nested-item${activeKind === id ? ' active' : ''}`}
-                  aria-current={activeKind === id ? 'page' : undefined}
-                  onClick={select(id)}
-                >
-                  {product.label}
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      </li>
     </ul>
   )
 }

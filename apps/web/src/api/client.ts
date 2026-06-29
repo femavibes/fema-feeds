@@ -415,6 +415,15 @@ export const api = {
     }),
   purgeProjectPool: (id: string) =>
     apiFetch<{ ok: boolean; projectId: string }>(`/api/projects/${id}/purge-pool`, { method: 'POST' }),
+  getProjectPool: (id: string, opts?: { limit?: number; cursor?: string }) => {
+    const params = new URLSearchParams()
+    if (opts?.limit) params.set('limit', String(opts.limit))
+    if (opts?.cursor) params.set('cursor', opts.cursor)
+    const qs = params.toString()
+    return apiFetch<{ total: number; posts: PoolMatchSample[]; cursor: string | null }>(
+      `/api/projects/${id}/pool${qs ? `?${qs}` : ''}`,
+    )
+  },
   dryRun: (id: string, durationSec: number, project?: ProjectL1Config) =>
     apiFetch<DryRunResult>(`/api/projects/${id}/dry-run`, {
       method: 'POST',

@@ -57,6 +57,7 @@ import {
 } from '@cfb/list-cache'
 import { refreshAllProjectAuthorLists } from '@cfb/list-sources'
 import { createIngestRunner, runProjectDryRun, isDryRunInProgress, runIngestSmokeTest, isIngestSmokeTestInProgress, getLastIngestSmokeTestResult, runIngestStressTest, isIngestStressTestInProgress, getLastIngestStressTestResult, type IngestRunner } from '@cfb/ingest-runner'
+import { listProjectPoolPosts } from '@cfb/l2-worker'
 import {
   getLatestIngestSmokeTest,
   getLatestIngestStressTest,
@@ -785,6 +786,15 @@ export function createApp(options?: {
       post: { uri: post.uri, authorDid: post.authorDid, text: post.text.slice(0, 200) },
       result,
     })
+  })
+
+  app.get('/api/projects/:id/pool', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const id = c.req.param('id')
+    const limit = Number.parseInt(c.req.query('limit') ?? '30', 10)
+    const cursor = c.req.query('cursor') || undefined
+    const result = await listProjectPoolPosts(pool, id, { limit, cursor })
+    return c.json(result)
   })
 
   app.post('/api/projects/:id/purge-pool', async (c) => {

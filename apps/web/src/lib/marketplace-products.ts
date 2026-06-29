@@ -45,7 +45,7 @@ export const MARKETPLACE_PRODUCTS: Record<MarketplaceBrowseKind, MarketplaceProd
     label: 'Injectors',
     tier: 'custom_code',
     summary: 'Insert posts into skeleton pages after ranking.',
-    runsAt: 'Serve time — after sort + ranker, on each skeleton page (`onInject`).',
+    runsAt: 'Serve time — after sort + personalization, on each skeleton page (`onInject`).',
     access:
       'Publisher-uploaded WASM, worker, remote HTTP, or native adapters. Verification required to create.',
     collectionHint:
@@ -55,16 +55,16 @@ export const MARKETPLACE_PRODUCTS: Record<MarketplaceBrowseKind, MarketplaceProd
   },
   rankers: {
     id: 'rankers',
-    label: 'Rankers',
+    label: 'Personalization',
     tier: 'custom_code',
     summary: 'Reorder posts within a skeleton page at serve time.',
     runsAt: 'Serve time — after DB sort, before injectors (`onSort`).',
     access:
       'Publisher-uploaded WASM, worker, remote HTTP, or native adapters. Verification required to create.',
     collectionHint:
-      'Verified publishers only. See Plugin developer guide for hooks, manifests, and the example ranker.',
+      'Verified publishers only. See Plugin developer guide for hooks, manifests, and the example personalization plugin.',
     browseHint:
-      'Subscribe and pick a ranker on a feed\'s Sorting tab. Custom code tier — reorders pages live.',
+      'Subscribe and pick a personalization plugin on a feed\'s Sorting tab. Custom code tier — reorders pages live.',
   },
 }
 

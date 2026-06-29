@@ -39,7 +39,7 @@ const VIEW_COPY: Record<MarketplaceWorkspaceView, { title: string; hint: string 
 
     title: 'Browse',
 
-    hint: 'Subscribe to logic blocks, sort packs, injectors, and rankers published on this deployment or the global marketplace.',
+    hint: 'Subscribe to logic blocks, sort packs, injectors, and personalization plugins published on this deployment or the global marketplace.',
 
   },
 
@@ -47,7 +47,7 @@ const VIEW_COPY: Record<MarketplaceWorkspaceView, { title: string; hint: string 
 
     title: 'Subscriptions',
 
-    hint: 'Logic blocks go in the feed visual editor; sort packs, rankers, and injectors go on the feed Sorting tab.',
+    hint: 'Logic blocks go in the feed visual editor; sort packs, personalization, and injectors go on the feed Sorting tab.',
 
   },
 
@@ -128,16 +128,16 @@ export function MarketplaceWorkspace() {
         : 'All'
       : marketplaceProduct(productScope).label
   const pageTitle =
-    view === 'browse' || view === 'installed' ? `${copy.title} · ${scopeLabel}` : copy.title
+    view === 'browse' || view === 'installed' ? `${copy.title} Ã‚Â· ${scopeLabel}` : copy.title
   const pageHint =
     view === 'browse'
       ? productScope === 'all'
-        ? 'Browse logic blocks, sort packs, injectors, and rankers from this deployment and the global marketplace.'
+        ? 'Browse logic blocks, sort packs, injectors, and personalization plugins from this deployment and the global marketplace.'
         : marketplaceProduct(productScope).browseHint
       : view === 'installed'
         ? productScope === 'all'
-          ? 'Everything you subscribe to across product types. Pins apply per feed — logic blocks in the visual editor; sort packs, rankers, and injectors on the Sorting tab.'
-          : `Pinned versions appear on feeds — ${marketplaceProduct(productScope).summary}`
+          ? 'Everything you subscribe to across product types. Pins apply per feed Ã¢â‚¬â€ logic blocks in the visual editor; sort packs, personalization, and injectors on the Sorting tab.'
+          : `Pinned versions appear on feeds Ã¢â‚¬â€ ${marketplaceProduct(productScope).summary}`
         : copy.hint
   const showProductMeta =
     (view === 'browse' || view === 'installed') && productScope !== 'all'
@@ -273,7 +273,7 @@ export function MarketplaceWorkspace() {
 
         mode="marketplace"
 
-        contextLabel="Plugins"
+        contextLabel="Packages"
 
         marketplaceView={view}
 
@@ -457,8 +457,8 @@ export function MarketplaceWorkspace() {
                     onChanged={bumpRefresh}
                   />
                 </section>
-                <section className="marketplace-featured-section" aria-label="Rankers">
-                  <h3 className="marketplace-featured-section-title">Rankers</h3>
+                <section className="marketplace-featured-section" aria-label="Personalization">
+                  <h3 className="marketplace-featured-section-title">Personalization</h3>
                   <InjectorsInstalledView
                     key={`${refreshKey}-ranker`}
                     kind="ranker"

@@ -242,3 +242,14 @@ export {
   runPurgeSweep,
   type PurgeSweepResult,
 } from './purge.js'
+
+export {
+  getPostEnrichments,
+  getPostEnrichmentsBatch,
+  upsertPostEnrichment,
+  upsertPostEnrichmentsBatch,
+  deleteEnrichmentsByEnricher,
+  countUnenrichedPosts,
+  listUnenrichedPostUris,
+  type PostEnrichmentRow,
+} from './post-enrichments.js'

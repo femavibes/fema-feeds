@@ -31,11 +31,11 @@ const KIND_HINT: Record<
   },
   ranker: {
     intro:
-      "Custom rankers reorder skeleton pages at serve time. Subscribe here, then apply on a feed's Sorting tab.",
+      "Personalization plugins reorder skeleton pages at serve time. Subscribe here, then apply on a feed's Sorting tab.",
     empty: {
-      all: 'No rankers yet. Operator instances may seed demo listings on this deployment.',
-      deployment: 'No deployment rankers yet. Operator instances seed a demo pinned-URI ranker.',
-      global: 'No global rankers yet.',
+      all: 'No personalization plugins yet. Operator instances may seed demo listings on this deployment.',
+      deployment: 'No deployment personalization plugins yet. Operator instances seed a demo pinned-URI plugin.',
+      global: 'No global personalization plugins yet.',
     },
   },
 }

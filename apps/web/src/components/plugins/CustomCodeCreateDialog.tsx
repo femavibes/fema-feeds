@@ -23,7 +23,7 @@ interface Props {
 const KIND_OPTIONS: { id: PluginKind; label: string; hint: string }[] = [
   {
     id: 'ranker',
-    label: 'Ranker',
+    label: 'Personalization',
     hint: 'Reorders feed pages at serve time (`onSort`). Use for custom sorting beyond native formulas.',
   },
   {
@@ -62,7 +62,7 @@ export function CustomCodeCreateDialog({
           <div className="custom-code-verify-gate">
             <p className="field-error">Publisher verification required</p>
             <p className="card-hint">
-              Custom code (rankers and injectors) can only be created by verified publishers. Ask your
+              Custom code (personalization and injectors) can only be created by verified publishers. Ask your
               deployment master to verify you for this VPS, or the global marketplace operator
               (fema.monster) for cross-deployment listings.
             </p>

@@ -58,7 +58,7 @@ export function InjectorsInstalledView({ kind = 'injector', selectedId, onSelect
       {loading && <p className="card-hint">Loading subscriptions…</p>}
       {!loading && subscriptions.length === 0 && (
         <p className="card-hint">
-          No {kind === 'ranker' ? 'rankers' : 'injectors'} subscribed yet. Browse the marketplace to install one.
+          No {kind === 'ranker' ? 'personalization plugins' : 'injectors'} subscribed yet. Browse the marketplace to install one.
         </p>
       )}
       <ul className="logic-blocks-catalog-list">

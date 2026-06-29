@@ -175,10 +175,10 @@ export function MarketplaceFeaturedBrowseView({
   return (
     <div className="marketplace-featured-browse">
       <p className="card-hint">
-        Highlights across logic blocks, sort packs, injectors, and rankers. Pick a category in the
+        Highlights across logic blocks, sort packs, injectors, and personalization plugins. Pick a category in the
         sidebar to focus one product type.
       </p>
-      {loading && <p className="card-hint">Loading marketplace…</p>}
+      {loading && <p className="card-hint">Loading marketplaceâ€¦</p>}
       {!loading && totalCount === 0 && (
         <p className="card-hint">No listings yet. Publish packages from My collection or browse when items appear.</p>
       )}

@@ -40,7 +40,7 @@ export const PIPELINE_STEPS = [
 
   'Pool sort (sort pack at candidate build)',
 
-  'Serve-time ranker (on_sort)',
+  'Serve-time personalization (on_sort)',
 
   'Serve-time injector (on_inject)',
 

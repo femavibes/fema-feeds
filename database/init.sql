@@ -1,4 +1,4 @@
--- Custom Feed Builder — initial schema (slice 2)
+-- Custom Feed Builder â€” initial schema (slice 2)
 -- Run automatically via docker-compose on first start.
 
 CREATE TABLE IF NOT EXISTS ingested_posts (

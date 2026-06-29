@@ -67,11 +67,11 @@ export function RankerFeedSection({ draft, onChange }: Props) {
 
   return (
     <div className="feed-sorting-packs feed-ranker-section">
-      <p className="sidebar-block-title">Serve-time ranker (custom code)</p>
+      <p className="sidebar-block-title">Personalization (custom code)</p>
       {rankerRef ? (
         <>
           <p className="card-hint">
-            Using <strong>{rankerRef.label ?? 'ranker'}</strong> v{rankerRef.versionPin}. Reorders each skeleton
+            Using <strong>{rankerRef.label ?? 'personalization'}</strong> v{rankerRef.versionPin}. Reorders each skeleton
             page at serve time (after DB sort, before inject).
           </p>
           <label className="field-label">
@@ -84,12 +84,12 @@ export function RankerFeedSection({ draft, onChange }: Props) {
             />
           </label>
           <button type="button" className="btn btn-secondary btn-sm" onClick={clearRanker}>
-            Remove ranker
+            Remove
           </button>
         </>
       ) : (
         <p className="card-hint">
-          Subscribe to a ranker in Marketplace, then apply it here for serve-time reordering.
+          Subscribe to a personalization plugin in Marketplace, then apply it here for serve-time reordering.
         </p>
       )}
 
@@ -111,7 +111,7 @@ export function RankerFeedSection({ draft, onChange }: Props) {
           ))}
         </ul>
       ) : (
-        <p className="card-hint">Subscribe to rankers in Marketplace → Browse → Rankers.</p>
+        <p className="card-hint">Subscribe in Marketplace → Browse → Personalization.</p>
       )}
     </div>
   )

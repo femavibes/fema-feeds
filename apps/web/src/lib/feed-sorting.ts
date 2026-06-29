@@ -1,6 +1,6 @@
 import type { FeedConfig, L2Expr, L2NumericField } from '@cfb/core-types'
 
-export type SortMode = 'chronological' | 'engagement' | 'pack' | 'custom'
+export type SortMode = 'chronological' | 'engagement' | 'custom' | 'builder' | 'pack'
 
 export function hasSortPackRef(rank: FeedConfig['rank']): boolean {
   return Boolean(rank?.packRef?.packageId)
@@ -130,6 +130,16 @@ export const SORT_MODE_OPTIONS: {
     id: 'custom',
     label: 'Custom formula',
     hint: 'Full control over every available signal and tuning option.',
+  },
+  {
+    id: 'builder',
+    label: 'Formula builder',
+    hint: 'Advanced: per-signal transforms, ratios, conditionals, decay curves.',
+  },
+  {
+    id: 'pack',
+    label: 'Sort pack',
+    hint: 'Use a subscribed marketplace sort pack formula.',
   },
 ]
 
@@ -385,6 +395,7 @@ export function rankExprForMode(
       return applyTuning(engagementExpr(weights), tuning)
     case 'pack':
     case 'custom':
+    case 'builder':
       return null
   }
 }
@@ -495,6 +506,8 @@ export function sortModeBadge(mode: SortMode, weights: EngagementWeights): strin
       return 'Engagement'
     case 'pack':
       return 'Sort pack'
+    case 'builder':
+      return 'Formula builder'
     case 'custom':
       return 'Custom formula'
   }

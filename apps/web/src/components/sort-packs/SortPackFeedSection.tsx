@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { FeedConfig, SortPackPackage } from '@cfb/core-types'
+import type { FeedConfig, L2Expr, SortPackPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
 import {
@@ -10,9 +10,10 @@ import {
 interface Props {
   draft: FeedConfig
   onChange: (next: FeedConfig) => void
+  onPackExprResolved?: (expr: L2Expr | null) => void
 }
 
-export function SortPackFeedSection({ draft, onChange }: Props) {
+export function SortPackFeedSection({ draft, onChange, onPackExprResolved }: Props) {
   const [subscriptions, setSubscriptions] = useState<
     Awaited<ReturnType<typeof api.listSortPackSubscriptions>>['subscriptions']
   >([])
@@ -25,6 +26,16 @@ export function SortPackFeedSection({ draft, onChange }: Props) {
   useEffect(() => {
     void api.listSortPackSubscriptions().then((res) => setSubscriptions(res.subscriptions)).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!onPackExprResolved) return
+    if (!packRef?.packageId) {
+      onPackExprResolved(null)
+      return
+    }
+    const match = subscriptions.find((s) => s.packageId === packRef.packageId)
+    onPackExprResolved(match?.package?.sortKey ?? null)
+  }, [packRef?.packageId, subscriptions, onPackExprResolved])
 
   useEffect(() => {
     if (!draft.feedId) return
@@ -89,7 +100,7 @@ export function SortPackFeedSection({ draft, onChange }: Props) {
             <li key={sub.packageId}>
               <button
                 type="button"
-                className="logic-blocks-catalog-item"
+                className={`logic-blocks-catalog-item${packRef?.packageId === sub.packageId ? ' logic-blocks-catalog-item-active' : ''}`}
                 onClick={() => applyPack(sub.package)}
               >
                 <span className="logic-blocks-catalog-name">{sub.package.name}</span>

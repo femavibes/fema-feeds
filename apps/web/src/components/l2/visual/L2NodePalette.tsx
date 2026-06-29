@@ -272,7 +272,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false }: Props)
             <input
               type="search"
               className="input input-sm l2-palette-search-input"
-              placeholder="Search…"
+              placeholder="Searchâ€¦"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -282,7 +282,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false }: Props)
         <div className="l2-palette-catalog-body" ref={catalogRef}>
 
         {catalogLoading && source !== 'native' ? (
-          <p className="card-hint">Loading…</p>
+          <p className="card-hint">Loadingâ€¦</p>
         ) : null}
 
         {source === 'native' ? (
@@ -336,7 +336,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false }: Props)
                     <PaletteNodeButton
                       key={`${pkg.id}@${pkg.version}`}
                       label={pkg.name}
-                      description={pkg.description ?? `Reusable logic block · v${pkg.version}`}
+                      description={pkg.description ?? `Reusable logic block Â· v${pkg.version}`}
                       badge="Saved"
                       draggable
                       onClick={() => pickLogicBlock(entry)}
@@ -372,7 +372,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false }: Props)
                       key={`${pkg.id}@${versionPin}`}
                       label={pkg.name}
                       description={
-                        pkg.description ?? `Subscribed logic block · v${versionPin}`
+                        pkg.description ?? `Subscribed logic block Â· v${versionPin}`
                       }
                       badge="Sub"
                       draggable
@@ -389,7 +389,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false }: Props)
         {source === 'subscriptions' && subscriptionSection === 'custom_code' ? (
           <p className="card-hint">
             Subscribed custom-code logic blocks (WASM / worker) with visual editor support will
-            appear here. Injectors and rankers stay in feed settings — not on this canvas.
+            appear here. Injectors and personalization plugins stay in feed settings â€” not on this canvas.
           </p>
         ) : null}
         </div>

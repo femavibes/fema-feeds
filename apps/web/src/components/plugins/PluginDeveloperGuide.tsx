@@ -84,7 +84,7 @@ export function PluginDeveloperGuide() {
 
         <p className="card-hint">
 
-          Technical requirements for custom code packages — rankers and injectors — including WASM
+          Technical requirements for custom code packages ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â rankers and injectors ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â including WASM
 
           contracts, host limits, verification, and publishing.
 
@@ -104,7 +104,7 @@ export function PluginDeveloperGuide() {
 
         <a href="#runtimes">Runtimes</a>
 
-        <a href="#ranker">Ranker contract</a>
+        <a href="#ranker">Personalization contract</a>
 
         <a href="#injector">Injector contract</a>
 
@@ -132,7 +132,7 @@ export function PluginDeveloperGuide() {
 
           sort packs) are edited in the UI and need no verification. <strong>Custom code</strong>{' '}
 
-          packages (rankers, injectors) run at skeleton serve time and require{' '}
+          packages (personalization, injectors) run at skeleton serve time and require{' '}
 
           <strong>publisher verification</strong> before you can create or publish them.
 
@@ -162,17 +162,17 @@ export function PluginDeveloperGuide() {
 
               <td>Candidate pool build (pool sort)</td>
 
-              <td>No — native JSON formulas</td>
+              <td>No ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â native JSON formulas</td>
 
             </tr>
 
             <tr>
 
-              <td>Ranker</td>
+              <td>Personalization</td>
 
               <td>Skeleton serve (`{PLUGIN_HOOKS.ranker}`)</td>
 
-              <td>Yes — WASM, worker, remote, or native adapter</td>
+              <td>Yes ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â WASM, worker, remote, or native adapter</td>
 
             </tr>
 
@@ -182,7 +182,7 @@ export function PluginDeveloperGuide() {
 
               <td>After ranker (`{PLUGIN_HOOKS.injector}`)</td>
 
-              <td>Yes — WASM, worker, remote, or native adapter</td>
+              <td>Yes ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â WASM, worker, remote, or native adapter</td>
 
             </tr>
 
@@ -210,7 +210,7 @@ export function PluginDeveloperGuide() {
 
         <p className="card-hint">
 
-          Rankers receive the organic candidate list after DB/pool sort. Injectors run on the ranked
+          Personalization plugins receive the organic candidate list after DB/pool sort. Injectors run on the ranked
 
           list and return URIs that CFB merges using per-feed slot rules (`every`, `maxPerPage`).
 
@@ -258,7 +258,7 @@ export function PluginDeveloperGuide() {
 
           Ask your deployment master for deployment verification, or the global marketplace operator
 
-          (fema.monster) for global listings. Use <strong>Marketplace → Verify publisher</strong> to
+          (fema.monster) for global listings. Use <strong>Marketplace ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Verify publisher</strong> to
 
           start the process.
 
@@ -314,7 +314,7 @@ export function PluginDeveloperGuide() {
 
 
 
-      <Section id="ranker" title={`Ranker — export ${PLUGIN_HOOKS.ranker}`}>
+      <Section id="ranker" title={`Personalization ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â export ${PLUGIN_HOOKS.ranker}`}>
 
         <p>
 
@@ -342,7 +342,7 @@ export function PluginDeveloperGuide() {
 
           <li>
 
-            Return a reordering of <code>candidates</code>. Subsets are allowed — missing URIs are
+            Return a reordering of <code>candidates</code>. Subsets are allowed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â missing URIs are
 
             appended in original order by the host.
 
@@ -364,7 +364,7 @@ export function PluginDeveloperGuide() {
 
           <li>
 
-            <code>candidatePosts</code> — optional enrichment from CFB pool data (engagement, author
+            <code>candidatePosts</code> ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â optional enrichment from CFB pool data (engagement, author
 
             followers, media/alt, indexed time). Scoring plugins should declare{' '}
 
@@ -380,7 +380,7 @@ export function PluginDeveloperGuide() {
 
 
 
-      <Section id="injector" title={`Injector — export ${PLUGIN_HOOKS.injector}`}>
+      <Section id="injector" title={`Injector ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â export ${PLUGIN_HOOKS.injector}`}>
 
         <p>
 
@@ -402,13 +402,13 @@ export function PluginDeveloperGuide() {
 
           <li>
 
-            <code>slots.every</code> — insert after every N organic posts (minimum 1).
+            <code>slots.every</code> ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â insert after every N organic posts (minimum 1).
 
           </li>
 
           <li>
 
-            <code>slots.maxPerPage</code> — max injected URIs per skeleton page (CFB enforces).
+            <code>slots.maxPerPage</code> ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â max injected URIs per skeleton page (CFB enforces).
 
           </li>
 
@@ -436,13 +436,13 @@ export function PluginDeveloperGuide() {
 
           <li>
 
-            Ranker: POST body = ranker request JSON → respond with <code>{`{ "uris": [...] }`}</code>
+            Personalization: POST body = ranker request JSON ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ respond with <code>{`{ "uris": [...] }`}</code>
 
           </li>
 
           <li>
 
-            Injector: POST body = injector request JSON → respond with{' '}
+            Injector: POST body = injector request JSON ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ respond with{' '}
 
             <code>{`{ "uris": [...] }`}</code>
 
@@ -550,7 +550,7 @@ export function PluginDeveloperGuide() {
 
               <td>Sandbox</td>
 
-              <td>Extism / WASI — no database or network from guest unless host adds functions</td>
+              <td>Extism / WASI ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no database or network from guest unless host adds functions</td>
 
             </tr>
 
@@ -576,7 +576,7 @@ export function PluginDeveloperGuide() {
 
           <li>
 
-            <strong>New custom code</strong> (sidebar) — pick kind (ranker / injector) and runtime.
+            <strong>New custom code</strong> (sidebar) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pick kind (ranker / injector) and runtime.
 
           </li>
 
@@ -590,7 +590,7 @@ export function PluginDeveloperGuide() {
 
           <li>Test from your collection; publish to deployment or submit to global marketplace.</li>
 
-          <li>Subscribers install from Marketplace → apply on feed <strong>Sorting</strong> tab.</li>
+          <li>Subscribers install from Marketplace ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ apply on feed <strong>Sorting</strong> tab.</li>
 
           <li>Preview skeleton to verify behavior (e.g. reversed order with the example ranker).</li>
 
@@ -620,7 +620,7 @@ export function PluginDeveloperGuide() {
 
         <CodeBlock>{BUILD_COMMANDS}</CodeBlock>
 
-        <p className="plugin-dev-label">Ranker template (Rust)</p>
+        <p className="plugin-dev-label">Personalization template (Rust)</p>
 
         <CodeBlock>{EXAMPLE_RANKER_RUST}</CodeBlock>
 
@@ -632,11 +632,11 @@ export function PluginDeveloperGuide() {
 
 
 
-      <Section id="example" title="Example: reverse ranker">
+      <Section id="example" title="Example: reverse personalization">
 
         <p>
 
-          The repo ships a working ranker that reverses the candidate list — useful to validate upload,
+          The repo ships a working ranker that reverses the candidate list ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â useful to validate upload,
 
           publish, and feed wiring end-to-end.
 
@@ -652,7 +652,7 @@ export function PluginDeveloperGuide() {
 
           <span className="card-hint">
 
-            Source: <code>{EXAMPLE_REPO_PATH}</code> · ~235 KB compiled
+            Source: <code>{EXAMPLE_REPO_PATH}</code> Ãƒâ€šÃ‚Â· ~235 KB compiled
 
           </span>
 
@@ -660,13 +660,13 @@ export function PluginDeveloperGuide() {
 
         <ol className="plugin-dev-list">
 
-          <li>Verified publisher → <strong>New custom code</strong> → Ranker, runtime WASM.</li>
+          <li>Verified publisher ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ <strong>New custom code</strong> Ã¢â€ â€™ Personalization, runtime WASM.</li>
 
           <li>Upload the downloaded <code>{EXAMPLE_WASM_NAME}</code> in collection detail.</li>
 
-          <li>Publish → subscribe → set as serve-time ranker on a feed Sorting tab.</li>
+          <li>Publish ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ subscribe ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ set as serve-time ranker on a feed Sorting tab.</li>
 
-          <li>Preview skeleton — order should be reversed vs pool sort alone.</li>
+          <li>Preview skeleton ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â order should be reversed vs pool sort alone.</li>
 
         </ol>
 

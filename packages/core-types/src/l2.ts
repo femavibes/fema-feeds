@@ -55,13 +55,19 @@ export type L2BoolField =
 
 export type L2CompareOp = '==' | '!=' | '<' | '<=' | '>' | '>='
 
-export type L2ArithmeticOp = '+' | '-' | '*' | '/'
+export type L2ArithmeticOp = '+' | '-' | '*' | '/' | '**' | 'min' | 'max'
 
-/** Expression tree for math (Graze-style compares are flat; we allow arithmetic). */
+export type L2UnaryOp = 'log' | 'sqrt' | 'abs' | 'floor' | 'ceil' | 'neg'
+
+/** Expression tree for sort formulas (arithmetic + functions). */
 export type L2Expr =
   | { type: 'literal'; value: number }
   | { type: 'field'; field: L2NumericField }
   | { type: 'binary'; op: L2ArithmeticOp; left: L2Expr; right: L2Expr }
+  | { type: 'unary'; op: L2UnaryOp; operand: L2Expr }
+  | { type: 'clamp'; value: L2Expr; min: L2Expr; max: L2Expr }
+  | { type: 'cond'; op: L2CompareOp; left: L2Expr; right: L2Expr; then: L2Expr; else: L2Expr }
+  | { type: 'ratio'; numerator: L2Expr; denominator: L2Expr; guard?: number }
 
 export type L2GroupLogic = 'all' | 'any' | 'n_of' | 'none'
 

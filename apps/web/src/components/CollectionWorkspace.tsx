@@ -454,7 +454,7 @@ export function CollectionWorkspace() {
             <div className="workspace-context-head-row">
 
               <h2>
-                My collection · {scopeLabel}
+                My collection Â· {scopeLabel}
                 {product ? (
                   <span className="marketplace-product-tier">
                     {product.tier === 'native' ? 'Native' : 'Custom code'}
@@ -492,7 +492,7 @@ export function CollectionWorkspace() {
 
             <p className="card-hint">
               {collectionScope === 'all'
-                ? 'Your packages across logic blocks, sort packs, injectors, and rankers. Pick a category in the sidebar to focus or create new items.'
+                ? 'Your packages across logic blocks, sort packs, injectors, and personalization plugins. Pick a category in the sidebar to focus or create new items.'
                 : product!.collectionHint}
             </p>
             {product ? (

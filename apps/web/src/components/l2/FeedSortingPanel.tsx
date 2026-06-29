@@ -4,6 +4,7 @@ import type { FeedConfig, L2Expr } from '@cfb/core-types'
 
 import { ToggleRow } from '../ToggleRow'
 import { SortPackFeedSection } from '../sort-packs/SortPackFeedSection'
+import { SortFormulaBuilder } from './SortFormulaBuilder'
 import {
   DEFAULT_ENGAGEMENT_WEIGHTS,
   DEFAULT_SORT_TUNING,
@@ -75,10 +76,12 @@ function SignalRows({
   signals,
   weights,
   onChange,
+  disabled,
 }: {
   signals: { key: string; label: string }[]
   weights: EngagementWeights
   onChange: (key: string, signal: { enabled: boolean; weight: number }) => void
+  disabled?: boolean
 }) {
   return (
     <>
@@ -92,6 +95,7 @@ function SignalRows({
               checked={signal.enabled}
               onChange={(on) => onChange(sig.key, { ...signal, enabled: on })}
               ariaLabel={`Include ${sig.label.toLowerCase()}`}
+              disabled={disabled}
             />
             <label className="feed-sorting-weight-input">
               {signal.enabled ? (
@@ -102,6 +106,7 @@ function SignalRows({
                     
                     step="1"
                     value={signal.weight}
+                    disabled={disabled}
                     onChange={(e) => {
                       const w = parseInt(e.target.value) || 0
                       onChange(sig.key, { ...signal, weight: w })
@@ -124,6 +129,7 @@ function TuningSection({
   showAuthorFairness,
   showFreshnessFloor,
   showContentSignals,
+  disabled,
 }: {
   tuning: SortTuning
   onChange: (next: SortTuning) => void
@@ -131,9 +137,10 @@ function TuningSection({
   showAuthorFairness: boolean
   showFreshnessFloor: boolean
   showContentSignals: boolean
+  disabled?: boolean
 }) {
   return (
-    <div className="feed-sorting-tuning-fields">
+    <fieldset className="feed-sorting-tuning-fields" disabled={disabled}>
       <p className="sidebar-block-title">Tuning</p>
       <label className="l2-inspector-field">
         Time decay (half-life hours)
@@ -301,7 +308,7 @@ function TuningSection({
           </div>
         </>
       )}
-    </div>
+    </fieldset>
   )
 }
 
@@ -323,8 +330,19 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
 
   const usingPack = mode === 'pack'
 
+  const [packExpr, setPackExpr] = useState<L2Expr | null>(null)
+
+  const [copied, setCopied] = useState(false)
+
+  const copyExpr = (text: string) => {
+    void navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
   const selectMode = (next: SortMode) => {
     setExplicitMode(next)
+    if (next === 'pack' || next === 'builder') return
     if (next === 'engagement') {
       onChange(applySortMode(draft, next, engagementWeights, DEFAULT_SORT_TUNING))
       return
@@ -337,6 +355,11 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
     }
     onChange(applySortMode(draft, next, undefined, DEFAULT_SORT_TUNING))
   }
+
+  const packWeights = useMemo(
+    () => packExpr ? detectEngagementWeights(packExpr) : DEFAULT_ENGAGEMENT_WEIGHTS,
+    [packExpr],
+  )
 
   const updateWeights = (next: EngagementWeights) => {
     const anyEnabled = Object.values(next).some((s) => s.enabled)
@@ -558,7 +581,16 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
           </div>
 
           <div className="feed-sorting-custom-section">
-            <p className="sidebar-block-title">Raw expression (advanced)</p>
+            <div className="feed-sorting-custom-header">
+              <p className="sidebar-block-title">Raw expression (advanced)</p>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => copyExpr(JSON.stringify(draft.rank?.sortKey ?? { type: 'field', field: 'editor_score' }, null, 2))}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
             <textarea
               className="feed-sorting-custom-expr"
               rows={6}
@@ -575,6 +607,111 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
         </div>
       )}
 
+
+      {mode === 'builder' && (
+        <div className="feed-sorting-tuning">
+          <SortFormulaBuilder
+            draft={draft}
+            onChange={(expr) => onChange({ ...draft, rank: { sortKey: expr } })}
+          />
+        </div>
+      )}
+
+      {mode === 'pack' && (
+        <>
+          <SortPackFeedSection draft={draft} onChange={onChange} onPackExprResolved={setPackExpr} />
+          {packExpr && (
+            <div className="feed-sorting-tuning feed-sorting-tuning-readonly">
+              <div className="feed-sorting-signals">
+                <p className="sidebar-block-title">Engagement Signals & Weights</p>
+                <SignalRows
+                  signals={ENGAGEMENT_SIGNALS}
+                  weights={packWeights}
+                  onChange={() => {}}
+                  disabled
+                />
+
+                <p className="sidebar-block-title" style={{ marginTop: '0.75rem' }}>Media Bonus</p>
+                {MEDIA_SIGNALS.map((sig) => (
+                  <div key={sig.key} className="feed-sorting-signal-row">
+                    <ToggleRow
+                      label={sig.label}
+                      hint=""
+                      checked={false}
+                      onChange={() => {}}
+                      ariaLabel={sig.label}
+                      disabled
+                    />
+                  </div>
+                ))}
+
+                <p className="sidebar-block-title" style={{ marginTop: '0.75rem' }}>Content Signals</p>
+                {CONTENT_SIGNALS.map((sig) => (
+                  <div key={sig.key} className="feed-sorting-signal-row">
+                    <ToggleRow
+                      label={sig.label}
+                      hint=""
+                      checked={false}
+                      onChange={() => {}}
+                      ariaLabel={sig.hint}
+                      disabled
+                    />
+                  </div>
+                ))}
+
+                <p className="sidebar-block-title" style={{ marginTop: '0.75rem' }}>Engagement Ratios</p>
+                {RATIO_SIGNALS.map((sig) => (
+                  <div key={sig.key} className="feed-sorting-signal-row">
+                    <ToggleRow
+                      label={sig.label}
+                      hint=""
+                      checked={false}
+                      onChange={() => {}}
+                      ariaLabel={sig.hint}
+                      disabled
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <TuningSection
+                tuning={DEFAULT_SORT_TUNING}
+                onChange={() => {}}
+                showMediaBonus={false}
+                showAuthorFairness
+                showFreshnessFloor
+                showContentSignals={false}
+                disabled
+              />
+
+              <div className="feed-sorting-formula-display">
+                <span className="feed-sorting-formula-label">Formula:</span>
+                <code className="feed-sorting-formula">{engagementFormulaLabel(packWeights, DEFAULT_SORT_TUNING)}</code>
+              </div>
+
+              <div className="feed-sorting-custom-section">
+                <div className="feed-sorting-custom-header">
+                  <p className="sidebar-block-title">Raw expression</p>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => copyExpr(JSON.stringify(packExpr, null, 2))}
+                  >
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+                <textarea
+                  className="feed-sorting-custom-expr"
+                  rows={6}
+                  value={JSON.stringify(packExpr, null, 2)}
+                  readOnly
+                />
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {!isMain ? (
         <div className="feed-sorting-status">
           <span className="badge badge-on">{sortModeBadge(mode, engagementWeights)}</span>
@@ -587,8 +724,6 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
           </span>
         </div>
       ) : null}
-
-      <SortPackFeedSection draft={draft} onChange={onChange} />
     </div>
   )
 }

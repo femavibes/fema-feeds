@@ -55,7 +55,7 @@ const KIND_LABEL: Record<ProductKind, string> = {
 
   injectors: 'Injector',
 
-  rankers: 'Ranker',
+  rankers: 'Personalization',
 
 }
 
