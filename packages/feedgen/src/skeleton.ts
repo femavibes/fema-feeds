@@ -118,9 +118,25 @@ export async function handleGetFeedSkeleton(
   )
 
   // Apply native personalization (viewer-aware reordering)
-  const personalized = config.personalization
-    ? applyNativePersonalization(filtered, config.personalization, undefined /* TODO: load viewer context */)
-    : filtered
+  let personalized = filtered
+  if (config.personalization && params.viewerDid) {
+    const { loadViewerContext } = await import('@cfb/storage-postgres')
+    const { fetchViewerFollowedDids } = await import('@cfb/viewer-graph')
+    const authorDids = [...new Set(filtered.map((r) => r.post.match(/^at:\/\/([^/]+)\//)?.[1]).filter(Boolean))] as string[]
+    const viewerCtx = await loadViewerContext(pool, {
+      viewerDid: params.viewerDid,
+      feedId: config.feedId,
+      candidateAuthorDids: authorDids,
+      fetchFollows: fetchViewerFollowedDids,
+    })
+    const viewerPerCtx = {
+      viewerDid: params.viewerDid,
+      followedDids: new Set(viewerCtx.followedAuthorDids),
+      mutualDids: new Set<string>(), // TODO: mutual detection
+      seenPostUris: new Set(viewerCtx.servedPosts.map((p) => p.postUri)),
+    }
+    personalized = applyNativePersonalization(filtered, config.personalization, viewerPerCtx)
+  }
 
   const ranked = await applyFeedRanker(pool, config, personalized, limit, params.viewerDid)
 

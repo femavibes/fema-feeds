@@ -324,6 +324,13 @@ export function FeedL2Workspace({
         />
       )}
 
+      {view === 'personalization' && (
+        <div className="feed-personalization-view">
+          <FeedPersonalizationPanel draft={draft} onChange={onSettingsChange} />
+        </div>
+      )}
+
+
       {view === 'visual' && editorDraft && (
         <L2VisualEditor
           draft={editorDraft}
