@@ -106,3 +106,67 @@
 - Per-category tier filter in marketplace (All / Native / Custom Code)
 - Feed workspace tabs (add Personalization, Injectors, Sources)
 - Visual blocks formula builder refinements (live preview, better drag, undo)
+
+
+## Key Design Decision: Unified Formula Builder
+
+The formula builder (text editor + visual blocks + condition editor) should be a shared component
+used by BOTH the Sorting tab and the Personalization tab. The only difference is the available fields.
+
+### Sorting fields (current)
+likes, reposts, replies, quotes, bookmarks, followers, follows, posts, text_len, images,
+video_size, hashtags, links, mentions, editor_score, age_hours
+
+### Personalization fields (to add)
+- `base_score` — the sort_key computed by sorting (base input)
+- `is_followed` — 1 if viewer follows post author, 0 if not
+- `is_mutual` — 1 if mutual follow
+- `times_seen` — how many times this post was served to this viewer
+- `hours_since_seen` — hours since last served (0 if never)
+- `affinity` — interaction count with this author (likes/reposts/replies in window)
+- `days_since_interaction` — days since last interaction with this author
+- Plus ALL sorting fields (likes, reposts, etc.) for hybrid formulas
+
+### Refactoring needed
+1. Make `FORMULA_FIELDS` a prop instead of a constant in the builder
+2. Make `TEMPLATES` a prop
+3. Create `PERSONALIZATION_FIELDS` map with the viewer-relative fields
+4. Create personalization templates:
+   - "Follow boost": `base_score * if(is_followed > 0, 1.3, 1)`
+   - "Mutual priority": `base_score * if(is_mutual > 0, 1.5, if(is_followed > 0, 1.2, 1))`
+   - "Suppress seen": `base_score - times_seen * 50`
+   - "Affinity blend": `base_score + affinity * 10`
+   - "Full personalization": `base_score * if(is_followed > 0, 1.3, 1) + affinity * 10 - times_seen * 30`
+
+### Interaction data source
+- Currently: `viewer_post_interactions` table (interactions on posts served by our feedgen)
+- The Bluesky client sends interaction events back via `app.bsky.feed.sendInteractions`
+- We record: likes, reposts, replies on posts we served
+- Future: could poll viewer's like history for broader affinity (heavier, not yet planned)
+
+### Save to collection / marketplace
+Both sorting formulas and personalization formulas should be saveable as packages:
+- Sort formula → Save as Sort Pack (already works for native formulas)
+- Personalization formula → Save as Personalization package (new, same flow)
+- Both go to My Collection → can be published to deployment or global marketplace
+
+## Final Session Summary
+
+This session covered:
+1. Project Pool Tab ✓
+2. Rankers → Personalization rename ✓
+3. Sort Pack toggle (4th mode) with read-only dials ✓
+4. Marketplace sidebar flatten (Plugins → Packages) ✓
+5. Expanded L2Expr operators (log, sqrt, clamp, cond, ratio, pow, min, max) ✓
+6. Formula Builder (text + visual blocks + conditions + multi-select + fn dropdown) ✓
+7. Enrichment storage (post_enrichments table + CRUD module) ✓
+8. Enricher package type (PluginKind, manifest, marketplace page) ✓
+9. Enricher sweep worker (background batch processing) ✓
+10. Enrichment field access (enrichment_field L2Expr node) ✓
+11. Custom code logic block evaluation hook ✓
+12. Sort modifier stacking (add/multiply + evalSortModifier) ✓
+13. Native personalization (types, runtime, skeleton wiring, viewer context, UI tab) ✓
+14. Native injector types (pinned, rotating) ✓
+15. Custom Code Extensions design doc ✓
+16. Marketplace Architecture doc ✓
+17. Formula Builder design doc ✓
