@@ -1,4 +1,4 @@
-export type FeedWorkspaceView = 'overview' | 'visual' | 'json' | 'sorting'
+export type FeedWorkspaceView = 'overview' | 'visual' | 'json' | 'sorting' | 'personalization'
 
 export type IngestionWorkspaceView = 'overview' | 'visual' | 'json' | 'prefilter' | 'settings'
 

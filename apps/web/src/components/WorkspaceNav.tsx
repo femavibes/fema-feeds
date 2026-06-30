@@ -43,6 +43,7 @@ const FEED_ITEMS: { id: FeedWorkspaceView; label: string }[] = [
   { id: 'visual', label: 'Visual editor' },
   { id: 'json', label: 'JSON editor' },
   { id: 'sorting', label: 'Sorting' },
+  { id: 'personalization', label: 'Personalization' },
 ]
 
 const INGESTION_ITEMS: { id: IngestionWorkspaceView; label: string }[] = [

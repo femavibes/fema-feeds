@@ -9619,3 +9619,34 @@ body.l2-visual-open #root {
 .formula-blocks-fn-option:hover {
   background: var(--accent);
 }
+
+/* Personalization Panel */
+.feed-personalization-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  max-width: 40rem;
+}
+.feed-personalization-view {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.feed-personalization-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.feed-personalization-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  padding-left: 2.5rem;
+}
+.feed-personalization-field input {
+  width: 4rem;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.3rem;
+}
