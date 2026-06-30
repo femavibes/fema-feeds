@@ -366,6 +366,8 @@ export interface FeedConfig {
   rank?: import('./sort-packs.js').FeedRankConfig
   /** Post-sort injection (ads, promos) — applied at getFeedSkeleton. */
   injector?: import('./plugins.js').FeedInjectorConfig
+  /** Native personalization config — viewer-aware adjustments at serve time. */
+  personalization?: import('./personalization.js').NativePersonalizationConfig
 }
 
 /** Engagement metrics — hydrated when available; default 0 at eval time. */

@@ -11,6 +11,7 @@ import { resolveFeedByUri } from './uri.js'
 import { applyFeedInjector } from './inject.js'
 
 import { applyFeedRanker } from './rank.js'
+import { applyNativePersonalization, type ViewerPersonalizationContext } from './native-personalization.js'
 
 import { encodeFeedContext, newSkeletonReqId } from './feed-context.js'
 
@@ -116,7 +117,12 @@ export async function handleGetFeedSkeleton(
     params.viewerDid,
   )
 
-  const ranked = await applyFeedRanker(pool, config, filtered, limit, params.viewerDid)
+  // Apply native personalization (viewer-aware reordering)
+  const personalized = config.personalization
+    ? applyNativePersonalization(filtered, config.personalization, undefined /* TODO: load viewer context */)
+    : filtered
+
+  const ranked = await applyFeedRanker(pool, config, personalized, limit, params.viewerDid)
 
   const feedRows = await applyFeedInjector(pool, config, ranked, limit)
 
