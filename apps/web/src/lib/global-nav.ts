@@ -12,6 +12,7 @@ export const GLOBAL_NAV_ITEMS: { id: GlobalNavId; label: string }[] = [
 ]
 
 export const REGISTRY_NAV_ITEMS: { id: GlobalNavId; label: string }[] = [
+  { id: 'community', label: 'Community' },
   { id: 'marketplace', label: 'Marketplace' },
   { id: 'settings', label: 'Settings' },
 ]
