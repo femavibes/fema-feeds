@@ -683,7 +683,7 @@ export function createApp(options?: {
           source: 'deployment' as const,
         }))
       syncLocalFeedsToGlobalRegistry(localPublic)
-      const feeds = await resolveCommunityFeeds(localPublic, scope)
+      const feeds = await resolveCommunityFeeds(localPublic, scope, pool)
       return c.json({ feeds })
     } catch {
       return c.json({ feeds: [] })

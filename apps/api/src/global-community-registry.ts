@@ -170,25 +170,70 @@ export type CommunityFeedScope = 'all' | 'deployment' | 'global'
 /**
  * Resolve community feeds based on scope.
  * - deployment: local feeds only
- * - global: remote registry feeds only
+ * - global: remote registry feeds only (or own DB on registry host)
  * - all: merge both
  */
 export async function resolveCommunityFeeds(
   localFeeds: GlobalCommunityFeedEntry[],
   scope: CommunityFeedScope,
+  pool?: Pool | null,
 ): Promise<GlobalCommunityFeedEntry[]> {
-  if (globalMarketplaceRegistryRole() === 'registry') {
-    // On the registry host, "global" feeds are in our own DB — just return local
-    return localFeeds
-  }
   if (scope === 'deployment') return localFeeds
+
+  if (globalMarketplaceRegistryRole() === 'registry') {
+    // On the registry host, global feeds are in our own DB
+    const dbFeeds = pool ? await loadGlobalFeedsFromDb(pool) : []
+    if (scope === 'global') return dbFeeds
+    // all: merge local disk feeds + DB feeds
+    const seen = new Set(localFeeds.map((f) => f.feedId))
+    const merged = [...localFeeds]
+    for (const f of dbFeeds) {
+      if (!seen.has(f.feedId)) merged.push(f)
+    }
+    return merged
+  }
+
+  // Consumer: fetch from remote registry
   const remote = (await fetchRemoteGlobalCommunityFeeds()).map((f) => ({ ...f, source: 'global' as const }))
   if (scope === 'global') return remote
-  // Merge: local first, then remote (dedup by feedId)
   const seen = new Set(localFeeds.map((f) => f.feedId))
   const merged = [...localFeeds]
   for (const f of remote) {
     if (!seen.has(f.feedId)) merged.push(f)
   }
   return merged
+}
+
+async function loadGlobalFeedsFromDb(pool: Pool): Promise<GlobalCommunityFeedEntry[]> {
+  const res = await pool.query<{
+    feed_id: string
+    name: string
+    description: string | null
+    owner_did: string | null
+    deployment_host: string | null
+    allow_as_input: boolean
+    logic_public: boolean
+    is_template: boolean
+    candidate_count: number | null
+    published_at: string | null
+  }>(
+    `SELECT feed_id, name, description, owner_did, deployment_host,
+            allow_as_input, logic_public, is_template, candidate_count, published_at
+     FROM community_feeds_global
+     WHERE public = true
+     ORDER BY published_at DESC NULLS LAST`,
+  )
+  return res.rows.map((r) => ({
+    feedId: r.feed_id,
+    name: r.name,
+    description: r.description ?? undefined,
+    ownerDid: r.owner_did ?? undefined,
+    deploymentHost: r.deployment_host ?? undefined,
+    allowAsInput: r.allow_as_input,
+    logicPublic: r.logic_public,
+    isTemplate: r.is_template,
+    candidateCount: r.candidate_count ?? undefined,
+    publishedAt: r.published_at ?? undefined,
+    source: 'global' as const,
+  }))
 }
