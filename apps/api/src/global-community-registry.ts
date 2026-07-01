@@ -4,6 +4,7 @@ import {
   globalMarketplaceRegistryRole,
   globalMarketplaceRemoteUrl,
   isCanonicalGlobalRegistryHost,
+  deploymentPublicHostname,
 } from './global-marketplace.js'
 
 export interface GlobalCommunityFeedEntry {
@@ -17,6 +18,7 @@ export interface GlobalCommunityFeedEntry {
   isTemplate?: boolean
   candidateCount?: number
   publishedAt?: string
+  source?: 'deployment' | 'global'
 }
 
 /**
@@ -143,6 +145,26 @@ export async function fetchRemoteGlobalCommunityFeeds(): Promise<GlobalCommunity
   }
 }
 
+/**
+ * Push this deployment's public feeds to the global registry.
+ * Fire-and-forget — errors are silently ignored.
+ */
+export function syncLocalFeedsToGlobalRegistry(
+  localPublicFeeds: GlobalCommunityFeedEntry[],
+): void {
+  if (globalMarketplaceRegistryRole() !== 'consumer') return
+  const url = globalMarketplaceRemoteUrl()
+  if (!url) return
+  const host = deploymentPublicHostname()
+  if (!host) return
+  const endpoint = `${url.replace(/\/$/, '')}/api/global-community/feeds/sync`
+  void fetch(endpoint, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ deploymentHost: host, feeds: localPublicFeeds }),
+  }).catch(() => {})
+}
+
 export type CommunityFeedScope = 'all' | 'deployment' | 'global'
 
 /**
@@ -160,7 +182,7 @@ export async function resolveCommunityFeeds(
     return localFeeds
   }
   if (scope === 'deployment') return localFeeds
-  const remote = await fetchRemoteGlobalCommunityFeeds()
+  const remote = (await fetchRemoteGlobalCommunityFeeds()).map((f) => ({ ...f, source: 'global' as const }))
   if (scope === 'global') return remote
   // Merge: local first, then remote (dedup by feedId)
   const seen = new Set(localFeeds.map((f) => f.feedId))

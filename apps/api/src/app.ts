@@ -115,7 +115,7 @@ import {
 import { seedFollowRingsFromProjects } from '@cfb/l2-worker'
 import { resolvePostInput } from '@cfb/post-resolve'
 import { resolveListMemberProfiles, resolveActorProfiles } from './list-members.js'
-import { registerGlobalCommunityRoutes, resolveCommunityFeeds } from './global-community-registry.js'
+import { registerGlobalCommunityRoutes, resolveCommunityFeeds, syncLocalFeedsToGlobalRegistry } from './global-community-registry.js'
 
 async function hydrateProjectDraft(
   project: ProjectL1Config,
@@ -682,6 +682,7 @@ export function createApp(options?: {
           publishedAt: f.publishedAt,
           source: 'deployment' as const,
         }))
+      syncLocalFeedsToGlobalRegistry(localPublic)
       const feeds = await resolveCommunityFeeds(localPublic, scope)
       return c.json({ feeds })
     } catch {
