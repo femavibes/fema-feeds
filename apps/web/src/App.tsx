@@ -470,7 +470,7 @@ export function App() {
                 setHighlightPublishingSettings(false)
               }}
             />
-          ) : builderSection === 'community' && appProfile !== 'registry' ? (
+          ) : builderSection === 'community' ? (
             <CommunityWorkspace />
           ) : builderSection === 'marketplace' ? (
             <MarketplaceWorkspace />
