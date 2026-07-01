@@ -1,4 +1,4 @@
-export type FeedWorkspaceView = 'overview' | 'visual' | 'json' | 'sorting' | 'personalization'
+export type FeedWorkspaceView = 'overview' | 'visual' | 'json' | 'sorting' | 'personalization' | 'injectors' | 'sources'
 
 export type IngestionWorkspaceView = 'overview' | 'visual' | 'json' | 'prefilter' | 'settings'
 
@@ -20,6 +20,8 @@ export const MARKETPLACE_BROWSE_KINDS: { id: MarketplaceBrowseKind; label: strin
 ).map((id) => ({ id, label: MARKETPLACE_PRODUCTS[id].label }))
 
 export { MARKETPLACE_CUSTOM_CODE_KINDS, MARKETPLACE_NATIVE_KINDS, MARKETPLACE_PRODUCTS }
+
+export type CommunityWorkspaceView = 'feeds' | 'templates' | 'users'
 
 export type CollectionWorkspaceView = 'blocks' | 'developer_guide'
 

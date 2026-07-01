@@ -350,6 +350,14 @@ export interface FeedConfig {
   enabled: boolean
   /** Listed on Bluesky describeFeedGenerator and served via getFeedSkeleton. */
   published?: boolean
+  /** Visible on the Community page (local + global). Default true. */
+  public?: boolean
+  /** Others can add this feed to their feed input list. Default false. */
+  allowAsInput?: boolean
+  /** Feed logic (rules/graph) is viewable and copyable by others. Default false. */
+  logicPublic?: boolean
+  /** Shows in Community > Templates instead of Community > Feeds. Default false. */
+  isTemplate?: boolean
   /** ISO timestamp when rules last went live (Update). */
   liveAt?: string
   /** ISO timestamp when first published to Bluesky. */
@@ -366,6 +374,10 @@ export interface FeedConfig {
   rank?: import('./sort-packs.js').FeedRankConfig
   /** Post-sort injection (ads, promos) — applied at getFeedSkeleton. */
   injector?: import('./plugins.js').FeedInjectorConfig
+  /** Native injectors (pinned + rotating) — no custom code needed. */
+  nativeInjectors?: import('./native-injectors.js').NativeInjectorConfig[]
+  /** Additional post sources beyond the project pool. */
+  sources?: import('./feed-sources.js').FeedSourcesConfig
   /** Native personalization config — viewer-aware adjustments at serve time. */
   personalization?: import('./personalization.js').NativePersonalizationConfig
 }

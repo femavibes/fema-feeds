@@ -65,10 +65,11 @@ export function flowGraphToRfNodes(
   positions: NodePositions,
   nodeLabels: NodeLabels = {},
   nodeSources: NodeSources = {},
+  feedSources?: import('@cfb/core-types').NativeFeedSource[],
 ): Node<GraphNodeData>[] {
   const layout = layoutMatchFlow(normalizeRuleGroup(match))
 
-  return layout.nodes.map((box) => {
+  const nodes: Node<GraphNodeData>[] = layout.nodes.map((box) => {
     const nested = Boolean(box.parentId)
     const isTopLevel = Boolean(box.topLevel)
     const groupId = box.groupId ?? (box.kind === 'group-frame' ? box.id : undefined)
@@ -168,6 +169,36 @@ export function flowGraphToRfNodes(
         }
     }
   })
+
+  // Add source nodes that have been placed on the canvas (from positions)
+  if (feedSources?.length) {
+    feedSources.forEach((src, i) => {
+      const sourceId = `source-${i}`
+      const pos = positions[sourceId]
+      if (!pos) return // not placed yet — still in palette only
+      const label = src.type === 'feed' ? src.feedId : src.type === 'project_pool' ? src.projectId : `${src.uris.length} URIs`
+      nodes.push({
+        id: sourceId,
+        type: 'source' as const,
+        position: pos,
+        data: {
+          label,
+          subtitle: src.type,
+          nodeId: sourceId,
+          selected: sourceId === selectedId,
+          showPorts: true,
+        },
+        draggable: true,
+        connectable: true,
+        selectable: true,
+        selected: sourceId === selectedId,
+        zIndex: 1,
+        style: { width: 160, height: 40 },
+      })
+    })
+  }
+
+  return nodes
 }
 
 export function canvasEdgesToRf(

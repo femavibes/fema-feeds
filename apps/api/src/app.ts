@@ -115,6 +115,7 @@ import {
 import { seedFollowRingsFromProjects } from '@cfb/l2-worker'
 import { resolvePostInput } from '@cfb/post-resolve'
 import { resolveListMemberProfiles, resolveActorProfiles } from './list-members.js'
+import { registerGlobalCommunityRoutes, resolveCommunityFeeds } from './global-community-registry.js'
 
 async function hydrateProjectDraft(
   project: ProjectL1Config,
@@ -214,6 +215,7 @@ export function createApp(options?: {
   }
   registerMarketplaceVerificationRoutes(app, pool)
   registerMarketplaceModerationRoutes(app, pool)
+  registerGlobalCommunityRoutes(app, pool)
 
   if (pool) {
     void bootstrapDeploymentFromEnv(pool)
@@ -660,6 +662,69 @@ export function createApp(options?: {
     feedsDir: feedDir,
     projectsDir: dir,
     pool,
+  })
+
+  // Community feeds
+  app.get('/api/community/feeds', async (c) => {
+    const scope = (c.req.query('scope') ?? 'all') as 'all' | 'deployment' | 'global'
+    try {
+      const allFeeds = await loadAllFeeds(feedDir)
+      const localPublic = allFeeds
+        .filter((f) => f.public !== false && f.enabled)
+        .map((f) => ({
+          feedId: f.feedId,
+          name: f.name,
+          description: f.description,
+          ownerDid: f.ownerDid,
+          allowAsInput: f.allowAsInput ?? false,
+          logicPublic: f.logicPublic ?? false,
+          isTemplate: f.isTemplate ?? false,
+          publishedAt: f.publishedAt,
+          source: 'deployment' as const,
+        }))
+      const feeds = await resolveCommunityFeeds(localPublic, scope)
+      return c.json({ feeds })
+    } catch {
+      return c.json({ feeds: [] })
+    }
+  })
+
+  app.get('/api/community/feed-inputs', async (c) => {
+    const userDid = getUserDid(c)
+    if (!userDid || !pool) return c.json({ inputs: [] })
+    try {
+      const res = await pool.query<{ feed_id: string; feed_name: string; owner_did: string | null }>(
+        `SELECT feed_id, feed_name, owner_did FROM feed_input_subscriptions WHERE viewer_did = $1 ORDER BY subscribed_at DESC`,
+        [userDid],
+      )
+      return c.json({ inputs: res.rows.map((r) => ({ feedId: r.feed_id, name: r.feed_name, ownerDid: r.owner_did })) })
+    } catch {
+      return c.json({ inputs: [] })
+    }
+  })
+
+  app.post('/api/community/feed-inputs', async (c) => {
+    const userDid = getUserDid(c)
+    if (!userDid || !pool) return c.json({ error: 'Unauthorized' }, 401)
+    const body = await c.req.json<{ feedId: string; name: string; ownerDid?: string }>()
+    if (!body.feedId || !body.name) return c.json({ error: 'feedId and name required' }, 400)
+    await pool.query(
+      `INSERT INTO feed_input_subscriptions (viewer_did, feed_id, feed_name, owner_did)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (viewer_did, feed_id) DO NOTHING`,
+      [userDid, body.feedId, body.name, body.ownerDid ?? null],
+    )
+    return c.json({ ok: true })
+  })
+
+  app.delete('/api/community/feed-inputs/:feedId', async (c) => {
+    const userDid = getUserDid(c)
+    if (!userDid || !pool) return c.json({ error: 'Unauthorized' }, 401)
+    await pool.query(
+      `DELETE FROM feed_input_subscriptions WHERE viewer_did = $1 AND feed_id = $2`,
+      [userDid, c.req.param('feedId')],
+    )
+    return c.json({ ok: true })
   })
 
   app.get('/api/projects/:id', async (c) => {

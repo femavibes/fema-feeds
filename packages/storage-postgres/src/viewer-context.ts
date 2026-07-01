@@ -93,6 +93,100 @@ export async function loadViewerInteractionUris(
   return res.rows.map((r) => r.post_uri)
 }
 
+/**
+ * Per-author affinity breakdown for personalization.
+ */
+export interface AuthorAffinityRecord {
+  total: number
+  likes: number
+  reposts: number
+  replies: number
+  quotes: number
+  lastAt: Date
+}
+
+/**
+ * Load per-author interaction counts for the viewer, scoped to a specific feed.
+ * Returns a map of authorDid → breakdown by event type.
+ * Only considers interactions within the given window.
+ */
+export async function loadViewerAffinityCounts(
+  pool: pg.Pool,
+  viewerDid: string,
+  feedId: string,
+  windowDays: number = 30,
+): Promise<Map<string, AuthorAffinityRecord>> {
+  const res = await pool.query<{
+    author_did: string
+    event: string
+    cnt: string
+    last_at: Date
+  }>(
+    `SELECT
+       split_part(post_uri, '/', 3) AS author_did,
+       event,
+       COUNT(*)::text AS cnt,
+       MAX(occurred_at) AS last_at
+     FROM viewer_post_interactions
+     WHERE viewer_did = $1
+       AND feed_id = $2
+       AND occurred_at >= NOW() - ($3::text || ' days')::interval
+     GROUP BY split_part(post_uri, '/', 3), event
+     ORDER BY cnt DESC
+     LIMIT 2000`,
+    [viewerDid, feedId, String(windowDays)],
+  )
+
+  const map = new Map<string, AuthorAffinityRecord>()
+  for (const row of res.rows) {
+    const existing = map.get(row.author_did) ?? { total: 0, likes: 0, reposts: 0, replies: 0, quotes: 0, lastAt: new Date(0) }
+    const count = parseInt(row.cnt, 10)
+    existing.total += count
+    if (row.event === 'interactionLike') existing.likes += count
+    else if (row.event === 'interactionRepost') existing.reposts += count
+    else if (row.event === 'interactionReply') existing.replies += count
+    else if (row.event === 'interactionQuote') existing.quotes += count
+    const rowDate = new Date(row.last_at)
+    if (rowDate > existing.lastAt) existing.lastAt = rowDate
+    map.set(row.author_did, existing)
+  }
+  return map
+}
+
+/**
+ * Load the last time this viewer requested this feed's skeleton.
+ * Returns null if never recorded.
+ */
+export async function loadViewerLastFeedOpen(
+  pool: pg.Pool,
+  viewerDid: string,
+  feedId: string,
+): Promise<Date | null> {
+  const res = await pool.query<{ last_open_at: Date }>(
+    `SELECT last_open_at FROM viewer_feed_opens
+     WHERE viewer_did = $1 AND feed_id = $2`,
+    [viewerDid, feedId],
+  )
+  return res.rows[0]?.last_open_at ? new Date(res.rows[0].last_open_at) : null
+}
+
+/**
+ * Record that the viewer just opened this feed (upsert).
+ */
+export async function recordViewerFeedOpen(
+  pool: pg.Pool,
+  viewerDid: string,
+  feedId: string,
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO viewer_feed_opens (viewer_did, feed_id, last_open_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (viewer_did, feed_id) DO UPDATE SET
+       last_open_at = NOW()`,
+    [viewerDid, feedId],
+  )
+}
+
 export async function loadViewerContext(
   pool: pg.Pool,
   input: {

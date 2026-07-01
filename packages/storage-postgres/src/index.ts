@@ -53,8 +53,12 @@ export { loadRankerCandidates } from './ranker-candidates.js'
 export {
   applyFeedInteractionEvents,
   loadViewerContext,
+  loadViewerAffinityCounts,
+  loadViewerLastFeedOpen,
+  recordViewerFeedOpen,
   recordFeedServedPosts,
   resolveViewerFollowedDids,
+  type AuthorAffinityRecord,
   type FeedInteractionInput,
   type ServedFeedItem,
 } from './viewer-context.js'

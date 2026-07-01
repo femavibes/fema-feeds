@@ -48,6 +48,15 @@ export function StartNode({ data }: NodeProps<Node<GraphNodeData>>) {
   )
 }
 
+export function SourceNode({ data }: NodeProps<Node<GraphNodeData>>) {
+  return (
+    <div className={`l2-flow-node l2-flow-source ${data.selected ? 'selected' : ''}`}>
+      <Handle type="source" position={Position.Right} className="l2-flow-handle" />
+      <span className="l2-flow-source-label">{data.label}</span>
+    </div>
+  )
+}
+
 export function EndNode({ data }: NodeProps<Node<GraphNodeData>>) {
   return (
     <div className={`l2-flow-node l2-flow-end ${data.selected ? 'selected' : ''}`}>
@@ -165,6 +174,7 @@ export function ScoreNode({ id, data }: NodeProps<Node<GraphNodeData>>) {
 export const graphNodeTypes = {
   start: StartNode,
   end: EndNode,
+  source: SourceNode,
   groupFrame: GroupFrameNode,
   condition: ConditionNode,
   score: ScoreNode,

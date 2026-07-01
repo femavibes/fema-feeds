@@ -9626,7 +9626,7 @@ body.l2-visual-open #root {
   flex-direction: column;
   gap: 1rem;
   padding: 1rem;
-  max-width: 40rem;
+  width: 100%;
 }
 .feed-personalization-view {
   flex: 1;
@@ -9650,3 +9650,308 @@ body.l2-visual-open #root {
   font-size: 0.8rem;
   padding: 0.2rem 0.3rem;
 }
+
+.feed-personalization-modes {
+  margin-bottom: 1rem;
+}
+
+.feed-personalization-toggles {
+  margin-top: 0.5rem;
+}
+
+.feed-personalization-formula {
+  margin-top: 0.5rem;
+}
+
+.feed-personalization-formula-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.feed-personalization-formula-head .card-hint {
+  margin: 0;
+}
+
+.feed-personalization-field-legend {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-card-alt, #1a1a2e);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-muted, #2a2a4a);
+}
+
+.formula-field-legend {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+}
+
+.formula-field-legend dt {
+  font-family: var(--font-mono, monospace);
+  color: var(--accent, #8ab4f8);
+  font-weight: 600;
+}
+
+.formula-field-legend dd {
+  margin: 0;
+  color: var(--text-muted, #999);
+}
+
+.formula-editor-field-group {
+  margin-bottom: 0.5rem;
+}
+
+.formula-editor-field-group-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #999);
+  margin: 0 0 0.25rem;
+}
+
+/* --- Feed Source Toggle (Native / Subscribed) --- */
+
+.feed-source-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.feed-source-toggle-label {
+  font-size: 0.82rem;
+  color: var(--text-muted, #999);
+  white-space: nowrap;
+}
+
+.feed-source-toggle {
+  display: flex;
+  border: 1px solid var(--border, #333);
+  border-radius: var(--radius, 0.375rem);
+  overflow: hidden;
+}
+
+.feed-source-toggle-btn {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: var(--bg-elevated, #1a1a2e);
+  color: var(--text-muted, #999);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.feed-source-toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--border, #333);
+}
+
+.feed-source-toggle-btn.is-active {
+  background: var(--accent, #8ab4f8);
+  color: var(--bg, #0d0d1a);
+  font-weight: 600;
+}
+
+/* --- Native Injector Panel --- */
+
+.native-injector-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  width: 100%;
+}
+
+.native-injector-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.native-injector-card {
+  border: 1px solid var(--border, #333);
+  border-radius: var(--radius, 0.375rem);
+  overflow: hidden;
+}
+
+.injector-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.injector-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-card-alt, #1a1a2e);
+  border-bottom: 1px solid var(--border, #333);
+}
+
+.injector-card-type {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.injector-card-body {
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.injector-card-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.injector-add-form {
+  padding: 0.75rem;
+  border: 1px dashed var(--border, #333);
+  border-radius: var(--radius, 0.375rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.injector-add-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+/* --- Workspace head controls (source toggle + action buttons) --- */
+
+.workspace-context-head-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.feed-subscribed-section {
+  padding: 1rem;
+  width: 100%;
+}
+
+/* --- Subscribed pack read-only breakdown --- */
+
+.feed-subscribed-readonly {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #333);
+}
+
+.feed-subscribed-weights {
+  margin-top: 0.5rem;
+}
+
+/* --- Subscribed sort pack read-only signals --- */
+
+.feed-subscribed-signals-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.feed-subscribed-signal-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.feed-subscribed-signal-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted, #555);
+  flex-shrink: 0;
+}
+
+.feed-subscribed-signal-indicator.is-on {
+  background: var(--accent, #8ab4f8);
+}
+
+.feed-subscribed-signal-label {
+  color: var(--text, #eee);
+}
+
+.feed-subscribed-signal-weight {
+  color: var(--text-muted, #999);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+}
+
+.feed-subscribed-signal-label.is-off {
+  color: var(--text-muted, #555);
+}
+
+.feed-subscribed-signal-weight.is-off {
+  color: var(--text-muted, #444);
+  font-style: italic;
+}
+
+/* --- Source node (visual editor canvas) --- */
+
+.l2-flow-source {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--bg-card-alt, #1a1a2e);
+  border: 2px solid var(--accent-dim, #4a6fa5);
+  border-radius: 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text, #eee);
+  white-space: nowrap;
+}
+
+.l2-flow-source.selected {
+  border-color: var(--accent, #8ab4f8);
+  box-shadow: 0 0 0 2px var(--accent-glow, rgba(138, 180, 248, 0.25));
+}
+
+.l2-flow-source-icon {
+  font-size: 0.9rem;
+}
+
+.l2-flow-source-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Feed community settings --- */
+
+.feed-community-settings {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border, #333);
+}
+
+.toggle-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.toggle-field input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.toggle-field .card-hint {
+  margin-left: auto;
+  font-size: 0.75rem;
+}
+
+/* Community styles moved to styles/modules/community.css */

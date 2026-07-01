@@ -2,14 +2,67 @@
   "feedId": "feed1",
   "projectId": "mytestfeeds",
   "name": "Feed 1",
-  "enabled": false,
-  "published": false,
+  "enabled": true,
+  "published": true,
   "poolScope": "project_only",
   "match": {
-    "type": "group",
     "id": "root",
+    "type": "group",
     "logic": "any",
-    "children": []
+    "children": [
+      {
+        "id": "ring-mr0z6t4d",
+        "op": "includes",
+        "hub": "",
+        "type": "follow_ring",
+        "direction": "followers",
+        "hubSource": "viewer",
+        "pollIntervalMinutes": 60
+      }
+    ]
   },
-  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-ring-mr0z6t4d",
+        "branch": true,
+        "source": "start",
+        "target": "ring-mr0z6t4d"
+      },
+      {
+        "id": "e-ring-mr0z6t4d-end",
+        "branch": true,
+        "source": "ring-mr0z6t4d",
+        "target": "end"
+      }
+    ],
+    "labels": {},
+    "positions": {
+      "end": {
+        "x": 485.3333333333333,
+        "y": 29.333333333333336
+      },
+      "start": {
+        "x": -380.3274231678487,
+        "y": 50.3274231678487
+      },
+      "ring-mr0z6t4d": {
+        "x": -18.511663434360656,
+        "y": -121.54774505763054
+      }
+    },
+    "nodeSources": {
+      "kw-mqvfue4b": "native",
+      "kw-mqvfyqtz": "native",
+      "kw-mqwo8rji": "native",
+      "lang-mqvfynbo": "native",
+      "ring-mr0z6t4d": "native"
+    }
+  },
+  "liveAt": "2026-07-01T18:11:25.134Z",
+  "publishedAt": "2026-06-30T18:29:28.703Z",
+  "publishedUri": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.feed.generator/feed1",
+  "atprotoRkey": "feed1",
+  "description": "the best feed in the workd"
 }

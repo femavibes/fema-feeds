@@ -136,11 +136,6 @@ export const SORT_MODE_OPTIONS: {
     label: 'Formula builder',
     hint: 'Advanced: per-signal transforms, ratios, conditionals, decay curves.',
   },
-  {
-    id: 'pack',
-    label: 'Sort pack',
-    hint: 'Use a subscribed marketplace sort pack formula.',
-  },
 ]
 
 // --- Expr builders ---

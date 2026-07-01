@@ -463,9 +463,36 @@ export function L2VisualEditor({
     [match, selectedId, positions, nodeSources, patchDraft, visualLayout],
   )
 
+  const addSourceNode = useCallback(
+    (
+      entry: import('./palette').PaletteSourceEntry,
+      position?: { x: number; y: number },
+    ) => {
+      const nodeId = entry.sourceId
+      // Add source node position to layout (source nodes live outside the match tree)
+      const pos = position ?? { x: -380, y: 150 }
+      const nextEdges = [
+        ...canvasEdges,
+        { id: `e-${nodeId}-end`, source: nodeId, target: 'end', branch: true },
+      ]
+      patchDraft({
+        visualLayout: visualLayout({
+          positions: { ...positions, [nodeId]: pos },
+          edges: nextEdges,
+        }),
+      })
+      setSelectedId(nodeId)
+    },
+    [canvasEdges, positions, patchDraft, visualLayout],
+  )
+
   const handlePalettePick = (pick: PalettePick) => {
     if (pick.kind === 'native') {
       addPaletteNode(pick.item)
+      return
+    }
+    if (pick.kind === 'source') {
+      addSourceNode(pick.entry)
       return
     }
     addLogicBlockNode(pick.entry)
@@ -482,6 +509,11 @@ export function L2VisualEditor({
         const groupId =
           dropGroupId ?? resolveAddTargetGroupId(match, selectedId, item.action)
         addPaletteNode(item, { groupId, position: flowPosition })
+        return
+      }
+
+      if (pick.kind === 'source') {
+        addSourceNode(pick.entry, flowPosition)
         return
       }
 
@@ -616,6 +648,7 @@ export function L2VisualEditor({
               onPick={handlePalettePick}
               itemFilter={paletteItemFilter}
               nativeOnly={prefilterMode}
+              feedSources={draft.sources?.native}
             />
             <RailResizeHandle
               label="Resize palette"
@@ -643,6 +676,7 @@ export function L2VisualEditor({
             readOnly={readOnly}
             match={match}
             positions={positions}
+            feedSources={draft.sources?.native}
             canvasEdges={canvasEdges}
             selectedId={selectedId}
             selectedEdgeId={selectedEdgeId}

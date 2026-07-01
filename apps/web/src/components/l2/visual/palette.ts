@@ -45,6 +45,7 @@ export const PALETTE_CATEGORIES: { id: PaletteCategory; title: string }[] = [
 
 export const PALETTE_DRAG_MIME = 'application/x-cfb-palette-id'
 export const PALETTE_LOGIC_BLOCK_MIME = 'application/x-cfb-logic-block'
+export const PALETTE_SOURCE_MIME = 'application/x-cfb-source'
 
 export type PaletteSourceId = 'native' | 'collection' | 'subscriptions'
 
@@ -62,13 +63,28 @@ export interface PaletteLogicBlockEntry {
   visibility?: string
 }
 
+export interface PaletteSourceEntry {
+  kind: 'source'
+  sourceId: string
+  sourceType: 'project_pool' | 'static_uri_list' | 'feed' | 'subscribed'
+  label: string
+  description?: string
+}
+
 export type PalettePick =
   | { kind: 'native'; item: PaletteItem }
   | { kind: 'logic_block'; entry: PaletteLogicBlockEntry }
+  | { kind: 'source'; entry: PaletteSourceEntry }
 
 export function paletteDragPayload(entry: PalettePick): { mime: string; data: string } {
   if (entry.kind === 'native') {
     return { mime: PALETTE_DRAG_MIME, data: entry.item.id }
+  }
+  if (entry.kind === 'source') {
+    return {
+      mime: PALETTE_SOURCE_MIME,
+      data: JSON.stringify(entry.entry),
+    }
   }
   return {
     mime: PALETTE_LOGIC_BLOCK_MIME,
@@ -97,6 +113,16 @@ export function parseLogicBlockDragData(raw: string): PaletteLogicBlockEntry | n
       name: o.name,
       provenance: o.provenance ?? 'subscription',
     }
+  } catch {
+    return null
+  }
+}
+
+export function parseSourceDragData(raw: string): PaletteSourceEntry | null {
+  try {
+    const o = JSON.parse(raw) as PaletteSourceEntry
+    if (!o.sourceId || !o.sourceType || !o.label) return null
+    return o
   } catch {
     return null
   }

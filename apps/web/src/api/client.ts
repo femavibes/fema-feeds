@@ -367,6 +367,21 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>
 }
 
+export interface CommunityFeedEntry {
+  feedId: string
+  projectId?: string
+  name: string
+  description?: string
+  ownerDid?: string
+  deploymentHost?: string
+  allowAsInput?: boolean
+  logicPublic?: boolean
+  isTemplate?: boolean
+  publishedAt?: string
+  candidateCount?: number
+  source?: 'deployment' | 'global'
+}
+
 export const api = {
   ingestStatus: () => apiFetch<IngestStatusResponse>('/api/ingest/status'),
   ingestStart: () => apiFetch<IngestStatusResponse>('/api/ingest/start', { method: 'POST' }),
@@ -961,4 +976,17 @@ export const api = {
     ),
   clearFeedRebuildStatus: (feedId: string) =>
     apiFetch<{ ok: boolean }>(`/api/feeds/${feedId}/rebuild-status/clear`, { method: 'POST' }),
+
+  // --- Community ---
+  listCommunityFeeds: (scope: 'all' | 'deployment' | 'global' = 'all') =>
+    apiFetch<{ feeds: CommunityFeedEntry[] }>(`/api/community/feeds?scope=${scope}`),
+  listFeedInputs: () =>
+    apiFetch<{ inputs: Array<{ feedId: string; name: string; ownerDid?: string }> }>('/api/community/feed-inputs'),
+  addFeedInput: (feedId: string, name: string, ownerDid?: string) =>
+    apiFetch<{ ok: boolean }>('/api/community/feed-inputs', {
+      method: 'POST',
+      body: JSON.stringify({ feedId, name, ownerDid }),
+    }),
+  removeFeedInput: (feedId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/community/feed-inputs/${feedId}`, { method: 'DELETE' }),
 }

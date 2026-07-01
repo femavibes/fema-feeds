@@ -8,7 +8,9 @@ import type { FeedWorkspaceView } from '../../lib/workspace-views'
 import { FeedEditorHome } from './FeedEditorHome'
 import { FeedLogicBlockUpgradesPanel } from './FeedLogicBlockUpgradesPanel'
 import { FeedSortingView } from './FeedSortingView'
-import { FeedPersonalizationPanel } from './FeedPersonalizationPanel'
+import { FeedPersonalizationView } from './FeedPersonalizationView'
+import { FeedInjectorsView } from './FeedInjectorsView'
+import { FeedSourcesView } from './FeedSourcesView'
 import { L2JsonEditor } from './L2JsonEditor'
 import { L2VisualEditor } from './visual/L2VisualEditor'
 import { normalizeFeedLogicPatch, type FeedLogicPatch } from '../../lib/feed-graph-exchange'
@@ -325,11 +327,37 @@ export function FeedL2Workspace({
       )}
 
       {view === 'personalization' && (
-        <div className="feed-personalization-view">
-          <FeedPersonalizationPanel draft={draft} onChange={onSettingsChange} />
-        </div>
+        <FeedPersonalizationView
+          draft={draft}
+          onChange={onSettingsChange}
+          settingsDirty={settingsDirty}
+          settingsAutosaveState={settingsAutosaveState}
+          settingsSaving={settingsSaving}
+          onSaveSettings={onSaveSettings}
+        />
       )}
 
+      {view === 'injectors' && (
+        <FeedInjectorsView
+          draft={draft}
+          onChange={onSettingsChange}
+          settingsDirty={settingsDirty}
+          settingsAutosaveState={settingsAutosaveState}
+          settingsSaving={settingsSaving}
+          onSaveSettings={onSaveSettings}
+        />
+      )}
+
+      {view === 'sources' && (
+        <FeedSourcesView
+          draft={draft}
+          onChange={onSettingsChange}
+          settingsDirty={settingsDirty}
+          settingsAutosaveState={settingsAutosaveState}
+          settingsSaving={settingsSaving}
+          onSaveSettings={onSaveSettings}
+        />
+      )}
 
       {view === 'visual' && editorDraft && (
         <L2VisualEditor

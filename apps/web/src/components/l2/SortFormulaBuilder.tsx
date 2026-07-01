@@ -8,12 +8,43 @@ import {
 } from '../../lib/formula-parser'
 import { FormulaBlocks, type FormulaBlockActions } from './FormulaBlocks'
 
+export interface FormulaTemplate {
+  name: string
+  formula: string
+}
+
+export interface FormulaFieldGroup {
+  label: string
+  fields: string[]
+}
+
 interface Props {
   draft: { rank?: { sortKey?: L2Expr } }
   onChange: (expr: L2Expr) => void
+  /** Initial expression to display (overrides draft.rank.sortKey). */
+  initialExpr?: L2Expr | null
+  /** Custom field map (alias → L2NumericField). Defaults to FORMULA_FIELDS (sorting). */
+  fields?: Record<string, string>
+  /** Optional grouped display of fields. If provided, renders groups with labels instead of a flat list. */
+  fieldGroups?: FormulaFieldGroup[]
+  /** Custom templates. Defaults to SORT_TEMPLATES. */
+  templates?: FormulaTemplate[]
+  /** Placeholder text for the formula editor. */
+  placeholder?: string
 }
 
-const TEMPLATES: { name: string; formula: string }[] = [
+const SORT_FIELD_GROUPS: FormulaFieldGroup[] = [
+  {
+    label: 'Post metrics',
+    fields: ['likes', 'reposts', 'replies', 'quotes', 'bookmarks', 'followers', 'follows', 'posts'],
+  },
+  {
+    label: 'Content',
+    fields: ['text_len', 'images', 'video_size', 'hashtags', 'links', 'mentions', 'editor_score', 'age_hours'],
+  },
+]
+
+const SORT_TEMPLATES: FormulaTemplate[] = [
   { name: 'Engagement', formula: 'likes + reposts * 2 + replies' },
   { name: 'Log engagement', formula: 'log(likes + 1) * 10 + log(reposts + 1) * 15' },
   { name: 'Engagement rate', formula: '(likes + reposts) / (followers + 1) * 100' },
@@ -26,25 +57,33 @@ const TEMPLATES: { name: string; formula: string }[] = [
   { name: 'Small account boost', formula: '(likes + reposts) * max(1, 100 / (followers + 1))' },
 ]
 
-export function SortFormulaBuilder({ draft, onChange }: Props) {
+export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, placeholder }: Props) {
+  const fieldMap = fields ?? FORMULA_FIELDS
+  const groups = fieldGroups ?? SORT_FIELD_GROUPS
+  const templateList = templates ?? SORT_TEMPLATES
+  const placeholderText = placeholder ?? 'likes + reposts * 2 + replies'
+
   const [text, setText] = useState(() => {
-    if (draft.rank?.sortKey) {
-      try { return exprToFormula(draft.rank.sortKey) } catch { /* fallback */ }
+    const expr = initialExpr ?? draft.rank?.sortKey
+    if (expr) {
+      try { return exprToFormula(expr, fieldMap) } catch { /* fallback */ }
     }
-    return 'likes + reposts * 2 + replies'
+    return templateList[0]?.formula ?? 'likes + reposts * 2 + replies'
   })
   const [error, setError] = useState<string | null>(null)
   const [errorPos, setErrorPos] = useState<number | null>(null)
   const [copied, setCopied] = useState(false)
   const [compiledExpr, setCompiledExpr] = useState<L2Expr | null>(() => {
-    const result = parseFormula(draft.rank?.sortKey ? exprToFormula(draft.rank.sortKey) : 'likes + reposts * 2 + replies')
+    const expr = initialExpr ?? draft.rank?.sortKey
+    const formulaText = expr ? exprToFormula(expr, fieldMap) : (templateList[0]?.formula ?? 'likes + reposts * 2 + replies')
+    const result = parseFormula(formulaText, fieldMap)
     return result.ok ? result.expr : null
   })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const blockActionsRef = useRef<FormulaBlockActions | null>(null)
 
   const compile = useCallback((formula: string) => {
-    const result = parseFormula(formula)
+    const result = parseFormula(formula, fieldMap)
     if (result.ok) {
       setError(null)
       setErrorPos(null)
@@ -55,7 +94,7 @@ export function SortFormulaBuilder({ draft, onChange }: Props) {
       setErrorPos(result.error.pos)
       setCompiledExpr(null)
     }
-  }, [onChange])
+  }, [onChange, fieldMap])
 
   useEffect(() => {
     compile(text)
@@ -139,7 +178,7 @@ export function SortFormulaBuilder({ draft, onChange }: Props) {
           rows={4}
           value={text}
           onChange={(e) => handleChange(e.target.value)}
-          placeholder="likes + reposts * 2 + replies"
+          placeholder={placeholderText}
           spellCheck={false}
         />
         {error && (
@@ -153,24 +192,29 @@ export function SortFormulaBuilder({ draft, onChange }: Props) {
       {/* Visual blocks */}
       <section className="formula-editor-blocks">
         <p className="sidebar-block-title">Blocks <span className="sfb-hint">(drag to reorder, click to edit)</span></p>
-        <FormulaBlocks expr={compiledExpr} formulaText={text} error={error} onUpdate={handleChange} actionsRef={blockActionsRef} />
+        <FormulaBlocks expr={compiledExpr} formulaText={text} error={error} onUpdate={handleChange} actionsRef={blockActionsRef} fields={fieldMap} />
       </section>
 
       {/* Fields reference */}
       <section className="formula-editor-ref">
         <p className="sidebar-block-title">Fields <span className="sfb-hint">(click to add block)</span></p>
-        <div className="formula-editor-chips">
-          {Object.keys(FORMULA_FIELDS).map((name) => (
-            <button
-              key={name}
-              type="button"
-              className="formula-editor-chip"
-              onClick={() => blockActionsRef.current?.insertBlockAfter(name)}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
+        {groups.map((group) => (
+          <div key={group.label} className="formula-editor-field-group">
+            <p className="formula-editor-field-group-label">{group.label}</p>
+            <div className="formula-editor-chips">
+              {group.fields.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  className="formula-editor-chip"
+                  onClick={() => blockActionsRef.current?.insertBlockAfter(name)}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
 
       {/* Numbers & comparisons */}
@@ -214,7 +258,7 @@ export function SortFormulaBuilder({ draft, onChange }: Props) {
       <section className="formula-editor-ref">
         <p className="sidebar-block-title">Templates <span className="sfb-hint">(click to apply)</span></p>
         <div className="formula-editor-templates">
-          {TEMPLATES.map((t) => (
+          {templateList.map((t) => (
             <button
               key={t.name}
               type="button"

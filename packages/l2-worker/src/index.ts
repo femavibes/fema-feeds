@@ -25,3 +25,5 @@ export type {
 } from './pool-match-sample.js'
 export { reevalPostInPool } from './reeval-post.js'
 export { listProjectPoolPosts, type ProjectPoolResult } from './list-project-pool.js'
+
+export { resolveSourcePosts } from './resolve-sources.js'

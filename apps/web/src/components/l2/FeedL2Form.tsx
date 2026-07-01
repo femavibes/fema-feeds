@@ -30,6 +30,14 @@ export function FeedL2Form({ draft, onChange, compact = false, sidebar = false }
             <input value={draft.name} onChange={(e) => patch({ name: e.target.value })} />
           </label>
           <label>
+            Description
+            <input
+              value={draft.description ?? ''}
+              onChange={(e) => patch({ description: e.target.value || undefined })}
+              placeholder="Short description for Community page"
+            />
+          </label>
+          <label>
             Feed ID
             <input value={draft.feedId} readOnly className="readonly" />
           </label>
@@ -63,6 +71,36 @@ export function FeedL2Form({ draft, onChange, compact = false, sidebar = false }
               </label>
             </>
           )}
+        </div>
+        <div className="feed-community-settings">
+          <ToggleRow
+            label="Public on Community"
+            hint="Show this feed on the Community page"
+            checked={draft.public !== false}
+            onChange={(v) => patch({ public: v })}
+            ariaLabel="Public on Community"
+          />
+          <ToggleRow
+            label="Logic public"
+            hint="Others can view and copy your feed logic"
+            checked={draft.logicPublic ?? false}
+            onChange={(v) => patch({ logicPublic: v })}
+            ariaLabel="Logic public"
+          />
+          <ToggleRow
+            label="Allow as input"
+            hint="Others can use this feed as a source in their feeds"
+            checked={draft.allowAsInput ?? false}
+            onChange={(v) => patch({ allowAsInput: v })}
+            ariaLabel="Allow as input"
+          />
+          <ToggleRow
+            label="Template"
+            hint="Show in Community > Templates instead of Feeds"
+            checked={draft.isTemplate ?? false}
+            onChange={(v) => patch({ isTemplate: v })}
+            ariaLabel="Template"
+          />
         </div>
         {!compact && (
           <p className="card-hint">

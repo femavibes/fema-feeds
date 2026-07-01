@@ -20,6 +20,8 @@ interface Props {
   itemFilter?: (item: PaletteItem) => boolean
   /** Hide collection / subscription sources (prefilter editor). */
   nativeOnly?: boolean
+  /** Configured feed sources (shown in a Sources section of the palette). */
+  feedSources?: import('@cfb/core-types').NativeFeedSource[]
 }
 
 function matchesSearch(text: string, q: string): boolean {
@@ -61,7 +63,7 @@ function PaletteNodeButton({
   )
 }
 
-export function L2NodePalette({ onPick, itemFilter, nativeOnly = false }: Props) {
+export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSources }: Props) {
   const [source, setSource] = useState<PaletteSourceId>('native')
   const [activeNativeSection, setActiveNativeSection] = useState<PaletteCategory>('structure')
   const [collectionSection, setCollectionSection] = useState<CollectionSectionId>('saved_blocks')
@@ -192,6 +194,23 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false }: Props)
                 </button>
               </li>
             ))}
+            {feedSources && feedSources.length > 0 && (
+              <li>
+                <button
+                  type="button"
+                  className={`l2-palette-seeker-item${source === 'native' && activeNativeSection === ('sources' as PaletteCategory) ? ' is-active' : ''}`}
+                  onClick={() => {
+                    setSource('native')
+                    setActiveNativeSection('sources' as PaletteCategory)
+                    // Scroll to sources section
+                    const el = catalogRef.current?.querySelector('.l2-palette-section-sources')
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }}
+                >
+                  Sources
+                </button>
+              </li>
+            )}
           </ul>
         </div>
 
@@ -317,6 +336,33 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false }: Props)
                   </div>
                 )
               })
+            )}
+            {feedSources && feedSources.length > 0 && (
+              <div className="l2-palette-section l2-palette-section-sources">
+                <h4>Sources</h4>
+                <ul className="l2-palette-list">
+                  {feedSources.map((src, i) => {
+                    const sourceId = `source-${i}`
+                    const label = src.type === 'feed' ? src.feedId : src.type === 'project_pool' ? src.projectId : `${src.uris.length} URIs`
+                    const desc = src.type === 'feed' ? 'Feed candidates' : src.type === 'project_pool' ? 'Project pool' : 'Static URI list'
+                    const entry = { kind: 'source' as const, sourceId, sourceType: src.type, label, description: desc }
+                    return (
+                      <PaletteNodeButton
+                        key={sourceId}
+                        label={label}
+                        description={desc}
+                        draggable
+                        onClick={() => onPick({ kind: 'source', entry })}
+                        onDragStart={(e) => {
+                          const { mime, data } = paletteDragPayload({ kind: 'source', entry })
+                          e.dataTransfer.setData(mime, data)
+                        }}
+                      />
+                    )
+                  })}
+                </ul>
+                <p className="card-hint">Configure sources on the Sources tab.</p>
+              </div>
             )}
           </>
         ) : null}

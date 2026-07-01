@@ -44,6 +44,8 @@ const FEED_ITEMS: { id: FeedWorkspaceView; label: string }[] = [
   { id: 'json', label: 'JSON editor' },
   { id: 'sorting', label: 'Sorting' },
   { id: 'personalization', label: 'Personalization' },
+  { id: 'injectors', label: 'Injectors' },
+  { id: 'sources', label: 'Sources' },
 ]
 
 const INGESTION_ITEMS: { id: IngestionWorkspaceView; label: string }[] = [

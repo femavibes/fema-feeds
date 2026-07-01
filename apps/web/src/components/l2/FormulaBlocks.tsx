@@ -4,7 +4,7 @@ import { parseFormula, FORMULA_FIELDS } from '../../lib/formula-parser'
 import { ConditionEditor, conditionToFormula, defaultCondition, type ConditionNode } from './ConditionEditor'
 
 /** Try to parse a block text like "if(likes > 100, reposts * 2, 0)" back into a ConditionNode + then expression. */
-function parseConditionFromText(text: string): { condition: ConditionNode; thenExpr: string } | null {
+function parseConditionFromText(text: string, fields: Record<string, string>): { condition: ConditionNode; thenExpr: string } | null {
   const match = text.match(/^if\(([^,]+?)\s*(>|>=|<|<=|==|!=)\s*([^,]+?),\s*(.+),\s*(.+)\)$/)
   if (!match) return null
   const [, fieldStr, op, valueStr, thenExpr, elseStr] = match
@@ -12,7 +12,7 @@ function parseConditionFromText(text: string): { condition: ConditionNode; thenE
 
   const field = fieldStr.trim()
   const value = parseFloat(valueStr.trim())
-  if (!FORMULA_FIELDS[field] || isNaN(value)) return null
+  if (!fields[field] || isNaN(value)) return null
 
   const condition = defaultCondition()
   condition.field = field
@@ -25,14 +25,14 @@ function parseConditionFromText(text: string): { condition: ConditionNode; thenE
   if (!isNaN(elseNum) && String(elseNum) === elseTrimmed) {
     condition.elseMode = 'value'
     condition.elseValue = elseNum
-  } else if (FORMULA_FIELDS[elseTrimmed]) {
+  } else if (fields[elseTrimmed]) {
     condition.elseMode = 'field'
     condition.elseField = elseTrimmed
     condition.elseFieldOp = 'none'
   } else {
     // Try field op amount pattern
     const fieldOpMatch = elseTrimmed.match(/^([a-z_]+)\s*([+\-*/])\s*([0-9.]+)$/)
-    if (fieldOpMatch && FORMULA_FIELDS[fieldOpMatch[1]!]) {
+    if (fieldOpMatch && fields[fieldOpMatch[1]!]) {
       condition.elseMode = 'field'
       condition.elseField = fieldOpMatch[1]!
       condition.elseFieldOp = fieldOpMatch[2] as '+' | '-' | '*' | '/'
@@ -54,6 +54,8 @@ interface Props {
   onUpdate: (newFormula: string) => void
   onSelectionChange?: (selectedIdx: number | null) => void
   actionsRef?: React.MutableRefObject<FormulaBlockActions | null>
+  /** Custom field map for validation. Defaults to FORMULA_FIELDS. */
+  fields?: Record<string, string>
 }
 
 export interface FormulaBlockActions {
@@ -192,7 +194,8 @@ const ADD_SNIPPETS: { label: string; text: string }[] = [
   { label: 'Custom...', text: '' },
 ]
 
-export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionChange, actionsRef }: Props) {
+export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionChange, actionsRef, fields }: Props) {
+  const fieldMap = fields ?? FORMULA_FIELDS
   const [showAdd, setShowAdd] = useState(false)
   const [editIdx, setEditIdx] = useState<number | null>(null)
   const [editText, setEditText] = useState('')
@@ -483,7 +486,7 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
                   if (sorted.length === 1) {
                     const block = blocks[sorted[0]!]
                     if (block && block.text.startsWith('if(')) {
-                      const parsed = parseConditionFromText(block.text)
+                      const parsed = parseConditionFromText(block.text, fieldMap)
                       if (parsed) {
                         setCondition(parsed.condition)
                         setConditionOriginalText(block.text)
@@ -590,7 +593,7 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
           <div key={i}>
             {/* Block */}
             <div
-              className={`formula-block${dragIdx === i ? ' formula-block-dragging' : ''}${dropIdx === i ? ' formula-block-drop-target' : ''}${!parseFormula(block.text).ok ? ' formula-block-invalid' : ''}${selectedIdxs.has(i) ? ' formula-block-selected' : ''}`}
+              className={`formula-block${dragIdx === i ? ' formula-block-dragging' : ''}${dropIdx === i ? ' formula-block-drop-target' : ''}${!parseFormula(block.text, fieldMap).ok ? ' formula-block-invalid' : ''}${selectedIdxs.has(i) ? ' formula-block-selected' : ''}`}
               onClick={(e) => selectBlock(i, e)}
               draggable
               onDragStart={() => handleDragStart(i)}

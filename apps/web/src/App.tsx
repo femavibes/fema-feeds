@@ -11,6 +11,7 @@ import { ProjectSidebar } from './components/ProjectSidebar'
 import { useProjectSidebarRail } from './hooks/useProjectSidebarRail'
 import { ProjectWorkspace } from './components/ProjectWorkspace'
 import { MarketplaceWorkspace } from './components/MarketplaceWorkspace'
+import { CommunityWorkspace } from './components/CommunityWorkspace'
 import { CollectionWorkspace } from './components/CollectionWorkspace'
 import { SettingsWorkspace } from './components/SettingsWorkspace'
 import { IngestStatusPill } from './components/IngestStatusPill'
@@ -341,13 +342,15 @@ export function App() {
       ? 'Global marketplace registry'
       : builderSection === 'settings'
       ? 'Deployment settings'
-      : builderSection === 'marketplace'
-        ? 'Marketplace'
-        : builderSection === 'collection'
-          ? 'My collection'
-          : draft
-            ? draft.name
-            : 'Select a project'
+      : builderSection === 'community'
+        ? 'Community'
+        : builderSection === 'marketplace'
+          ? 'Marketplace'
+          : builderSection === 'collection'
+            ? 'My collection'
+            : draft
+              ? draft.name
+              : 'Select a project'
 
   return (
     <div className={`app${appProfile === 'registry' ? ' app-registry' : ''}`}>
@@ -420,6 +423,7 @@ export function App() {
 
         <main
           className={`main-panel${
+            builderSection === 'community' ||
             builderSection === 'marketplace' ||
             builderSection === 'collection' ||
             builderSection === 'settings' ||
@@ -466,6 +470,8 @@ export function App() {
                 setHighlightPublishingSettings(false)
               }}
             />
+          ) : builderSection === 'community' && appProfile !== 'registry' ? (
+            <CommunityWorkspace />
           ) : builderSection === 'marketplace' ? (
             <MarketplaceWorkspace />
           ) : builderSection === 'collection' && appProfile !== 'registry' ? (

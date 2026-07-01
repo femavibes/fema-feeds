@@ -60,6 +60,7 @@ interface Props {
   positions: NodePositions
   nodeLabels?: NodeLabels
   nodeSources?: NodeSources
+  feedSources?: import('@cfb/core-types').NativeFeedSource[]
   canvasEdges: CanvasEdge[]
   selectedId: string | null
   selectedEdgeId: string | null
@@ -100,6 +101,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     positions,
     nodeLabels = {},
     nodeSources = {},
+    feedSources,
     canvasEdges,
     selectedId,
     selectedEdgeId,
@@ -162,6 +164,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
         positionsRef.current,
         nodeLabelsRef.current,
         nodeSourcesRef.current,
+        feedSources,
       ),
     )
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))

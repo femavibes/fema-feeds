@@ -20,6 +20,26 @@ export const FORMULA_FIELDS: Record<string, L2NumericField> = {
   age_hours: 'post_age_hours',
 }
 
+/** Personalization fields — viewer-relative signals available at serve time. */
+export const PERSONALIZATION_FIELDS: Record<string, L2NumericField | string> = {
+  // All sorting fields available too
+  ...FORMULA_FIELDS,
+  // Viewer-relative fields
+  base_score: 'base_score',
+  is_followed: 'is_followed',
+  is_mutual: 'is_mutual',
+  times_seen: 'times_seen',
+  hours_since_seen: 'hours_since_seen',
+  hours_since_last_open: 'hours_since_last_open',
+  // Feed-scoped affinity (interactions via this feed)
+  feed_affinity: 'feed_affinity',
+  feed_affinity_likes: 'feed_affinity_likes',
+  feed_affinity_reposts: 'feed_affinity_reposts',
+  feed_affinity_replies: 'feed_affinity_replies',
+  feed_affinity_quotes: 'feed_affinity_quotes',
+  days_since_interaction: 'days_since_interaction',
+}
+
 export const FORMULA_FUNCTIONS = ['log', 'sqrt', 'abs', 'floor', 'ceil', 'min', 'max', 'clamp', 'pow', 'if'] as const
 
 // --- Tokenizer ---
@@ -104,8 +124,12 @@ export type ParseResult = { ok: true; expr: L2Expr } | { ok: false; error: Parse
 class Parser {
   private tokens: Token[]
   private pos = 0
+  private fields: Record<string, string>
 
-  constructor(tokens: Token[]) { this.tokens = tokens }
+  constructor(tokens: Token[], fields?: Record<string, string>) {
+    this.tokens = tokens
+    this.fields = fields ?? FORMULA_FIELDS
+  }
 
   private peek(): Token { return this.tokens[this.pos] ?? { type: 'eof', value: '', pos: 0 } }
   private advance(): Token { return this.tokens[this.pos++] ?? { type: 'eof', value: '', pos: 0 } }
@@ -196,9 +220,9 @@ class Parser {
       }
 
       // Field reference
-      const field = FORMULA_FIELDS[name]
+      const field = this.fields[name]
       if (field) {
-        return { type: 'field', field }
+        return { type: 'field', field: field as L2NumericField }
       }
 
       // Enrichment field: enrichment.enricherId.fieldName
@@ -285,12 +309,12 @@ class Parser {
   }
 }
 
-export function parseFormula(input: string): ParseResult {
+export function parseFormula(input: string, fields?: Record<string, string>): ParseResult {
   const trimmed = input.trim()
   if (!trimmed) return { ok: false, error: { message: 'Empty formula', pos: 0 } }
   try {
     const tokens = tokenize(trimmed)
-    const parser = new Parser(tokens)
+    const parser = new Parser(tokens, fields)
     const expr = parser.parse()
     return { ok: true, expr }
   } catch (e) {
@@ -302,19 +326,24 @@ export function parseFormula(input: string): ParseResult {
 }
 
 // --- Decompiler: L2Expr → human-readable formula text ---
-export function exprToFormula(expr: L2Expr): string {
+export function exprToFormula(expr: L2Expr, fields?: Record<string, string>): string {
+  const fieldMap = fields ?? FORMULA_FIELDS
+  return _decompile(expr, fieldMap)
+}
+
+function _decompile(expr: L2Expr, fieldMap: Record<string, string>): string {
   switch (expr.type) {
     case 'literal':
       return expr.value % 1 === 0 ? String(expr.value) : expr.value.toFixed(2)
     case 'field': {
-      const alias = Object.entries(FORMULA_FIELDS).find(([, v]) => v === expr.field)
+      const alias = Object.entries(fieldMap).find(([, v]) => v === expr.field)
       return alias ? alias[0] : expr.field
     }
     case 'enrichment_field':
       return `enrich(${expr.enricherId}, ${expr.field})`
     case 'binary': {
-      const l = exprToFormula(expr.left)
-      const r = exprToFormula(expr.right)
+      const l = _decompile(expr.left, fieldMap)
+      const r = _decompile(expr.right, fieldMap)
       if (expr.op === 'min' || expr.op === 'max') return `${expr.op}(${l}, ${r})`
       if (expr.op === '**') return `pow(${l}, ${r})`
       const lWrap = expr.left.type === 'binary' && precedence(expr.left.op) < precedence(expr.op) ? `(${l})` : l
@@ -322,14 +351,14 @@ export function exprToFormula(expr: L2Expr): string {
       return `${lWrap} ${expr.op} ${rWrap}`
     }
     case 'unary':
-      if (expr.op === 'neg') return `-${exprToFormula(expr.operand)}`
-      return `${expr.op}(${exprToFormula(expr.operand)})`
+      if (expr.op === 'neg') return `-${_decompile(expr.operand, fieldMap)}`
+      return `${expr.op}(${_decompile(expr.operand, fieldMap)})`
     case 'clamp':
-      return `clamp(${exprToFormula(expr.value)}, ${exprToFormula(expr.min)}, ${exprToFormula(expr.max)})`
+      return `clamp(${_decompile(expr.value, fieldMap)}, ${_decompile(expr.min, fieldMap)}, ${_decompile(expr.max, fieldMap)})`
     case 'cond':
-      return `if(${exprToFormula(expr.left)} ${expr.op} ${exprToFormula(expr.right)}, ${exprToFormula(expr.then)}, ${exprToFormula(expr.else)})`
+      return `if(${_decompile(expr.left, fieldMap)} ${expr.op} ${_decompile(expr.right, fieldMap)}, ${_decompile(expr.then, fieldMap)}, ${_decompile(expr.else, fieldMap)})`
     case 'ratio':
-      return `${exprToFormula(expr.numerator)} / (${exprToFormula(expr.denominator)} + ${expr.guard ?? 1})`
+      return `${_decompile(expr.numerator, fieldMap)} / (${_decompile(expr.denominator, fieldMap)} + ${expr.guard ?? 1})`
   }
 }
 

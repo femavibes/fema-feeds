@@ -230,3 +230,4 @@ export type { KeywordMatchOptions } from './post-search.js'
 export { type NativePersonalizationConfig, DEFAULT_PERSONALIZATION } from './personalization.js'
 
 export { type NativeInjectorConfig, type NativePinnedInjector, type NativePinnedPost, type NativeRotatingInjector } from './native-injectors.js'
+export { type NativeFeedSource, type ProjectPoolSource, type FeedCandidateSource, type StaticUriListSource, type SubscribedSourceConfig, type FeedSourcesConfig } from './feed-sources.js'
