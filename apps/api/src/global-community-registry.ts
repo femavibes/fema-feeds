@@ -147,22 +147,33 @@ export async function fetchRemoteGlobalCommunityFeeds(): Promise<GlobalCommunity
 
 /**
  * Push this deployment's public feeds to the global registry.
- * Fire-and-forget — errors are silently ignored.
+ * Fire-and-forget — logs errors to stderr.
  */
 export function syncLocalFeedsToGlobalRegistry(
   localPublicFeeds: GlobalCommunityFeedEntry[],
 ): void {
-  if (globalMarketplaceRegistryRole() !== 'consumer') return
+  const role = globalMarketplaceRegistryRole()
+  if (role !== 'consumer') return
   const url = globalMarketplaceRemoteUrl()
-  if (!url) return
-  const host = deploymentPublicHostname()
-  if (!host) return
+  if (!url) {
+    console.error('[community-sync] no remote URL configured')
+    return
+  }
+  const host = deploymentPublicHostname() || 'unknown-deployment'
   const endpoint = `${url.replace(/\/$/, '')}/api/global-community/feeds/sync`
+  console.error(`[community-sync] syncing ${localPublicFeeds.length} feeds to ${endpoint} (host=${host})`)
   void fetch(endpoint, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ deploymentHost: host, feeds: localPublicFeeds }),
-  }).catch(() => {})
+  })
+    .then((res) => {
+      if (!res.ok) console.error(`[community-sync] registry responded ${res.status}`)
+      else console.error(`[community-sync] ok`)
+    })
+    .catch((err) => {
+      console.error('[community-sync] fetch failed', err)
+    })
 }
 
 export type CommunityFeedScope = 'all' | 'deployment' | 'global'
