@@ -8,6 +8,8 @@ Self-hostable Bluesky custom feed platform. See [`docs/PLAN.md`](docs/PLAN.md).
 |-----|---------|
 | [PLAN.md](docs/PLAN.md) | Product & architecture plan |
 | [MARKETPLACE_ECOSYSTEM.md](docs/MARKETPLACE_ECOSYSTEM.md) | **Marketplace, logic blocks, plugins, standard formats** |
+| [MARKETPLACE_MEDIA.md](docs/MARKETPLACE_MEDIA.md) | Marketplace media uploads, gallery, product pages |
+| [COMMUNITY.md](docs/COMMUNITY.md) | Community feeds, avatars, global sync |
 | [MODULARITY.md](docs/MODULARITY.md) | Package boundaries & code rules |
 | [BUILD_INGEST_L1.md](docs/BUILD_INGEST_L1.md) | Current build slice: ingest + L1 |
 | [REFERENCE_AUDIT.md](docs/REFERENCE_AUDIT.md) | What to borrow from prior repos |

@@ -71,16 +71,18 @@ Community is separate from Marketplace:
 
 ## Needs Work
 
-### 1. Feed Images / Avatars
+### 1. Feed Images / Avatars (Done)
 
-**Problem:** Feeds don't have image/avatar support yet. Cards and detail panel use colored initials as placeholder.
-
-**What to do:**
-- Add `avatar?: string` field to `FeedConfig` (base64 or URL to uploaded image)
-- Add image upload to feed settings sidebar
-- Card shows image in the square area when available, falls back to colored initials
-- Detail panel shows image in the 10rem square
-- Same image used when publishing feed generator record to Bluesky
+- `POST /api/feeds/:id/avatar` — multipart upload (PNG/JPEG/WebP, max 1MB)
+- `GET /api/feeds/:id/avatar` — serves stored image (public, no auth)
+- `DELETE /api/feeds/:id/avatar` — removes avatar
+- Stored on disk at `config/feeds/avatars/{feedId}.{ext}`
+- Upload UI in Feed → Actions → Settings tab (above Display name)
+- Community cards show avatar in the 9rem square area (falls back to accent color + initials)
+- Community detail panel shows avatar in the 10rem square
+- On Bluesky publish: avatar bytes uploaded as blob and attached to `app.bsky.feed.generator` record
+- Auth: avatar GET is public (added to `isPublicApiPath` check)
+- Community endpoint includes `avatarUrl` for local feeds that have an avatar file
 
 ### 2. Feed Stats
 

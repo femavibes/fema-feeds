@@ -68,8 +68,8 @@ export function MarketplaceCatalogCard({
           count={presentation.ratingCount}
           compact
         />
-        <p className="marketplace-catalog-card-desc">{presentation.description}</p>
         {ownerDid ? <PublisherProfileLink did={ownerDid} size="sm" stopPropagation /> : null}
+        <p className="marketplace-catalog-card-desc">{presentation.description}</p>
         <p className="marketplace-catalog-card-sub">
           v{version}
           {subtitle ? ` · ${subtitle}` : ''}
