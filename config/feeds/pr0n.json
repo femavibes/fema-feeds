@@ -128,5 +128,7 @@
         "field": "reply_count"
       }
     }
-  }
+  },
+  "logicPublic": true,
+  "allowAsInput": true
 }

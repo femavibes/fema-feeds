@@ -213,9 +213,7 @@ export function FeedRightSidebar({
                   {settingsSaving ? 'Saving…' : 'Save now'}
                 </button>
               </div>
-            ) : (
-              <p className="card-hint feed-settings-sidebar-saved">Settings saved to draft</p>
-            )}
+            ) : null}
           </section>
         )}
       </div>
