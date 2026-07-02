@@ -13,7 +13,7 @@ interface Props {
 
 export function CommunityNav({ view, onViewChange }: Props) {
   return (
-    <aside className="workspace-nav" aria-label="Community navigation">
+    <aside className="sidebar workspace-nav" aria-label="Community navigation">
       <div className="sidebar-head">
         <span className="sidebar-head-label">Community</span>
       </div>

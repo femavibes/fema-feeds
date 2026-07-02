@@ -47,6 +47,300 @@
                   "facet_mention"
                 ],
                 "wholeWord": true
+              },
+              {
+                "id": "kw-mr2vutww",
+                "op": "includes",
+                "type": "keyword",
+                "terms": [
+                  "carbrain",
+                  "car brain",
+                  "car-brain",
+                  "car centric",
+                  "car-centric",
+                  "car oriented",
+                  "vehicle oriented",
+                  "truck oriented",
+                  "car dependency",
+                  "car-dependency",
+                  "car dependent",
+                  "car-dependent",
+                  "car storage",
+                  "car-storage",
+                  "car culture",
+                  "car-culture",
+                  "car centrism",
+                  "car-centrism",
+                  "fuck cars",
+                  "fuckcars",
+                  "ban cars",
+                  "ban car",
+                  "car free",
+                  "car-free",
+                  "motonormativity",
+                  "arrogance of space",
+                  "childcrusher",
+                  "child crusher",
+                  "kid crusher",
+                  "brodozer",
+                  "emotional support vehicle",
+                  "car bloat",
+                  "reasonable car",
+                  "hood height",
+                  "paved paradise",
+                  "car sewer",
+                  "carwalk",
+                  "war on car",
+                  "waroncars",
+                  "anti bike",
+                  "anti-bike",
+                  "anti car",
+                  "anti-car",
+                  "you are the traffic",
+                  "you are traffic"
+                ],
+                "fields": [
+                  "text"
+                ],
+                "wholeWord": true
+              },
+              {
+                "id": "kw-mr2w4ndo",
+                "op": "includes",
+                "type": "keyword",
+                "terms": [
+                  "hit by car",
+                  "car related injury",
+                  "car related death",
+                  "vehicle related injury",
+                  "vehicle related death",
+                  "killed in car",
+                  "pedestrian death",
+                  "pedestrian injury",
+                  "pedestrian death stare",
+                  "traffic violence",
+                  "crash death rate",
+                  "vision zero",
+                  "visionzero",
+                  "road safety",
+                  "noise camera"
+                ],
+                "fields": [
+                  "text"
+                ],
+                "wholeWord": true
+              },
+              {
+                "id": "kw-mr2w6qbn",
+                "op": "includes",
+                "type": "keyword",
+                "terms": [
+                  "bike activist",
+                  "bike activism",
+                  "bike advocate",
+                  "bike user",
+                  "cycle activist",
+                  "cycle activism",
+                  "cycle advocate",
+                  "cycle user",
+                  "bikeway",
+                  "bike way",
+                  "bike safe",
+                  "safe bike",
+                  "bike route",
+                  "cycle route",
+                  "bike commute",
+                  "cycle commute",
+                  "bike commuting",
+                  "commute by bike",
+                  "commute by cycle",
+                  "e-bike commute",
+                  "ebike commute",
+                  "citi bike",
+                  "citibike",
+                  "e-bike",
+                  "ebike",
+                  "e-bike rebate",
+                  "ebike subsidy",
+                  "e-scooter",
+                  "cargo bike",
+                  "bikeshare",
+                  "bike share",
+                  "sharrow",
+                  "bike box",
+                  "bike bus",
+                  "take the lane",
+                  "taking the lane",
+                  "vehicular cycling",
+                  "idaho stop",
+                  "red light as stop",
+                  "stop as yield",
+                  "bike friendly",
+                  "cycle friendly",
+                  "cycling friendly",
+                  "cycle share",
+                  "cycling share",
+                  "bike parking",
+                  "cycle parking",
+                  "cycling parking",
+                  "bike coach",
+                  "cycle coach",
+                  "cycling coach",
+                  "bike infra",
+                  "cycle infra",
+                  "cycling infra",
+                  "delivery on bike",
+                  "delivering on bike",
+                  "work on bike",
+                  "commute on bike",
+                  "delivery by bike",
+                  "delivering by bike",
+                  "work by bike"
+                ],
+                "fields": [
+                  "text",
+                  "image_alt",
+                  "video_alt",
+                  "link_title",
+                  "link_description",
+                  "link_uri",
+                  "facet_link",
+                  "facet_mention"
+                ],
+                "wholeWord": true
+              },
+              {
+                "id": "kw-mr2wepco",
+                "op": "includes",
+                "type": "keyword",
+                "terms": [
+                  "walkable",
+                  "walkability",
+                  "pedestrianized",
+                  "pedestrian bridge",
+                  "pedestrian safety",
+                  "pedestrian friendly",
+                  "pedestrian plaza",
+                  "pedestrian cross",
+                  "pedestrian space",
+                  "pedestrian city",
+                  "yield to peds",
+                  "yield to pedestrians",
+                  "streets for kids",
+                  "continuous sidewalk",
+                  "closed to cars",
+                  "pedestrian only",
+                  "no cars",
+                  "bikeable",
+                  "better sidewalk",
+                  "wide sidewalk",
+                  "wider sidewalk",
+                  "tactile paving",
+                  "ada infrastructure",
+                  "ada infra",
+                  "ada design"
+                ],
+                "fields": [
+                  "text"
+                ]
+              },
+              {
+                "id": "kw-mr2wqcl7",
+                "op": "includes",
+                "type": "keyword",
+                "terms": [
+                  "stroad",
+                  "road design",
+                  "road diet",
+                  "traffic calming",
+                  "bulb out",
+                  "curb ramp",
+                  "curb extension",
+                  "curb cut",
+                  "curb-cut",
+                  "bollard",
+                  "modal filter",
+                  "median barrier",
+                  "median island",
+                  "forced turn island",
+                  "diagonal diverter",
+                  "corner extension",
+                  "raised intersection",
+                  "raised cross",
+                  "raised curb",
+                  "mid block cross",
+                  "mid-block cross",
+                  "refuge island",
+                  "sneckdown",
+                  "beg button",
+                  "speed governor",
+                  "speed limiter",
+                  "speed hump",
+                  "speed cushion",
+                  "flex post",
+                  "daylighting",
+                  "frontover",
+                  "road ecology",
+                  "tire dust",
+                  "tyre dust"
+                ],
+                "fields": [
+                  "text"
+                ]
+              },
+              {
+                "id": "kw-mr2wu4nr",
+                "op": "includes",
+                "type": "keyword",
+                "terms": [
+                  "transportation activist",
+                  "transportation activism",
+                  "transportation advocate",
+                  "transportation user",
+                  "transit activist",
+                  "transit activism",
+                  "transit advocate",
+                  "transit user",
+                  "good public transit",
+                  "affordable transit",
+                  "affordable transport",
+                  "affordable public transit",
+                  "affordable public transport",
+                  "affordable public transportation",
+                  "affordable transportation",
+                  "free transit",
+                  "free transport",
+                  "free transportation",
+                  "free public transit",
+                  "free public transport",
+                  "transit option",
+                  "transit oriented",
+                  "transit system",
+                  "transit project",
+                  "transit agency",
+                  "transit priority",
+                  "transit proposal",
+                  "transit service",
+                  "transport option",
+                  "transportation option",
+                  "transport system",
+                  "transportation system",
+                  "transport project",
+                  "transportation project",
+                  "transport agency",
+                  "transportation agency",
+                  "transport priority",
+                  "transportation priority",
+                  "transport proposal",
+                  "transportation proposal",
+                  "active transport",
+                  "active transportation",
+                  "active transit",
+                  "active mobility"
+                ],
+                "fields": [
+                  "text"
+                ]
               }
             ]
           }
@@ -56,24 +350,6 @@
   },
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
   "visualLayout": {
-    "positions": {
-      "end": {
-        "x": 509.3333333333334,
-        "y": -54.66666666666667
-      },
-      "start": {
-        "x": -342,
-        "y": -50.66666666666667
-      },
-      "group-mqvtbjl3": {
-        "x": -20.580172987358623,
-        "y": -338.9833873918829
-      },
-      "group-mqy96dck": {
-        "x": 12.03127079174989,
-        "y": 47.63938789088485
-      }
-    },
     "edges": [
       {
         "id": "e-start-group-mqvtbjl3",
@@ -89,14 +365,63 @@
       }
     ],
     "labels": {
-      "kw-mqvtcj5u": "PEOPLE KEYWORDS"
+      "kw-mqvtcj5u": "PEOPLE KEYWORDS",
+      "kw-mr2vutww": "Anti-Car",
+      "kw-mr2w6qbn": "Bikes & Micromobility",
+      "kw-mr2wepco": "Pedestrians & Walkability",
+      "kw-mr2wqcl7": "Infrastructure, Street Design, & Traffic Calming",
+      "kw-mr2wu4nr": "Public Transit"
+    },
+    "positions": {
+      "end": {
+        "x": 509.3333333333334,
+        "y": -54.66666666666667
+      },
+      "start": {
+        "x": -342,
+        "y": -50.66666666666667
+      },
+      "kw-mr2w4ndo": {
+        "x": 82.7964071856288,
+        "y": -126.19382069194938
+      },
+      "kw-mr2w6qbn": {
+        "x": 70.76513639387895,
+        "y": -30.869136726546856
+      },
+      "kw-mr2wepco": {
+        "x": 113.33732534930134,
+        "y": 287.05466787708247
+      },
+      "kw-mr2wqcl7": {
+        "x": 98.52960745176318,
+        "y": 106.45819818695941
+      },
+      "kw-mr2wu4nr": {
+        "x": 125.87497354095011,
+        "y": 168.30644152318348
+      },
+      "group-mqvtbjl3": {
+        "x": -20.580172987358623,
+        "y": -338.9833873918829
+      },
+      "group-mqy96dck": {
+        "x": 12.03127079174989,
+        "y": 47.63938789088485
+      }
     },
     "nodeSources": {
       "kw-mqvtbzia": "native",
       "kw-mqvtcj5u": "native",
+      "kw-mr2vutww": "native",
+      "kw-mr2w4ndo": "native",
+      "kw-mr2w6qbn": "native",
+      "kw-mr2wepco": "native",
+      "kw-mr2wqcl7": "native",
+      "kw-mr2wu4nr": "native",
       "group-mqvtbjl3": "native",
       "group-mqy96dck": "native"
     }
   },
-  "liveAt": "2026-07-02T02:26:02.528Z"
+  "liveAt": "2026-07-02T03:18:30.678Z"
 }
