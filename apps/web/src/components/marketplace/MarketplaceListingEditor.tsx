@@ -60,8 +60,8 @@ export function MarketplaceListingEditor({ target, onBack, onSaved }: Props) {
     description !== (pkg.description ?? '') ||
     listingFieldsDirty(fields, pkg.listing)
 
-  const handleFieldChange = (partial: Partial<ListingUrlFields>) => {
-    setFields((prev) => ({ ...prev, ...partial }))
+  const handleFieldChange = (next: ListingUrlFields) => {
+    setFields(next)
     setMessage(null)
   }
 
@@ -143,7 +143,7 @@ export function MarketplaceListingEditor({ target, onBack, onSaved }: Props) {
           </label>
           <MarketplaceListingFields
             packageId={pkg.id}
-            listing={draftListing}
+            fields={fields}
             disabled={busy}
             onChange={handleFieldChange}
           />

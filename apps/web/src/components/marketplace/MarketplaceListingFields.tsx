@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { MarketplaceListingMeta } from '@cfb/core-types'
 import { api } from '../../api/client'
 
@@ -12,14 +12,14 @@ export interface ListingUrlFields {
 
 interface Props {
   packageId: string
-  listing?: MarketplaceListingMeta
+  fields: ListingUrlFields
   disabled?: boolean
-  onChange: (fields: Partial<ListingUrlFields>) => void
+  onChange: (fields: ListingUrlFields) => void
 }
 
 function ImageSlot({
   label,
-  url,
+  currentUrl,
   packageId,
   slot,
   disabled,
@@ -28,7 +28,7 @@ function ImageSlot({
   className,
 }: {
   label: string
-  url?: string
+  currentUrl?: string
   packageId: string
   slot: string
   disabled?: boolean
@@ -39,12 +39,6 @@ function ImageSlot({
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [imgError, setImgError] = useState(false)
-  const [displayUrl, setDisplayUrl] = useState(url)
-
-  useEffect(() => {
-    setDisplayUrl(url)
-    setImgError(false)
-  }, [url])
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -53,7 +47,6 @@ function ImageSlot({
     try {
       const res = await api.uploadMarketplaceAsset(packageId, slot, file)
       const fresh = res.url + '?t=' + Date.now()
-      setDisplayUrl(fresh)
       setImgError(false)
       onUploaded(fresh)
     } catch (err) {
@@ -66,18 +59,19 @@ function ImageSlot({
 
   const handleRemove = async () => {
     await api.deleteMarketplaceAsset(packageId, slot).catch(() => {})
-    setDisplayUrl(undefined)
-    setImgError(true)
+    setImgError(false)
     onRemoved()
   }
+
+  const showImage = currentUrl && !imgError
 
   return (
     <div className={`marketplace-asset-slot ${className ?? ''}`}>
       <span className="marketplace-asset-slot-label">{label}</span>
       <div className="marketplace-asset-slot-row">
-        {displayUrl && !imgError ? (
+        {showImage ? (
           <img
-            src={displayUrl}
+            src={currentUrl}
             alt=""
             className="marketplace-asset-slot-preview"
             onError={() => setImgError(true)}
@@ -93,7 +87,7 @@ function ImageSlot({
         >
           {uploading ? '...' : 'Upload'}
         </button>
-        {displayUrl && !imgError && (
+        {showImage && (
           <button
             type="button"
             className="btn btn-ghost btn-sm"
@@ -115,16 +109,8 @@ function ImageSlot({
   )
 }
 
-export function MarketplaceListingFields({ packageId, listing, disabled = false, onChange }: Props) {
-  const [galleryUrls, setGalleryUrls] = useState<string[]>(listing?.galleryUrls ?? [])
-  const [youtubeUrl, setYoutubeUrl] = useState(listing?.youtubeUrl ?? '')
-
-  useEffect(() => {
-    setGalleryUrls(listing?.galleryUrls ?? [])
-    setYoutubeUrl(listing?.youtubeUrl ?? '')
-  }, [listing])
-
-  const nextGallerySlot = galleryUrls.length + 1
+export function MarketplaceListingFields({ packageId, fields, disabled = false, onChange }: Props) {
+  const patch = (partial: Partial<ListingUrlFields>) => onChange({ ...fields, ...partial })
 
   return (
     <fieldset className="marketplace-listing-fields">
@@ -132,64 +118,60 @@ export function MarketplaceListingFields({ packageId, listing, disabled = false,
 
       <ImageSlot
         label="Icon (square)"
-        url={listing?.iconUrl}
+        currentUrl={fields.iconUrl || undefined}
         packageId={packageId}
         slot="icon"
         disabled={disabled}
-        onUploaded={(url) => onChange({ iconUrl: url })}
-        onRemoved={() => onChange({ iconUrl: '' })}
+        onUploaded={(url) => patch({ iconUrl: url })}
+        onRemoved={() => patch({ iconUrl: '' })}
         className="is-icon"
       />
 
       <ImageSlot
         label="Cover (wide banner)"
-        url={listing?.coverUrl}
+        currentUrl={fields.coverUrl || undefined}
         packageId={packageId}
         slot="cover"
         disabled={disabled}
-        onUploaded={(url) => onChange({ coverUrl: url })}
-        onRemoved={() => onChange({ coverUrl: '' })}
+        onUploaded={(url) => patch({ coverUrl: url })}
+        onRemoved={() => patch({ coverUrl: '' })}
         className="is-cover"
       />
 
       <div className="marketplace-asset-gallery">
         <span className="marketplace-asset-slot-label">
-          Gallery ({galleryUrls.length}/8)
+          Gallery ({fields.galleryUrls.length}/8)
         </span>
         <div className="marketplace-asset-gallery-grid">
-          {galleryUrls.map((url, i) => (
+          {fields.galleryUrls.map((url, i) => (
             <ImageSlot
-              key={i}
+              key={`gallery-${i}`}
               label={`Image ${i + 1}`}
-              url={url}
+              currentUrl={url}
               packageId={packageId}
               slot={`gallery-${i + 1}`}
               disabled={disabled}
               onUploaded={(newUrl) => {
-                const next = [...galleryUrls]
+                const next = [...fields.galleryUrls]
                 next[i] = newUrl
-                setGalleryUrls(next)
-                onChange({ galleryUrls: next })
+                patch({ galleryUrls: next })
               }}
               onRemoved={() => {
-                const next = galleryUrls.filter((_, j) => j !== i)
-                setGalleryUrls(next)
-                onChange({ galleryUrls: next })
+                const next = fields.galleryUrls.filter((_, j) => j !== i)
+                patch({ galleryUrls: next })
               }}
               className="is-gallery"
             />
           ))}
-          {galleryUrls.length < 8 && (
+          {fields.galleryUrls.length < 8 && (
             <ImageSlot
-              label={`Add image ${nextGallerySlot}`}
-              url={undefined}
+              label="Add image"
+              currentUrl={undefined}
               packageId={packageId}
-              slot={`gallery-${nextGallerySlot}`}
+              slot={`gallery-${fields.galleryUrls.length + 1}`}
               disabled={disabled}
               onUploaded={(url) => {
-                const next = [...galleryUrls, url]
-                setGalleryUrls(next)
-                onChange({ galleryUrls: next })
+                patch({ galleryUrls: [...fields.galleryUrls, url] })
               }}
               onRemoved={() => {}}
               className="is-gallery"
@@ -202,13 +184,10 @@ export function MarketplaceListingFields({ packageId, listing, disabled = false,
         YouTube video URL
         <input
           type="url"
-          value={youtubeUrl}
+          value={fields.youtubeUrl}
           disabled={disabled}
           placeholder="https://youtube.com/watch?v=... or https://youtu.be/..."
-          onChange={(e) => {
-            setYoutubeUrl(e.target.value)
-            onChange({ youtubeUrl: e.target.value })
-          }}
+          onChange={(e) => patch({ youtubeUrl: e.target.value })}
         />
       </label>
     </fieldset>

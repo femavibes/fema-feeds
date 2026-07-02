@@ -3,7 +3,7 @@ import type pg from 'pg'
 
 export type PublisherListingMetaInput = Pick<
   MarketplaceListingMeta,
-  'iconUrl' | 'coverUrl' | 'productImageUrl'
+  'iconUrl' | 'coverUrl' | 'productImageUrl' | 'galleryUrls' | 'youtubeUrl'
 >
 
 export function parseListingMeta(raw: unknown): MarketplaceListingMeta | undefined {
@@ -15,6 +15,13 @@ export function parseListingMeta(raw: unknown): MarketplaceListingMeta | undefin
   if (typeof o.coverUrl === 'string' && o.coverUrl.trim()) meta.coverUrl = o.coverUrl.trim()
   if (typeof o.productImageUrl === 'string' && o.productImageUrl.trim()) {
     meta.productImageUrl = o.productImageUrl.trim()
+  }
+  if (Array.isArray(o.galleryUrls)) {
+    const urls = (o.galleryUrls as unknown[]).filter((u): u is string => typeof u === 'string' && u.trim() !== '').slice(0, 8)
+    if (urls.length) meta.galleryUrls = urls
+  }
+  if (typeof o.youtubeUrl === 'string' && o.youtubeUrl.trim()) {
+    meta.youtubeUrl = o.youtubeUrl.trim()
   }
   if (typeof o.ratingAverage === 'number' && Number.isFinite(o.ratingAverage)) {
     meta.ratingAverage = Math.min(5, Math.max(0, o.ratingAverage))
@@ -37,6 +44,8 @@ export function normalizePublisherListingMeta(
   if (meta.iconUrl) out.iconUrl = meta.iconUrl
   if (meta.coverUrl) out.coverUrl = meta.coverUrl
   if (meta.productImageUrl) out.productImageUrl = meta.productImageUrl
+  if (meta.galleryUrls?.length) out.galleryUrls = meta.galleryUrls
+  if (meta.youtubeUrl) out.youtubeUrl = meta.youtubeUrl
   return Object.keys(out).length > 0 ? out : null
 }
 
