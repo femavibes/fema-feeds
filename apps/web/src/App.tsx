@@ -242,6 +242,18 @@ export function App() {
     }
   }
 
+  // Listen for clone events from community workspace
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { logic, label } = (e as CustomEvent).detail
+      setCreateFeedSourceLogic(logic ?? null)
+      setCreateFeedSourceLabel(label ?? null)
+      setShowCreateFeedModal(true)
+    }
+    window.addEventListener('cfb:clone-feed', handler)
+    return () => window.removeEventListener('cfb:clone-feed', handler)
+  }, [])
+
   if (!authReady) {
     return <div className="app app-loading">Loading…</div>
   }
@@ -364,16 +376,6 @@ export function App() {
     setCreateFeedSourceLabel(sourceLabel ?? null)
     setShowCreateFeedModal(true)
   }
-
-  // Listen for clone events from community workspace
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const { logic, label } = (e as CustomEvent).detail
-      openCreateFeedModal(logic, label)
-    }
-    window.addEventListener('cfb:clone-feed', handler)
-    return () => window.removeEventListener('cfb:clone-feed', handler)
-  }, [])
 
   const listCacheForProject = listCache.filter((l) => l.projectId === selectedId)
 
