@@ -33,16 +33,23 @@ export function CommunityFeedCard({ feed, selected, onClick }: { feed: Community
         <div className="community-feed-card-head">
           <span className="community-feed-card-name">{feed.name}</span>
           <div className="community-feed-card-meta">
-            {feed.source && (
+            {feed.sources && feed.sources.includes('global') && feed.sources.includes('deployment') ? (
               <span
-                className="community-feed-card-scope"
-                title={feed.source === 'global' ? 'Global' : 'This deployment'}
+                className="marketplace-scope-badge is-dual"
+                title="Global + this deployment"
               >
-                {feed.source === 'global'
-                  ? <MarketplaceGlobeIcon className="community-feed-card-scope-icon" />
-                  : <MarketplaceDeploymentIcon className="community-feed-card-scope-icon" />}
+                <MarketplaceGlobeIcon className="marketplace-scope-badge-icon" />
+                <MarketplaceDeploymentIcon className="marketplace-scope-badge-icon" />
               </span>
-            )}
+            ) : feed.source === 'global' ? (
+              <span className="marketplace-scope-badge is-global" title="Global">
+                <MarketplaceGlobeIcon className="marketplace-scope-badge-icon" />
+              </span>
+            ) : feed.source === 'deployment' ? (
+              <span className="marketplace-scope-badge is-deployment" title="This deployment">
+                <MarketplaceDeploymentIcon className="marketplace-scope-badge-icon" />
+              </span>
+            ) : null}
           </div>
         </div>
         {feed.description && (

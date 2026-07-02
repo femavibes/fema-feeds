@@ -19,6 +19,7 @@ export interface GlobalCommunityFeedEntry {
   candidateCount?: number
   publishedAt?: string
   source?: 'deployment' | 'global'
+  sources?: string[]
 }
 
 /**
@@ -207,10 +208,16 @@ export async function resolveCommunityFeeds(
   // Consumer: fetch from remote registry
   const remote = (await fetchRemoteGlobalCommunityFeeds()).map((f) => ({ ...f, source: 'global' as const }))
   if (scope === 'global') return remote
-  const seen = new Set(localFeeds.map((f) => f.feedId))
-  const merged = [...localFeeds]
+  // Merge: local first, then remote (mark dual-source)
+  const remoteById = new Map(remote.map((f) => [f.feedId, f]))
+  const merged: GlobalCommunityFeedEntry[] = localFeeds.map((f) => {
+    const inRemote = remoteById.has(f.feedId)
+    return { ...f, sources: inRemote ? ['deployment', 'global'] : ['deployment'] }
+  })
   for (const f of remote) {
-    if (!seen.has(f.feedId)) merged.push(f)
+    if (!localFeeds.some((l) => l.feedId === f.feedId)) {
+      merged.push({ ...f, sources: ['global'] })
+    }
   }
   return merged
 }

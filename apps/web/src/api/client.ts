@@ -380,6 +380,7 @@ export interface CommunityFeedEntry {
   publishedAt?: string
   candidateCount?: number
   source?: 'deployment' | 'global'
+  sources?: string[]
 }
 
 export const api = {
