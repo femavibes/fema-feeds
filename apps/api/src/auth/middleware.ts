@@ -32,6 +32,7 @@ const PUBLIC_API_PREFIXES = [
   '/api/global-marketplace/sort-packs/catalog',
   '/api/global-marketplace/injectors/catalog',
   '/api/global-marketplace/rankers/catalog',
+  '/api/global-community/',
 ]
 
 function isPublicApiPath(path: string): boolean {
