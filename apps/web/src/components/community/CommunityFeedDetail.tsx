@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { FeedConfig } from '@cfb/core-types'
 import type { CommunityFeedEntry } from '../../api/client'
 import { api } from '../../api/client'
 import { PublisherProfileLink } from '../marketplace/PublisherProfileLink'
@@ -21,11 +22,13 @@ function feedInitials(name: string): string {
 interface Props {
   feed: CommunityFeedEntry | null
   emptyHint?: string
+  onCloneFeed?: (logic: Partial<FeedConfig>, label: string) => void
 }
 
-export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view details.' }: Props) {
+export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view details.', onCloneFeed }: Props) {
   const [inputAdded, setInputAdded] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [cloning, setCloning] = useState(false)
 
   const handleAddInput = async () => {
     if (!feed) return
@@ -45,6 +48,17 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
       setInputAdded(false)
     } catch { /* ignore */ }
     finally { setBusy(false) }
+  }
+
+  const handleClone = async () => {
+    if (!feed || !onCloneFeed) return
+    setCloning(true)
+    try {
+      const logic = await api.getCommunityFeedLogic(feed.feedId)
+      const ownerLabel = feed.ownerDid ? ` by ${feed.ownerDid}` : ''
+      onCloneFeed(logic, `${feed.name}${ownerLabel}`)
+    } catch { /* ignore */ }
+    finally { setCloning(false) }
   }
 
   if (!feed) {
@@ -149,9 +163,21 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
           )}
 
           {feed.logicPublic && (
-            <button type="button" className="btn btn-secondary btn-sm community-detail-view-logic">
-              View logic
-            </button>
+            <div className="community-detail-logic-actions">
+              <button type="button" className="btn btn-secondary btn-sm community-detail-view-logic">
+                View logic
+              </button>
+              {onCloneFeed && (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={cloning}
+                  onClick={() => void handleClone()}
+                >
+                  {cloning ? '...' : 'Clone this feed'}
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>

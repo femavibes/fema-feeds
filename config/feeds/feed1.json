@@ -11,56 +11,57 @@
     "logic": "any",
     "children": [
       {
-        "id": "ring-mr0z6t4d",
+        "type": "keyword",
+        "id": "kw-mr3zrsqm",
         "op": "includes",
-        "hub": "",
-        "type": "follow_ring",
-        "direction": "followers",
-        "hubSource": "viewer",
-        "pollIntervalMinutes": 60
+        "terms": [],
+        "fields": [
+          "text"
+        ]
       }
     ]
   },
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
   "visualLayout": {
-    "edges": [
-      {
-        "id": "e-start-ring-mr0z6t4d",
-        "branch": true,
-        "source": "start",
-        "target": "ring-mr0z6t4d"
-      },
-      {
-        "id": "e-ring-mr0z6t4d-end",
-        "branch": true,
-        "source": "ring-mr0z6t4d",
-        "target": "end"
-      }
-    ],
-    "labels": {},
     "positions": {
       "end": {
         "x": 485.3333333333333,
         "y": 29.333333333333336
       },
       "start": {
-        "x": -380.3274231678487,
-        "y": 50.3274231678487
+        "x": -364.3511428679284,
+        "y": 46.56829839139687
       },
-      "ring-mr0z6t4d": {
-        "x": -18.511663434360656,
-        "y": -121.54774505763054
+      "kw-mr3zrsqm": {
+        "x": -98.39306493396188,
+        "y": -60.20571542178226
       }
     },
+    "edges": [
+      {
+        "id": "e-start-kw-mr3zrsqm",
+        "source": "start",
+        "target": "kw-mr3zrsqm",
+        "branch": true
+      },
+      {
+        "id": "e-kw-mr3zrsqm-end",
+        "source": "kw-mr3zrsqm",
+        "target": "end",
+        "branch": true
+      }
+    ],
+    "labels": {},
     "nodeSources": {
       "kw-mqvfue4b": "native",
       "kw-mqvfyqtz": "native",
       "kw-mqwo8rji": "native",
       "lang-mqvfynbo": "native",
-      "ring-mr0z6t4d": "native"
+      "ring-mr0z6t4d": "native",
+      "kw-mr3zrsqm": "native"
     }
   },
-  "liveAt": "2026-07-02T19:34:05.366Z",
+  "liveAt": "2026-07-02T21:03:49.041Z",
   "publishedAt": "2026-06-30T18:29:28.703Z",
   "publishedUri": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.feed.generator/feed1",
   "atprotoRkey": "feed1",

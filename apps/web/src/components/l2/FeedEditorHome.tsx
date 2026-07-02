@@ -8,6 +8,7 @@ import { copyFeedLogicJson, downloadFeedLogicJson } from '../../lib/feed-graph-e
 
 interface Props {
   draft: FeedConfig
+  onCloneFeed?: () => void
 }
 
 function formatCount(value: number | null | undefined): string {
@@ -23,7 +24,7 @@ function publishStatusLabel(info: FeedPublishInfo | null): string {
   return 'Draft'
 }
 
-export function FeedEditorHome({ draft }: Props) {
+export function FeedEditorHome({ draft, onCloneFeed }: Props) {
   const edges = draft.visualLayout?.edges ?? []
   const filterCount = countImportableConditions(draft.match)
   const routeCount =
@@ -101,6 +102,11 @@ export function FeedEditorHome({ draft }: Props) {
             <button type="button" className="btn btn-ghost btn-sm" onClick={handleDownloadGraph}>
               Download graph
             </button>
+            {onCloneFeed && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={onCloneFeed}>
+                Clone feed
+              </button>
+            )}
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => void refreshStats()}>
               Refresh
             </button>

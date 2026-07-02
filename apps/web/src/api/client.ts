@@ -996,6 +996,16 @@ export const api = {
   // --- Community ---
   listCommunityFeeds: (scope: 'all' | 'deployment' | 'global' = 'all') =>
     apiFetch<{ feeds: CommunityFeedEntry[] }>(`/api/community/feeds?scope=${scope}`),
+  getCommunityFeedLogic: (feedId: string) =>
+    apiFetch<{
+      match: import('@cfb/core-types').FeedConfig['match']
+      rank?: import('@cfb/core-types').FeedConfig['rank']
+      visualLayout?: import('@cfb/core-types').FeedConfig['visualLayout']
+      injector?: import('@cfb/core-types').FeedConfig['injector']
+      authorLists?: import('@cfb/core-types').FeedConfig['authorLists']
+      sources?: import('@cfb/core-types').FeedConfig['sources']
+      personalization?: import('@cfb/core-types').FeedConfig['personalization']
+    }>(`/api/community/feeds/${feedId}/logic`),
   listFeedInputs: () =>
     apiFetch<{ inputs: Array<{ feedId: string; name: string; ownerDid?: string }> }>('/api/community/feed-inputs'),
   addFeedInput: (feedId: string, name: string, ownerDid?: string) =>

@@ -64,7 +64,12 @@ export function CommunityWorkspace() {
       </main>
 
       <aside className="sidebar sidebar-right marketplace-sidebar">
-        <CommunityFeedDetail feed={selectedFeed} />
+        <CommunityFeedDetail
+          feed={selectedFeed}
+          onCloneFeed={(logic, label) => {
+            window.dispatchEvent(new CustomEvent('cfb:clone-feed', { detail: { logic, label } }))
+          }}
+        />
         {selectedFeed && (
           <SidebarExpandBar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((v) => !v)} />
         )}

@@ -44,6 +44,7 @@ interface Props {
   }) => void
   onRefreshList?: (listId: string) => Promise<void>
   onUpdateLive?: () => Promise<void>
+  onCloneFeed?: () => void
 }
 
 export function FeedL2Workspace({
@@ -66,6 +67,7 @@ export function FeedL2Workspace({
   onFeedUpgradeApplied,
   onRefreshList,
   onUpdateLive,
+  onCloneFeed,
 }: Props) {
   const [editorDraft, setEditorDraft] = useState<FeedConfig | null>(null)
   const [editorDirty, setEditorDirty] = useState(false)
@@ -313,7 +315,7 @@ export function FeedL2Workspace({
         />
       ) : null}
 
-      {view === 'overview' && <FeedEditorHome draft={draft} />}
+      {view === 'overview' && <FeedEditorHome draft={draft} onCloneFeed={onCloneFeed} />}
 
       {view === 'sorting' && (
         <FeedSortingView

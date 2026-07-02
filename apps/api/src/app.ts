@@ -15,7 +15,7 @@ import {
   saveProject,
   deleteProject,
 } from '@cfb/project-config'
-import { loadFeedsForProject, loadAllFeeds, deleteFeed } from '@cfb/feed-config'
+import { loadFeedsForProject, loadAllFeeds, deleteFeed, loadFeed } from '@cfb/feed-config'
 import {
   getAllAuthorListCache,
   getAuthorListCache,
@@ -774,6 +774,26 @@ export function createApp(options?: {
       [userDid, c.req.param('feedId')],
     )
     return c.json({ ok: true })
+  })
+
+  // Fetch logic for a community feed (requires logicPublic)
+  app.get('/api/community/feeds/:id/logic', async (c) => {
+    const id = c.req.param('id')
+    try {
+      const feed = await loadFeed(feedDir, id)
+      if (!feed.logicPublic) return c.json({ error: 'Logic is not public' }, 403)
+      return c.json({
+        match: feed.match,
+        rank: feed.rank,
+        visualLayout: feed.visualLayout,
+        injector: feed.injector,
+        authorLists: feed.authorLists,
+        sources: (feed as any).sources,
+        personalization: (feed as any).personalization,
+      })
+    } catch {
+      return c.json({ error: 'not found' }, 404)
+    }
   })
 
   app.get('/api/projects/:id', async (c) => {

@@ -36,6 +36,7 @@ interface Props {
   onDeleteProject: () => void
   onNotify: (message: string | null, error: string | null) => void
   onOpenPublishingSettings?: () => void
+  onCloneFeed?: (feed: FeedConfig) => void
 }
 
 export function ProjectWorkspace({
@@ -54,6 +55,7 @@ export function ProjectWorkspace({
   onDeleteProject,
   onNotify,
   onOpenPublishingSettings,
+  onCloneFeed,
 }: Props) {
   const [feedDraft, setFeedDraft] = useState<FeedConfig | null>(null)
   const [liveFeed, setLiveFeed] = useState<FeedConfig | null>(null)
@@ -281,6 +283,7 @@ export function ProjectWorkspace({
               }}
               onRefreshList={onRefreshList}
               onUpdateLive={handleUpdateLive}
+              onCloneFeed={onCloneFeed && feedDraft ? () => onCloneFeed(feedDraft) : undefined}
             />
           ) : (
             <div className="empty-state">Loading feed…</div>

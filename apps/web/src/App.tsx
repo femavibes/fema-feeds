@@ -20,6 +20,7 @@ import { MasterOnboardingModal } from './components/MasterOnboardingModal'
 import { UserMenu } from './components/UserMenu'
 import { emptyProject } from './lib/l1-form'
 import { emptyFeed } from './lib/l2-form'
+import { CreateFeedModal, type FeedLogicFields } from './components/l2/CreateFeedModal'
 import { mergeCompiledIngestFromServer } from './lib/project-ingest'
 import { projectConfigsEqual } from './lib/project-draft'
 import type { BuilderSection, CfbAppProfile } from './lib/global-nav'
@@ -57,6 +58,9 @@ export function App() {
   const [showMasterOnboarding, setShowMasterOnboarding] = useState(false)
   const [settingsInitialView, setSettingsInitialView] = useState<SettingsWorkspaceView | undefined>()
   const [appProfile, setAppProfile] = useState<CfbAppProfile>('feedbuilder')
+  const [showCreateFeedModal, setShowCreateFeedModal] = useState(false)
+  const [createFeedSourceLogic, setCreateFeedSourceLogic] = useState<FeedLogicFields | null>(null)
+  const [createFeedSourceLabel, setCreateFeedSourceLabel] = useState<string | null>(null)
 
   const checkMasterOnboarding = useCallback(async (isMaster: boolean) => {
     if (!isMaster) return
@@ -335,6 +339,42 @@ export function App() {
     }
   }
 
+  const handleCreateFeedFromModal = async (feed: FeedConfig, avatarFile?: File) => {
+    setError(null)
+    setMessage(null)
+    try {
+      const { feed: created } = await api.createFeed(feed)
+      if (avatarFile) {
+        await api.uploadFeedAvatar(created.feedId, avatarFile).catch(() => null)
+      }
+      setFeeds((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+      setSelectedFeedId(created.feedId)
+      setBuilderSection('project')
+      setShowCreateFeedModal(false)
+      setCreateFeedSourceLogic(null)
+      setCreateFeedSourceLabel(null)
+      setMessage(`Created feed ${created.name}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Create feed failed')
+    }
+  }
+
+  const openCreateFeedModal = (sourceLogic?: FeedLogicFields | null, sourceLabel?: string | null) => {
+    setCreateFeedSourceLogic(sourceLogic ?? null)
+    setCreateFeedSourceLabel(sourceLabel ?? null)
+    setShowCreateFeedModal(true)
+  }
+
+  // Listen for clone events from community workspace
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { logic, label } = (e as CustomEvent).detail
+      openCreateFeedModal(logic, label)
+    }
+    window.addEventListener('cfb:clone-feed', handler)
+    return () => window.removeEventListener('cfb:clone-feed', handler)
+  }, [])
+
   const listCacheForProject = listCache.filter((l) => l.projectId === selectedId)
 
   const workspaceSubtitle =
@@ -418,6 +458,7 @@ export function App() {
           onGlobalNavSelect={openBuilderSection}
           onCreate={handleCreate}
           onCreateFeed={(id, name) => void handleCreateFeed(id, name)}
+          onOpenCreateFeedModal={() => openCreateFeedModal()}
           appProfile={appProfile}
         />
 
@@ -504,6 +545,10 @@ export function App() {
                 setHighlightPublishingSettings(true)
                 openBuilderSection('settings')
               }}
+              onCloneFeed={(feed) => openCreateFeedModal(
+                { match: feed.match, rank: feed.rank, visualLayout: feed.visualLayout, injector: feed.injector, authorLists: feed.authorLists, sources: feed.sources, personalization: feed.personalization },
+                feed.name,
+              )}
             />
           ) : appProfile === 'registry' ? (
             <MarketplaceWorkspace />
@@ -514,6 +559,24 @@ export function App() {
           )}
         </main>
       </div>
+
+      {showCreateFeedModal && draft && (
+        <CreateFeedModal
+          projectId={draft.projectId}
+          onClose={() => { setShowCreateFeedModal(false); setCreateFeedSourceLogic(null); setCreateFeedSourceLabel(null) }}
+          onCreate={(feed, avatarFile) => void handleCreateFeedFromModal(feed, avatarFile)}
+          sourceLogic={createFeedSourceLogic}
+          sourceLabel={createFeedSourceLabel}
+        />
+      )}
+
+      {showMasterOnboarding && (
+        <MasterOnboardingModal
+          onDismiss={dismissMasterOnboarding}
+          onOpenAccessSettings={openAccessSettings}
+          onWhitelistSaved={dismissMasterOnboarding}
+        />
+      )}
     </div>
   )
 }

@@ -22,6 +22,7 @@ interface Props {
   onGlobalNavSelect: (section: BuilderSection) => void
   onCreate: (projectId: string, name: string) => void
   onCreateFeed: (feedId: string, name: string) => void
+  onOpenCreateFeedModal?: () => void
 }
 
 export function ProjectSidebar({
@@ -40,6 +41,7 @@ export function ProjectSidebar({
   onGlobalNavSelect,
   onCreate,
   onCreateFeed,
+  onOpenCreateFeedModal,
   appProfile = 'feedbuilder',
 }: Props) {
   const isRegistry = appProfile === 'registry'
@@ -163,7 +165,7 @@ export function ProjectSidebar({
                               <button
                                 type="button"
                                 className="btn btn-ghost btn-sm"
-                                onClick={() => setShowNewFeed(true)}
+                                onClick={() => onOpenCreateFeedModal ? onOpenCreateFeedModal() : setShowNewFeed(true)}
                               >
                                 + Feed
                               </button>
