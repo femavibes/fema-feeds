@@ -52,12 +52,12 @@ export function CommunityFeedCard({ feed, selected, onClick }: { feed: Community
             ) : null}
           </div>
         </div>
-        {feed.description && (
-          <p className="community-feed-card-desc">{feed.description}</p>
+        {feed.ownerDid && (
+          <PublisherProfileLink did={feed.ownerDid} size="sm" stopPropagation />
         )}
         <div className="community-feed-card-footer">
-          {feed.ownerDid && (
-            <PublisherProfileLink did={feed.ownerDid} size="sm" stopPropagation />
+          {feed.description && (
+            <p className="community-feed-card-desc">{feed.description}</p>
           )}
           {feed.candidateCount != null && (
             <span className="community-feed-card-stat">{feed.candidateCount.toLocaleString()} posts</span>
