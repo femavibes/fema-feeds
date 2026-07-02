@@ -3,6 +3,7 @@ import type { LogicBlockTrustTier, LogicBlockVisibility, MarketplaceListingKind 
 import { resolveListingPresentation } from '../../lib/marketplace-listing'
 import { LogicBlockTrustBadge } from '../logic-blocks/logic-block-labels'
 import { MarketplaceListingCover, MarketplaceListingProductImage } from './MarketplaceListingMedia'
+import { MarketplaceListingGallery } from './MarketplaceListingGallery'
 import { MarketplaceListingRating } from './MarketplaceListingRating'
 import { PublisherProfileLink } from './PublisherProfileLink'
 
@@ -50,6 +51,7 @@ export function MarketplaceListingHero({
         {ownerDid ? <PublisherProfileLink did={ownerDid} size="md" /> : null}
         <p className="marketplace-listing-hero-desc">{presentation.description}</p>
         <MarketplaceListingProductImage presentation={presentation} productKind={productKind} />
+        <MarketplaceListingGallery presentation={presentation} />
       </div>
     </div>
   )
