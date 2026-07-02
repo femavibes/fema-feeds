@@ -77,27 +77,24 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
           <span className="sidebar-head-sub">Community feed</span>
         </div>
         <div className="marketplace-sidebar-toolbar-actions">
-          {feed.logicPublic && onCloneFeed && (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={!feed.logicPublic || !onCloneFeed || cloning}
+            onClick={() => void handleClone()}
+          >
+            {cloning ? '...' : 'Clone Feed'}
+          </button>
+          {!inputAdded ? (
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              disabled={cloning}
-              onClick={() => void handleClone()}
-            >
-              {cloning ? '...' : 'Clone Feed'}
-            </button>
-          )}
-          {feed.allowAsInput && !inputAdded && (
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={busy}
+              disabled={!feed.allowAsInput || busy}
               onClick={() => void handleAddInput()}
             >
               {busy ? '...' : '+Inputs'}
             </button>
-          )}
-          {feed.allowAsInput && inputAdded && (
+          ) : (
             <button
               type="button"
               className="btn btn-ghost btn-sm"
