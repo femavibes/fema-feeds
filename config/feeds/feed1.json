@@ -65,5 +65,7 @@
   "publishedAt": "2026-06-30T18:29:28.703Z",
   "publishedUri": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.feed.generator/feed1",
   "atprotoRkey": "feed1",
-  "description": "the best feed in the workd"
+  "description": "the best feed in the workd",
+  "public": true,
+  "logicPublic": true
 }

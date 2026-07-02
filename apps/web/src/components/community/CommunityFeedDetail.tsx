@@ -77,6 +77,16 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
           <span className="sidebar-head-sub">Community feed</span>
         </div>
         <div className="marketplace-sidebar-toolbar-actions">
+          {feed.logicPublic && onCloneFeed && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={cloning}
+              onClick={() => void handleClone()}
+            >
+              {cloning ? '...' : 'Clone Feed'}
+            </button>
+          )}
           {feed.allowAsInput && !inputAdded && (
             <button
               type="button"
@@ -84,7 +94,7 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
               disabled={busy}
               onClick={() => void handleAddInput()}
             >
-              {busy ? '...' : 'Add to inputs'}
+              {busy ? '...' : '+Inputs'}
             </button>
           )}
           {feed.allowAsInput && inputAdded && (
@@ -163,21 +173,9 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
           )}
 
           {feed.logicPublic && (
-            <div className="community-detail-logic-actions">
-              <button type="button" className="btn btn-secondary btn-sm community-detail-view-logic">
-                View logic
-              </button>
-              {onCloneFeed && (
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  disabled={cloning}
-                  onClick={() => void handleClone()}
-                >
-                  {cloning ? '...' : 'Clone this feed'}
-                </button>
-              )}
-            </div>
+            <button type="button" className="btn btn-secondary btn-sm community-detail-view-logic">
+              View logic
+            </button>
           )}
         </div>
       </div>

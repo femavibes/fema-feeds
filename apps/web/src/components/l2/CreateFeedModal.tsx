@@ -46,7 +46,7 @@ export function CreateFeedModal({
   )
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
-  const [settings, setSettings] = useState<Record<string, boolean>>({})
+  const [settings, setSettings] = useState<Record<string, boolean>>({ public: true })
   const fileRef = useRef<HTMLInputElement>(null)
 
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
