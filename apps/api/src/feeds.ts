@@ -64,6 +64,8 @@ import {
 
   saveFeedVersion,
 
+  getFeedStats,
+
 } from '@cfb/storage-postgres'
 
 import type { Pool } from '@cfb/storage-postgres'
@@ -177,6 +179,43 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     }
 
+  })
+
+
+
+  app.get('/api/feeds/:id/stats', async (c) => {
+    const id = c.req.param('id')
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    let feed: FeedConfig
+    try {
+      feed = await loadFeed(feedsDir, id)
+    } catch {
+      return c.json({ error: 'not found' }, 404)
+    }
+    const access = assertFeedAccess(feed, getUserDid(c))
+    if (!access.ok) return c.json({ error: 'not found' }, access.status)
+
+    const [stats, candidateCount] = await Promise.all([
+      getFeedStats(pool, id),
+      countFeedCandidates(pool, id),
+    ])
+
+    // Fetch Bluesky like count from public API
+    let likeCount: number | null = null
+    const feedUri = feed.publishedUri
+    if (feedUri) {
+      try {
+        const res = await fetch(
+          `https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?feed=${encodeURIComponent(feedUri)}`,
+        )
+        if (res.ok) {
+          const data = (await res.json()) as { view?: { likeCount?: number } }
+          likeCount = data.view?.likeCount ?? null
+        }
+      } catch { /* best effort */ }
+    }
+
+    return c.json({ ...stats, candidateCount, likeCount })
   })
 
 

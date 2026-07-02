@@ -358,6 +358,8 @@ export interface FeedConfig {
   logicPublic?: boolean
   /** Shows in Community > Templates instead of Community > Feeds. Default false. */
   isTemplate?: boolean
+  /** Show DAU and impression stats on the Community page. Default false. */
+  statsPublic?: boolean
   /** ISO timestamp when rules last went live (Update). */
   liveAt?: string
   /** ISO timestamp when first published to Bluesky. */

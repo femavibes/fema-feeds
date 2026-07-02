@@ -230,6 +230,15 @@ export interface FeedSkeletonResponse {
   cursor?: string
 }
 
+export interface FeedStatsResponse {
+  candidateCount: number
+  likeCount: number | null
+  dailyViewers: number
+  dailyImpressions: number
+  totalImpressions: number
+  totalUniqueViewers: number
+}
+
 export interface FeedPublishInfo {
   feedId: string
   name: string
@@ -377,11 +386,15 @@ export interface CommunityFeedEntry {
   allowAsInput?: boolean
   logicPublic?: boolean
   isTemplate?: boolean
+  statsPublic?: boolean
   publishedAt?: string
   candidateCount?: number
   avatarUrl?: string
   source?: 'deployment' | 'global'
   sources?: string[]
+  likeCount?: number | null
+  dailyViewers?: number | null
+  dailyImpressions?: number | null
 }
 
 export const api = {
@@ -531,6 +544,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
   feedPublishInfo: (id: string) => apiFetch<FeedPublishInfo>(`/api/feeds/${id}/publish`),
+  feedStats: (id: string) => apiFetch<FeedStatsResponse>(`/api/feeds/${id}/stats`),
   getFeedSkeleton: (id: string, limit = 50) =>
     apiFetch<FeedSkeletonResponse>(`/api/feeds/${id}/skeleton?limit=${limit}`),
   importFeedRules: (id: string, rules: unknown) =>

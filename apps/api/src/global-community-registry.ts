@@ -16,6 +16,7 @@ export interface GlobalCommunityFeedEntry {
   allowAsInput?: boolean
   logicPublic?: boolean
   isTemplate?: boolean
+  statsPublic?: boolean
   candidateCount?: number
   publishedAt?: string
   source?: 'deployment' | 'global'

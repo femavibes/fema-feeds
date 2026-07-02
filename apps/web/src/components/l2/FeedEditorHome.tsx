@@ -3,25 +3,11 @@ import { useCallback, useEffect, useState } from 'react'
 import type { FeedConfig } from '@cfb/core-types'
 import { countImportableConditions, enumeratePathsStartToEnd } from '@cfb/l2-graph'
 
-import { api, type FeedPublishInfo } from '../../api/client'
+import { api, type FeedPublishInfo, type FeedStatsResponse } from '../../api/client'
 import { copyFeedLogicJson, downloadFeedLogicJson } from '../../lib/feed-graph-exchange'
 
 interface Props {
   draft: FeedConfig
-}
-
-async function fetchBlueskySaves(feedUri: string | null): Promise<number | null> {
-  if (!feedUri) return null
-  try {
-    const res = await fetch(
-      `https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?feed=${encodeURIComponent(feedUri)}`,
-    )
-    if (!res.ok) return null
-    const data = (await res.json()) as { view?: { likeCount?: number } }
-    return data.view?.likeCount ?? null
-  } catch {
-    return null
-  }
 }
 
 function formatCount(value: number | null | undefined): string {
@@ -49,21 +35,18 @@ export function FeedEditorHome({ draft }: Props) {
   const hasRules = filterCount > 0 && routeCount > 0
 
   const [publishInfo, setPublishInfo] = useState<FeedPublishInfo | null>(null)
-  const [saves, setSaves] = useState<number | null>(null)
+  const [feedStats, setFeedStats] = useState<FeedStatsResponse | null>(null)
   const [statsError, setStatsError] = useState<string | null>(null)
   const [exportMsg, setExportMsg] = useState<string | null>(null)
 
   const refreshStats = useCallback(() => {
     setStatsError(null)
-    return api
-      .feedPublishInfo(draft.feedId)
-      .then(async (info) => {
-        setPublishInfo(info)
-        setSaves(await fetchBlueskySaves(info.feedUri))
-      })
-      .catch((e) => {
-        setStatsError(e instanceof Error ? e.message : 'Failed to load feed stats')
-      })
+    return Promise.all([
+      api.feedPublishInfo(draft.feedId).then(setPublishInfo),
+      api.feedStats(draft.feedId).then(setFeedStats).catch(() => null),
+    ]).catch((e) => {
+      setStatsError(e instanceof Error ? e.message : 'Failed to load feed stats')
+    })
   }, [draft.feedId])
 
   useEffect(() => {
@@ -127,22 +110,24 @@ export function FeedEditorHome({ draft }: Props) {
 
         <div className="feed-overview-stats">
           <div className="feed-overview-stat-card">
-            <span className="feed-overview-stat-value">{formatCount(publishInfo?.candidateCount)}</span>
+            <span className="feed-overview-stat-value">{formatCount(feedStats?.candidateCount ?? publishInfo?.candidateCount)}</span>
             <span className="feed-overview-stat-label">Candidates</span>
             <span className="feed-overview-stat-hint">Posts matching your rules</span>
           </div>
           <div className="feed-overview-stat-card">
-            <span className="feed-overview-stat-value">{formatCount(saves)}</span>
-            <span className="feed-overview-stat-label">Saves on Bluesky</span>
-            <span className="feed-overview-stat-hint">People who saved this feed</span>
+            <span className="feed-overview-stat-value">{formatCount(feedStats?.likeCount)}</span>
+            <span className="feed-overview-stat-label">Feed Likes</span>
+            <span className="feed-overview-stat-hint">People who liked this feed on Bluesky</span>
           </div>
-          <div
-            className="feed-overview-stat-card"
-            title="Bluesky does not expose daily viewers for custom feeds"
-          >
-            <span className="feed-overview-stat-value feed-overview-stat-muted">—</span>
+          <div className="feed-overview-stat-card">
+            <span className="feed-overview-stat-value">{formatCount(feedStats?.dailyViewers)}</span>
             <span className="feed-overview-stat-label">Daily viewers</span>
-            <span className="feed-overview-stat-hint">Not reported by Bluesky</span>
+            <span className="feed-overview-stat-hint">Unique authenticated viewers today</span>
+          </div>
+          <div className="feed-overview-stat-card">
+            <span className="feed-overview-stat-value">{formatCount(feedStats?.dailyImpressions)}</span>
+            <span className="feed-overview-stat-label">Daily impressions</span>
+            <span className="feed-overview-stat-hint">Total skeleton requests today</span>
           </div>
           <div className="feed-overview-stat-card">
             <span

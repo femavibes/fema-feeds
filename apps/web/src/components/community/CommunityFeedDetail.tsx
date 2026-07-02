@@ -119,12 +119,30 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
             </div>
           )}
 
-          {(feed.candidateCount != null || (feed.deploymentHost && feed.source === 'global')) && (
+          {(feed.candidateCount != null || feed.dailyViewers != null || feed.dailyImpressions != null || (feed.deploymentHost && feed.source === 'global')) && (
             <div className="community-detail-stats">
               {feed.candidateCount != null && (
                 <div className="community-detail-stat">
                   <span className="community-detail-stat-value">{feed.candidateCount.toLocaleString()}</span>
                   <span className="community-detail-stat-label">posts</span>
+                </div>
+              )}
+              {feed.likeCount != null && feed.likeCount > 0 && (
+                <div className="community-detail-stat">
+                  <span className="community-detail-stat-value">{feed.likeCount.toLocaleString()}</span>
+                  <span className="community-detail-stat-label">likes</span>
+                </div>
+              )}
+              {feed.dailyViewers != null && feed.dailyViewers > 0 && (
+                <div className="community-detail-stat">
+                  <span className="community-detail-stat-value">{feed.dailyViewers.toLocaleString()}</span>
+                  <span className="community-detail-stat-label">viewers today</span>
+                </div>
+              )}
+              {feed.dailyImpressions != null && feed.dailyImpressions > 0 && (
+                <div className="community-detail-stat">
+                  <span className="community-detail-stat-value">{feed.dailyImpressions.toLocaleString()}</span>
+                  <span className="community-detail-stat-label">impressions today</span>
                 </div>
               )}
               {feed.deploymentHost && feed.source === 'global' && (

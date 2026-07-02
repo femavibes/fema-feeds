@@ -120,6 +120,7 @@ import { resolveListMemberProfiles, resolveActorProfiles } from './list-members.
 import { registerGlobalCommunityRoutes, resolveCommunityFeeds, syncLocalFeedsToGlobalRegistry } from './global-community-registry.js'
 import { avatarPublicUrl } from './feed-avatar.js'
 import { existsSync } from 'node:fs'
+import { getFeedStats } from '@cfb/storage-postgres'
 
 async function hydrateProjectDraft(
   project: ProjectL1Config,
@@ -689,6 +690,7 @@ export function createApp(options?: {
             allowAsInput: f.allowAsInput ?? false,
             logicPublic: f.logicPublic ?? false,
             isTemplate: f.isTemplate ?? false,
+            statsPublic: f.statsPublic ?? false,
             publishedAt: f.publishedAt,
             avatarUrl: hasAvatar ? avatarPublicUrl(f.feedId) : undefined,
             source: 'deployment' as const,
@@ -696,7 +698,25 @@ export function createApp(options?: {
         })
       syncLocalFeedsToGlobalRegistry(localPublic)
       const feeds = await resolveCommunityFeeds(localPublic, scope, pool)
-      return c.json({ feeds })
+
+      // Hydrate stats for feeds with statsPublic enabled
+      const hydrated = await Promise.all(
+        feeds.map(async (f) => {
+          if (!f.statsPublic || !pool) return f
+          try {
+            const stats = await getFeedStats(pool, f.feedId)
+            return {
+              ...f,
+              dailyViewers: stats.dailyViewers,
+              dailyImpressions: stats.dailyImpressions,
+            }
+          } catch {
+            return f
+          }
+        }),
+      )
+
+      return c.json({ feeds: hydrated })
     } catch {
       return c.json({ feeds: [] })
     }

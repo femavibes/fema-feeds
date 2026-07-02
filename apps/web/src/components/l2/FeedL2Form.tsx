@@ -168,6 +168,13 @@ export function FeedL2Form({ draft, onChange, compact = false, sidebar = false }
             onChange={(v) => patch({ isTemplate: v })}
             ariaLabel="Template"
           />
+          <ToggleRow
+            label="Stats public on Community"
+            hint="Show daily viewers and impressions on the Community page"
+            checked={draft.statsPublic ?? false}
+            onChange={(v) => patch({ statsPublic: v })}
+            ariaLabel="Stats public on Community"
+          />
         </div>
         {!compact && (
           <p className="card-hint">

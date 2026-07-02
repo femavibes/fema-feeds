@@ -257,3 +257,15 @@ export {
   listUnenrichedPostUris,
   type PostEnrichmentRow,
 } from './post-enrichments.js'
+
+export {
+  incrementFeedImpression,
+  recordFeedDailyViewer,
+  getFeedDailyViewers,
+  getFeedDailyImpressions,
+  getFeedTotalImpressions,
+  getFeedTotalUniqueViewers,
+  getFeedStats,
+  type FeedDailyStatsRow,
+  type FeedStatsSnapshot,
+} from './feed-stats.js'

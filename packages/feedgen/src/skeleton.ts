@@ -4,7 +4,7 @@ import { isFeedPubliclyServed } from '@cfb/core-types'
 
 import type pg from 'pg'
 
-import { getFeedSkeleton, recordFeedServedPosts } from '@cfb/storage-postgres'
+import { getFeedSkeleton, recordFeedServedPosts, incrementFeedImpression } from '@cfb/storage-postgres'
 
 import { resolveFeedByUri } from './uri.js'
 
@@ -158,6 +158,9 @@ export async function handleGetFeedSkeleton(
       /* impression log failure must not break skeleton serve */
     }
   }
+
+  // Record impression (all requests, including anonymous)
+  void incrementFeedImpression(pool, config.feedId).catch(() => {})
 
   return { feed, cursor: skeleton.cursor, reqId }
 }
