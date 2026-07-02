@@ -1,7 +1,7 @@
 {
   "projectId": "urbanism",
   "name": "Urbanism",
-  "enabled": false,
+  "enabled": true,
   "prefilter": {
     "match": {
       "type": "group",
@@ -137,8 +137,44 @@
     ]
   },
   "compiledL1Meta": {
-    "compiledAt": "2026-06-28T16:43:40.203Z",
+    "compiledAt": "2026-07-02T00:36:25.104Z",
     "source": "prefilter"
   },
-  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "prefilterMode": "strict",
+  "strictIncludeGate": {
+    "includeBranches": [
+      {
+        "type": "keyword",
+        "op": "includes",
+        "terms": [
+          "urbanism",
+          "urbanist"
+        ],
+        "fields": [
+          "text",
+          "image_alt",
+          "video_alt",
+          "link_title",
+          "link_description",
+          "link_uri",
+          "facet_link",
+          "facet_mention"
+        ],
+        "wholeWord": true,
+        "sourceFeedId": "urbanism",
+        "sourceNodeId": "kw-mqvtcj5u"
+      }
+    ],
+    "excludeBranches": [],
+    "restrictBranches": []
+  },
+  "strictGateMeta": {
+    "compiledAt": "2026-07-02T00:36:25.105Z",
+    "feedCount": 1,
+    "pathCount": 1,
+    "contributingFeeds": [
+      "urbanism"
+    ]
+  }
 }

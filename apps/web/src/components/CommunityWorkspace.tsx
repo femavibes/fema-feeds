@@ -5,6 +5,7 @@ import { CommunityNav } from './community/CommunityNav'
 import { CommunityFeedsPanel } from './community/CommunityFeedsPanel'
 import { CommunityUsersPanel } from './community/CommunityUsersPanel'
 import { CommunityFeedDetail } from './community/CommunityFeedDetail'
+import { SidebarExpandBar } from './SidebarExpandBar'
 
 const VIEW_COPY: Record<CommunityWorkspaceView, { title: string; hint: string }> = {
   feeds: {
@@ -24,6 +25,7 @@ const VIEW_COPY: Record<CommunityWorkspaceView, { title: string; hint: string }>
 export function CommunityWorkspace() {
   const [view, setView] = useState<CommunityWorkspaceView>('feeds')
   const [selectedFeed, setSelectedFeed] = useState<CommunityFeedEntry | null>(null)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
 
   const copy = VIEW_COPY[view]
 
@@ -33,7 +35,7 @@ export function CommunityWorkspace() {
   }
 
   return (
-    <div className="project-workspace project-workspace--catalog">
+    <div className={`project-workspace project-workspace--catalog${sidebarExpanded ? ' is-sidebar-expanded' : ''}`}>
       <CommunityNav view={view} onViewChange={handleViewChange} />
 
       <main className="l2-main-panel">
@@ -63,6 +65,9 @@ export function CommunityWorkspace() {
 
       <aside className="sidebar sidebar-right marketplace-sidebar">
         <CommunityFeedDetail feed={selectedFeed} />
+        {selectedFeed && (
+          <SidebarExpandBar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((v) => !v)} />
+        )}
       </aside>
     </div>
   )

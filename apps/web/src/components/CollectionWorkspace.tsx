@@ -35,6 +35,7 @@ import {
   type ListingEditorTarget,
 } from './marketplace/MarketplaceListingEditor'
 import { CollectionAllView, type CollectionAllSelection } from './marketplace/CollectionAllView'
+import { SidebarExpandBar } from './SidebarExpandBar'
 
 
 
@@ -97,6 +98,7 @@ export function CollectionWorkspace() {
   const [creating, setCreating] = useState(false)
 
   const [error, setError] = useState<string | null>(null)
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
 
 
 
@@ -384,7 +386,7 @@ export function CollectionWorkspace() {
         />
       ) : null}
 
-      <div className="project-workspace collection-workspace project-workspace--catalog">
+      <div className={`project-workspace collection-workspace project-workspace--catalog${sidebarExpanded ? ' is-sidebar-expanded' : ''}`}>
       <WorkspaceNav
         mode="collection"
         contextLabel="My collection"
@@ -876,7 +878,9 @@ export function CollectionWorkspace() {
           ) : null}
 
         </div>
-
+        {(selectedLogic || selectedSort || selectedPlugin) && (
+          <SidebarExpandBar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((v) => !v)} />
+        )}
       </aside>
 
       </div>

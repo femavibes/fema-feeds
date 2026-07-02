@@ -1,13 +1,28 @@
 {
   "projectId": "pooltest",
   "name": "pooltest",
-  "enabled": true,
+  "enabled": false,
   "prefilter": {
     "match": {
       "type": "group",
       "id": "prefilter-root",
       "logic": "any",
       "children": []
+    },
+    "visualLayout": {
+      "positions": {
+        "start": {
+          "x": -38.666666666666664,
+          "y": 31.333333333333336
+        },
+        "end": {
+          "x": 168,
+          "y": 40
+        }
+      },
+      "edges": [],
+      "labels": {},
+      "nodeSources": {}
     }
   },
   "ingestGate": {
@@ -16,7 +31,7 @@
     "restrictBranches": []
   },
   "compiledL1Meta": {
-    "compiledAt": "2026-06-28T19:28:53.008Z",
+    "compiledAt": "2026-07-02T00:36:13.551Z",
     "source": "prefilter"
   },
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
@@ -44,7 +59,7 @@
     "restrictBranches": []
   },
   "strictGateMeta": {
-    "compiledAt": "2026-06-28T19:28:53.011Z",
+    "compiledAt": "2026-07-02T00:36:13.554Z",
     "feedCount": 1,
     "pathCount": 1,
     "contributingFeeds": [

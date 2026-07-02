@@ -30,6 +30,7 @@ import { InjectorsInstalledView } from './plugins/InjectorsInstalledView'
 
 import { MarketplaceProductSidebar } from './marketplace/MarketplaceProductSidebar'
 import { MarketplaceFeaturedBrowseView } from './marketplace/MarketplaceFeaturedBrowseView'
+import { SidebarExpandBar } from './SidebarExpandBar'
 
 
 
@@ -113,6 +114,7 @@ export function MarketplaceWorkspace() {
 
   const [catalogScope, setCatalogScope] = useState<MarketplaceCatalogScope>('all')
   const [catalogSort, setCatalogSort] = useState<MarketplaceCatalogSort>('updated_desc')
+  const [sidebarExpanded, setSidebarExpanded] = useState(false)
 
 
 
@@ -267,7 +269,7 @@ export function MarketplaceWorkspace() {
 
   return (
 
-    <div className="project-workspace project-workspace--catalog">
+    <div className={`project-workspace project-workspace--catalog${sidebarExpanded ? ' is-sidebar-expanded' : ''}`}>
 
       <WorkspaceNav
 
@@ -603,7 +605,9 @@ export function MarketplaceWorkspace() {
             }
           />
         )}
-
+        {selection && (
+          <SidebarExpandBar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((v) => !v)} />
+        )}
       </aside>
 
     </div>

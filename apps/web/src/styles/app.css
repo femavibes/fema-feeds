@@ -9955,3 +9955,44 @@ body.l2-visual-open #root {
 }
 
 /* Community styles moved to styles/modules/community.css */
+
+/* --- Sidebar expand mode --- */
+
+.project-workspace--catalog.is-sidebar-expanded > .l2-main-panel {
+  display: none;
+}
+
+.project-workspace--catalog.is-sidebar-expanded > .sidebar-right {
+  grid-column: 2 / -1;
+}
+
+.sidebar-expand-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.6rem 1rem;
+  margin-top: auto;
+  border-top: 1px solid var(--border, #333);
+  background: var(--bg-card, #1a1a2e);
+  cursor: pointer;
+  color: var(--text-muted, #999);
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: color 0.15s, background 0.15s;
+}
+
+.sidebar-expand-bar:hover {
+  color: var(--text, #eee);
+  background: var(--bg-card-alt, #222244);
+}
+
+.sidebar-expand-bar-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  transition: transform 0.15s;
+}
+
+.is-sidebar-expanded .sidebar-expand-bar-icon {
+  transform: rotate(180deg);
+}
