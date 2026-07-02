@@ -511,10 +511,22 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     )
 
-    // Persist enabled/published changes to live file immediately
-    if (body.enabled !== undefined && body.enabled !== live.enabled) {
-      await saveFeed(feedsDir, { ...live, enabled: body.enabled })
-      live = { ...live, enabled: body.enabled }
+    // Persist settings fields to live file immediately (no Update Live needed)
+    const settingsFields: Partial<FeedConfig> = {}
+    if (body.enabled !== undefined && body.enabled !== live.enabled) settingsFields.enabled = body.enabled
+    if (body.name !== undefined && body.name !== live.name) settingsFields.name = body.name
+    if (body.description !== undefined && body.description !== live.description) settingsFields.description = body.description
+    if (body.poolScope !== undefined && body.poolScope !== live.poolScope) settingsFields.poolScope = body.poolScope
+    if (body.public !== undefined && body.public !== live.public) settingsFields.public = body.public
+    if (body.logicPublic !== undefined && body.logicPublic !== live.logicPublic) settingsFields.logicPublic = body.logicPublic
+    if (body.allowAsInput !== undefined && body.allowAsInput !== live.allowAsInput) settingsFields.allowAsInput = body.allowAsInput
+    if (body.isTemplate !== undefined && body.isTemplate !== live.isTemplate) settingsFields.isTemplate = body.isTemplate
+    if (body.statsPublic !== undefined && body.statsPublic !== live.statsPublic) settingsFields.statsPublic = body.statsPublic
+    if (body.publishedUri !== undefined && body.publishedUri !== live.publishedUri) settingsFields.publishedUri = body.publishedUri
+    if (body.atprotoRkey !== undefined && body.atprotoRkey !== live.atprotoRkey) settingsFields.atprotoRkey = body.atprotoRkey
+    if (Object.keys(settingsFields).length > 0) {
+      live = { ...live, ...settingsFields }
+      await saveFeed(feedsDir, live)
     }
     await saveFeedDraft(pool, id, userDid, draft)
     await seedAuthorListsFromFeeds(pool, [draft])
