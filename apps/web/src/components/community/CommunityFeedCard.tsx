@@ -64,16 +64,13 @@ export function CommunityFeedCard({ feed, selected, onClick }: { feed: Community
             <p className="community-feed-card-desc">{feed.description}</p>
           )}
           <div className="community-feed-card-stats">
-            {feed.candidateCount != null && (
-              <span className="community-feed-card-stat">{feed.candidateCount.toLocaleString()} posts</span>
-            )}
-            {feed.likeCount != null && feed.likeCount > 0 && (
+            {feed.likeCount != null && (
               <span className="community-feed-card-stat">{feed.likeCount.toLocaleString()} likes</span>
             )}
-            {feed.dailyViewers != null && feed.dailyViewers > 0 && (
+            {feed.dailyViewers != null && (
               <span className="community-feed-card-stat">{feed.dailyViewers.toLocaleString()} viewers today</span>
             )}
-            {feed.dailyImpressions != null && feed.dailyImpressions > 0 && (
+            {feed.dailyImpressions != null && (
               <span className="community-feed-card-stat">{feed.dailyImpressions.toLocaleString()} impressions</span>
             )}
           </div>

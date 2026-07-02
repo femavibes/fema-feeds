@@ -692,6 +692,7 @@ export function createApp(options?: {
             isTemplate: f.isTemplate ?? false,
             statsPublic: f.statsPublic ?? false,
             publishedAt: f.publishedAt,
+            publishedUri: f.publishedUri,
             avatarUrl: hasAvatar ? avatarPublicUrl(f.feedId) : undefined,
             source: 'deployment' as const,
           }
@@ -705,8 +706,23 @@ export function createApp(options?: {
           if (!f.statsPublic || !pool) return f
           try {
             const stats = await getFeedStats(pool, f.feedId)
+            // Fetch Bluesky like count
+            let likeCount: number | null = null
+            const feedUri = (f as any).publishedUri as string | undefined
+            if (feedUri) {
+              try {
+                const bskyRes = await fetch(
+                  `https://public.api.bsky.app/xrpc/app.bsky.feed.getFeedGenerator?feed=${encodeURIComponent(feedUri)}`,
+                )
+                if (bskyRes.ok) {
+                  const data = (await bskyRes.json()) as { view?: { likeCount?: number } }
+                  likeCount = data.view?.likeCount ?? null
+                }
+              } catch { /* best effort */ }
+            }
             return {
               ...f,
+              likeCount,
               dailyViewers: stats.dailyViewers,
               dailyImpressions: stats.dailyImpressions,
             }
