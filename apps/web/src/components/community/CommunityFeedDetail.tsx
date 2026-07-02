@@ -7,6 +7,17 @@ import {
   MarketplaceDeploymentIcon,
 } from '../marketplace/MarketplaceScopeIcons'
 
+function feedAccentColor(feedId: string): string {
+  let hash = 0
+  for (let i = 0; i < feedId.length; i++) hash = ((hash << 5) - hash + feedId.charCodeAt(i)) | 0
+  const hue = Math.abs(hash) % 360
+  return `hsl(${hue}, 55%, 45%)`
+}
+
+function feedInitials(name: string): string {
+  return name.slice(0, 2).toUpperCase()
+}
+
 interface Props {
   feed: CommunityFeedEntry | null
   emptyHint?: string
@@ -77,6 +88,13 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
 
       <div className="marketplace-sidebar-body sidebar-scroll">
         <div className="community-detail-content">
+          <div
+            className="community-detail-image"
+            style={{ background: feedAccentColor(feed.feedId) }}
+          >
+            <span className="community-detail-image-initials">{feedInitials(feed.name)}</span>
+          </div>
+
           <h3 className="community-detail-name">{feed.name}</h3>
 
           {feed.source && (
