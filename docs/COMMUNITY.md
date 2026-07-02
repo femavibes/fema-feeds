@@ -123,14 +123,27 @@ Community is separate from Marketplace:
 - Different layout in expanded mode (e.g., two-column within the expanded area)
 - Tune per section (Community shows feed preview, Marketplace shows full readme, Collection shows editor)
 
-### 5. Copy Logic Flow
+### 5. Clone Logic Flow (Done)
 
-**Problem:** "View logic" button exists but doesn't do anything yet.
+**Create Feed Modal** (`CreateFeedModal.tsx`):
+- Replaces the old inline "+ Feed" form in the sidebar
+- Fields: Feed ID, Name, Description, Avatar upload
+- Dynamic settings toggles rendered from config array: Public on Community (default on), Logic public, Allow as input, Template, Stats public
+- Clone mode: description prefilled with "Forked from [name]", logic fields pre-loaded
+- On submit: creates feed via `POST /api/feeds` with logic included, uploads avatar if provided
 
-**What to do:**
-- "View logic" opens a read-only view of the feed's L2 rules
-- "Copy logic" button creates a new feed with those rules pre-loaded
-- Only available when `logicPublic` is true on the source feed
+**Entry points:**
+1. **Sidebar "+ Feed" button** — opens modal in blank mode
+2. **Feed overview "Clone feed" button** — opens modal with your own feed's logic pre-filled
+3. **Community detail toolbar "Clone Feed" button** — fetches logic via API, opens modal
+
+**Backend:**
+- `GET /api/community/feeds/:id/logic` — returns logic fields (match, rank, visualLayout, injector, authorLists, sources, personalization) for feeds with `logicPublic: true`
+
+**Community detail toolbar:**
+- "Clone Feed" and "+Inputs" buttons always visible, greyed out when unavailable (`logicPublic` off or `allowAsInput` off)
+- Both use `btn-secondary` style
+- "View logic" remains as a separate read-only button in the detail body (placeholder for now)
 
 ### 6. Search / Filter
 
