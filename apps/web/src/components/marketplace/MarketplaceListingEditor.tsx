@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type {
   LogicBlockPackage,
   MarketplaceListingKind,
+  MarketplaceListingMeta,
   PluginPackage,
   SortPackPackage,
 } from '@cfb/core-types'
@@ -14,6 +15,7 @@ import {
   listingFieldsDirty,
   listingFieldsFromMeta,
   listingFieldsToPayload,
+  type ListingUrlFields,
 } from './MarketplaceListingFields'
 
 export type ListingEditorTarget =
@@ -37,38 +39,38 @@ export function MarketplaceListingEditor({ target, onBack, onSaved }: Props) {
         : productKind
 
   const [description, setDescription] = useState(pkg.description ?? '')
-  const [iconUrl, setIconUrl] = useState('')
-  const [coverUrl, setCoverUrl] = useState('')
-  const [productImageUrl, setProductImageUrl] = useState('')
+  const [fields, setFields] = useState<ListingUrlFields>(() => listingFieldsFromMeta(pkg.listing))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
     setDescription(pkg.description ?? '')
-    const fields = listingFieldsFromMeta(pkg.listing)
-    setIconUrl(fields.iconUrl)
-    setCoverUrl(fields.coverUrl)
-    setProductImageUrl(fields.productImageUrl)
+    setFields(listingFieldsFromMeta(pkg.listing))
     setError(null)
     setMessage(null)
   }, [pkg.id, pkg.version, pkg.description, pkg.listing])
 
   const draftListing = useMemo(
-    () => listingFieldsToPayload({ iconUrl, coverUrl, productImageUrl }) ?? undefined,
-    [iconUrl, coverUrl, productImageUrl],
+    () => listingFieldsToPayload(fields) ?? undefined,
+    [fields],
   )
 
   const dirty =
     description !== (pkg.description ?? '') ||
-    listingFieldsDirty({ iconUrl, coverUrl, productImageUrl }, pkg.listing)
+    listingFieldsDirty(fields, pkg.listing)
+
+  const handleFieldChange = (partial: Partial<ListingUrlFields>) => {
+    setFields((prev) => ({ ...prev, ...partial }))
+    setMessage(null)
+  }
 
   const save = async () => {
     setBusy(true)
     setError(null)
     setMessage(null)
     try {
-      const listingPayload = listingFieldsToPayload({ iconUrl, coverUrl, productImageUrl })
+      const listingPayload = listingFieldsToPayload(fields)
       let next: ListingEditorTarget
       if (productKind === 'logic_block') {
         const res = await api.updateLogicBlock(pkg.id, {
@@ -140,22 +142,10 @@ export function MarketplaceListingEditor({ target, onBack, onSaved }: Props) {
             />
           </label>
           <MarketplaceListingFields
-            iconUrl={iconUrl}
-            coverUrl={coverUrl}
-            productImageUrl={productImageUrl}
+            packageId={pkg.id}
+            listing={draftListing}
             disabled={busy}
-            onIconUrlChange={(v) => {
-              setIconUrl(v)
-              setMessage(null)
-            }}
-            onCoverUrlChange={(v) => {
-              setCoverUrl(v)
-              setMessage(null)
-            }}
-            onProductImageUrlChange={(v) => {
-              setProductImageUrl(v)
-              setMessage(null)
-            }}
+            onChange={handleFieldChange}
           />
         </section>
 

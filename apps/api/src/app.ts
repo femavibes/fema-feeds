@@ -72,6 +72,7 @@ import { pollDueFollowRings } from '@cfb/l2-worker'
 import { resolveLabelerLabelsForPost } from '@cfb/label-resolve'
 import { normalizeJetstreamPost, type JetstreamPostEvent } from '@cfb/post-normalize'
 import { registerFeedRoutes } from './feeds.js'
+import { registerFeedAvatarRoutes } from './feed-avatar.js'
 import { registerFeedgenRoutes } from './feedgen.js'
 import { registerAuthRoutes, createAuthMiddleware } from './auth/routes.js'
 import { registerLogicBlockRoutes } from './logic-blocks.js'
@@ -80,6 +81,7 @@ import { registerPluginRoutes } from './plugins.js'
 import { ensureDemoInjectorPackage, ensureDemoRankerPackage } from './plugin-bootstrap.js'
 import { registerMarketplaceVerificationRoutes } from './marketplace-verification.js'
 import { registerMarketplaceModerationRoutes } from './marketplace-moderation.js'
+import { registerMarketplaceAssetRoutes } from './marketplace-assets.js'
 import { feedgenEnvFromProcess } from './feedgen-env.js'
 import { requireMaster, requireMasterIfMultiUser } from './require-master.js'
 import {
@@ -116,6 +118,8 @@ import { seedFollowRingsFromProjects } from '@cfb/l2-worker'
 import { resolvePostInput } from '@cfb/post-resolve'
 import { resolveListMemberProfiles, resolveActorProfiles } from './list-members.js'
 import { registerGlobalCommunityRoutes, resolveCommunityFeeds, syncLocalFeedsToGlobalRegistry } from './global-community-registry.js'
+import { avatarPublicUrl } from './feed-avatar.js'
+import { existsSync } from 'node:fs'
 
 async function hydrateProjectDraft(
   project: ProjectL1Config,
@@ -215,6 +219,7 @@ export function createApp(options?: {
   }
   registerMarketplaceVerificationRoutes(app, pool)
   registerMarketplaceModerationRoutes(app, pool)
+  registerMarketplaceAssetRoutes(app)
   registerGlobalCommunityRoutes(app, pool)
 
   if (pool) {
@@ -657,6 +662,7 @@ export function createApp(options?: {
   })
 
   // Feed routes before /api/projects/:id (more specific paths first).
+  registerFeedAvatarRoutes(app, { feedsDir: feedDir })
   registerFeedRoutes(app, { feedsDir: feedDir, projectsDir: dir, pool })
   registerFeedgenRoutes(app, {
     feedsDir: feedDir,
@@ -671,17 +677,23 @@ export function createApp(options?: {
       const allFeeds = await loadAllFeeds(feedDir)
       const localPublic = allFeeds
         .filter((f) => f.public !== false && f.enabled)
-        .map((f) => ({
-          feedId: f.feedId,
-          name: f.name,
-          description: f.description,
-          ownerDid: f.ownerDid,
-          allowAsInput: f.allowAsInput ?? false,
-          logicPublic: f.logicPublic ?? false,
-          isTemplate: f.isTemplate ?? false,
-          publishedAt: f.publishedAt,
-          source: 'deployment' as const,
-        }))
+        .map((f) => {
+          const hasAvatar = ['.png', '.jpg', '.jpeg', '.webp'].some(
+            (ext) => existsSync(resolve(feedDir, 'avatars', `${f.feedId}${ext}`))
+          )
+          return {
+            feedId: f.feedId,
+            name: f.name,
+            description: f.description,
+            ownerDid: f.ownerDid,
+            allowAsInput: f.allowAsInput ?? false,
+            logicPublic: f.logicPublic ?? false,
+            isTemplate: f.isTemplate ?? false,
+            publishedAt: f.publishedAt,
+            avatarUrl: hasAvatar ? avatarPublicUrl(f.feedId) : undefined,
+            source: 'deployment' as const,
+          }
+        })
       syncLocalFeedsToGlobalRegistry(localPublic)
       const feeds = await resolveCommunityFeeds(localPublic, scope, pool)
       return c.json({ feeds })

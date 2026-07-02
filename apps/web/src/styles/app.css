@@ -9996,3 +9996,82 @@ body.l2-visual-open #root {
 .is-sidebar-expanded .sidebar-expand-bar-icon {
   transform: rotate(180deg);
 }
+
+/* Feed avatar upload field */
+.feed-avatar-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.feed-avatar-label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.feed-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.feed-avatar-preview {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.4rem;
+  object-fit: cover;
+}
+.feed-avatar-placeholder {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 0.4rem;
+  background: var(--bg-muted);
+  border: 1px dashed var(--border);
+}
+
+/* Marketplace asset upload slots */
+.marketplace-asset-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+.marketplace-asset-slot-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.marketplace-asset-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.marketplace-asset-slot-preview {
+  border-radius: 0.3rem;
+  object-fit: cover;
+}
+.marketplace-asset-slot.is-icon .marketplace-asset-slot-preview,
+.marketplace-asset-slot.is-icon .marketplace-asset-slot-empty {
+  width: 3rem;
+  height: 3rem;
+}
+.marketplace-asset-slot.is-cover .marketplace-asset-slot-preview,
+.marketplace-asset-slot.is-cover .marketplace-asset-slot-empty {
+  width: 8rem;
+  height: 3rem;
+}
+.marketplace-asset-slot.is-gallery .marketplace-asset-slot-preview,
+.marketplace-asset-slot.is-gallery .marketplace-asset-slot-empty {
+  width: 4rem;
+  height: 3rem;
+}
+.marketplace-asset-slot-empty {
+  border-radius: 0.3rem;
+  background: var(--bg-muted);
+  border: 1px dashed var(--border);
+}
+.marketplace-asset-gallery {
+  margin-bottom: 0.75rem;
+}
+.marketplace-asset-gallery-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}

@@ -142,6 +142,7 @@ export async function publishBlueskyGeneratorRecord(
   userDid: string,
   feed: FeedConfig,
   serviceDid: string,
+  avatar?: { data: Uint8Array; mime: string } | null,
 ): Promise<{ uri: string; created: boolean }> {
   if (!serviceDid.trim()) {
     throw new Error('Generator service DID not configured (Settings → Feed publishing)')
@@ -151,13 +152,22 @@ export async function publishBlueskyGeneratorRecord(
   const uri = buildPublishedFeedUri(userDid, { ...feed, atprotoRkey: rkey })
   const existing = await getBlueskyGeneratorRecordStatus(agent, userDid, feed, serviceDid)
 
-  const record = {
-    $type: 'app.bsky.feed.generator' as const,
+  let avatarBlob: unknown
+  if (avatar) {
+    const uploaded = await agent.com.atproto.repo.uploadBlob(avatar.data, {
+      encoding: avatar.mime,
+    })
+    avatarBlob = uploaded.data.blob
+  }
+
+  const record: Record<string, unknown> = {
+    $type: 'app.bsky.feed.generator',
     did: serviceDid,
     displayName: feed.name.trim().slice(0, 24) || rkey,
     description: feed.description?.trim().slice(0, 300) || undefined,
     createdAt: new Date().toISOString(),
   }
+  if (avatarBlob) record.avatar = avatarBlob
 
   await agent.com.atproto.repo.putRecord({
     repo: userDid,

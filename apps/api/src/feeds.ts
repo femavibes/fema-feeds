@@ -104,6 +104,8 @@ import {
   publishBlueskyGeneratorRecord,
 } from './bluesky-generator.js'
 
+import { readFeedAvatarBytes } from './feed-avatar.js'
+
 
 
 export function registerFeedRoutes(app: Hono, options: { feedsDir: string; projectsDir: string; pool: Pool | null }) {
@@ -620,7 +622,8 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     let bluesky: { uri: string; created: boolean }
     try {
-      bluesky = await publishBlueskyGeneratorRecord(agent, userDid, live, serviceDid)
+      const avatar = await readFeedAvatarBytes(feedsDir, id)
+      bluesky = await publishBlueskyGeneratorRecord(agent, userDid, live, serviceDid, avatar)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Bluesky publish failed'
       return c.json({ error: message }, 502)

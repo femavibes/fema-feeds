@@ -379,6 +379,7 @@ export interface CommunityFeedEntry {
   isTemplate?: boolean
   publishedAt?: string
   candidateCount?: number
+  avatarUrl?: string
   source?: 'deployment' | 'global'
   sources?: string[]
 }
@@ -990,4 +991,43 @@ export const api = {
     }),
   removeFeedInput: (feedId: string) =>
     apiFetch<{ ok: boolean }>(`/api/community/feed-inputs/${feedId}`, { method: 'DELETE' }),
+  uploadFeedAvatar: (feedId: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return fetch(`/api/feeds/${feedId}/avatar`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(err.error ?? 'Upload failed')
+      }
+      return res.json() as Promise<{ avatarUrl: string }>
+    })
+  },
+  deleteFeedAvatar: (feedId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/feeds/${feedId}/avatar`, { method: 'DELETE' }),
+  // --- Marketplace assets ---
+  uploadMarketplaceAsset: (packageId: string, slot: string, file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return fetch(`/api/marketplace-assets/${packageId}/${slot}`, {
+      method: 'POST',
+      credentials: 'include',
+      body: form,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string }
+        throw new Error(err.error ?? 'Upload failed')
+      }
+      return res.json() as Promise<{ url: string }>
+    })
+  },
+  deleteMarketplaceAsset: (packageId: string, slot: string) =>
+    apiFetch<{ ok: boolean }>(`/api/marketplace-assets/${packageId}/${slot}`, { method: 'DELETE' }),
+  listMarketplaceAssets: (packageId: string) =>
+    apiFetch<{ iconUrl?: string; coverUrl?: string; galleryUrls: string[] }>(
+      `/api/marketplace-assets/${packageId}`,
+    ),
 }

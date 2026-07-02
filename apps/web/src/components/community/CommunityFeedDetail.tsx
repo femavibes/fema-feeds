@@ -90,9 +90,13 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
         <div className="community-detail-content">
           <div
             className="community-detail-image"
-            style={{ background: feedAccentColor(feed.feedId) }}
+            style={{ background: feed.avatarUrl ? undefined : feedAccentColor(feed.feedId) }}
           >
-            <span className="community-detail-image-initials">{feedInitials(feed.name)}</span>
+            {feed.avatarUrl ? (
+              <img src={feed.avatarUrl} alt="" className="community-detail-image-img" />
+            ) : (
+              <span className="community-detail-image-initials">{feedInitials(feed.name)}</span>
+            )}
           </div>
 
           <h3 className="community-detail-name">{feed.name}</h3>

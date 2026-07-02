@@ -1,4 +1,6 @@
+import { useRef, useState } from 'react'
 import type { FeedConfig } from '@cfb/core-types'
+import { api } from '../../api/client'
 
 import { ToggleRow } from '../ToggleRow'
 
@@ -11,6 +13,32 @@ interface Props {
 
 export function FeedL2Form({ draft, onChange, compact = false, sidebar = false }: Props) {
   const patch = (partial: Partial<FeedConfig>) => onChange({ ...draft, ...partial })
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(
+    `/api/feeds/${draft.feedId}/avatar`
+  )
+  const [avatarError, setAvatarError] = useState(false)
+  const [uploading, setUploading] = useState(false)
+
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    try {
+      const res = await api.uploadFeedAvatar(draft.feedId, file)
+      setAvatarUrl(res.avatarUrl + '?t=' + Date.now())
+      setAvatarError(false)
+    } catch (err) {
+      console.error('[feed-avatar] upload failed', err)
+    } finally { setUploading(false) }
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  const handleAvatarRemove = async () => {
+    await api.deleteFeedAvatar(draft.feedId).catch(() => {})
+    setAvatarUrl(null)
+    setAvatarError(true)
+  }
 
   return (
     <div
@@ -25,6 +53,45 @@ export function FeedL2Form({ draft, onChange, compact = false, sidebar = false }
           ariaLabel="Feed active"
         />
         <div className="field-grid">
+          <div className="feed-avatar-field">
+            <span className="feed-avatar-label">Feed image</span>
+            <div className="feed-avatar-row">
+              {avatarUrl && !avatarError ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className="feed-avatar-preview"
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <div className="feed-avatar-placeholder" />
+              )}
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={uploading}
+                onClick={() => fileRef.current?.click()}
+              >
+                {uploading ? 'Uploading...' : 'Upload'}
+              </button>
+              {avatarUrl && !avatarError && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => void handleAvatarRemove()}
+                >
+                  Remove
+                </button>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                hidden
+                onChange={(e) => void handleAvatarSelect(e)}
+              />
+            </div>
+          </div>
           <label>
             Display name
             <input value={draft.name} onChange={(e) => patch({ name: e.target.value })} />

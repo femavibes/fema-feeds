@@ -3,6 +3,10 @@ export interface MarketplaceListingMeta {
   iconUrl?: string
   coverUrl?: string
   productImageUrl?: string
+  /** Up to 8 gallery/screenshot images. */
+  galleryUrls?: string[]
+  /** YouTube video URL (watch or short link). */
+  youtubeUrl?: string
   /** 0–5 average; omit when no ratings exist yet. */
   ratingAverage?: number
   ratingCount?: number

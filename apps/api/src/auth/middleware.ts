@@ -36,6 +36,8 @@ const PUBLIC_API_PREFIXES = [
 ]
 
 function isPublicApiPath(path: string): boolean {
+  if (path.endsWith('/avatar') && path.startsWith('/api/feeds/')) return true
+  if (path.startsWith('/api/marketplace-assets/')) return true
   return PUBLIC_API_PREFIXES.some((p) => path === p || path.startsWith(p))
 }
 

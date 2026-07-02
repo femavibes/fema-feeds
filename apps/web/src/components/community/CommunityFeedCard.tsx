@@ -26,8 +26,12 @@ export function CommunityFeedCard({ feed, selected, onClick }: { feed: Community
       className={`community-feed-card${selected ? ' is-selected' : ''}`}
       onClick={onClick}
     >
-      <div className="community-feed-card-accent" style={{ background: accent }}>
-        <span className="community-feed-card-initials">{feedInitials(feed.name)}</span>
+      <div className="community-feed-card-accent" style={{ background: feed.avatarUrl ? undefined : accent }}>
+        {feed.avatarUrl ? (
+          <img src={feed.avatarUrl} alt="" className="community-feed-card-avatar" />
+        ) : (
+          <span className="community-feed-card-initials">{feedInitials(feed.name)}</span>
+        )}
       </div>
       <div className="community-feed-card-body">
         <div className="community-feed-card-head">
