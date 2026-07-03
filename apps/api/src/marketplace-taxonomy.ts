@@ -61,6 +61,12 @@ async function syncTaxonomyFromGlobal(): Promise<MarketplaceTaxonomy | null> {
 }
 
 export function registerMarketplaceTaxonomyRoutes(app: Hono): void {
+  // Auto-sync on startup for consumer deployments
+  const role = globalMarketplaceRegistryRole()
+  if (role === 'consumer') {
+    void syncTaxonomyFromGlobal()
+  }
+
   app.get('/api/marketplace/taxonomy', async (c) => {
     const taxonomy = await loadTaxonomy()
     return c.json(taxonomy)
@@ -84,10 +90,4 @@ export function registerMarketplaceTaxonomyRoutes(app: Hono): void {
     invalidateTaxonomyCache()
     return c.json(result)
   })
-}
-
-// Auto-sync on startup for consumer deployments
-const role = globalMarketplaceRegistryRole()
-if (role === 'consumer') {
-  void syncTaxonomyFromGlobal()
 }
