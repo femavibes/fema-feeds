@@ -76,6 +76,12 @@ export function MarketplaceCatalogCard({
           {subscribed ? ' · Subscribed' : ''}
           {updatedLabel ? ` · ${updatedLabel}` : ''}
         </p>
+        {(presentation.category || presentation.tags?.length) ? (
+          <div className="marketplace-catalog-card-tags">
+            {presentation.category && <span className="marketplace-tag-badge is-category">{presentation.category}</span>}
+            {presentation.tags?.map((t) => <span key={t} className="marketplace-tag-badge">{t}</span>)}
+          </div>
+        ) : null}
       </div>
     </button>
   )

@@ -82,6 +82,7 @@ import { ensureDemoInjectorPackage, ensureDemoRankerPackage } from './plugin-boo
 import { registerMarketplaceVerificationRoutes } from './marketplace-verification.js'
 import { registerMarketplaceModerationRoutes } from './marketplace-moderation.js'
 import { registerMarketplaceAssetRoutes } from './marketplace-assets.js'
+import { registerMarketplaceTaxonomyRoutes } from './marketplace-taxonomy.js'
 import { feedgenEnvFromProcess } from './feedgen-env.js'
 import { requireMaster, requireMasterIfMultiUser } from './require-master.js'
 import {
@@ -221,6 +222,7 @@ export function createApp(options?: {
   registerMarketplaceVerificationRoutes(app, pool)
   registerMarketplaceModerationRoutes(app, pool)
   registerMarketplaceAssetRoutes(app)
+  registerMarketplaceTaxonomyRoutes(app)
   registerGlobalCommunityRoutes(app, pool)
 
   if (pool) {

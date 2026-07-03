@@ -2,14 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import type { PluginKind, PluginPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
-import type { MarketplaceCatalogScope, MarketplaceCatalogSort } from '../../lib/marketplace-catalog'
-import { sortMarketplacePackages } from '../../lib/marketplace-catalog'
+import type { MarketplaceCatalogScope, MarketplaceCatalogSort, MarketplaceCategoryFilter } from '../../lib/marketplace-catalog'
+import { sortMarketplacePackages, filterByCategory } from '../../lib/marketplace-catalog'
 import { MarketplaceCatalogCard } from '../marketplace/MarketplaceCatalogCard'
 
 interface Props {
   kind?: PluginKind
   catalogScope: MarketplaceCatalogScope
   catalogSort: MarketplaceCatalogSort
+  catalogCategory?: MarketplaceCategoryFilter
   selectedId: string | null
   subscribedIds: Set<string>
   onSelect: (pkg: PluginPackage) => void
@@ -53,6 +54,7 @@ export function InjectorsBrowseView({
   kind = 'injector',
   catalogScope,
   catalogSort,
+  catalogCategory = 'all',
   selectedId,
   subscribedIds,
   onSelect,
@@ -61,8 +63,8 @@ export function InjectorsBrowseView({
   const [loading, setLoading] = useState(true)
 
   const sortedPackages = useMemo(
-    () => sortMarketplacePackages(packages, catalogSort),
-    [packages, catalogSort],
+    () => filterByCategory(sortMarketplacePackages(packages, catalogSort), catalogCategory),
+    [packages, catalogSort, catalogCategory],
   )
 
   useEffect(() => {

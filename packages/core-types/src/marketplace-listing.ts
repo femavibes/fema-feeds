@@ -7,6 +7,10 @@ export interface MarketplaceListingMeta {
   galleryUrls?: string[]
   /** YouTube video URL (watch or short link). */
   youtubeUrl?: string
+  /** Primary category (one per package). */
+  category?: string
+  /** Freeform tags (up to 5, from taxonomy list). */
+  tags?: string[]
   /** 0–5 average; omit when no ratings exist yet. */
   ratingAverage?: number
   ratingCount?: number

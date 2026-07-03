@@ -994,6 +994,10 @@ export const api = {
     apiFetch<{ ok: boolean }>(`/api/feeds/${feedId}/rebuild-status/clear`, { method: 'POST' }),
 
   // --- Community ---
+  marketplaceTaxonomy: () =>
+    apiFetch<{ categories: Array<{ id: string; label: string; scope: string }>; tags: Array<{ id: string; label: string; scope: string }> }>('/api/marketplace/taxonomy'),
+  syncMarketplaceTaxonomy: () =>
+    apiFetch<{ categories: Array<{ id: string; label: string; scope: string }>; tags: Array<{ id: string; label: string; scope: string }> }>('/api/marketplace/taxonomy/sync', { method: 'POST' }),
   listCommunityFeeds: (scope: 'all' | 'deployment' | 'global' = 'all') =>
     apiFetch<{ feeds: CommunityFeedEntry[] }>(`/api/community/feeds?scope=${scope}`),
   getCommunityFeedLogic: (feedId: string) =>

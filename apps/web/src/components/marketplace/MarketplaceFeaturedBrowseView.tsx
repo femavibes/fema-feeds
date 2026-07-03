@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { LogicBlockPackage, PluginPackage, SortPackPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
-import type { MarketplaceCatalogScope, MarketplaceCatalogSort } from '../../lib/marketplace-catalog'
-import { sortMarketplacePackages } from '../../lib/marketplace-catalog'
+import type { MarketplaceCatalogScope, MarketplaceCatalogSort, MarketplaceCategoryFilter } from '../../lib/marketplace-catalog'
+import { sortMarketplacePackages, filterByCategory } from '../../lib/marketplace-catalog'
 import { marketplaceProduct } from '../../lib/marketplace-products'
 import { MarketplaceCatalogCard } from './MarketplaceCatalogCard'
 
@@ -16,6 +16,7 @@ export type MarketplaceFeaturedSelection =
 interface Props {
   catalogScope: MarketplaceCatalogScope
   catalogSort: MarketplaceCatalogSort
+  catalogCategory?: MarketplaceCategoryFilter
   selection: MarketplaceFeaturedSelection | null
   logicSubscribedIds: Set<string>
   sortSubscribedIds: Set<string>
@@ -27,6 +28,7 @@ interface Props {
 export function MarketplaceFeaturedBrowseView({
   catalogScope,
   catalogSort,
+  catalogCategory = 'all',
   selection,
   logicSubscribedIds,
   sortSubscribedIds,
@@ -63,13 +65,13 @@ export function MarketplaceFeaturedBrowseView({
       .finally(() => setLoading(false))
   }, [catalogScope])
 
-  const sortedLogic = useMemo(() => sortMarketplacePackages(logicBlocks, catalogSort), [logicBlocks, catalogSort])
-  const sortedSort = useMemo(() => sortMarketplacePackages(sortPacks, catalogSort), [sortPacks, catalogSort])
+  const sortedLogic = useMemo(() => filterByCategory(sortMarketplacePackages(logicBlocks, catalogSort), catalogCategory), [logicBlocks, catalogSort, catalogCategory])
+  const sortedSort = useMemo(() => filterByCategory(sortMarketplacePackages(sortPacks, catalogSort), catalogCategory), [sortPacks, catalogSort, catalogCategory])
   const sortedInjectors = useMemo(
-    () => sortMarketplacePackages(injectors, catalogSort),
-    [injectors, catalogSort],
+    () => filterByCategory(sortMarketplacePackages(injectors, catalogSort), catalogCategory),
+    [injectors, catalogSort, catalogCategory],
   )
-  const sortedRankers = useMemo(() => sortMarketplacePackages(rankers, catalogSort), [rankers, catalogSort])
+  const sortedRankers = useMemo(() => filterByCategory(sortMarketplacePackages(rankers, catalogSort), catalogCategory), [rankers, catalogSort, catalogCategory])
 
   const totalCount = sortedLogic.length + sortedSort.length + sortedInjectors.length + sortedRankers.length
 

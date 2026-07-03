@@ -44,6 +44,8 @@ export interface ListingPresentation {
   productImageUrl?: string
   galleryUrls: string[]
   youtubeUrl?: string
+  category?: string
+  tags?: string[]
   ratingAverage?: number
   ratingCount?: number
   hasRatings: boolean
@@ -68,6 +70,8 @@ export function resolveListingPresentation(input: {
     productImageUrl: listing?.productImageUrl,
     galleryUrls: listing?.galleryUrls ?? [],
     youtubeUrl: listing?.youtubeUrl,
+    category: listing?.category,
+    tags: listing?.tags,
     ratingAverage: hasRatings ? listing!.ratingAverage : undefined,
     ratingCount: hasRatings ? ratingCount : undefined,
     hasRatings,

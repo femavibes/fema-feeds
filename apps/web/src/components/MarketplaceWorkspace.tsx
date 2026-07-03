@@ -4,7 +4,7 @@ import type { LogicBlockPackage, PluginPackage, SortPackPackage } from '@cfb/cor
 
 import type { MarketplaceWorkspaceView, MarketplaceProductScope } from '../lib/workspace-views'
 import { marketplaceProduct } from '../lib/marketplace-products'
-import type { MarketplaceCatalogScope, MarketplaceCatalogSort } from '../lib/marketplace-catalog'
+import type { MarketplaceCatalogScope, MarketplaceCatalogSort, MarketplaceCategoryFilter } from '../lib/marketplace-catalog'
 
 
 
@@ -114,6 +114,7 @@ export function MarketplaceWorkspace() {
 
   const [catalogScope, setCatalogScope] = useState<MarketplaceCatalogScope>('all')
   const [catalogSort, setCatalogSort] = useState<MarketplaceCatalogSort>('updated_desc')
+  const [catalogCategory, setCatalogCategory] = useState<MarketplaceCategoryFilter>('all')
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
 
 
@@ -314,8 +315,10 @@ export function MarketplaceWorkspace() {
                 <MarketplaceCatalogControls
                   scope={catalogScope}
                   sort={catalogSort}
+                  category={catalogCategory}
                   onScopeChange={setCatalogScope}
                   onSortChange={setCatalogSort}
+                  onCategoryChange={setCatalogCategory}
                 />
               ) : null}
 
@@ -344,6 +347,7 @@ export function MarketplaceWorkspace() {
                 key={refreshKey}
                 catalogScope={catalogScope}
                 catalogSort={catalogSort}
+                catalogCategory={catalogCategory}
                 selection={selection}
                 logicSubscribedIds={logicSubscribedIds}
                 sortSubscribedIds={sortSubscribedIds}
@@ -361,6 +365,7 @@ export function MarketplaceWorkspace() {
 
                 catalogScope={catalogScope}
                 catalogSort={catalogSort}
+                catalogCategory={catalogCategory}
                 selectedId={selection?.kind === 'logic_block' ? selection.pkg.id : null}
 
                 subscribedIds={logicSubscribedIds}
@@ -379,6 +384,7 @@ export function MarketplaceWorkspace() {
 
                 catalogScope={catalogScope}
                 catalogSort={catalogSort}
+                catalogCategory={catalogCategory}
                 selectedId={selection?.kind === 'sort_pack' ? selection.pkg.id : null}
 
                 subscribedIds={sortSubscribedIds}
@@ -399,6 +405,7 @@ export function MarketplaceWorkspace() {
 
                 catalogScope={catalogScope}
                 catalogSort={catalogSort}
+                catalogCategory={catalogCategory}
                 selectedId={selection?.kind === 'injector' ? selection.pkg.id : null}
 
                 subscribedIds={injectorSubscribedIds}
@@ -419,6 +426,7 @@ export function MarketplaceWorkspace() {
 
                 catalogScope={catalogScope}
                 catalogSort={catalogSort}
+                catalogCategory={catalogCategory}
                 selectedId={selection?.kind === 'ranker' ? selection.pkg.id : null}
 
                 subscribedIds={rankerSubscribedIds}

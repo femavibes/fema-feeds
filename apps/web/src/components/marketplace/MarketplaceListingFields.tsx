@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { MarketplaceListingMeta } from '@cfb/core-types'
 import { api } from '../../api/client'
+import { getMarketplaceTaxonomy, type TaxonomyEntry } from '../../lib/marketplace-taxonomy'
 
 export interface ListingUrlFields {
   iconUrl: string
@@ -8,6 +9,8 @@ export interface ListingUrlFields {
   productImageUrl: string
   galleryUrls: string[]
   youtubeUrl: string
+  category: string
+  tags: string[]
 }
 
 interface Props {
@@ -111,6 +114,15 @@ function ImageSlot({
 
 export function MarketplaceListingFields({ packageId, fields, disabled = false, onChange }: Props) {
   const patch = (partial: Partial<ListingUrlFields>) => onChange({ ...fields, ...partial })
+  const [categories, setCategories] = useState<TaxonomyEntry[]>([])
+  const [tags, setTags] = useState<TaxonomyEntry[]>([])
+
+  useEffect(() => {
+    void getMarketplaceTaxonomy().then((t) => {
+      setCategories(t.categories)
+      setTags(t.tags)
+    })
+  }, [])
 
   return (
     <fieldset className="marketplace-listing-fields">
@@ -190,6 +202,61 @@ export function MarketplaceListingFields({ packageId, fields, disabled = false, 
           onChange={(e) => patch({ youtubeUrl: e.target.value })}
         />
       </label>
+
+      <legend className="field-label">Category & Tags</legend>
+
+      <label className="l2-inspector-field">
+        Category
+        <select
+          value={fields.category}
+          disabled={disabled}
+          onChange={(e) => patch({ category: e.target.value })}
+        >
+          <option value="">None</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>{cat.label}{cat.scope === 'local' ? ' (local)' : ''}</option>
+          ))}
+        </select>
+      </label>
+
+      <div className="marketplace-tags-field">
+        <span className="marketplace-asset-slot-label">Tags ({fields.tags.length}/5)</span>
+        <div className="marketplace-tags-chips">
+          {fields.tags.map((tagId) => {
+            const entry = tags.find((t) => t.id === tagId)
+            return (
+              <button
+                key={tagId}
+                type="button"
+                className="marketplace-tag-chip is-active"
+                disabled={disabled}
+                onClick={() => patch({ tags: fields.tags.filter((t) => t !== tagId) })}
+              >
+                {entry?.label ?? tagId} x
+              </button>
+            )
+          })}
+        </div>
+        {fields.tags.length < 5 && (
+          <select
+            value=""
+            disabled={disabled}
+            onChange={(e) => {
+              if (e.target.value && !fields.tags.includes(e.target.value)) {
+                patch({ tags: [...fields.tags, e.target.value] })
+              }
+              e.target.value = ''
+            }}
+          >
+            <option value="">Add tag...</option>
+            {tags
+              .filter((t) => !fields.tags.includes(t.id))
+              .map((t) => (
+                <option key={t.id} value={t.id}>{t.label}{t.scope === 'local' ? ' (local)' : ''}</option>
+              ))}
+          </select>
+        )}
+      </div>
     </fieldset>
   )
 }
@@ -201,6 +268,8 @@ export function listingFieldsFromMeta(listing?: MarketplaceListingMeta): Listing
     productImageUrl: listing?.productImageUrl ?? '',
     galleryUrls: listing?.galleryUrls ?? [],
     youtubeUrl: listing?.youtubeUrl ?? '',
+    category: listing?.category ?? '',
+    tags: listing?.tags ?? [],
   }
 }
 
@@ -210,13 +279,17 @@ export function listingFieldsToPayload(fields: ListingUrlFields): MarketplaceLis
   const productImageUrl = fields.productImageUrl.trim()
   const galleryUrls = fields.galleryUrls.filter((u) => u.trim())
   const youtubeUrl = fields.youtubeUrl.trim()
-  if (!iconUrl && !coverUrl && !productImageUrl && !galleryUrls.length && !youtubeUrl) return null
+  const category = fields.category.trim()
+  const tags = fields.tags.filter((t) => t.trim())
+  if (!iconUrl && !coverUrl && !productImageUrl && !galleryUrls.length && !youtubeUrl && !category && !tags.length) return null
   const out: MarketplaceListingMeta = {}
   if (iconUrl) out.iconUrl = iconUrl
   if (coverUrl) out.coverUrl = coverUrl
   if (productImageUrl) out.productImageUrl = productImageUrl
   if (galleryUrls.length) out.galleryUrls = galleryUrls
   if (youtubeUrl) out.youtubeUrl = youtubeUrl
+  if (category) out.category = category
+  if (tags.length) out.tags = tags
   return out
 }
 
@@ -230,6 +303,8 @@ export function listingFieldsDirty(
     fields.coverUrl !== base.coverUrl ||
     fields.productImageUrl !== base.productImageUrl ||
     fields.youtubeUrl !== base.youtubeUrl ||
-    JSON.stringify(fields.galleryUrls) !== JSON.stringify(base.galleryUrls)
+    fields.category !== base.category ||
+    JSON.stringify(fields.galleryUrls) !== JSON.stringify(base.galleryUrls) ||
+    JSON.stringify(fields.tags) !== JSON.stringify(base.tags)
   )
 }

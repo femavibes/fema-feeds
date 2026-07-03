@@ -2,6 +2,8 @@ export type MarketplaceCatalogScope = 'all' | 'global' | 'deployment'
 
 export type MarketplaceCatalogSort = 'name_asc' | 'name_desc' | 'updated_desc' | 'trust_desc'
 
+export type MarketplaceCategoryFilter = string | 'all'
+
 export const MARKETPLACE_CATALOG_SCOPE_OPTIONS: {
   value: MarketplaceCatalogScope
   label: string
@@ -50,4 +52,12 @@ export function sortMarketplacePackages<T extends SortablePackage>(
     }
   })
   return copy
+}
+
+export function filterByCategory<T>(
+  packages: T[],
+  category: MarketplaceCategoryFilter,
+): T[] {
+  if (category === 'all') return packages
+  return packages.filter((p) => (p as any).listing?.category === category)
 }
