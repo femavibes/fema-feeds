@@ -294,7 +294,7 @@ export function MarketplaceWorkspace() {
 
         onModerateListingsClick={() => setView('moderate')}
 
-        showTaxonomy={isMaster}
+        showTaxonomy={canModerate}
         onTaxonomyClick={() => setView('taxonomy')}
 
         onMarketplaceViewChange={(next) => {
