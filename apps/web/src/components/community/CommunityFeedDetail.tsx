@@ -7,6 +7,7 @@ import {
   MarketplaceGlobeIcon,
   MarketplaceDeploymentIcon,
 } from '../marketplace/MarketplaceScopeIcons'
+import { L2VisualEditor } from '../l2/visual/L2VisualEditor'
 
 function feedAccentColor(feedId: string): string {
   let hash = 0
@@ -29,6 +30,31 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
   const [inputAdded, setInputAdded] = useState(false)
   const [busy, setBusy] = useState(false)
   const [cloning, setCloning] = useState(false)
+  const [viewLogicDraft, setViewLogicDraft] = useState<FeedConfig | null>(null)
+  const [loadingLogic, setLoadingLogic] = useState(false)
+
+  const handleViewLogic = async () => {
+    if (!feed) return
+    setLoadingLogic(true)
+    try {
+      const logic = await api.getCommunityFeedLogic(feed.feedId)
+      setViewLogicDraft({
+        feedId: feed.feedId,
+        projectId: feed.projectId ?? '__community__',
+        name: feed.name,
+        enabled: true,
+        poolScope: 'project_only',
+        match: logic.match,
+        rank: logic.rank,
+        visualLayout: logic.visualLayout ?? undefined,
+        injector: logic.injector,
+        authorLists: logic.authorLists,
+        sources: logic.sources,
+        personalization: logic.personalization,
+      } as FeedConfig)
+    } catch { /* ignore */ }
+    finally { setLoadingLogic(false) }
+  }
 
   const handleAddInput = async () => {
     if (!feed) return
@@ -170,12 +196,33 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
           )}
 
           {feed.logicPublic && (
-            <button type="button" className="btn btn-secondary btn-sm community-detail-view-logic">
-              View logic
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm community-detail-view-logic"
+              disabled={loadingLogic}
+              onClick={() => void handleViewLogic()}
+            >
+              {loadingLogic ? '...' : 'View logic'}
             </button>
           )}
         </div>
       </div>
+
+      {viewLogicDraft && (
+        <L2VisualEditor
+          draft={viewLogicDraft}
+          dirty={false}
+          readOnly
+          editorTitle={feed.name}
+          editorSubtitle="Read-only logic preview"
+          closeLabel="Close"
+          hideJsonButton
+          onDraftChange={() => {}}
+          onSaveDraft={() => {}}
+          onReset={() => {}}
+          onClose={() => setViewLogicDraft(null)}
+        />
+      )}
     </>
   )
 }

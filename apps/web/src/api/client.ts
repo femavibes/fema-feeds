@@ -1000,7 +1000,7 @@ export const api = {
     apiFetch<{
       match: import('@cfb/core-types').FeedConfig['match']
       rank?: import('@cfb/core-types').FeedConfig['rank']
-      visualLayout?: import('@cfb/core-types').FeedConfig['visualLayout']
+      visualLayout?: import('@cfb/core-types').L2VisualLayout
       injector?: import('@cfb/core-types').FeedConfig['injector']
       authorLists?: import('@cfb/core-types').FeedConfig['authorLists']
       sources?: import('@cfb/core-types').FeedConfig['sources']
