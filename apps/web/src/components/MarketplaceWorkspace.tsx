@@ -588,7 +588,7 @@ export function MarketplaceWorkspace() {
             )}
 
             {view === 'taxonomy' && (
-              <MarketplaceTaxonomyPanel />
+              <MarketplaceTaxonomyPanel registryRole={registryRole} />
             )}
 
           </div>

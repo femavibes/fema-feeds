@@ -13,7 +13,9 @@ interface Taxonomy {
   tags: TaxonomyEntry[]
 }
 
-export function MarketplaceTaxonomyPanel() {
+export function MarketplaceTaxonomyPanel({ registryRole }: { registryRole?: 'registry' | 'consumer' | 'embedded' | null }) {
+  const isRegistry = registryRole === 'registry'
+  const defaultScope = isRegistry ? 'global' : 'local'
   const [taxonomy, setTaxonomy] = useState<Taxonomy | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -58,7 +60,7 @@ export function MarketplaceTaxonomyPanel() {
     if (!taxonomy || !newCatId.trim() || !newCatLabel.trim()) return
     const id = newCatId.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
     if (taxonomy.categories.some((c) => c.id === id)) return
-    const next = { ...taxonomy, categories: [...taxonomy.categories, { id, label: newCatLabel.trim(), scope: 'local' }] }
+    const next = { ...taxonomy, categories: [...taxonomy.categories, { id, label: newCatLabel.trim(), scope: defaultScope }] }
     void save(next)
     setNewCatId('')
     setNewCatLabel('')
@@ -73,7 +75,7 @@ export function MarketplaceTaxonomyPanel() {
     if (!taxonomy || !newTagId.trim() || !newTagLabel.trim()) return
     const id = newTagId.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
     if (taxonomy.tags.some((t) => t.id === id)) return
-    const next = { ...taxonomy, tags: [...taxonomy.tags, { id, label: newTagLabel.trim(), scope: 'local' }] }
+    const next = { ...taxonomy, tags: [...taxonomy.tags, { id, label: newTagLabel.trim(), scope: defaultScope }] }
     void save(next)
     setNewTagId('')
     setNewTagLabel('')
@@ -108,7 +110,7 @@ export function MarketplaceTaxonomyPanel() {
                 <td>{cat.label}</td>
                 <td><span className={`marketplace-tag-badge${cat.scope === 'global' ? ' is-category' : ''}`}>{cat.scope}</span></td>
                 <td>
-                  {cat.scope === 'local' && (
+                  {(cat.scope === 'local' || isRegistry) && (
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeCategory(cat.id)}>Remove</button>
                   )}
                 </td>
@@ -136,7 +138,7 @@ export function MarketplaceTaxonomyPanel() {
                 <td>{tag.label}</td>
                 <td><span className={`marketplace-tag-badge${tag.scope === 'global' ? ' is-category' : ''}`}>{tag.scope}</span></td>
                 <td>
-                  {tag.scope === 'local' && (
+                  {(tag.scope === 'local' || isRegistry) && (
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => removeTag(tag.id)}>Remove</button>
                   )}
                 </td>
