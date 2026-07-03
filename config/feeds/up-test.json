@@ -16,6 +16,14 @@
         "logic": "all",
         "children": [
           {
+            "type": "post_kind",
+            "id": "kind-mr51v7pq",
+            "kinds": [
+              "root"
+            ],
+            "op": "is"
+          },
+          {
             "id": "group-mqy96dck",
             "type": "group",
             "logic": "any",
@@ -580,30 +588,6 @@
     ]
   },
   "visualLayout": {
-    "edges": [
-      {
-        "id": "e-start-group-mqvtbjl3",
-        "branch": true,
-        "source": "start",
-        "target": "group-mqvtbjl3"
-      },
-      {
-        "id": "e-group-mqvtbjl3-end",
-        "branch": true,
-        "source": "group-mqvtbjl3",
-        "target": "end"
-      }
-    ],
-    "labels": {
-      "kw-mqvtcj5u": "PEOPLE KEYWORDS",
-      "kw-mr2vutww": "Anti-Car",
-      "kw-mr2w4ndo": "Traffic Violence & Crashes",
-      "kw-mr2w6qbn": "Bikes & Micromobility",
-      "kw-mr2wepco": "Pedestrians & Walkability",
-      "kw-mr2wqcl7": "Infrastructure, Street Design, & Traffic Calming",
-      "kw-mr2wu4nr": "Public Transit",
-      "kw-mr2wz9pl": "Urban Planning, Zoning, & Housing"
-    },
     "positions": {
       "end": {
         "x": 509.3333333333334,
@@ -638,13 +622,41 @@
         "y": 345.12355691023845
       },
       "group-mqvtbjl3": {
-        "x": -20.580172987358623,
-        "y": -338.9833873918829
+        "x": -21.505655355954758,
+        "y": -367.6733408183633
       },
       "group-mqy96dck": {
-        "x": 12.03127079174989,
-        "y": 47.63938789088485
+        "x": 11.105788423153768,
+        "y": 133.70924817032596
+      },
+      "kind-mr51v7pq": {
+        "x": 68.91417165668668,
+        "y": -302.63162217232207
       }
+    },
+    "edges": [
+      {
+        "id": "e-start-group-mqvtbjl3",
+        "branch": true,
+        "source": "start",
+        "target": "group-mqvtbjl3"
+      },
+      {
+        "id": "e-group-mqvtbjl3-end",
+        "branch": true,
+        "source": "group-mqvtbjl3",
+        "target": "end"
+      }
+    ],
+    "labels": {
+      "kw-mqvtcj5u": "PEOPLE KEYWORDS",
+      "kw-mr2vutww": "Anti-Car",
+      "kw-mr2w4ndo": "Traffic Violence & Crashes",
+      "kw-mr2w6qbn": "Bikes & Micromobility",
+      "kw-mr2wepco": "Pedestrians & Walkability",
+      "kw-mr2wqcl7": "Infrastructure, Street Design, & Traffic Calming",
+      "kw-mr2wu4nr": "Public Transit",
+      "kw-mr2wz9pl": "Urban Planning, Zoning, & Housing"
     },
     "nodeSources": {
       "kw-mqvtbzia": "native",
@@ -657,11 +669,45 @@
       "kw-mr2wu4nr": "native",
       "kw-mr2wz9pl": "native",
       "group-mqvtbjl3": "native",
-      "group-mqy96dck": "native"
+      "group-mqy96dck": "native",
+      "kind-mr51v7pq": "native"
     }
   },
   "public": true,
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
-  "published": false,
-  "liveAt": "2026-07-03T03:40:52.781Z"
+  "published": true,
+  "liveAt": "2026-07-03T14:55:53.843Z",
+  "publishedAt": "2026-07-03T14:49:23.827Z",
+  "publishedUri": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.feed.generator/up-test",
+  "atprotoRkey": "up-test",
+  "rank": {
+    "sortKey": {
+      "type": "binary",
+      "op": "+",
+      "left": {
+        "type": "binary",
+        "op": "+",
+        "left": {
+          "type": "field",
+          "field": "like_count"
+        },
+        "right": {
+          "type": "binary",
+          "op": "*",
+          "left": {
+            "type": "field",
+            "field": "repost_count"
+          },
+          "right": {
+            "type": "literal",
+            "value": 2
+          }
+        }
+      },
+      "right": {
+        "type": "field",
+        "field": "reply_count"
+      }
+    }
+  }
 }

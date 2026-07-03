@@ -129,10 +129,12 @@ async function syncTaxonomyFromGlobal(): Promise<MarketplaceTaxonomy | null> {
 }
 
 export function registerMarketplaceTaxonomyRoutes(app: Hono): void {
-  // Auto-sync on startup for consumer deployments
+  // Auto-sync on startup + periodic timer for consumer deployments
   const role = globalMarketplaceRegistryRole()
   if (role === 'consumer') {
     void syncTaxonomyFromGlobal()
+    const intervalMs = 6 * 60 * 60 * 1000 // 6 hours
+    setInterval(() => void syncTaxonomyFromGlobal(), intervalMs)
   }
 
   app.get('/api/marketplace/taxonomy', async (c) => {
