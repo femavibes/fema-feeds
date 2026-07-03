@@ -995,7 +995,7 @@ export const api = {
 
   // --- Community ---
   marketplaceTaxonomy: () =>
-    apiFetch<{ categories: Array<{ id: string; label: string; scope: string }>; tags: Array<{ id: string; label: string; scope: string }> }>('/api/marketplace/taxonomy'),
+    apiFetch<{ categories: Array<{ id: string; label: string; scope: string }>; tags: Array<{ id: string; label: string; scope: string }>; registryRole?: string }>('/api/marketplace/taxonomy'),
   syncMarketplaceTaxonomy: () =>
     apiFetch<{ categories: Array<{ id: string; label: string; scope: string }>; tags: Array<{ id: string; label: string; scope: string }> }>('/api/marketplace/taxonomy/sync', { method: 'POST' }),
   listCommunityFeeds: (scope: 'all' | 'deployment' | 'global' = 'all') =>

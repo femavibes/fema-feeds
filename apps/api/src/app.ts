@@ -214,7 +214,9 @@ export function createApp(options?: {
   // Public taxonomy endpoint (before auth middleware for cross-deployment sync)
   app.get('/api/marketplace/taxonomy', async (c) => {
     const { loadTaxonomy } = await import('./marketplace-taxonomy.js')
-    return c.json(await loadTaxonomy())
+    const { globalMarketplaceRegistryRole } = await import('./global-marketplace.js')
+    const taxonomy = await loadTaxonomy()
+    return c.json({ ...taxonomy, registryRole: globalMarketplaceRegistryRole() })
   })
 
   app.use('/api/*', createAuthMiddleware(pool))

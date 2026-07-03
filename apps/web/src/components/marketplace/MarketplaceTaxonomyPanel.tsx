@@ -14,8 +14,6 @@ interface Taxonomy {
 }
 
 export function MarketplaceTaxonomyPanel({ registryRole }: { registryRole?: 'registry' | 'consumer' | 'embedded' | null }) {
-  const isRegistry = registryRole === 'registry'
-  const defaultScope = isRegistry ? 'global' : 'local'
   const [taxonomy, setTaxonomy] = useState<Taxonomy | null>(null)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -23,11 +21,18 @@ export function MarketplaceTaxonomyPanel({ registryRole }: { registryRole?: 'reg
   const [newCatLabel, setNewCatLabel] = useState('')
   const [newTagId, setNewTagId] = useState('')
   const [newTagLabel, setNewTagLabel] = useState('')
+  const [resolvedRole, setResolvedRole] = useState<string | null>(registryRole ?? null)
+
+  const isRegistry = resolvedRole === 'registry'
+  const defaultScope = isRegistry ? 'global' : 'local'
 
   const load = () => {
     setLoading(true)
     api.marketplaceTaxonomy()
-      .then(setTaxonomy)
+      .then((res) => {
+        setTaxonomy(res)
+        if (res.registryRole) setResolvedRole(res.registryRole)
+      })
       .catch(() => setTaxonomy({ categories: [], tags: [] }))
       .finally(() => setLoading(false))
   }
