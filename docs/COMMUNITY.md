@@ -143,7 +143,7 @@ Community is separate from Marketplace:
 **Community detail toolbar:**
 - "Clone Feed" and "+Inputs" buttons always visible, greyed out when unavailable (`logicPublic` off or `allowAsInput` off)
 - Both use `btn-secondary` style
-- "View logic" remains as a separate read-only button in the detail body (placeholder for now)
+- "View logic" remains as a separate read-only button in the detail body — opens the full L2VisualEditor in read-only mode as a fullscreen overlay (fetches logic via `GET /api/community/feeds/:id/logic`, renders the graph with positions/edges from the original author's layout, pan/zoom/inspect but no edits)
 
 ### 6. Search / Filter
 

@@ -740,7 +740,71 @@ From product discussion + what’s already shipped:
 | 17 | Sort vs Personalization | Most editorial logic in sorting; personalization reserved for viewer-specific signals only |
 
 ---
-## 14. Open questions
+## 14. Marketplace taxonomy (categories & tags)
+
+Every marketplace listing can have one **category** (primary grouping) and up to 5 **tags** (finer descriptors). Both are managed via a shared taxonomy.
+
+### Data model
+
+`MarketplaceListingMeta` fields:
+```ts
+category?: string   // one category ID
+tags?: string[]     // up to 5 tag IDs
+```
+
+### Taxonomy source
+
+The taxonomy lives in `config/marketplace-taxonomy.json` on disk:
+```json
+{
+  "categories": [{ "id": "content-filters", "label": "Content Filters", "scope": "global" }],
+  "tags": [{ "id": "keyword", "label": "Keyword", "scope": "global" }]
+}
+```
+
+Defaults (10 categories, 40 tags) are hardcoded in `apps/api/src/marketplace-taxonomy.ts` and merged on load if the file is missing entries.
+
+### Scope rules
+
+| Scope | Meaning |
+|-------|---------|
+| `global` | Defined on the registry; synced to consumer deployments |
+| `local` | Defined on this deployment only; not visible on global |
+
+- **Registry deployment** adds entries as `scope: "global"`
+- **Consumer deployments** add entries as `scope: "local"`
+- If a package uses a local-only category and is published globally, the category shows as "Other" on global
+- If global later adds a category that local already had, it naturally starts appearing globally
+
+### Sync
+
+- Consumer deployments auto-sync from global on API startup + every 6 hours
+- Manual sync via "Sync from global" button in the admin panel
+- Sync merges: replaces global entries with remote, preserves local-only entries
+
+### Admin UI
+
+Marketplace sidebar → "Categories & Tags" (visible to moderators):
+- Table view of all categories/tags with scope badges
+- Add/remove entries (registry can remove any; consumers can only remove local)
+- Export/Import JSON for bulk editing
+- Sync from global button
+
+### API
+
+| Method | Path | Auth | Purpose |
+|--------|------|------|---------|
+| GET | `/api/marketplace/taxonomy` | Public | Serve taxonomy + registryRole |
+| PUT | `/api/marketplace/taxonomy` | Auth | Save full taxonomy |
+| POST | `/api/marketplace/taxonomy/sync` | Auth | Pull from global registry |
+
+### Filtering
+
+Marketplace browse views have a category filter dropdown. `filterByCategory()` in `lib/marketplace-catalog.ts` filters packages by `listing.category`.
+
+---
+
+## 15. Open questions
 
 1. ~~**Sort pack UX**~~ → Resolved: sort packs are their own marketplace kind with robust formula builder
 2. ~~**Viewer-aware rankers**~~ → Resolved: renamed to Personalization; viewer-specific logic lives there
