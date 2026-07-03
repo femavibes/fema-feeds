@@ -210,6 +210,13 @@ export function createApp(options?: {
   )
 
   registerAuthRoutes(app, pool, root)
+
+  // Public taxonomy endpoint (before auth middleware for cross-deployment sync)
+  app.get('/api/marketplace/taxonomy', async (c) => {
+    const { loadTaxonomy } = await import('./marketplace-taxonomy.js')
+    return c.json(await loadTaxonomy())
+  })
+
   app.use('/api/*', createAuthMiddleware(pool))
   registerLogicBlockRoutes(app, pool)
   registerSortPackRoutes(app, pool)
