@@ -26,6 +26,8 @@ interface Props {
   showVerifyPublisher?: boolean
   onModerateListingsClick?: () => void
   showModerateListings?: boolean
+  onTaxonomyClick?: () => void
+  showTaxonomy?: boolean
   onNewLogicBlockClick?: () => void
   onNewCustomCodeClick?: () => void
   collectionView?: CollectionWorkspaceView
@@ -92,6 +94,8 @@ export function WorkspaceNav({
   showVerifyPublisher = false,
   onModerateListingsClick,
   showModerateListings = false,
+  onTaxonomyClick,
+  showTaxonomy = false,
   onNewLogicBlockClick,
   onNewCustomCodeClick,
   collectionView = 'blocks',
@@ -261,7 +265,7 @@ export function WorkspaceNav({
         )}
       </ul>
 
-      {mode === 'marketplace' && (showVerifyPublisher || showModerateListings) ? (
+      {mode === 'marketplace' && (showVerifyPublisher || showModerateListings || showTaxonomy) ? (
         <footer className="sidebar-footer workspace-nav-footer">
           <ul className="sidebar-global-nav">
             {showModerateListings ? (
@@ -285,6 +289,18 @@ export function WorkspaceNav({
                   onClick={() => onVerifyPublisherClick?.()}
                 >
                   Verify publisher
+                </button>
+              </li>
+            ) : null}
+            {showTaxonomy ? (
+              <li>
+                <button
+                  type="button"
+                  className={`sidebar-global-item${marketplaceView === 'taxonomy' ? ' active' : ''}`}
+                  aria-current={marketplaceView === 'taxonomy' ? 'page' : undefined}
+                  onClick={() => onTaxonomyClick?.()}
+                >
+                  Categories & Tags
                 </button>
               </li>
             ) : null}

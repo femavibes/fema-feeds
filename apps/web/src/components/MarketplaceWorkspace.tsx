@@ -18,6 +18,7 @@ import { LogicBlocksInstalledView } from './logic-blocks/LogicBlocksInstalledVie
 
 import { PublisherVerifyPanel } from './logic-blocks/PublisherVerifyPanel'
 import { MarketplaceModerationPanel } from './marketplace/MarketplaceModerationPanel'
+import { MarketplaceTaxonomyPanel } from './marketplace/MarketplaceTaxonomyPanel'
 import { MarketplaceCatalogControls } from './marketplace/MarketplaceCatalogControls'
 
 import { SortPacksBrowseView } from './sort-packs/SortPacksBrowseView'
@@ -66,6 +67,11 @@ const VIEW_COPY: Record<MarketplaceWorkspaceView, { title: string; hint: string 
 
     hint: 'Approve unverified catalog listings for this deployment or the global marketplace.',
 
+  },
+
+  taxonomy: {
+    title: 'Categories & Tags',
+    hint: 'Manage the category and tag taxonomy for marketplace listings.',
   },
 
 }
@@ -287,6 +293,9 @@ export function MarketplaceWorkspace() {
         onVerifyPublisherClick={() => setView('verify')}
 
         onModerateListingsClick={() => setView('moderate')}
+
+        showTaxonomy={isMaster}
+        onTaxonomyClick={() => setView('taxonomy')}
 
         onMarketplaceViewChange={(next) => {
           setView(next)
@@ -576,6 +585,10 @@ export function MarketplaceWorkspace() {
 
               />
 
+            )}
+
+            {view === 'taxonomy' && (
+              <MarketplaceTaxonomyPanel />
             )}
 
           </div>

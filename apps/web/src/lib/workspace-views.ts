@@ -2,7 +2,7 @@ export type FeedWorkspaceView = 'overview' | 'visual' | 'json' | 'sorting' | 'pe
 
 export type IngestionWorkspaceView = 'overview' | 'visual' | 'json' | 'prefilter' | 'settings'
 
-export type MarketplaceWorkspaceView = 'browse' | 'installed' | 'verify' | 'moderate'
+export type MarketplaceWorkspaceView = 'browse' | 'installed' | 'verify' | 'moderate' | 'taxonomy'
 
 import {
   MARKETPLACE_CUSTOM_CODE_KINDS,

@@ -66,6 +66,18 @@ export function registerMarketplaceTaxonomyRoutes(app: Hono): void {
     return c.json(taxonomy)
   })
 
+  app.put('/api/marketplace/taxonomy', async (c) => {
+    const body = await c.req.json<MarketplaceTaxonomy>()
+    if (!body.categories || !body.tags) return c.json({ error: 'categories and tags required' }, 400)
+    const taxonomy: MarketplaceTaxonomy = {
+      categories: body.categories.map((c) => ({ id: c.id, label: c.label, scope: c.scope })),
+      tags: body.tags.map((t) => ({ id: t.id, label: t.label, scope: t.scope })),
+    }
+    await writeFile(TAXONOMY_PATH, JSON.stringify(taxonomy, null, 2) + '\n', 'utf8')
+    cached = taxonomy
+    return c.json(taxonomy)
+  })
+
   app.post('/api/marketplace/taxonomy/sync', async (c) => {
     const result = await syncTaxonomyFromGlobal()
     if (!result) return c.json({ error: 'Sync not available or failed' }, 503)
