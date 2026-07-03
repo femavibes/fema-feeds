@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api/client'
 import { invalidateTaxonomyCache } from '../../lib/marketplace-taxonomy'
 
@@ -22,6 +22,7 @@ export function MarketplaceTaxonomyPanel({ registryRole }: { registryRole?: 'reg
   const [newTagId, setNewTagId] = useState('')
   const [newTagLabel, setNewTagLabel] = useState('')
   const [resolvedRole, setResolvedRole] = useState<string | null>(registryRole ?? null)
+  const importRef = useRef<HTMLInputElement>(null)
 
   const isRegistry = resolvedRole === 'registry'
   const defaultScope = isRegistry ? 'global' : 'local'
@@ -91,6 +92,33 @@ export function MarketplaceTaxonomyPanel({ registryRole }: { registryRole?: 'reg
     void save({ ...taxonomy, tags: taxonomy.tags.filter((t) => t.id !== id) })
   }
 
+  const handleExport = () => {
+    if (!taxonomy) return
+    const blob = new Blob([JSON.stringify(taxonomy, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'marketplace-taxonomy.json'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string) as Taxonomy
+        if (Array.isArray(data.categories) && Array.isArray(data.tags)) {
+          void save(data)
+        }
+      } catch { /* ignore invalid JSON */ }
+    }
+    reader.readAsText(file)
+    if (importRef.current) importRef.current.value = ''
+  }
+
   if (loading) return <p className="card-hint">Loading taxonomy...</p>
   if (!taxonomy) return <p className="card-hint">Failed to load taxonomy.</p>
 
@@ -100,6 +128,9 @@ export function MarketplaceTaxonomyPanel({ registryRole }: { registryRole?: 'reg
         <button type="button" className="btn btn-secondary btn-sm" disabled={syncing} onClick={handleSync}>
           {syncing ? 'Syncing...' : 'Sync from global'}
         </button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={handleExport}>Export JSON</button>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => importRef.current?.click()}>Import JSON</button>
+        <input ref={importRef} type="file" accept=".json" hidden onChange={handleImport} />
       </div>
 
       <section className="marketplace-taxonomy-section">
