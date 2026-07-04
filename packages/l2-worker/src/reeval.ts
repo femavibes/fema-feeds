@@ -36,6 +36,15 @@ export function clearRebuildStatus(feedId: string): void {
   activeRebuilds.delete(feedId)
 }
 
+/** Cancel a running rebuild. The loop will stop at the next batch boundary. */
+export function cancelRebuild(feedId: string): boolean {
+  const progress = activeRebuilds.get(feedId)
+  if (!progress?.active) return false
+  progress.active = false
+  progress.finishedAt = new Date().toISOString()
+  return true
+}
+
 /** Count posts that will be scanned (for progress denominator). */
 async function countPoolForFeed(
   pool: pg.Pool,
@@ -95,6 +104,9 @@ async function runReeval(
   progress.total = await countPoolForFeed(pool, options.projectId)
 
   for (;;) {
+    // Check if cancelled between batches
+    if (!progress.active) return
+
     const rows = options.projectId
       ? await listPostsForProject(pool, options.projectId, batchSize, cursor)
       : await listAllPoolPosts(pool, batchSize, cursor)

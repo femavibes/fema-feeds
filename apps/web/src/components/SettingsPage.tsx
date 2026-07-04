@@ -17,6 +17,7 @@ import type {
 } from '../api/client'
 import { api } from '../api/client'
 import type { SettingsWorkspaceView } from '../lib/workspace-views'
+import { RefreshEngagementButton } from './RefreshEngagementButton'
 
 const EMPTY_FEEDGEN_RESPONSE: FeedgenSettingsResponse = {
   settings: { generatorDid: '', publicBaseUrl: '' },
@@ -178,6 +179,15 @@ export function SettingsPage({
               Poll due lists now
             </button>
           </div>
+          {isMaster && (
+            <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border, #e5e7eb)' }}>
+              <h4 style={{ margin: '0 0 0.25rem', fontSize: '0.85rem', fontWeight: 600 }}>Engagement data</h4>
+              <p className="card-hint" style={{ marginBottom: '0.5rem' }}>
+                Re-fetch like/repost/reply counts from Bluesky for all posts with stale data (older than 60 min).
+              </p>
+              <RefreshEngagementButton scope="global" />
+            </div>
+          )}
           {listCache.length > 0 && (
             <table className="settings-table">
               <thead>

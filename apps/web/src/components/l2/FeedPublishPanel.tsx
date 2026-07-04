@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 
-import { api, type FeedPublishInfo } from '../../api/client'
+import { api, type FeedPublishInfo, type SlugCollisionResult } from '../../api/client'
 import { feedUriToBskyUrl } from '../../lib/bsky-url'
 import { SkeletonPreviewDialog } from './SkeletonPreviewDialog'
 
@@ -134,6 +134,7 @@ export function FeedPublishPanel({
   const [appPassword, setAppPassword] = useState('')
   const [needsAppPassword, setNeedsAppPassword] = useState(false)
   const [skeletonPreviewOpen, setSkeletonPreviewOpen] = useState(false)
+  const [collisionWarning, setCollisionWarning] = useState<SlugCollisionResult | null>(null)
 
   const refresh = useCallback(() => {
     setError(null)
@@ -155,6 +156,17 @@ export function FeedPublishPanel({
   }, [refresh, livePublished])
 
   const publish = async () => {
+    // Pre-publish collision check
+    if (!collisionWarning) {
+      try {
+        const check = await api.checkSlugCollision(feedId)
+        if (check.bluesky?.exists && !check.bluesky.isOwnDeployment) {
+          setCollisionWarning(check)
+          return // Show warning, don't publish yet
+        }
+      } catch { /* proceed if check fails */ }
+    }
+    setCollisionWarning(null)
     setBusy(true)
     setError(null)
     try {
@@ -272,6 +284,32 @@ export function FeedPublishPanel({
       </div>
 
       {error && <p className="field-error">{error}</p>}
+
+      {collisionWarning && collisionWarning.bluesky?.record && (
+        <div className="l2-publish-collision-warning">
+          <p className="field-warn">
+            ⚠ This slug is already used on Bluesky by "{collisionWarning.bluesky.record.displayName}"
+            (external service). Publishing will overwrite it.
+          </p>
+          <div className="l2-publish-collision-actions">
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={busy}
+              onClick={() => void publish()}
+            >
+              Overwrite and publish
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => setCollisionWarning(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       {info && (
         <>
           {headline ? (

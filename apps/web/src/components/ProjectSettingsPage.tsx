@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ProjectL1Config } from '@cfb/core-types'
 import { api } from '../api/client'
+import { RefreshEngagementButton } from './RefreshEngagementButton'
 
 interface Props {
   draft: ProjectL1Config
@@ -38,6 +39,17 @@ export function ProjectSettingsPage({ draft }: Props) {
           Manage this project's pool data and configuration.
         </p>
       </header>
+
+      <section className="card workspace-overview-card">
+        <h3 className="workspace-overview-card-title">Engagement data</h3>
+        <p className="card-hint">
+          Re-fetch like/repost/reply counts from Bluesky for posts in this project's feeds
+          that have stale data (older than 60 min). Check "Force all" to refresh everything regardless.
+        </p>
+        <div style={{ marginTop: '0.75rem' }}>
+          <RefreshEngagementButton scope="project" projectId={draft.projectId} />
+        </div>
+      </section>
 
       <section className="card workspace-overview-card">
         <h3 className="workspace-overview-card-title">Pool data</h3>

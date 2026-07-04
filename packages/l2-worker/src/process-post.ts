@@ -21,6 +21,21 @@ function defaultSortKey(post: NormalizedPost): number {
   return Number.isFinite(t) ? t / 1000 : 0
 }
 
+/**
+ * When a formula-based sortKey is used (e.g. engagement sorting),
+ * combine the formula score with a time-based tiebreaker so that:
+ * - Posts with equal scores sort chronologically
+ * - Each unit of engagement score is worth ~1 hour of recency
+ */
+function composeSortKey(formulaScore: number, post: NormalizedPost): number {
+  const t = Date.parse(post.indexedAt)
+  const epochSec = Number.isFinite(t) ? t / 1000 : 0
+  // Normalize time to hours since epoch for a reasonable scale
+  const timeHours = epochSec / 3600
+  // Each engagement point = 1 hour of boost
+  return timeHours + formulaScore
+}
+
 function feedsForPost(
   feeds: FeedConfig[],
   matchedProjectIds: string[],
@@ -67,7 +82,9 @@ export async function processPostForFeeds(
       continue
     }
     matched++
-    const sortKey = result.sortKey ?? defaultSortKey(post)
+    const sortKey = result.sortKey != null
+      ? composeSortKey(result.sortKey, post)
+      : defaultSortKey(post)
     await upsertFeedCandidate(pool, {
       feedId: feed.feedId,
       postUri: post.uri,

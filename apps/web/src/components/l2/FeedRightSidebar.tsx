@@ -6,6 +6,7 @@ import { FeedL2Form } from './FeedL2Form'
 import { L2MatchPoolPanel } from './L2MatchPoolPanel'
 import { FeedPublishPanel } from './FeedPublishPanel'
 import { SortTester } from './SortTester'
+import { BlueskyFeedsModal } from './BlueskyFeedsModal'
 import type { FeedWorkspaceView } from '../../lib/workspace-views'
 
 type SidebarTab = 'deploy' | 'feed' | 'settings' | 'sort-tester'
@@ -38,6 +39,8 @@ function settingsAutosaveLabel(state: SettingsAutosaveState): string | null {
   return 'Unsaved settings — autosaving'
 }
 
+const SORTING_TABS: SidebarTab[] = ['deploy', 'sort-tester', 'feed']
+
 export function FeedRightSidebar({
   feedDraft,
   liveFeed,
@@ -60,10 +63,11 @@ export function FeedRightSidebar({
   const isSortingView = activeView === 'sorting'
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>('deploy')
   const [sortTestUri, setSortTestUri] = useState<string | null>(null)
+  const [showBskyFeeds, setShowBskyFeeds] = useState(false)
 
-  // When on sorting tab, force to sort-tester/feed tabs
+  // Sorting view: deploy + sort-tester + feed. Other views: deploy + feed + settings.
   const effectiveTab: SidebarTab = isSortingView
-    ? (sidebarTab === 'sort-tester' || sidebarTab === 'feed' ? sidebarTab : 'sort-tester')
+    ? (SORTING_TABS.includes(sidebarTab) ? sidebarTab : 'deploy')
     : (sidebarTab === 'sort-tester' ? 'deploy' : sidebarTab)
 
   const handleSortTestFromFeed = (postUri: string) => {
@@ -81,12 +85,21 @@ export function FeedRightSidebar({
       </div>
 
       <div
-        className={`sidebar-panel-tabs${isSortingView ? '' : ' sidebar-panel-tabs--triple'}`}
+        className={`sidebar-panel-tabs${isSortingView ? ' sidebar-panel-tabs--triple' : ' sidebar-panel-tabs--triple'}`}
         role="tablist"
         aria-label="Feed sidebar"
       >
         {isSortingView ? (
           <>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={effectiveTab === 'deploy'}
+              className={`sidebar-panel-tab${effectiveTab === 'deploy' ? ' active' : ''}`}
+              onClick={() => setSidebarTab('deploy')}
+            >
+              Deploy
+            </button>
             <button
               type="button"
               role="tab"
@@ -221,6 +234,13 @@ export function FeedRightSidebar({
       <div className="sidebar-foot">
         <button
           type="button"
+          className="btn btn-secondary btn-sm sidebar-foot-btn"
+          onClick={() => setShowBskyFeeds(true)}
+        >
+          View all Bluesky feeds
+        </button>
+        <button
+          type="button"
           className="btn btn-danger btn-sm sidebar-foot-btn"
           disabled={busy || settingsSaving}
           onClick={onDeleteFeed}
@@ -228,6 +248,8 @@ export function FeedRightSidebar({
           Delete feed
         </button>
       </div>
+
+      {showBskyFeeds && <BlueskyFeedsModal onClose={() => setShowBskyFeeds(false)} />}
     </aside>
   )
 }

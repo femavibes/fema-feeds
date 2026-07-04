@@ -66,6 +66,45 @@ export async function countFeedCandidates(pool: pg.Pool, feedId: string): Promis
   return Number(res.rows[0]?.count ?? 0)
 }
 
+/** Get post URIs from active feed candidates that have stale engagement data. */
+export async function getStaleFeedCandidateUris(
+  pool: pg.Pool,
+  feedIds: string[],
+  staleMinutes: number,
+  limit: number,
+): Promise<string[]> {
+  if (feedIds.length === 0) return []
+  const res = await pool.query<{ post_uri: string }>(
+    `SELECT DISTINCT fc.post_uri
+     FROM feed_candidates fc
+     LEFT JOIN post_engagement pe ON pe.post_uri = fc.post_uri
+     WHERE fc.feed_id = ANY($1::text[])
+       AND (pe.updated_at IS NULL OR pe.updated_at < NOW() - INTERVAL '1 minute' * $2)
+     ORDER BY fc.post_uri
+     LIMIT $3`,
+    [feedIds, staleMinutes, limit],
+  )
+  return res.rows.map((r) => r.post_uri)
+}
+
+/** Count stale feed candidate posts (for progress estimation). */
+export async function countStaleFeedCandidates(
+  pool: pg.Pool,
+  feedIds: string[],
+  staleMinutes: number,
+): Promise<number> {
+  if (feedIds.length === 0) return 0
+  const res = await pool.query<{ n: string }>(
+    `SELECT COUNT(DISTINCT fc.post_uri)::text AS n
+     FROM feed_candidates fc
+     LEFT JOIN post_engagement pe ON pe.post_uri = fc.post_uri
+     WHERE fc.feed_id = ANY($1::text[])
+       AND (pe.updated_at IS NULL OR pe.updated_at < NOW() - INTERVAL '1 minute' * $2)`,
+    [feedIds, staleMinutes],
+  )
+  return Number(res.rows[0]?.n ?? 0)
+}
+
 /** Cursor = sort_key from last item (descending pagination). */
 export async function getFeedSkeleton(
   pool: pg.Pool,

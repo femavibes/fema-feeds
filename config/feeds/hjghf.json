@@ -1,0 +1,57 @@
+{
+  "feedId": "hjghf",
+  "projectId": "moderation",
+  "name": "hjghf",
+  "enabled": true,
+  "poolScope": "project_only",
+  "match": {
+    "id": "root",
+    "type": "group",
+    "logic": "any",
+    "children": [
+      {
+        "id": "score-mr5pdgq1",
+        "type": "score",
+        "points": 1
+      }
+    ]
+  },
+  "public": true,
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "published": false,
+  "liveAt": "2026-07-04T01:49:21.836Z",
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-score-mr5pdgq1",
+        "branch": true,
+        "source": "start",
+        "target": "score-mr5pdgq1"
+      },
+      {
+        "id": "e-score-mr5pdgq1-end",
+        "branch": true,
+        "source": "score-mr5pdgq1",
+        "target": "end"
+      }
+    ],
+    "labels": {},
+    "positions": {
+      "end": {
+        "x": 168,
+        "y": 40
+      },
+      "start": {
+        "x": -150.66666666666666,
+        "y": 8.666666666666671
+      },
+      "score-mr5pdgq1": {
+        "x": -49.33333333333333,
+        "y": -84.96875
+      }
+    },
+    "nodeSources": {
+      "score-mr5pdgq1": "native"
+    }
+  }
+}

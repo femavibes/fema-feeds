@@ -1,0 +1,63 @@
+{
+  "feedId": "ggooooooooo",
+  "projectId": "pooltest",
+  "name": "GOOOOOO",
+  "description": "dddddddd",
+  "enabled": false,
+  "poolScope": "project_only",
+  "match": {
+    "id": "root",
+    "type": "group",
+    "logic": "any",
+    "children": [
+      {
+        "id": "url-mr5pghgx",
+        "op": "includes",
+        "type": "url",
+        "sources": [
+          "link_card",
+          "facet_link",
+          "bridgy_original"
+        ],
+        "patterns": []
+      }
+    ]
+  },
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-url-mr5pghgx",
+        "branch": true,
+        "source": "start",
+        "target": "url-mr5pghgx"
+      },
+      {
+        "id": "e-url-mr5pghgx-end",
+        "branch": true,
+        "source": "url-mr5pghgx",
+        "target": "end"
+      }
+    ],
+    "labels": {},
+    "positions": {
+      "end": {
+        "x": 168,
+        "y": 40
+      },
+      "start": {
+        "x": -161.33333333333334,
+        "y": 15.333333333333336
+      },
+      "url-mr5pghgx": {
+        "x": -42,
+        "y": -80.96875
+      }
+    },
+    "nodeSources": {
+      "url-mr5pghgx": "native"
+    }
+  },
+  "public": true,
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "published": false
+}

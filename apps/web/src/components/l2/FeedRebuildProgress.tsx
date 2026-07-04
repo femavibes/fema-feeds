@@ -13,6 +13,7 @@ export function FeedRebuildProgress({ feedId, onComplete }: Props) {
   const [total, setTotal] = useState(0)
   const [matched, setMatched] = useState(0)
   const [done, setDone] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const completedRef = useRef(false)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -20,11 +21,11 @@ export function FeedRebuildProgress({ feedId, onComplete }: Props) {
     completedRef.current = false
     setDone(false)
     setActive(false)
+    setCancelling(false)
 
     const poll = () => {
       api.feedRebuildStatus(feedId).then((status) => {
         if (!status.active && !status.processed) {
-          // No rebuild in progress
           setActive(false)
           return
         }
@@ -36,12 +37,11 @@ export function FeedRebuildProgress({ feedId, onComplete }: Props) {
         if (!status.active && !completedRef.current) {
           completedRef.current = true
           setDone(true)
+          setCancelling(false)
           const finalMatched = status.result?.matched ?? status.matched ?? 0
           setMatched(finalMatched)
           onComplete?.(finalMatched)
-          // Clear server-side status
           api.clearFeedRebuildStatus(feedId).catch(() => {})
-          // Stop polling
           if (timerRef.current) {
             clearInterval(timerRef.current)
             timerRef.current = null
@@ -50,7 +50,6 @@ export function FeedRebuildProgress({ feedId, onComplete }: Props) {
       }).catch(() => {})
     }
 
-    // Start polling immediately
     poll()
     timerRef.current = setInterval(poll, 2000)
 
@@ -61,6 +60,11 @@ export function FeedRebuildProgress({ feedId, onComplete }: Props) {
       }
     }
   }, [feedId, onComplete])
+
+  const handleCancel = () => {
+    setCancelling(true)
+    api.cancelFeedRebuild(feedId).catch(() => {})
+  }
 
   if (!active && !done) return null
 
@@ -81,10 +85,21 @@ export function FeedRebuildProgress({ feedId, onComplete }: Props) {
       <div className="feed-rebuild-bar-track">
         <div className="feed-rebuild-bar-fill" style={{ width: `${pct}%` }} />
       </div>
-      <span className="feed-rebuild-label">
-        Rebuilding candidates… {processed.toLocaleString()}{total > 0 ? ` / ${total.toLocaleString()}` : ''} posts
-        {matched > 0 ? ` (${matched} matched)` : ''}
-      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <span className="feed-rebuild-label" style={{ flex: 1 }}>
+          {cancelling ? 'Stopping…' : 'Rebuilding candidates…'} {processed.toLocaleString()}{total > 0 ? ` / ${total.toLocaleString()}` : ''} posts
+          {matched > 0 ? ` (${matched} matched)` : ''}
+        </span>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          style={{ fontSize: '0.75rem', padding: '0.15rem 0.4rem' }}
+          disabled={cancelling}
+          onClick={handleCancel}
+        >
+          Stop
+        </button>
+      </div>
     </div>
   )
 }

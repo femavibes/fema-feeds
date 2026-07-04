@@ -212,6 +212,9 @@ importers:
       '@cfb/feed-config':
         specifier: workspace:*
         version: link:../../packages/feed-config
+      '@cfb/ingest-runner':
+        specifier: workspace:*
+        version: link:../../packages/ingest-runner
       '@cfb/l2-worker':
         specifier: workspace:*
         version: link:../../packages/l2-worker

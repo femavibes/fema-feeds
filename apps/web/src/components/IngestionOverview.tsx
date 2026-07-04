@@ -67,18 +67,20 @@ export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
             <span className="workspace-overview-stat-label">Prefilter mode</span>
             {onChange ? (
               <select
-                value={draft.prefilterMode ?? 'manual'}
+                value={draft.prefilterMode ?? 'strict'}
                 onChange={(e) =>
                   onChange({ ...draft, prefilterMode: e.target.value as PrefilterMode })
                 }
                 className="prefilter-mode-select"
+                disabled
+                title="Strict mode is now the default. Manual mode is deprecated."
               >
                 <option value="manual">Manual</option>
                 <option value="strict">Strict</option>
               </select>
             ) : (
               <span className="badge badge-muted">
-                {MODE_LABELS[draft.prefilterMode ?? 'manual'].label}
+                {MODE_LABELS[draft.prefilterMode ?? 'strict'].label}
               </span>
             )}
           </div>
@@ -96,7 +98,7 @@ export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
           </div>
         </div>
         <p className="card-hint workspace-overview-hint">
-          {(draft.prefilterMode ?? 'manual') === 'strict' ? (
+          {(draft.prefilterMode ?? 'strict') === 'strict' ? (
             <>
               <strong>Strict mode:</strong> Only posts matching at least one feed&apos;s ingest-eligible
               logic enter the pool. The project prefilter editor is not used &mdash; excludes live in

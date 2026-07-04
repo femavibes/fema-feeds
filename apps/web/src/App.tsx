@@ -21,6 +21,7 @@ import { UserMenu } from './components/UserMenu'
 import { emptyProject } from './lib/l1-form'
 import { emptyFeed } from './lib/l2-form'
 import { CreateFeedModal, type FeedLogicFields } from './components/l2/CreateFeedModal'
+import { ConfirmModal } from './components/ConfirmModal'
 import { mergeCompiledIngestFromServer } from './lib/project-ingest'
 import { projectConfigsEqual } from './lib/project-draft'
 import type { BuilderSection, CfbAppProfile } from './lib/global-nav'
@@ -59,6 +60,7 @@ export function App() {
   const [settingsInitialView, setSettingsInitialView] = useState<SettingsWorkspaceView | undefined>()
   const [appProfile, setAppProfile] = useState<CfbAppProfile>('feedbuilder')
   const [showCreateFeedModal, setShowCreateFeedModal] = useState(false)
+  const [confirmDeleteProject, setConfirmDeleteProject] = useState(false)
   const [createFeedSourceLogic, setCreateFeedSourceLogic] = useState<FeedLogicFields | null>(null)
   const [createFeedSourceLabel, setCreateFeedSourceLabel] = useState<string | null>(null)
 
@@ -295,22 +297,23 @@ export function App() {
 
   const handleDelete = async () => {
     if (!draft) return
+    setConfirmDeleteProject(false)
     const label = draft.name || draft.projectId
-    if (
-      !window.confirm(
-        `Delete project "${label}"?\n\nThis removes its config file and clears its posts from the pool. This cannot be undone.`,
-      )
-    ) {
-      return
-    }
     setSaving(true)
     setMessage(null)
     setError(null)
     try {
+      // Auto-unpublish all published feeds in this project
+      const publishedFeeds = feeds.filter((f) => f.published)
+      for (const f of publishedFeeds) {
+        await api.unpublishFeed(f.feedId).catch(() => null)
+      }
       await api.deleteProject(draft.projectId)
       const remaining = projects.filter((p) => p.projectId !== draft.projectId)
       setProjects(remaining)
       setSelectedId(remaining[0]?.projectId ?? null)
+      setFeeds([])
+      setSelectedFeedId(null)
       setDraft(null)
       setSavedProject(null)
       setMessage(`Deleted ${label}`)
@@ -354,21 +357,17 @@ export function App() {
   const handleCreateFeedFromModal = async (feed: FeedConfig, avatarFile?: File) => {
     setError(null)
     setMessage(null)
-    try {
-      const { feed: created } = await api.createFeed(feed)
-      if (avatarFile) {
-        await api.uploadFeedAvatar(created.feedId, avatarFile).catch(() => null)
-      }
-      setFeeds((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
-      setSelectedFeedId(created.feedId)
-      setBuilderSection('project')
-      setShowCreateFeedModal(false)
-      setCreateFeedSourceLogic(null)
-      setCreateFeedSourceLabel(null)
-      setMessage(`Created feed ${created.name}`)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Create feed failed')
+    const { feed: created } = await api.createFeed(feed)
+    if (avatarFile) {
+      await api.uploadFeedAvatar(created.feedId, avatarFile).catch(() => null)
     }
+    setFeeds((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
+    setSelectedFeedId(created.feedId)
+    setBuilderSection('project')
+    setShowCreateFeedModal(false)
+    setCreateFeedSourceLogic(null)
+    setCreateFeedSourceLabel(null)
+    setMessage(`Created feed ${created.name}`)
   }
 
   const openCreateFeedModal = (sourceLogic?: FeedLogicFields | null, sourceLabel?: string | null) => {
@@ -541,7 +540,7 @@ export function App() {
               }}
               saving={saving}
               onSaveProject={() => void handleSave()}
-              onDeleteProject={() => void handleDelete()}
+              onDeleteProject={() => setConfirmDeleteProject(true)}
               onNotify={notify}
               onOpenPublishingSettings={() => {
                 setHighlightPublishingSettings(true)
@@ -566,7 +565,7 @@ export function App() {
         <CreateFeedModal
           projectId={draft.projectId}
           onClose={() => { setShowCreateFeedModal(false); setCreateFeedSourceLogic(null); setCreateFeedSourceLabel(null) }}
-          onCreate={(feed, avatarFile) => void handleCreateFeedFromModal(feed, avatarFile)}
+          onCreate={(feed, avatarFile) => handleCreateFeedFromModal(feed, avatarFile)}
           sourceLogic={createFeedSourceLogic}
           sourceLabel={createFeedSourceLabel}
         />
@@ -577,6 +576,26 @@ export function App() {
           onDismiss={dismissMasterOnboarding}
           onOpenAccessSettings={openAccessSettings}
           onWhitelistSaved={dismissMasterOnboarding}
+        />
+      )}
+
+      {confirmDeleteProject && draft && (
+        <ConfirmModal
+          title="Delete project"
+          message={
+            <>
+              <p>Delete project <strong>{draft.name || draft.projectId}</strong>?</p>
+              <p>This removes the project config, all feeds in this project, and clears its posts from the pool. This cannot be undone.</p>
+              {feeds.some((f) => f.published) && (
+                <p className="card-hint">
+                  {feeds.filter((f) => f.published).length} published feed(s) will be automatically unpublished from Bluesky.
+                </p>
+              )}
+            </>
+          }
+          confirmLabel="Delete project"
+          onConfirm={() => void handleDelete()}
+          onCancel={() => setConfirmDeleteProject(false)}
         />
       )}
     </div>

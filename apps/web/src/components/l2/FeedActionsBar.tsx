@@ -48,11 +48,10 @@ export function FeedActionsBar({
   const [namingVersion, setNamingVersion] = useState<number | null>(null)
   const [namingLabel, setNamingLabel] = useState('')
   const [localBusy, setLocalBusy] = useState(false)
-  const [rebuilding, setRebuilding] = useState(false)
+  const [rebuildKey, setRebuildKey] = useState(0)
   const updateLiveRef = useRef(false)
 
   const handleRebuildComplete = useCallback((matched: number) => {
-    setRebuilding(false)
     onNotify(`Rebuild complete — ${matched} post${matched !== 1 ? 's' : ''} match feed rules`, null)
   }, [onNotify])
 
@@ -82,7 +81,7 @@ export function FeedActionsBar({
         onFeedChange(structuredClone(res.feed))
         onLiveUpdated(res.live, res.hasUnpublishedDraft, res.project)
         onNotify('Live rules updated — rebuilding candidates…', null)
-        setRebuilding(true)
+        setRebuildKey((k) => k + 1)
         if (showVersions) await refreshVersions()
         updateLiveRef.current = false
         setLocalBusy(false)
@@ -216,12 +215,11 @@ export function FeedActionsBar({
         </button>
       </div>
 
-      {rebuilding ? (
-        <FeedRebuildProgress
-          feedId={feedDraft.feedId}
-          onComplete={handleRebuildComplete}
-        />
-      ) : null}
+      <FeedRebuildProgress
+        key={rebuildKey}
+        feedId={feedDraft.feedId}
+        onComplete={handleRebuildComplete}
+      />
 
       {showVersions && (
         <div className={`feed-versions card${layout === 'sidebar' ? ' feed-versions-sidebar' : ''}`}>

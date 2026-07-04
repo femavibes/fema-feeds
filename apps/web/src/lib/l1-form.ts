@@ -84,6 +84,7 @@ export function emptyProject(projectId: string, name: string): ProjectL1Config {
     projectId,
     name,
     enabled: true,
+    prefilterMode: 'strict',
     postKinds: ['root', 'quote', 'reply'],
     prefilter: emptyPrefilter(),
   }

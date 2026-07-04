@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { FeedConfig, ProjectL1Config } from '@cfb/core-types'
 
 import { api, type ListCacheEntry } from '../api/client'
+import { ConfirmModal } from './ConfirmModal'
 
 import { persistFeedDraft, prepareFeedDraftPayload } from '../lib/feed-draft'
 import type { FeedWorkspaceView, IngestionWorkspaceView } from '../lib/workspace-views'
@@ -67,6 +68,7 @@ export function ProjectWorkspace({
     useState<SettingsAutosaveState>('idle')
   const [ingestionView, setIngestionView] = useState<IngestionWorkspaceView>('overview')
   const [feedView, setFeedView] = useState<FeedWorkspaceView>('overview')
+  const [confirmDeleteFeed, setConfirmDeleteFeed] = useState(false)
 
   const settingsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const feedNavigateRef = useRef<((view: FeedWorkspaceView) => Promise<boolean>) | null>(null)
@@ -220,11 +222,15 @@ export function ProjectWorkspace({
     }
   }, [feedDraft, onNotify, onLiveUpdated])
 
-  const deleteFeed = async () => {
+  const confirmAndDeleteFeed = async () => {
     if (!feedDraft) return
-    if (!window.confirm(`Delete feed "${feedDraft.name}"?`)) return
+    setConfirmDeleteFeed(false)
     onNotify(null, null)
     try {
+      // Auto-unpublish from Bluesky if published
+      if (feedDraft.published || liveFeed?.published) {
+        await api.unpublishFeed(feedDraft.feedId).catch(() => null)
+      }
       await api.deleteFeed(feedDraft.feedId)
       const remaining = feeds.filter((f) => f.feedId !== feedDraft.feedId)
       onFeedsChange(remaining)
@@ -233,6 +239,43 @@ export function ProjectWorkspace({
     } catch (e) {
       onNotify(null, e instanceof Error ? e.message : 'Delete feed failed')
     }
+  }
+
+  const downloadFeedBackup = () => {
+    if (!feedDraft) return
+    const { published, publishedAt, publishedUri, ownerDid, liveAt, ...backup } = feedDraft as any
+    const wrapped = { version: 1, format: 'cfb-feed-backup', exportedAt: new Date().toISOString(), ...backup }
+    const json = JSON.stringify(wrapped, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${feedDraft.feedId}.feed-backup.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const downloadFeedLogic = () => {
+    if (!feedDraft) return
+    const logic: Record<string, unknown> = {
+      version: 1,
+      format: 'cfb-feed-graph',
+      exportedAt: new Date().toISOString(),
+      match: feedDraft.match,
+    }
+    if (feedDraft.visualLayout) logic.visualLayout = feedDraft.visualLayout
+    if (feedDraft.rank) logic.rank = feedDraft.rank
+    if (feedDraft.injector) logic.injector = feedDraft.injector
+    if (feedDraft.sources) logic.sources = feedDraft.sources
+    if (feedDraft.personalization) logic.personalization = feedDraft.personalization
+    const json = JSON.stringify(logic, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${feedDraft.feedId}.feed-logic.json`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   const workspaceMode = feedId ? 'feed' : 'ingestion'
@@ -327,7 +370,7 @@ export function ProjectWorkspace({
                 feeds.map((f) => (f.feedId === next.feedId ? { ...f, published } : f)),
               )
             }}
-            onDeleteFeed={() => void deleteFeed()}
+            onDeleteFeed={() => setConfirmDeleteFeed(true)}
           />
         ) : (
           <FeedRightSidebarShell feedName={loadingFeedMeta?.name} feedId={feedId} />
@@ -339,6 +382,40 @@ export function ProjectWorkspace({
           projectDirty={projectDirty}
           onSaveProject={onSaveProject}
           onDeleteProject={onDeleteProject}
+        />
+      )}
+
+      {confirmDeleteFeed && feedDraft && (
+        <ConfirmModal
+          title="Delete feed"
+          message={
+            <>
+              <p>Delete feed <strong>{feedDraft.name}</strong>?</p>
+              <p>This removes the feed config and all its candidates. This cannot be undone.</p>
+              {(feedDraft.published || liveFeed?.published) && (
+                <p className="card-hint">
+                  The feed will be automatically unpublished from Bluesky.
+                </p>
+              )}
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={downloadFeedBackup}
+              >
+                Download backup
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={downloadFeedLogic}
+              >
+                Download logic only
+              </button>
+            </>
+          }
+          confirmLabel="Delete feed"
+          onConfirm={() => void confirmAndDeleteFeed()}
+          onCancel={() => setConfirmDeleteFeed(false)}
         />
       )}
     </div>

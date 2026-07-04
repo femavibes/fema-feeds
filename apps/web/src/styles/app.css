@@ -10240,3 +10240,162 @@ body.l2-visual-open #root {
   flex: 1;
   min-width: 0;
 }
+
+/* --- Slug collision / Bluesky feeds modal --- */
+
+.field-warn {
+  color: var(--color-warn, #b58900);
+  font-size: 0.82rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.modal-inline-error {
+  flex: 1 1 100%;
+  margin: 0 0 0.5rem;
+}
+
+.l2-publish-collision-warning {
+  border: 1px solid var(--color-warn, #b58900);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.l2-publish-collision-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.bluesky-feeds-modal {
+  max-width: 600px;
+  max-height: 80vh;
+}
+
+.bluesky-feeds-modal .modal-body {
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.bluesky-feeds-service-did {
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
+.bluesky-feeds-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.bluesky-feeds-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+}
+
+.bluesky-feeds-item-main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.bluesky-feeds-item-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.bluesky-feeds-item-rkey {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.bluesky-feeds-item-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.bluesky-feeds-item-service {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.bluesky-feeds-item-link {
+  font-size: 0.78rem;
+  margin-left: auto;
+}
+
+.bluesky-feeds-item-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin: 0.25rem 0 0;
+}
+
+/* --- Confirm modal --- */
+
+.confirm-modal {
+  max-width: 440px;
+}
+
+.confirm-modal .modal-body p {
+  margin: 0 0 0.5rem;
+}
+
+.confirm-modal .modal-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* --- Create feed restore from backup --- */
+
+.create-feed-restore {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* --- Bluesky feeds modal tabs --- */
+
+.bluesky-feeds-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  margin: 0.75rem 0 0;
+}
+
+.bluesky-feeds-tab {
+  background: none;
+  border: none;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.bluesky-feeds-tab:hover {
+  color: var(--text);
+}
+
+.bluesky-feeds-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+.bluesky-feeds-tab-count {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  margin-left: 0.2rem;
+}

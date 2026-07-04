@@ -130,6 +130,8 @@ export {
   deleteFeedCandidatesForFeed,
   deleteFeedCandidatesForFeeds,
   countFeedCandidates,
+  getStaleFeedCandidateUris,
+  countStaleFeedCandidates,
   getFeedSkeleton,
   type FeedCandidateInput,
   type SkeletonPost,

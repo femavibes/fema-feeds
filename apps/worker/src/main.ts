@@ -115,6 +115,18 @@ async function runPrune() {
   await pool.end()
 }
 
+async function runRefreshEngagement(projectId?: string) {
+  const pool = createPool()
+  const feeds = await loadAllFeeds(feedsDir)
+  const { catchUpFeedEngagement } = await import('@cfb/ingest-runner')
+  const targetFeeds = feeds.filter((f) => f.enabled && (!projectId || f.projectId === projectId))
+  const feedIds = targetFeeds.map((f) => f.feedId)
+  console.error(`[worker] refreshing engagement for ${feedIds.length} feed(s): ${feedIds.join(', ')}`)
+  const result = await catchUpFeedEngagement(pool, feedIds, { staleMinutes: 0 })
+  console.log(JSON.stringify(result))
+  await pool.end()
+}
+
 async function runL2Reeval(projectId?: string) {
   const pool = createPool()
   const feeds = await loadAllFeeds(feedsDir)
@@ -139,6 +151,10 @@ if (cmd === 'poll-lists') {
   await runLabelStream()
 } else if (cmd === 'prune') {
   await runPrune()
+} else if (cmd === 'refresh-engagement') {
+  const projectArg = rest.find((a) => a.startsWith('--project='))
+  const projectId = projectArg?.split('=')[1]
+  await runRefreshEngagement(projectId)
 } else if (cmd === 'l2-reeval') {
   const projectArg = rest.find((a) => a.startsWith('--project='))
   const projectId = projectArg?.split('=')[1]
@@ -147,6 +163,7 @@ if (cmd === 'poll-lists') {
   console.log(`Usage:
   node dist/main.js poll-lists [--once] [--interval=300]
   node dist/main.js refresh-labels [--once] [--interval=300]
+  node dist/main.js refresh-engagement [--project=urbanism]
   node dist/main.js label-stream
   node dist/main.js prune
   node dist/main.js l2-reeval [--project=urbanism]

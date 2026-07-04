@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@cfb/feed-config": "workspace:*",
+    "@cfb/ingest-runner": "workspace:*",
     "@cfb/label-refresh": "workspace:*",
     "@cfb/label-stream": "workspace:*",
     "@cfb/l2-worker": "workspace:*",

@@ -29,7 +29,7 @@ import { buildFeedPublishInfo, applyFeedInjector, applyFeedRanker, resolveFeedge
 
 import { countImportableConditions, importFeedGenRules, resolveFeedMatch } from '@cfb/l2-graph'
 
-import { loadPostMetrics, loadMentionDidsForFeed, loadFollowRingsForFeed, previewFeedPoolMatches, startBackgroundReeval, getRebuildStatus, clearRebuildStatus, seedFollowRingsFromFeeds } from '@cfb/l2-worker'
+import { loadPostMetrics, loadMentionDidsForFeed, loadFollowRingsForFeed, previewFeedPoolMatches, startBackgroundReeval, getRebuildStatus, clearRebuildStatus, cancelRebuild, seedFollowRingsFromFeeds } from '@cfb/l2-worker'
 import { setPostEngagement } from '@cfb/storage-postgres'
 
 import { seedAuthorListsFromFeeds } from '@cfb/list-cache'
@@ -100,9 +100,11 @@ import {
 
 import {
   blueskySessionError,
+  checkBlueskyRkeyCollision,
   deleteBlueskyGeneratorRecord,
   getAtprotoAgent,
   getBlueskyGeneratorRecordStatus,
+  listBlueskyFeedGenerators,
   publishBlueskyGeneratorRecord,
 } from './bluesky-generator.js'
 
@@ -148,6 +150,79 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
   })
 
 
+
+  // --- Bluesky feed generators (list all / check slug collision) ---
+  // Must be registered before /api/feeds/:id to avoid :id matching these paths
+
+  app.get('/api/feeds/bluesky-generators', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+
+    const agent = await getAtprotoAgent(pool, userDid)
+    if (!agent) return c.json({ error: blueskySessionError(), code: 'bluesky_session_required' }, 401)
+
+    const feedgen = await resolveUserFeedgenSettings(pool, userDid, feedgenEnvFromProcess())
+    const serviceDid = resolveFeedgenServiceDid(feedgen, userDid)
+
+    const generators = await listBlueskyFeedGenerators(agent, userDid)
+    const localFeeds = await loadAllFeeds(feedsDir)
+    const localRkeys = new Set(localFeeds.map((f) => f.atprotoRkey ?? f.feedId))
+    const tagged = generators.map((g) => ({
+      ...g,
+      isOwnDeployment: Boolean(serviceDid && g.did === serviceDid && localRkeys.has(g.rkey)),
+      isOwnService: Boolean(serviceDid && g.did === serviceDid),
+    }))
+    return c.json({ generators: tagged, serviceDid })
+  })
+
+  app.delete('/api/feeds/bluesky-generators/:rkey', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+
+    const rkey = c.req.param('rkey')
+    const agent = await getAtprotoAgent(pool, userDid)
+    if (!agent) return c.json({ error: blueskySessionError(), code: 'bluesky_session_required' }, 401)
+
+    try {
+      await agent.com.atproto.repo.deleteRecord({
+        repo: userDid,
+        collection: 'app.bsky.feed.generator',
+        rkey,
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      if (!message.includes('RecordNotFound')) {
+        return c.json({ error: message }, 502)
+      }
+    }
+    return c.json({ ok: true, rkey })
+  })
+
+  app.get('/api/feeds/check-slug/:slug', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+    const slug = c.req.param('slug')
+
+    let localExists = false
+    try {
+      await loadFeed(feedsDir, slug)
+      localExists = true
+    } catch { /* not found locally */ }
+
+    const agent = await getAtprotoAgent(pool, userDid)
+    if (!agent) {
+      return c.json({ localExists, bluesky: null })
+    }
+
+    const feedgen = await resolveUserFeedgenSettings(pool, userDid, feedgenEnvFromProcess())
+    const serviceDid = resolveFeedgenServiceDid(feedgen, userDid)
+    const collision = await checkBlueskyRkeyCollision(agent, userDid, slug, serviceDid)
+
+    return c.json({ localExists, bluesky: collision })
+  })
 
   app.get('/api/feeds/:id', async (c) => {
 
@@ -635,6 +710,12 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
     const id = c.req.param('id')
     clearRebuildStatus(id)
     return c.json({ ok: true })
+  })
+
+  app.post('/api/feeds/:id/rebuild-status/cancel', async (c) => {
+    const id = c.req.param('id')
+    const cancelled = cancelRebuild(id)
+    return c.json({ ok: true, cancelled })
   })
 
 

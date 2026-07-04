@@ -331,6 +331,18 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       }
     }
 
+    // Startup catch-up: refresh stale engagement for active feed candidates
+    if (pool && enrichmentSettings?.enabled && enrichmentSettings.trackEngagement && feeds.length > 0) {
+      const { catchUpFeedEngagement } = await import('./engagement-backfill.js')
+      const activeFeedIds = feeds.filter((f) => f.enabled).map((f) => f.feedId)
+      if (activeFeedIds.length > 0) {
+        void catchUpFeedEngagement(pool, activeFeedIds).then(
+          (r) => console.error(`[ingest] engagement catch-up: refreshed=${r.postsRefreshed} batches=${r.batches} errors=${r.errors}`),
+          (e) => console.error('[ingest] engagement catch-up failed:', e),
+        )
+      }
+    }
+
     if (pool && enrichmentSettings) {
       const engagement = await startEngagementIfEnabled(
         pool,

@@ -420,6 +420,35 @@ export function createApp(options?: {
     return c.json(result)
   })
 
+  app.post('/api/settings/refresh-engagement', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const gate = await requireMaster(c, pool)
+    if (!('ok' in gate)) return gate
+    const allFeeds = await loadAllFeeds(feedDir)
+    const feedIds = allFeeds.filter(f => f.enabled).map(f => f.feedId)
+    if (!feedIds.length) return c.json({ error: 'No enabled feeds' }, 400)
+    const body = (await c.req.json<{ forceAll?: boolean }>().catch(() => null)) ?? {}
+    const staleMinutes = body.forceAll ? 0 : 60
+    const { startBackgroundEngagementRefresh, getEngagementRefreshStatus } = await import('@cfb/ingest-runner')
+    const existing = getEngagementRefreshStatus('__all__')
+    if (existing?.active) return c.json(existing)
+    const progress = startBackgroundEngagementRefresh(pool, feedIds, { scope: '__all__', staleMinutes })
+    return c.json(progress)
+  })
+
+  app.get('/api/settings/refresh-engagement/status', async (c) => {
+    const { getEngagementRefreshStatus } = await import('@cfb/ingest-runner')
+    const status = getEngagementRefreshStatus('__all__')
+    if (!status) return c.json({ active: false, scope: '__all__', total: 0, refreshed: 0, errors: 0, startedAt: null, finishedAt: null })
+    return c.json(status)
+  })
+
+  app.post('/api/settings/refresh-engagement/clear', async (c) => {
+    const { clearEngagementRefreshStatus } = await import('@cfb/ingest-runner')
+    clearEngagementRefreshStatus('__all__')
+    return c.json({ ok: true })
+  })
+
   app.get('/api/ingest/smoke-tests', async (c) => {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
     const limit = Number.parseInt(c.req.query('limit') ?? '10', 10)
@@ -949,6 +978,44 @@ export function createApp(options?: {
     const id = c.req.param('id')
     await deleteProjectData(pool, id)
     return c.json({ ok: true, projectId: id })
+  })
+
+  app.post('/api/projects/:id/refresh-engagement', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const id = c.req.param('id')
+    let project: ProjectL1Config
+    try {
+      project = await loadProject(dir, id)
+    } catch {
+      return c.json({ error: 'not found' }, 404)
+    }
+    const access = assertProjectAccess(project, getUserDid(c))
+    if (!access.ok) return c.json({ error: 'not found' }, access.status)
+    const projectFeeds = (await loadAllFeeds(feedDir)).filter(f => f.projectId === id && f.enabled)
+    const feedIds = projectFeeds.map(f => f.feedId)
+    if (!feedIds.length) return c.json({ error: 'No enabled feeds in this project' }, 400)
+    const body = (await c.req.json<{ forceAll?: boolean }>().catch(() => null)) ?? {}
+    const staleMinutes = body.forceAll ? 0 : 60
+    const { startBackgroundEngagementRefresh, getEngagementRefreshStatus } = await import('@cfb/ingest-runner')
+    const existing = getEngagementRefreshStatus(id)
+    if (existing?.active) return c.json(existing)
+    const progress = startBackgroundEngagementRefresh(pool, feedIds, { scope: id, staleMinutes })
+    return c.json(progress)
+  })
+
+  app.get('/api/projects/:id/refresh-engagement/status', async (c) => {
+    const id = c.req.param('id')
+    const { getEngagementRefreshStatus } = await import('@cfb/ingest-runner')
+    const status = getEngagementRefreshStatus(id)
+    if (!status) return c.json({ active: false, scope: id, total: 0, refreshed: 0, errors: 0, startedAt: null, finishedAt: null })
+    return c.json(status)
+  })
+
+  app.post('/api/projects/:id/refresh-engagement/clear', async (c) => {
+    const id = c.req.param('id')
+    const { clearEngagementRefreshStatus } = await import('@cfb/ingest-runner')
+    clearEngagementRefreshStatus(id)
+    return c.json({ ok: true })
   })
 
     app.post('/api/projects/:id/dry-run', async (c) => {

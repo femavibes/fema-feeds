@@ -239,6 +239,26 @@ export interface FeedStatsResponse {
   totalUniqueViewers: number
 }
 
+export interface BlueskyGeneratorEntry {
+  rkey: string
+  uri: string
+  displayName: string
+  description?: string
+  did: string
+  createdAt?: string
+  isOwnDeployment: boolean
+  isOwnService?: boolean
+}
+
+export interface SlugCollisionResult {
+  localExists: boolean
+  bluesky: {
+    exists: boolean
+    record?: BlueskyGeneratorEntry
+    isOwnDeployment: boolean
+  } | null
+}
+
 export interface FeedPublishInfo {
   feedId: string
   name: string
@@ -545,6 +565,12 @@ export const api = {
     }),
   feedPublishInfo: (id: string) => apiFetch<FeedPublishInfo>(`/api/feeds/${id}/publish`),
   feedStats: (id: string) => apiFetch<FeedStatsResponse>(`/api/feeds/${id}/stats`),
+  listBlueskyGenerators: () =>
+    apiFetch<{ generators: BlueskyGeneratorEntry[]; serviceDid: string }>('/api/feeds/bluesky-generators'),
+  deleteBlueskyGenerator: (rkey: string) =>
+    apiFetch<{ ok: boolean; rkey: string }>(`/api/feeds/bluesky-generators/${encodeURIComponent(rkey)}`, { method: 'DELETE' }),
+  checkSlugCollision: (slug: string) =>
+    apiFetch<SlugCollisionResult>(`/api/feeds/check-slug/${encodeURIComponent(slug)}`),
   getFeedSkeleton: (id: string, limit = 50) =>
     apiFetch<FeedSkeletonResponse>(`/api/feeds/${id}/skeleton?limit=${limit}`),
   importFeedRules: (id: string, rules: unknown) =>
@@ -979,6 +1005,24 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ dryRun }),
     }),
+  refreshEngagement: (forceAll = false) =>
+    apiFetch<{ active: boolean; scope: string; total: number; refreshed: number; errors: number; startedAt: string | null; finishedAt: string | null }>('/api/settings/refresh-engagement', {
+      method: 'POST',
+      body: JSON.stringify({ forceAll }),
+    }),
+  refreshEngagementStatus: () =>
+    apiFetch<{ active: boolean; scope: string; total: number; refreshed: number; errors: number; startedAt: string | null; finishedAt: string | null }>('/api/settings/refresh-engagement/status'),
+  clearRefreshEngagementStatus: () =>
+    apiFetch<{ ok: boolean }>('/api/settings/refresh-engagement/clear', { method: 'POST' }),
+  refreshProjectEngagement: (projectId: string, forceAll = false) =>
+    apiFetch<{ active: boolean; scope: string; total: number; refreshed: number; errors: number; startedAt: string | null; finishedAt: string | null }>(`/api/projects/${projectId}/refresh-engagement`, {
+      method: 'POST',
+      body: JSON.stringify({ forceAll }),
+    }),
+  refreshProjectEngagementStatus: (projectId: string) =>
+    apiFetch<{ active: boolean; scope: string; total: number; refreshed: number; errors: number; startedAt: string | null; finishedAt: string | null }>(`/api/projects/${projectId}/refresh-engagement/status`),
+  clearRefreshProjectEngagementStatus: (projectId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/projects/${projectId}/refresh-engagement/clear`, { method: 'POST' }),
   getUserPreferences: () =>
     apiFetch<{ prefs: { blurNsfw: boolean } }>('/api/user/preferences'),
   saveUserPreferences: (prefs: { blurNsfw?: boolean }) =>
@@ -992,6 +1036,8 @@ export const api = {
     ),
   clearFeedRebuildStatus: (feedId: string) =>
     apiFetch<{ ok: boolean }>(`/api/feeds/${feedId}/rebuild-status/clear`, { method: 'POST' }),
+  cancelFeedRebuild: (feedId: string) =>
+    apiFetch<{ ok: boolean; cancelled: boolean }>(`/api/feeds/${feedId}/rebuild-status/cancel`, { method: 'POST' }),
 
   // --- Community ---
   marketplaceTaxonomy: () =>

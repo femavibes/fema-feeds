@@ -198,6 +198,76 @@ export async function deleteBlueskyGeneratorRecord(
   }
 }
 
+export interface BlueskyFeedGeneratorRecord {
+  rkey: string
+  uri: string
+  displayName: string
+  description?: string
+  did: string // service DID
+  createdAt?: string
+}
+
+/** List all app.bsky.feed.generator records under a DID. */
+export async function listBlueskyFeedGenerators(
+  agent: PublishingAgent,
+  userDid: string,
+): Promise<BlueskyFeedGeneratorRecord[]> {
+  const records: BlueskyFeedGeneratorRecord[] = []
+  let cursor: string | undefined
+  for (;;) {
+    const res = await agent.com.atproto.repo.listRecords({
+      repo: userDid,
+      collection: 'app.bsky.feed.generator',
+      limit: 100,
+      cursor,
+    })
+    for (const item of res.data.records) {
+      const val = item.value as { displayName?: string; description?: string; did?: string; createdAt?: string }
+      const rkey = item.uri.split('/').pop() ?? ''
+      records.push({
+        rkey,
+        uri: item.uri,
+        displayName: val.displayName ?? rkey,
+        description: val.description,
+        did: val.did ?? '',
+        createdAt: val.createdAt,
+      })
+    }
+    cursor = res.data.cursor
+    if (!cursor || res.data.records.length === 0) break
+  }
+  return records
+}
+
+/** Check if a specific rkey is already taken under the user's DID. */
+export async function checkBlueskyRkeyCollision(
+  agent: PublishingAgent,
+  userDid: string,
+  rkey: string,
+  ownServiceDid?: string,
+): Promise<{ exists: boolean; record?: BlueskyFeedGeneratorRecord; isOwnDeployment: boolean }> {
+  try {
+    const res = await agent.com.atproto.repo.getRecord({
+      repo: userDid,
+      collection: 'app.bsky.feed.generator',
+      rkey,
+    })
+    const val = res.data.value as { displayName?: string; description?: string; did?: string; createdAt?: string }
+    const record: BlueskyFeedGeneratorRecord = {
+      rkey,
+      uri: res.data.uri,
+      displayName: val.displayName ?? rkey,
+      description: val.description,
+      did: val.did ?? '',
+      createdAt: val.createdAt,
+    }
+    const isOwnDeployment = Boolean(ownServiceDid && record.did === ownServiceDid)
+    return { exists: true, record, isOwnDeployment }
+  } catch {
+    return { exists: false, isOwnDeployment: false }
+  }
+}
+
 export function blueskySessionError(): string {
   return 'Bluesky publishing session unavailable — sign in again (app password or OAuth), or enter your app password below.'
 }
