@@ -5,6 +5,7 @@ export const SETTINGS_NAV_ITEMS: { id: SettingsWorkspaceView; label: string }[] 
   { id: 'publishing', label: 'Publishing' },
   { id: 'ingest', label: 'Ingest' },
   { id: 'pool', label: 'Pool & lists' },
+  { id: 'backfill', label: 'Backfill' },
   { id: 'purge', label: 'Purge' },
   { id: 'labelers', label: 'Labelers' },
   { id: 'enrichment', label: 'Enrichment' },
@@ -14,6 +15,7 @@ export const SETTINGS_NAV_ITEMS: { id: SettingsWorkspaceView; label: string }[] 
 
 const MASTER_ONLY_VIEWS = new Set<SettingsWorkspaceView>([
   'ingest',
+  'backfill',
   'purge',
   'labelers',
   'enrichment',

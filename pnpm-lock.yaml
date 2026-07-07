@@ -360,6 +360,9 @@ importers:
       '@cfb/list-sources':
         specifier: workspace:*
         version: link:../list-sources
+      '@cfb/post-normalize':
+        specifier: workspace:*
+        version: link:../post-normalize
       '@cfb/profile-enrich':
         specifier: workspace:*
         version: link:../profile-enrich

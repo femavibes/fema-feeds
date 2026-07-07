@@ -15,6 +15,7 @@ Self-hostable Bluesky custom feed platform. See [`docs/PLAN.md`](docs/PLAN.md).
 | [BUILD_INGEST_L1.md](docs/BUILD_INGEST_L1.md) | Current build slice: ingest + L1 |
 | [REFERENCE_AUDIT.md](docs/REFERENCE_AUDIT.md) | What to borrow from prior repos |
 | [ENGAGEMENT_REFRESH.md](docs/ENGAGEMENT_REFRESH.md) | Engagement data freshness & catch-up system |
+| [BACKFILL.md](docs/BACKFILL.md) | Pool backfill methods, limits & reconnection resilience |
 
 ## Prerequisites
 

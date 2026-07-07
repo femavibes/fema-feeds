@@ -444,7 +444,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ target }),
     }),
-  listProjects: () => apiFetch<{ projects: ProjectL1Config[] }>('/api/projects'),
+  listProjects: (scope?: 'all') =>
+    apiFetch<{ projects: ProjectL1Config[] }>(`/api/projects${scope ? `?scope=${scope}` : ''}`),
   getProject: (id: string) => apiFetch<{ project: ProjectL1Config }>(`/api/projects/${id}`),
   createProject: (project: ProjectL1Config) =>
     apiFetch<{ project: ProjectL1Config }>('/api/projects', {
@@ -1023,6 +1024,26 @@ export const api = {
     apiFetch<{ active: boolean; scope: string; total: number; refreshed: number; errors: number; startedAt: string | null; finishedAt: string | null }>(`/api/projects/${projectId}/refresh-engagement/status`),
   clearRefreshProjectEngagementStatus: (projectId: string) =>
     apiFetch<{ ok: boolean }>(`/api/projects/${projectId}/refresh-engagement/clear`, { method: 'POST' }),
+
+  // --- Backfill ---
+  getBackfillSettings: () =>
+    apiFetch<{ settings: import('@cfb/core-types').BackfillSettings }>('/api/settings/backfill'),
+  saveBackfillSettings: (settings: Partial<import('@cfb/core-types').BackfillSettings>) =>
+    apiFetch<{ settings: import('@cfb/core-types').BackfillSettings }>('/api/settings/backfill', {
+      method: 'PUT', body: JSON.stringify(settings),
+    }),
+  listBackfillJobs: (projectId: string) =>
+    apiFetch<{ jobs: import('@cfb/core-types').BackfillJob[] }>(`/api/projects/${projectId}/backfill/jobs`),
+  getBackfillJob: (projectId: string, jobId: string) =>
+    apiFetch<{ job: import('@cfb/core-types').BackfillJob }>(`/api/projects/${projectId}/backfill/jobs/${jobId}`),
+  startBackfill: (projectId: string, config: import('@cfb/core-types').BackfillJobConfig) =>
+    apiFetch<{ job: import('@cfb/core-types').BackfillJob }>(`/api/projects/${projectId}/backfill/start`, {
+      method: 'POST', body: JSON.stringify(config),
+    }),
+  cancelBackfill: (projectId: string, jobId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/projects/${projectId}/backfill/jobs/${jobId}/cancel`, { method: 'POST' }),
+  suggestBackfillQueries: (projectId: string) =>
+    apiFetch<{ queries: string[] }>(`/api/projects/${projectId}/backfill/suggest-queries`),
   getUserPreferences: () =>
     apiFetch<{ prefs: { blurNsfw: boolean } }>('/api/user/preferences'),
   saveUserPreferences: (prefs: { blurNsfw?: boolean }) =>

@@ -20,7 +20,8 @@
             "op": "is",
             "type": "post_kind",
             "kinds": [
-              "root"
+              "root",
+              "quote"
             ]
           },
           {
@@ -650,8 +651,8 @@
         "y": -302.63162217232207
       },
       "group-mqvtbjl3": {
-        "x": -21.505655355954758,
-        "y": -367.6733408183633
+        "x": -104.68837960844647,
+        "y": -461.6390108072891
       },
       "group-mqy96dck": {
         "x": 11.105788423153768,
@@ -676,36 +677,60 @@
   "public": true,
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
   "published": true,
-  "liveAt": "2026-07-03T18:30:56.706Z",
+  "liveAt": "2026-07-07T01:05:57.576Z",
   "publishedAt": "2026-07-03T14:49:23.827Z",
   "publishedUri": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.feed.generator/up-test",
   "atprotoRkey": "up-test",
   "rank": {
     "sortKey": {
+      "type": "binary",
       "op": "+",
       "left": {
+        "type": "binary",
         "op": "+",
         "left": {
-          "type": "field",
-          "field": "like_count"
+          "type": "binary",
+          "op": "+",
+          "left": {
+            "type": "binary",
+            "op": "+",
+            "left": {
+              "type": "field",
+              "field": "like_count"
+            },
+            "right": {
+              "type": "field",
+              "field": "repost_count"
+            }
+          },
+          "right": {
+            "type": "binary",
+            "op": "*",
+            "left": {
+              "type": "field",
+              "field": "reply_count"
+            },
+            "right": {
+              "type": "literal",
+              "value": 3
+            }
+          }
         },
-        "type": "binary",
         "right": {
           "type": "field",
-          "field": "repost_count"
+          "field": "quote_count"
         }
       },
-      "type": "binary",
       "right": {
+        "type": "binary",
         "op": "*",
         "left": {
           "type": "field",
-          "field": "reply_count"
+          "field": "bookmark_count"
         },
-        "type": "binary",
         "right": {
           "type": "literal",
-          "value": 124
+          "value": 3
         }
       }
     }

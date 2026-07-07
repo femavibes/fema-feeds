@@ -1,7 +1,7 @@
 {
   "projectId": "hgfhfg",
   "name": "hhh",
-  "enabled": true,
+  "enabled": false,
   "prefilter": {
     "match": {
       "type": "group",
@@ -16,7 +16,7 @@
     "restrictBranches": []
   },
   "compiledL1Meta": {
-    "compiledAt": "2026-07-03T22:54:15.167Z",
+    "compiledAt": "2026-07-07T00:34:10.945Z",
     "source": "prefilter"
   },
   "ownerDid": "did:plc:blcfmz3gu4g42jozkb6bd5xl"

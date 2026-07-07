@@ -37,6 +37,7 @@ interface Props {
   onOpenDeveloperGuide?: () => void
   onSettingsViewChange?: (view: SettingsWorkspaceView) => void
   settingsNavItems?: { id: SettingsWorkspaceView; label: string }[]
+  ingestionNavItems?: { id: IngestionWorkspaceView; label: string }[]
   disabled?: boolean
 }
 
@@ -71,6 +72,7 @@ const SETTINGS_ITEMS: { id: SettingsWorkspaceView; label: string }[] = [
   { id: 'publishing', label: 'Publishing' },
   { id: 'ingest', label: 'Ingest' },
   { id: 'pool', label: 'Pool & lists' },
+  { id: 'backfill', label: 'Backfill' },
   { id: 'labelers', label: 'Labelers' },
   { id: 'enrichment', label: 'Enrichment' },
   { id: 'access', label: 'Access' },
@@ -104,9 +106,11 @@ export function WorkspaceNav({
   onCollectionProductKindChange,
   onOpenDeveloperGuide,
   onSettingsViewChange,
+  ingestionNavItems,
   disabled = false,
 }: Props) {
   const settingsItems = settingsNavItems ?? SETTINGS_ITEMS
+  const ingestionItems = ingestionNavItems ?? INGESTION_ITEMS
 
   const items =
     mode === 'feed'
@@ -127,7 +131,7 @@ export function WorkspaceNav({
               active: settingsView === item.id,
               onClick: () => onSettingsViewChange?.(item.id),
             }))
-          : INGESTION_ITEMS.map((item) => ({
+          : ingestionItems.map((item) => ({
               id: item.id,
               label: item.label,
               active: ingestionView === item.id,

@@ -25,6 +25,21 @@ interface Props {
   onRefreshList: (listId: string) => Promise<void>
 }
 
+/** Ingestion nav items filtered by prefilter mode. */
+export function ingestionNavItemsForMode(mode: 'strict' | 'manual'): { id: IngestionWorkspaceView; label: string }[] {
+  const all: { id: IngestionWorkspaceView; label: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'visual', label: 'Visual editor' },
+    { id: 'json', label: 'JSON editor' },
+    { id: 'prefilter', label: 'Prefilter' },
+    { id: 'settings', label: 'Settings' },
+  ]
+  if (mode === 'strict') {
+    return all.filter(i => i.id !== 'visual' && i.id !== 'json')
+  }
+  return all
+}
+
 export function ProjectIngestionWorkspace({
   draft,
   projectDirty,

@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import type { EnrichmentSettings, FeedgenPublishMode, FeedgenSettings } from '@cfb/core-types'
+import type { EnrichmentSettings, FeedgenPublishMode, FeedgenSettings, ProjectL1Config } from '@cfb/core-types'
 import { duckdnsPublicHost, duckdnsPublicUrl, inferFeedgenPublishMode, isTailscaleFunnelUrl } from '@cfb/core-types'
 import { DevRestart } from './DevRestart'
 import { GlobalRegistryDevStatus } from './logic-blocks/GlobalRegistryDevStatus'
 import { IngestSettingsSection } from './IngestSettingsSection'
 import { GlobalPrefilterEditor } from './GlobalPrefilterEditor'
 import { PurgeSettingsSection } from './PurgeSettingsSection'
+import { BackfillSettingsSection } from './BackfillSettingsSection'
 import { WhitelistEditor } from './WhitelistEditor'
+import { ConfirmModal } from './ConfirmModal'
 import { useNsfwBlur } from '../lib/nsfw-blur'
 import type {
   FeedgenSettingsPublic,
@@ -48,6 +50,7 @@ const VIEW_HINTS: Record<SettingsWorkspaceView, string> = {
   ingest: 'Live firehose ingestion and L1 filtering. When on, matching posts are saved to the pool.',
   pool: 'Posts in your ingestion pool and cached author lists across projects.',
   purge: 'Automatic cleanup of old or low-engagement posts from the pool. Keeps database size manageable.',
+  backfill: 'Retroactively populate project pools with historical posts. Set deployment-wide limits here.',
   labelers:
     'Moderation labels are applied after posting. Bluesky Moderation is enabled by default; add custom labeler DIDs to query at ingest and during label refresh sweeps.',
   enrichment:
@@ -63,6 +66,7 @@ const VIEW_TITLES: Record<SettingsWorkspaceView, string> = {
   ingest: 'Jetstream ingest',
   pool: 'Pool & lists',
   purge: 'Post purge',
+  backfill: 'Backfill',
   labelers: 'Labelers',
   enrichment: 'Enrichment & label refresh',
   access: 'Deployment access',
@@ -88,6 +92,29 @@ export function SettingsPage({
 }: Props) {
   const publishingRef = useRef<HTMLElement>(null)
   const [showGlobalPrefilter, setShowGlobalPrefilter] = useState(false)
+  const [purgePoolProject, setPurgePoolProject] = useState<string | null>(null)
+  const [purging, setPurging] = useState(false)
+  const [projects, setProjects] = useState<ProjectL1Config[]>([])
+  const [togglingProject, setTogglingProject] = useState<string | null>(null)
+  const [ownerHandles, setOwnerHandles] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    if (view === 'pool') {
+      api.listProjects('all').then((r) => {
+        setProjects(r.projects)
+        const dids = [...new Set(r.projects.map((p) => p.ownerDid).filter(Boolean) as string[])]
+        if (dids.length) {
+          api.resolveAuthorProfiles(dids).then((res) => {
+            const map: Record<string, string> = {}
+            for (const m of res.members) {
+              if (m.handle) map[m.did] = m.handle
+            }
+            setOwnerHandles(map)
+          }).catch(() => {})
+        }
+      }).catch(() => {})
+    }
+  }, [view])
 
   useEffect(() => {
     if (highlightPublishing && view === 'publishing' && publishingRef.current) {
@@ -145,26 +172,52 @@ export function SettingsPage({
               <span className="settings-stat-label">lists due for poll</span>
             </div>
           </div>
-          {stats?.byProject && Object.keys(stats.byProject).length > 0 && (
+          {projects.length > 0 && (
             <table className="settings-table" style={{ marginTop: '0.75rem' }}>
-              <thead><tr><th>Project</th><th>Posts</th><th></th></tr></thead>
+              <thead><tr><th>Project</th><th>Owner</th><th>Active</th><th>Posts</th><th></th></tr></thead>
               <tbody>
-                {Object.entries(stats.byProject).sort((a, b) => b[1] - a[1]).map(([id, count]) => (
-                  <tr key={id}>
-                    <td>{id}</td>
-                    <td>{count.toLocaleString()}</td>
+                {projects
+                  .sort((a, b) => (stats?.byProject[b.projectId] ?? 0) - (stats?.byProject[a.projectId] ?? 0))
+                  .map((p) => (
+                  <tr key={p.projectId}>
+                    <td>{p.name || p.projectId}</td>
+                    <td className="mono settings-did" style={{ fontSize: '0.75rem' }}>
+                      {p.ownerDid
+                        ? ownerHandles[p.ownerDid] ?? `${p.ownerDid.slice(0, 20)}…`
+                        : <em>unclaimed</em>}
+                    </td>
                     <td>
                       <button
                         type="button"
-                        className="btn btn-ghost btn-sm"
-                        style={{ color: 'var(--danger, #ef4444)', fontSize: '0.75rem' }}
-                        onClick={() => {
-                          if (window.confirm('Delete all pool posts for "' + id + '"?'))
-                            void api.purgeProjectPool(id).then(() => onRefresh())
+                        className={`btn btn-sm ${p.enabled ? 'btn-primary' : 'btn-ghost'}`}
+                        style={{ minWidth: '3.5rem', fontSize: '0.7rem' }}
+                        disabled={togglingProject === p.projectId}
+                        onClick={async () => {
+                          setTogglingProject(p.projectId)
+                          try {
+                            const updated = { ...p, enabled: !p.enabled }
+                            await api.saveProject(updated)
+                            setProjects((prev) => prev.map((x) => x.projectId === p.projectId ? updated : x))
+                          } finally {
+                            setTogglingProject(null)
+                          }
                         }}
                       >
-                        Delete pool
+                        {p.enabled ? 'On' : 'Off'}
                       </button>
+                    </td>
+                    <td>{(stats?.byProject[p.projectId] ?? 0).toLocaleString()}</td>
+                    <td>
+                      {(stats?.byProject[p.projectId] ?? 0) > 0 && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          style={{ color: 'var(--danger, #ef4444)', fontSize: '0.75rem' }}
+                          onClick={() => setPurgePoolProject(p.projectId)}
+                        >
+                          Delete pool
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -223,6 +276,14 @@ export function SettingsPage({
         <p className="card-hint">Only the deployment master can configure purge settings.</p>
       )}
 
+      {view === 'backfill' && isMaster && (
+        <BackfillSettingsSection />
+      )}
+
+      {view === 'backfill' && !isMaster && (
+        <p className="card-hint">Only the deployment master can configure backfill limits.</p>
+      )}
+
       {view === 'labelers' && isMaster && (
         <section className="settings-section">
           <LabelerManager
@@ -264,6 +325,28 @@ export function SettingsPage({
 
       {view === 'developer' && !isMaster && (
         <p className="card-hint">Only the deployment master can restart dev services.</p>
+      )}
+
+      {purgePoolProject && (
+        <ConfirmModal
+          title="Delete project pool"
+          message={
+            <p>Delete <strong>all</strong> pool posts for project <code>{purgePoolProject}</code>? This cannot be undone.</p>
+          }
+          confirmLabel={purging ? 'Deleting…' : 'Delete pool'}
+          confirmDanger
+          onConfirm={async () => {
+            setPurging(true)
+            try {
+              await api.purgeProjectPool(purgePoolProject)
+              onRefresh()
+            } finally {
+              setPurging(false)
+              setPurgePoolProject(null)
+            }
+          }}
+          onCancel={() => setPurgePoolProject(null)}
+        />
       )}
     </div>
   )

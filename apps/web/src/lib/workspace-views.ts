@@ -30,6 +30,7 @@ export type SettingsWorkspaceView =
   | 'ingest'
   | 'pool'
   | 'purge'
+  | 'backfill'
   | 'labelers'
   | 'enrichment'
   | 'access'

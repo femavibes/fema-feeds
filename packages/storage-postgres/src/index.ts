@@ -271,3 +271,18 @@ export {
   type FeedDailyStatsRow,
   type FeedStatsSnapshot,
 } from './feed-stats.js'
+
+export {
+  getBackfillSettings,
+  saveBackfillSettings,
+  getJetstreamCursor,
+  saveJetstreamCursor,
+  ensureBackfillJobsTable,
+  createBackfillJob,
+  getBackfillJob,
+  listBackfillJobs,
+  getActiveBackfillCount,
+  getLastBackfillForProject,
+  updateBackfillJobStatus,
+  updateBackfillJobProgress,
+} from './backfill.js'

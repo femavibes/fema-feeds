@@ -23,6 +23,7 @@
     "@cfb/list-cache": "workspace:*",
     "@cfb/list-sources": "workspace:*",
     "@cfb/profile-enrich": "workspace:*",
+    "@cfb/post-normalize": "workspace:*",
     "@cfb/project-config": "workspace:*",
     "@cfb/storage-postgres": "workspace:*"
   },

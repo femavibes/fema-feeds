@@ -72,6 +72,7 @@ import { pollDueFollowRings } from '@cfb/l2-worker'
 import { resolveLabelerLabelsForPost } from '@cfb/label-resolve'
 import { normalizeJetstreamPost, type JetstreamPostEvent } from '@cfb/post-normalize'
 import { registerFeedRoutes } from './feeds.js'
+import { registerBackfillRoutes } from './backfill.js'
 import { registerFeedAvatarRoutes } from './feed-avatar.js'
 import { registerFeedgenRoutes } from './feedgen.js'
 import { registerAuthRoutes, createAuthMiddleware } from './auth/routes.js'
@@ -84,7 +85,7 @@ import { registerMarketplaceModerationRoutes } from './marketplace-moderation.js
 import { registerMarketplaceAssetRoutes } from './marketplace-assets.js'
 import { registerMarketplaceTaxonomyRoutes } from './marketplace-taxonomy.js'
 import { feedgenEnvFromProcess } from './feedgen-env.js'
-import { requireMaster, requireMasterIfMultiUser } from './require-master.js'
+import { isRequestMaster, requireMaster, requireMasterIfMultiUser } from './require-master.js'
 import {
   bootstrapDeploymentFromEnv,
   bootstrapMasterFromEnv,
@@ -232,6 +233,7 @@ export function createApp(options?: {
   registerMarketplaceModerationRoutes(app, pool)
   registerMarketplaceAssetRoutes(app)
   registerMarketplaceTaxonomyRoutes(app)
+  registerBackfillRoutes(app, { pool, projectsDir: dir, feedsDir: feedDir })
   registerGlobalCommunityRoutes(app, pool)
 
   if (pool) {
@@ -661,7 +663,13 @@ export function createApp(options?: {
 
   app.get('/api/projects', async (c) => {
     try {
-      const projects = filterProjectsForUser(await loadAllProjects(dir), getUserDid(c))
+      const all = await loadAllProjects(dir)
+      const scope = c.req.query('scope')
+      if (scope === 'all') {
+        const gate = await requireMasterIfMultiUser(c, pool)
+        if ('ok' in gate) return c.json({ projects: all })
+      }
+      const projects = filterProjectsForUser(all, getUserDid(c))
       return c.json({ projects })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load projects'
@@ -860,7 +868,10 @@ export function createApp(options?: {
       return c.json({ error: 'not found' }, 404)
     }
     const access = assertProjectAccess(existing, getUserDid(c))
-    if (!access.ok) return c.json({ error: 'not found' }, access.status)
+    if (!access.ok) {
+      const master = await isRequestMaster(c, pool)
+      if (!master) return c.json({ error: 'not found' }, access.status)
+    }
     let project = stampProjectForSave(
       finalizeProjectForSave(body, existing),
       getUserDid(c),

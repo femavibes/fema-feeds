@@ -231,3 +231,4 @@ export { type NativePersonalizationConfig, DEFAULT_PERSONALIZATION } from './per
 
 export { type NativeInjectorConfig, type NativePinnedInjector, type NativePinnedPost, type NativeRotatingInjector } from './native-injectors.js'
 export { type NativeFeedSource, type ProjectPoolSource, type FeedCandidateSource, type StaticUriListSource, type SubscribedSourceConfig, type FeedSourcesConfig } from './feed-sources.js'
+export * from './backfill.js'

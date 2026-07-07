@@ -253,6 +253,11 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
     const { stop } = await startJetstreamIngest(jetstreamUrl, {
       onPost: (post) => {
         void handlePost(post)
+        // Persist cursor periodically for reconnection resilience
+        if (pool && seen % 1000 === 0) {
+          const cursorUs = Date.now() * 1000
+          void import('@cfb/storage-postgres').then(m => m.saveJetstreamCursor(pool, cursorUs)).catch(() => {})
+        }
       },
     })
 

@@ -35,3 +35,11 @@ export {
   type EnricherSweepStats,
   type EnricherSweepResult,
 } from './enricher-sweep.js'
+
+export {
+  startBackfillJob,
+  cancelBackfillJob,
+  getActiveBackfillJobIds,
+  type BackfillRunnerOptions,
+  type BackfillProgress,
+} from './backfill-runner.js'

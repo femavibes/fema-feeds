@@ -8,7 +8,7 @@ import { ConfirmModal } from './ConfirmModal'
 import { persistFeedDraft, prepareFeedDraftPayload } from '../lib/feed-draft'
 import type { FeedWorkspaceView, IngestionWorkspaceView } from '../lib/workspace-views'
 
-import { ProjectIngestionWorkspace } from './ProjectIngestionWorkspace'
+import { ProjectIngestionWorkspace, ingestionNavItemsForMode } from './ProjectIngestionWorkspace'
 import { ProjectRightSidebar } from './ProjectRightSidebar'
 import { WorkspaceNav, WorkspaceNavShell } from './WorkspaceNav'
 
@@ -293,6 +293,7 @@ export function ProjectWorkspace({
           contextLabel={workspaceLabel}
           feedView={feedView}
           ingestionView={ingestionView}
+          ingestionNavItems={ingestionNavItemsForMode(draft?.prefilterMode ?? 'strict')}
           onFeedViewChange={handleFeedViewChange}
           onIngestionViewChange={setIngestionView}
         />

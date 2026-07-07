@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { PrefilterMode, ProjectL1Config } from '@cfb/core-types'
 import { api } from '../api/client'
+import { ProjectBackfill } from './ProjectBackfill'
 
 interface Props {
   draft: ProjectL1Config
@@ -22,11 +23,15 @@ const MODE_LABELS: Record<PrefilterMode, { label: string; hint: string }> = {
 export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
   const [poolCount, setPoolCount] = useState<number | null>(null)
   const [totalPool, setTotalPool] = useState<number | null>(null)
+  const [allowManual, setAllowManual] = useState(false)
 
   useEffect(() => {
     api.stats().then((s) => {
       setPoolCount(s.byProject[draft.projectId] ?? 0)
       setTotalPool(s.poolSize)
+    }).catch(() => {})
+    api.getBackfillSettings().then((r) => {
+      setAllowManual(r.settings.allowManualPrefilter)
     }).catch(() => {})
   }, [draft.projectId])
 
@@ -65,18 +70,16 @@ export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
           </div>
           <div className="workspace-overview-stat">
             <span className="workspace-overview-stat-label">Prefilter mode</span>
-            {onChange ? (
+            {onChange && allowManual ? (
               <select
                 value={draft.prefilterMode ?? 'strict'}
                 onChange={(e) =>
                   onChange({ ...draft, prefilterMode: e.target.value as PrefilterMode })
                 }
                 className="prefilter-mode-select"
-                disabled
-                title="Strict mode is now the default. Manual mode is deprecated."
               >
-                <option value="manual">Manual</option>
                 <option value="strict">Strict</option>
+                <option value="manual">Manual</option>
               </select>
             ) : (
               <span className="badge badge-muted">
@@ -121,6 +124,11 @@ export function IngestionOverview({ draft, projectDirty, onChange }: Props) {
             </>
           )}
         </p>
+      </section>
+
+      <section className="workspace-overview-section" style={{ marginTop: '1rem' }}>
+        <h3 style={{ fontSize: '0.9rem', fontWeight: 600, margin: '0 0 0.5rem' }}>Backfill</h3>
+        <ProjectBackfill projectId={draft.projectId} poolSize={poolCount ?? undefined} />
       </section>
 
     </div>
