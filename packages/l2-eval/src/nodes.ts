@@ -48,6 +48,11 @@ function trace(
   return outcome === 'pass'
 }
 
+/** Discovery nodes prove topical relevance — skipped for substitution targets. */
+function isDiscoveryNode(type: L2RuleNode['type']): boolean {
+  return type === 'keyword' || type === 'regex' || type === 'hashtag' || type === 'url' || type === 'text'
+}
+
 function evalText(node: L2TextCondition, ctx: L2RuntimeContext): boolean {
   const hay = node.caseInsensitive !== false ? ctx.post.text.toLowerCase() : ctx.post.text
   const needle = node.caseInsensitive !== false ? node.value.toLowerCase() : node.value
@@ -357,6 +362,26 @@ export function evalRuleNode(
     return true
   }
 
+  // Substitute node: at L2 eval time, this is a no-op pass.
+  // Actual vote recording + target resolution happens at ingest time.
+  if (node.type === 'substitute') {
+    trace(traces, node, 'pass', `substitute ${node.direction} (threshold: ${node.threshold})`)
+    return true
+  }
+
+  // Scout node: at L2 eval time, this is a no-op pass.
+  // Actual signal tracking + discovery happens via engagement Jetstream.
+  if (node.type === 'scout') {
+    trace(traces, node, 'pass', `scout discovery (${node.scouts?.length ?? 0} manual, threshold: ${node.threshold.min}-${node.threshold.max})`)
+    return true
+  }
+
+  // skipDiscovery: discovery nodes auto-pass for substitution targets
+  if (input.skipDiscovery && isDiscoveryNode(node.type)) {
+    trace(traces, node, 'pass', 'skipDiscovery (proven by source)')
+    return true
+  }
+
   let ok = false
   let detail: string | undefined
 
@@ -528,23 +553,48 @@ function evalGroup(
     return ok
   }
 
-  const results = group.children.map((child) => evalRuleNode(child, ctx, input, traces, scoreAcc))
+  // Evaluate each child with its own score accumulator so we only commit
+  // scores from branches that actually contribute to the group passing.
+  const childScores: number[] = []
+  const results = group.children.map((child) => {
+    const childAcc: ScoreAccumulator = { value: 0 }
+    const passed = evalRuleNode(child, ctx, input, traces, childAcc)
+    childScores.push(childAcc.value)
+    return passed
+  })
 
   let ok: boolean
   switch (group.logic) {
     case 'all':
       ok = results.every(Boolean)
+      // ALL: only commit scores if the entire group passes
+      if (ok) {
+        for (const s of childScores) scoreAcc.value += s
+      }
       break
     case 'any':
       ok = results.some(Boolean)
+      // ANY: commit scores from ALL passing branches (they all matched)
+      if (ok) {
+        for (let i = 0; i < results.length; i++) {
+          if (results[i]) scoreAcc.value += childScores[i]!
+        }
+      }
       break
     case 'n_of': {
       const need = Math.max(1, group.minPass ?? 2)
       ok = results.filter(Boolean).length >= need
+      // N_OF: commit scores from passing branches if group passes
+      if (ok) {
+        for (let i = 0; i < results.length; i++) {
+          if (results[i]) scoreAcc.value += childScores[i]!
+        }
+      }
       break
     }
     case 'none':
       ok = !results.some(Boolean)
+      // NONE: never commit child scores (group passes when children fail)
       break
   }
 

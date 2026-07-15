@@ -15,6 +15,7 @@
     "@cfb/l1-compile": "workspace:*",
     "@cfb/l2-eval": "workspace:*",
     "@cfb/l2-graph": "workspace:*",
+    "@cfb/post-normalize": "workspace:*",
     "@cfb/profile-enrich": "workspace:*",
     "@cfb/storage-postgres": "workspace:*",
     "@cfb/viewer-graph": "workspace:*"

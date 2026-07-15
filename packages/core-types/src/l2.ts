@@ -258,6 +258,8 @@ export interface L2FollowRingCondition {
   /** How often to refresh the cached DID set (minutes). Default 60. */
   pollIntervalMinutes?: number
   runAtIngest?: boolean
+  /** filter (default) = gate posts; discover = pull posts from ring members. */
+  role?: import('./follow-ring.js').FollowRingRole
 }
 
 /** Compare two numeric expressions — e.g. (like_count + repost_count) >= 10 */
@@ -296,6 +298,38 @@ export interface L2LogicBlockRefCondition {
   updatePolicy?: import('./logic-blocks.js').LogicBlockUpdatePolicy
 }
 
+/**
+ * Substitute node — consumes matching posts as votes toward a related post.
+ * When vote count reaches threshold, the target post enters the pathway.
+ */
+export interface L2SubstituteCondition {
+  type: 'substitute'
+  id: string
+  /** Which direction to resolve the target post. */
+  direction: import('./substitution.js').SubstitutionDirection
+  /** Number of votes needed before target enters the pathway. Default 1. */
+  threshold: number
+  /** Only count votes within this window (hours). 0 = unlimited. */
+  timeWindowHours?: number
+}
+
+/**
+ * Scout node — discovers posts via community engagement signals.
+ * When N distinct scouts interact with the same external post, it's fetched and evaluated.
+ */
+export interface L2ScoutCondition {
+  type: 'scout'
+  id: string
+  /** Manual scout DIDs. */
+  scouts?: string[]
+  /** Auto-derive scouts from pool data. */
+  autoDerive?: import('./scout-discovery.js').ScoutAutoDeriveConfig
+  /** Scaling threshold config. */
+  threshold: import('./scout-discovery.js').ScoutThresholdConfig
+  /** Drop signals for posts older than this (hours). Default 48. */
+  maxPostAgeHours?: number
+}
+
 export type L2RuleNode =
   | L2RuleGroup
   | L2TextCondition
@@ -319,6 +353,8 @@ export type L2RuleNode =
   | L2ScoreCondition
   | L2GrazeStubCondition
   | L2LogicBlockRefCondition
+  | L2SubstituteCondition
+  | L2ScoutCondition
 
 export type L2PoolScope = 'project_only' | 'global'
 
@@ -414,6 +450,8 @@ export interface L2EvalInput {
   evalCustomLogicBlock?: (ref: import('./logic-blocks.js').LogicBlockRef, post: import('./index.js').NormalizedPost, metrics: PostMetrics, enrichment?: Record<string, Record<string, unknown>>) => { matched: boolean; score?: number } | null
   /** Evaluate a custom code sort modifier. Returns a numeric contribution. */
   evalSortModifier?: (modifier: import('./sort-packs.js').SortModifier, post: import('./index.js').NormalizedPost, metrics: PostMetrics, enrichment?: Record<string, Record<string, unknown>>) => number | null
+  /** When true, discovery nodes (keyword, regex, hashtag, url) auto-pass.\n   *  Used for substitution targets where relevance was proven by the source post. */
+  skipDiscovery?: boolean
 }
 
 export type L2NodeOutcome = 'pass' | 'fail' | 'skip'

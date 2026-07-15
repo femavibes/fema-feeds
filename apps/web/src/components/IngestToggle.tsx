@@ -48,6 +48,9 @@ export function IngestToggle({
             {status.enrichment.labelResolves != null && (
               <> · {status.enrichment.labelResolves} label queries</>
             )}
+            {status.scout && status.scout.triggers > 0 && (
+              <> · {status.scout.triggers} scout discoveries</>
+            )}
           </span>
         )}
         {status && !running && last && (

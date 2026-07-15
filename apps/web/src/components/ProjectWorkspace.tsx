@@ -341,6 +341,7 @@ export function ProjectWorkspace({
             onChange={onProjectChange}
             listCache={listCache}
             onRefreshList={onRefreshList}
+            feeds={feeds}
           />
         )}
       </main>

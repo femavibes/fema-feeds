@@ -7,8 +7,10 @@ import {
   countPoolPostsFiltered,
   countPostsForProject,
   getAuthorProfilesByDids,
+  getIngestedPost,
   getPostEngagementBatch,
   getProjectIdsForPostsBatch,
+  getSubstitutionTargets,
   listAllPoolPosts,
   listPoolPostsFiltered,
   listPostsForProject,
@@ -27,6 +29,7 @@ import {
   type PoolMatchSample,
 } from './pool-match-sample.js'
 import { extractPoolPreFilter } from './pool-prefilter.js'
+import { collectSubstituteNodes } from './substitution.js'
 
 export type {
   PoolMatchAuthor,
@@ -41,6 +44,7 @@ export interface PoolMatchResult {
   scanned: number
   matchCount: number
   rejectCount: number
+  substitutedCount: number
   posts: PoolMatchItem[]
   rejects: PoolMatchSample[]
   truncated: boolean
@@ -81,6 +85,7 @@ export async function previewFeedPoolMatches(
       scanned: 0,
       matchCount: 0,
       rejectCount: 0,
+      substitutedCount: 0,
       posts: [],
       rejects: [],
       truncated: false,
@@ -100,6 +105,7 @@ export async function previewFeedPoolMatches(
   const resolvedMatch = resolveFeedMatch(feed)
   const matches: PoolMatchItem[] = []
   const rejects: PoolMatchSample[] = []
+  const allMatchedUris = new Set<string>()
   let scanned = 0
   let matchCount = 0
   let rejectCount = 0
@@ -177,6 +183,7 @@ export async function previewFeedPoolMatches(
       }
 
       matchCount++
+      allMatchedUris.add(post.uri)
       if (matches.length < limit) {
         matches.push({
           ...buildPoolMatchSample(post, result.trace),
@@ -189,11 +196,77 @@ export async function previewFeedPoolMatches(
     if (rows.length < batchSize) break
   }
 
+  const poolScanned = scanned
+
+  // --- Substitution: evaluate promoted targets as scanned posts ---
+  const subNodes = collectSubstituteNodes(feed)
+  let substitutedCount = 0
+  if (subNodes.length > 0) {
+    const targetUris = new Set<string>()
+
+    for (const node of subNodes) {
+      const targets = await getSubstitutionTargets(
+        pool, node.projectId, node.feedId, node.pathwayId,
+        node.threshold, node.timeWindowHours || undefined,
+      )
+      for (const t of targets) {
+        if (!allMatchedUris.has(t.targetUri)) targetUris.add(t.targetUri)
+      }
+    }
+
+    for (const uri of targetUris) {
+      const row = await getIngestedPost(pool, uri)
+      if (!row) continue
+      const post = normalizedPostFromRow(row)
+      scanned++
+
+      const engagement = (await getPostEngagementBatch(pool, [uri])).get(uri)
+      const metrics: PostMetrics = {
+        likeCount: engagement?.likeCount ?? 0,
+        repostCount: engagement?.repostCount ?? 0,
+        replyCount: engagement?.replyCount ?? 0,
+        quoteCount: engagement?.quoteCount ?? 0,
+        bookmarkCount: engagement?.bookmarkCount ?? 0,
+        authorFollowerCount: 0,
+        authorFollowsCount: 0,
+        authorPostsCount: 0,
+      }
+
+      const result = evaluateFeedL2(
+        post,
+        { ...feed, match: resolvedMatch },
+        { ...evalInput, metrics, preview: true, skipDiscovery: true },
+      )
+
+      if (result.matched) {
+        substitutedCount++
+        matchCount++
+        allMatchedUris.add(uri)
+        if (matches.length < limit) {
+          const trace: L2NodeTrace[] = [
+            { nodeId: '__substitution__', nodeType: 'substitute', outcome: 'pass', detail: 'Promoted via substitution' },
+            ...result.trace,
+          ]
+          matches.push({
+            ...buildPoolMatchSample(post, trace),
+            sortKey: result.sortKey ?? defaultSortKey(post.indexedAt),
+            editorScore: result.editorScore,
+          })
+        }
+      } else {
+        rejectCount++
+        if (rejects.length < rejectLimit) {
+          rejects.push(buildPoolMatchSample(post, result.trace))
+        }
+      }
+    }
+  }
+
   const allSamples = [...matches, ...rejects]
   await enrichPoolMatchPreviews(allSamples)
   await enrichPoolMatchAuthors(pool, allSamples)
 
-  const truncated = scanned >= scanLimit && scanned < poolTotal
+  const truncated = poolScanned >= scanLimit && poolScanned < poolTotal
 
-  return { poolTotal, scanned, matchCount, rejectCount, posts: matches, rejects, truncated }
+  return { poolTotal, scanned, matchCount, rejectCount, substitutedCount, posts: matches, rejects, truncated }
 }

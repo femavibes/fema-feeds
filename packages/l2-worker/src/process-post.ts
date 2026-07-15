@@ -14,6 +14,8 @@ export interface ProcessPostResult {
   evaluated: number
   matched: number
   written: number
+  /** Feed IDs that matched (for feed intelligence recording). */
+  matchedFeedIds: string[]
 }
 
 function defaultSortKey(post: NormalizedPost): number {
@@ -48,15 +50,21 @@ function feedsForPost(
   )
 }
 
+export interface ProcessPostOptions {
+  /** When true, discovery nodes auto-pass (for substitution targets). */
+  skipDiscovery?: boolean
+}
+
 export async function processPostForFeeds(
   pool: pg.Pool,
   post: NormalizedPost,
   matchedProjectIds: string[],
   feeds: FeedConfig[],
+  options?: ProcessPostOptions,
 ): Promise<ProcessPostResult> {
   const applicable = feedsForPost(feeds, matchedProjectIds)
   if (applicable.length === 0) {
-    return { evaluated: 0, matched: 0, written: 0 }
+    return { evaluated: 0, matched: 0, written: 0, matchedFeedIds: [] }
   }
 
   const [metrics, authorLists, mentionByFeed, followRingByFeed] = await Promise.all([
@@ -68,6 +76,7 @@ export async function processPostForFeeds(
 
   let matched = 0
   let written = 0
+  const matchedFeedIds: string[] = []
   for (const feed of applicable) {
     const feedForEval = await resolveFeedSortPack(pool, feed)
     const evalInput = await buildLogicBlockEvalInput(pool, feedForEval, {
@@ -76,12 +85,16 @@ export async function processPostForFeeds(
       mentionDids: mentionByFeed[feed.feedId],
       followRings: followRingByFeed[feed.feedId],
     })
-    const result = evaluateFeedL2(post, { ...feedForEval, match: resolveFeedMatch(feedForEval) }, evalInput)
+    const result = evaluateFeedL2(post, { ...feedForEval, match: resolveFeedMatch(feedForEval) }, {
+      ...evalInput,
+      ...(options?.skipDiscovery ? { skipDiscovery: true } : {}),
+    })
     if (!result.matched) {
       await deleteFeedCandidate(pool, feed.feedId, post.uri)
       continue
     }
     matched++
+    matchedFeedIds.push(feed.feedId)
     const sortKey = result.sortKey != null
       ? composeSortKey(result.sortKey, post)
       : defaultSortKey(post)
@@ -94,7 +107,7 @@ export async function processPostForFeeds(
     written++
   }
 
-  return { evaluated: applicable.length, matched, written }
+  return { evaluated: applicable.length, matched, written, matchedFeedIds }
 }
 
 export function matchedProjectIdsFromL1(matches: L1ProjectResult[]): string[] {

@@ -9,6 +9,7 @@ timeout /t 1 /nobreak >nul
 echo Building API packages...
 call pnpm --filter @cfb/core-types build
 call pnpm --filter @cfb/storage-postgres build
+call pnpm --filter @cfb/feed-intelligence build
 call pnpm --filter @cfb/l2-worker build
 call pnpm --filter @cfb/api build
 if errorlevel 1 (

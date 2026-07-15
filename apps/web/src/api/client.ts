@@ -94,6 +94,14 @@ export interface IngestRunnerStatus {
 export interface IngestStatusResponse extends IngestRunnerStatus {
   lastSmokeTest: IngestSmokeTestResult | null
   lastStressTest: IngestStressTestResult | null
+  scout?: {
+    signals: number
+    triggers: number
+    fetched: number
+    evalPass: number
+    evalFail: number
+    errors: number
+  } | null
 }
 
 export interface IngestStats {
@@ -211,6 +219,7 @@ export interface PoolMatchResult {
   scanned: number
   matchCount: number
   rejectCount: number
+  substitutedCount?: number
   posts: Array<PoolMatchSample & { sortKey: number | null; editorScore: number }>
   rejects: PoolMatchSample[]
   truncated: boolean
@@ -1125,4 +1134,56 @@ export const api = {
     apiFetch<{ iconUrl?: string; coverUrl?: string; galleryUrls: string[] }>(
       `/api/marketplace-assets/${packageId}`,
     ),
+
+  // --- Feed Intelligence ---
+  getIntelligenceSuggestions: (projectId: string, opts?: { feedId?: string; minConfidence?: number; limit?: number; type?: string; minPoolCount?: number; hideCaptured?: boolean }) => {
+    const params = new URLSearchParams()
+    if (opts?.feedId) params.set('feedId', opts.feedId)
+    if (opts?.minConfidence) params.set('minConfidence', String(opts.minConfidence))
+    if (opts?.limit) params.set('limit', String(opts.limit))
+    if (opts?.type) params.set('type', opts.type)
+    if (opts?.minPoolCount) params.set('minPoolCount', String(opts.minPoolCount))
+    if (opts?.hideCaptured === false) params.set('hideCaptured', 'false')
+    const qs = params.toString()
+    return apiFetch<{
+      suggestions: Array<{
+        signalType: string
+        value: string
+        poolCount: number
+        poolFrequency: number
+        firehoseFrequency: number
+        lift: number
+        confidence: number
+      }>
+      total: number
+      scope: 'feed' | 'project'
+      meta: { windowDays: number; sampleRate: number }
+    }>(`/api/projects/${projectId}/intelligence/suggestions${qs ? `?${qs}` : ''}`)
+  },
+  dismissIntelligenceSuggestion: (projectId: string, signalType: string, value: string) =>
+    apiFetch<{ ok: boolean }>(`/api/projects/${projectId}/intelligence/dismiss`, {
+      method: 'POST',
+      body: JSON.stringify({ signalType, value }),
+    }),
+  undismissIntelligenceSuggestion: (projectId: string, signalType: string, value: string) =>
+    apiFetch<{ ok: boolean }>(`/api/projects/${projectId}/intelligence/undismiss`, {
+      method: 'POST',
+      body: JSON.stringify({ signalType, value }),
+    }),
+  getIntelligenceSettings: () =>
+    apiFetch<{ config: { enabled: boolean; sampleRate: number; minPoolCount: number; minLift: number; windowDays: number; language: string }; disabledProjects: string[] }>('/api/settings/intelligence'),
+  saveIntelligenceSettings: (patch: Record<string, unknown>) =>
+    apiFetch<{ config: Record<string, unknown>; disabledProjects: string[] }>('/api/settings/intelligence', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
+  flushIntelligence: () =>
+    apiFetch<{ ok: boolean; poolFlushed: number; feedFlushed: number; firehoseFlushed: number }>('/api/intelligence/flush', {
+      method: 'POST',
+    }),
+  backfillIntelligence: (opts?: { projectId?: string; limit?: number; sampleSeconds?: number }) =>
+    apiFetch<{ postsProcessed: number; projectSignalsFlushed: number; feedSignalsFlushed: number; firehoseSignalsFlushed: number; firehosePostsSampled: number }>('/api/intelligence/backfill', {
+      method: 'POST',
+      body: JSON.stringify(opts ?? {}),
+    }),
 }

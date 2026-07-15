@@ -174,8 +174,14 @@ export function conditionNodeTitle(node: L2RuleNode): string {
       return 'LOGIC BLOCK'
     case 'score':
       return `SCORE +${node.points}`
+    case 'substitute':
+      return 'SUBSTITUTE'
+    case 'scout':
+      return 'SCOUT'
     case 'group':
       return `GROUP [${node.logic.toUpperCase()}]`
+    default:
+      return (node as { type: string }).type.toUpperCase()
   }
 }
 
@@ -232,8 +238,14 @@ export function summarizeRule(node: L2RuleNode): string {
       return node.label ?? `Logic block ${node.versionPin}`
     case 'score':
       return `score +${node.points}`
+    case 'substitute':
+      return `substitute ${node.direction} (N=${node.threshold})`
+    case 'scout':
+      return `scout discovery (${node.threshold.min}-${node.threshold.max})`
     case 'group':
       return `group (${node.logic})`
+    default:
+      return (node as { type: string }).type
   }
 }
 

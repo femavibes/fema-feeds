@@ -24,7 +24,11 @@ import {
 } from './enrich.js'
 import { backfillPostEngagement, startEngagementRefresh, type EngagementRefreshStats } from './engagement-backfill.js'
 import type { EnrichmentSettings, FeedConfig } from '@cfb/core-types'
-import { matchedProjectIdsFromL1, processPostForFeeds, reevalPostInPool, seedFollowRingsFromFeeds, seedFollowRingsFromProjects, loadL1FollowRingsForProjects, loadIngestGateExtrasForProjects } from '@cfb/l2-worker'
+import { matchedProjectIdsFromL1, processPostForFeeds, processSubstitution, resolveTargetPost, reevalPostInPool, seedFollowRingsFromFeeds, seedFollowRingsFromProjects, loadL1FollowRingsForProjects, loadIngestGateExtrasForProjects } from '@cfb/l2-worker'
+import { createScoutHandler, type ScoutHandler, type ScoutHandlerStats } from './scout-handler.js'
+import { startFollowRingDiscoverPoll, type DiscoverPollStats } from './discover-poll.js'
+import { FeedIntelligence } from '@cfb/feed-intelligence'
+import { getIntelligenceSettings, getProjectIntelligenceDisabled } from '@cfb/feed-intelligence'
 
 const DEFAULT_JETSTREAM_URL = 'wss://jetstream1.us-east.bsky.network/subscribe'
 
@@ -76,6 +80,14 @@ export interface IngestRunnerStatus {
     written: number
     errors: number
   }
+  scout: {
+    signals: number
+    triggers: number
+    fetched: number
+    evalPass: number
+    evalFail: number
+    errors: number
+  } | null
 }
 
 export interface IngestRunnerOptions {
@@ -93,6 +105,7 @@ export interface IngestRunner {
   start: () => Promise<IngestRunnerStatus>
   stop: () => Promise<IngestRunnerStatus>
   getStatus: () => IngestRunnerStatus
+  flushIntelligence: () => Promise<{ poolFlushed: number; feedFlushed: number; firehoseFlushed: number } | null>
 }
 
 export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
@@ -120,6 +133,10 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
   let engagementRefreshStats: EngagementRefreshStats | null = null
   let stopLabelStream: (() => void) | null = null
   let stopPurgeSweep: (() => void) | null = null
+  let scoutHandler: ScoutHandler | null = null
+  let stopScoutSweep: (() => void) | null = null
+  let stopDiscoverPoll: (() => void) | null = null
+  let feedIntelligence: FeedIntelligence | null = null
   let backfillOk = 0
   let backfillErr = 0
   let getLabelStreamStats: (() => import('@cfb/label-stream').LabelStreamStats) | null = null
@@ -148,6 +165,29 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
   let globalPrefilterReject = 0
   let strictGateState: import('./strict-gate.js').StrictGateState = { gates: new Map() }
 
+  /** Fetch a post from Bluesky API for substitution resolution. */
+  async function fetchPostFromApi(uri: string): Promise<import('@cfb/core-types').NormalizedPost | null> {
+    try {
+      const res = await fetch(
+        `https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(uri)}&depth=0&parentHeight=0`,
+      )
+      if (!res.ok) return null
+      const data = await res.json() as { thread?: { post?: { uri: string; cid: string; author?: { did: string }; record?: Record<string, unknown>; indexedAt?: string } } }
+      const post = data.thread?.post
+      if (!post?.record) return null
+      const { normalizeJetstreamPost } = await import('@cfb/post-normalize')
+      return normalizeJetstreamPost({
+        uri: post.uri,
+        cid: post.cid,
+        author: post.author?.did ?? '',
+        record: post.record as import('@cfb/post-normalize').JetstreamPostEvent['record'],
+        time: post.indexedAt,
+      })
+    } catch {
+      return null
+    }
+  }
+
   async function reloadConfigs(): Promise<void> {
     const raw = await loadAllProjects(options.projectsDir)
     feeds = await loadAllFeeds(feedsDir)
@@ -175,6 +215,8 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
     const hasStrictProjects = configs.some((c) => c.prefilterMode === 'strict' && c.enabled)
     const logicBlockPkgs = hasStrictProjects && pool ? await listDeploymentCatalog(pool).catch(() => []) : []
     strictGateState = buildStrictGates(configs, feeds, logicBlockPkgs)
+    // Reload scout handler with updated configs
+    scoutHandler?.reload(configs)
   }
 
   function resetSessionCounters(): void {
@@ -231,6 +273,7 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
         written: l2Written,
         errors: l2Errors,
       },
+      scout: scoutHandler ? { ...scoutHandler.stats } : null,
     }
   }
 
@@ -263,6 +306,8 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
 
     async function handlePost(post: import('@cfb/core-types').NormalizedPost) {
       seen++
+      // Feed intelligence: sample firehose (in-memory, non-blocking)
+      feedIntelligence?.maybeSampleFirehose(post)
       let resolved = post
       if (pool && enrichmentSettings) {
         resolved = await maybeResolveLabelerLabels(pool, post, enrichmentSettings).then(
@@ -300,6 +345,8 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       const matched = [...manualMatched, ...strictMatched]
       if (matched.length > 0) {
         l1Pass++
+        // Feed intelligence: record pool signals (in-memory, non-blocking)
+        feedIntelligence?.recordPoolPost(resolved, matched.map((m) => m.projectId))
         if (pool) {
           persistL1Matches(pool, { post: resolved, matches: matched }).then(
             () => {
@@ -325,8 +372,53 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
                     l2Evaluated += r.evaluated
                     l2Matched += r.matched
                     l2Written += r.written
+                    if (r.matchedFeedIds.length > 0) {
+                      feedIntelligence?.recordFeedPost(resolved, r.matchedFeedIds)
+                    }
                   },
                   () => { l2Errors++ },
+                )
+                // Substitution: record votes and process ready targets
+                void processSubstitution(
+                  pool,
+                  resolved,
+                  matchedProjectIdsFromL1(matched),
+                  feeds,
+                ).then(
+                  (sub) => {
+                    if (sub.resolvedTargets.length === 0) return
+                    for (const targetUri of sub.resolvedTargets) {
+                      void resolveTargetPost(pool, targetUri, fetchPostFromApi).then(
+                        (target) => {
+                          if (!target) return
+                          void persistL1Matches(pool, {
+                            post: target,
+                            matches: matched.map((m) => ({ ...m, matchedVia: 'jetstream' as const })),
+                          }).then(
+                            () => {
+                              void processPostForFeeds(
+                                pool,
+                                target,
+                                matchedProjectIdsFromL1(matched),
+                                feeds,
+                                { skipDiscovery: true },
+                              ).then(
+                                (r) => {
+                                  l2Evaluated += r.evaluated
+                                  l2Matched += r.matched
+                                  l2Written += r.written
+                                },
+                                () => { l2Errors++ },
+                              )
+                            },
+                            () => { saveErrors++ },
+                          )
+                        },
+                        () => { /* target resolution failed — skip */ },
+                      )
+                    }
+                  },
+                  () => { /* substitution error — non-fatal */ },
                 )
               }
             },
@@ -367,6 +459,11 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
               () => { l2Errors++ },
             )
           },
+          onScoutSignal: (actorDid, subjectUri, collection) => {
+            if (!scoutHandler) return
+            const interaction = collection === 'app.bsky.feed.like' ? 'like' as const : 'repost' as const
+            scoutHandler.handleEngagement(actorDid, subjectUri, interaction)
+          },
         },
       )
       stopEngagement = engagement?.stop ?? null
@@ -399,6 +496,63 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       }
     }
 
+    // Scout discovery handler
+    if (pool && (configs.some((c) => c.scoutDiscovery?.enabled) || feeds.some((f) => f.enabled))) {
+      scoutHandler = createScoutHandler(pool, configs, {
+        feeds,
+        fetchPost: fetchPostFromApi,
+        onDiscovered: async (post, projectId) => {
+          const projectMatches = [{ projectId, matched: true, matchedVia: 'jetstream' as const, trace: [] }]
+          await persistL1Matches(pool, { post, matches: projectMatches })
+          if (feeds.length === 0) return true
+          const r = await processPostForFeeds(pool, post, [projectId], feeds)
+          l2Evaluated += r.evaluated
+          l2Matched += r.matched
+          l2Written += r.written
+          return r.matched > 0
+        },
+      })
+      // Sweep stale signals every 10 minutes
+      const sweepTimer = setInterval(() => scoutHandler?.sweep(), 10 * 60_000)
+      // Refresh auto-derived scouts every 6 hours
+      const deriveTimer = setInterval(() => { void scoutHandler?.refreshAutoDerived() }, 6 * 3600_000)
+      // Initial auto-derive on startup
+      void scoutHandler.refreshAutoDerived()
+      stopScoutSweep = () => { clearInterval(sweepTimer); clearInterval(deriveTimer) }
+    }
+
+    // Feed intelligence
+    if (pool) {
+      const intConfig = await getIntelligenceSettings(pool).catch(() => null)
+      const intDisabled = await getProjectIntelligenceDisabled(pool).catch(() => new Set<string>())
+      feedIntelligence = new FeedIntelligence({ pool, config: intConfig ?? undefined })
+      for (const pid of intDisabled) feedIntelligence.disableProject(pid)
+      await feedIntelligence.start()
+    }
+
+    // Follow ring discover mode polling (pulls posts from ring members)
+    if (pool) {
+      const hasDiscoverRings = configs.some((c) => c.followRing?.role === 'discover') ||
+        feeds.some((f) => f.enabled && JSON.stringify(f.match).includes('"discover"'))
+      if (hasDiscoverRings) {
+        const discoverPoll = startFollowRingDiscoverPoll(
+          pool, configs, feeds,
+          30 * 60_000, // poll every 30 minutes
+          {
+            onDiscovered: async (post, projectId) => {
+              if (feeds.length === 0) return true
+              const r = await processPostForFeeds(pool, post, [projectId], feeds)
+              l2Evaluated += r.evaluated
+              l2Matched += r.matched
+              l2Written += r.written
+              return r.matched > 0
+            },
+          },
+        )
+        stopDiscoverPoll = discoverPoll.stop
+      }
+    }
+
     stopJetstream = stop
     running = true
     startedAt = new Date().toISOString()
@@ -419,6 +573,15 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
     getLabelStreamStats = null
     stopPurgeSweep?.()
     stopPurgeSweep = null
+    stopScoutSweep?.()
+    stopScoutSweep = null
+    scoutHandler = null
+    stopDiscoverPoll?.()
+    stopDiscoverPoll = null
+    if (feedIntelligence) {
+      await feedIntelligence.stop()
+      feedIntelligence = null
+    }
     if (reloadTimer) {
       clearInterval(reloadTimer)
       reloadTimer = null
@@ -453,5 +616,10 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
     return getStatus()
   }
 
-  return { start, stop, getStatus }
+  async function flushIntelligence() {
+    if (!feedIntelligence) return null
+    return feedIntelligence.flush()
+  }
+
+  return { start, stop, getStatus, flushIntelligence }
 }

@@ -43,6 +43,7 @@ function mockIngest(initial = false): IngestRunner {
       written: 0,
       errors: 0,
     },
+    scout: null,
   })
   return {
     getStatus: status,
@@ -54,6 +55,7 @@ function mockIngest(initial = false): IngestRunner {
       running = false
       return status()
     },
+    flushIntelligence: async () => null,
   }
 }
 

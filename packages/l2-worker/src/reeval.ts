@@ -1,12 +1,38 @@
-import type { FeedConfig } from '@cfb/core-types'
+import type { FeedConfig, NormalizedPost } from '@cfb/core-types'
 import type pg from 'pg'
 import {
   getProjectIdsForPostsBatch,
   listAllPoolPosts,
   listPostsForProject,
   normalizedPostFromRow,
+  persistL1Matches,
+  purgeOutOfScopeCandidates,
 } from '@cfb/storage-postgres'
 import { processPostForFeeds } from './process-post.js'
+import { collectSubstituteNodes, processSubstitution, resolveTargetPost } from './substitution.js'
+
+/** Fetch a post from Bluesky public API for substitution target resolution. */
+async function fetchPostFromApi(uri: string): Promise<NormalizedPost | null> {
+  try {
+    const res = await fetch(
+      `https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(uri)}&depth=0&parentHeight=0`,
+    )
+    if (!res.ok) return null
+    const data = await res.json() as { thread?: { post?: { uri: string; cid: string; author?: { did: string }; record?: Record<string, unknown>; indexedAt?: string } } }
+    const post = data.thread?.post
+    if (!post?.record) return null
+    const { normalizeJetstreamPost } = await import('@cfb/post-normalize')
+    return normalizeJetstreamPost({
+      uri: post.uri,
+      cid: post.cid,
+      author: post.author?.did ?? '',
+      record: post.record as import('@cfb/post-normalize').JetstreamPostEvent['record'],
+      time: post.indexedAt,
+    })
+  } catch {
+    return null
+  }
+}
 
 export interface ReevalResult {
   posts: number
@@ -100,8 +126,16 @@ async function runReeval(
   let matched = 0
   let written = 0
 
+  // Check if any feed has substitute nodes
+  const hasSubNodes = feeds.some((f) => collectSubstituteNodes(f).length > 0)
+
   // Get total count for progress
   progress.total = await countPoolForFeed(pool, options.projectId)
+
+  // Purge candidates that are no longer in the feed's pool scope
+  if (options.projectId) {
+    await purgeOutOfScopeCandidates(pool, options.feedId, options.projectId)
+  }
 
   for (;;) {
     // Check if cancelled between batches
@@ -127,6 +161,23 @@ async function runReeval(
       evaluated += result.evaluated
       matched += result.matched
       written += result.written
+
+      // Process substitution for existing replies
+      if (hasSubNodes) {
+        const sub = await processSubstitution(pool, post, projectIds, feeds)
+        for (const targetUri of sub.resolvedTargets) {
+          const target = await resolveTargetPost(pool, targetUri, fetchPostFromApi)
+          if (!target) continue
+          await persistL1Matches(pool, {
+            post: target,
+            matches: projectIds.map((pid) => ({ projectId: pid, matched: true, matchedVia: 'jetstream' as const, trace: [] })),
+          }).catch(() => {})
+          const tr = await processPostForFeeds(pool, target, projectIds, feeds, { skipDiscovery: true })
+          evaluated += tr.evaluated
+          matched += tr.matched
+          written += tr.written
+        }
+      }
     }
 
     // Update progress

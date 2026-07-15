@@ -25,6 +25,7 @@
     "@cfb/profile-enrich": "workspace:*",
     "@cfb/post-normalize": "workspace:*",
     "@cfb/project-config": "workspace:*",
+    "@cfb/feed-intelligence": "workspace:*",
     "@cfb/storage-postgres": "workspace:*"
   },
   "devDependencies": {

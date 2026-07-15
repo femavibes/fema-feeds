@@ -4,6 +4,8 @@ export interface EngagementEvent {
   collection: 'app.bsky.feed.like' | 'app.bsky.feed.repost'
   operation: 'create' | 'delete'
   subjectUri: string
+  /** DID of the account that performed the interaction. */
+  actorDid: string
 }
 
 export interface EngagementJetstreamOptions {
@@ -41,22 +43,22 @@ export async function startEngagementJetstream(
     wantedCollections: ['app.bsky.feed.like', 'app.bsky.feed.repost'],
   })
 
-  const emit = (collection: string, operation: 'create' | 'delete', record: unknown) => {
+  const emit = (collection: string, operation: 'create' | 'delete', actorDid: string, record: unknown) => {
     const mapped = mapCollection(collection)
     const subjectUri = subjectUriFromRecord(record)
     if (!mapped || !subjectUri) return
-    void options.onEngagement({ collection: mapped, operation, subjectUri })
+    void options.onEngagement({ collection: mapped, operation, subjectUri, actorDid })
   }
 
   client.onCreate('app.bsky.feed.like', (event) => {
-    emit(event.commit.collection, 'create', event.commit.record)
+    emit(event.commit.collection, 'create', event.did, event.commit.record)
   })
   client.onDelete('app.bsky.feed.like', () => {
     // Delete events lack subject URI; decrement requires interaction tracking (future).
   })
 
   client.onCreate('app.bsky.feed.repost', (event) => {
-    emit(event.commit.collection, 'create', event.commit.record)
+    emit(event.commit.collection, 'create', event.did, event.commit.record)
   })
   client.onDelete('app.bsky.feed.repost', () => {
     // See like delete — v0 tracks creates only.

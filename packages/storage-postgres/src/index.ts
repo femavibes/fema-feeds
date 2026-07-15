@@ -133,6 +133,7 @@ export {
   getStaleFeedCandidateUris,
   countStaleFeedCandidates,
   getFeedSkeleton,
+  purgeOutOfScopeCandidates,
   type FeedCandidateInput,
   type SkeletonPost,
 } from './feed-candidates.js'
@@ -286,3 +287,26 @@ export {
   updateBackfillJobStatus,
   updateBackfillJobProgress,
 } from './backfill.js'
+
+export {
+  ensureSubstitutionTables,
+  insertSubstitutionVote,
+  getSubstitutionVoteCount,
+  getSubstitutionTargets,
+  hasVoted,
+  deleteSubstitutionVotesForProject,
+} from './substitution.js'
+export { deriveScoutDids } from './scout-derive.js'
+export {
+  ensureScoutSignalsTables,
+  upsertScoutSignal,
+  loadScoutSignals,
+  deleteScoutSignals,
+  sweepScoutSignals,
+  type ScoutSignalRow,
+} from './scout-signals.js'
+export {
+  ensureEngagementEventsTable,
+  insertEngagementEvent,
+  pruneEngagementEvents,
+} from './engagement-events.js'

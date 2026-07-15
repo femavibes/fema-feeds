@@ -16,6 +16,9 @@ Self-hostable Bluesky custom feed platform. See [`docs/PLAN.md`](docs/PLAN.md).
 | [REFERENCE_AUDIT.md](docs/REFERENCE_AUDIT.md) | What to borrow from prior repos |
 | [ENGAGEMENT_REFRESH.md](docs/ENGAGEMENT_REFRESH.md) | Engagement data freshness & catch-up system |
 | [BACKFILL.md](docs/BACKFILL.md) | Pool backfill methods, limits & reconnection resilience |
+| [SUBSTITUTION.md](docs/SUBSTITUTION.md) | Post substitution: reply→root promotion, vote thresholds |
+| [SCOUT_DISCOVERY.md](docs/SCOUT_DISCOVERY.md) | Scout discovery: community engagement signals for content discovery |
+| [FEED_INTELLIGENCE.md](docs/FEED_INTELLIGENCE.md) | Feed intelligence: pattern detection & suggestions |
 
 ## Prerequisites
 

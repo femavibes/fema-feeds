@@ -813,3 +813,284 @@ describe('evaluateFeedL2', () => {
     expect(evaluateFeedL2(post, { ...feed, match: { ...feed.match, children: [{ type: 'mime_type', id: 'm', op: 'excludes', pattern: 'image/jpeg' }] } }).matched).toBe(false)
   })
 })
+
+describe('score accumulation', () => {
+  it('accumulates score from root-level score node', () => {
+    const feed: FeedConfig = {
+      ...baseFeed,
+      match: {
+        type: 'group',
+        id: 'root',
+        logic: 'any',
+        children: [
+          { type: 'text', id: 'c1', field: 'text', op: 'contains', value: 'urbanism' },
+          { type: 'score', id: 's1', points: 1 },
+        ],
+      },
+    }
+    const r = evaluateFeedL2(basePost, feed)
+    expect(r.matched).toBe(true)
+    // +1 from score node + 1 cold-start floor = 2
+    expect(r.editorScore).toBe(2)
+  })
+
+  it('score in failing ANY branch does not accumulate', () => {
+    const feed: FeedConfig = {
+      ...baseFeed,
+      match: {
+        type: 'group',
+        id: 'root',
+        logic: 'any',
+        children: [
+          {
+            type: 'group',
+            id: 'g1',
+            logic: 'all',
+            children: [
+              { type: 'text', id: 'c1', field: 'text', op: 'contains', value: 'NOPE' },
+              { type: 'score', id: 's1', points: 5 },
+            ],
+          },
+          { type: 'text', id: 'c2', field: 'text', op: 'contains', value: 'urbanism' },
+        ],
+      },
+    }
+    const r = evaluateFeedL2(basePost, feed)
+    expect(r.matched).toBe(true)
+    // g1 fails so +5 doesn't count; c2 passes but no score node there
+    // cold-start floor = 1
+    expect(r.editorScore).toBe(1)
+  })
+
+  it('score in passing ANY branch accumulates', () => {
+    const feed: FeedConfig = {
+      ...baseFeed,
+      match: {
+        type: 'group',
+        id: 'root',
+        logic: 'any',
+        children: [
+          {
+            type: 'group',
+            id: 'g1',
+            logic: 'all',
+            children: [
+              { type: 'text', id: 'c1', field: 'text', op: 'contains', value: 'urbanism' },
+              { type: 'score', id: 's1', points: 3 },
+            ],
+          },
+          {
+            type: 'group',
+            id: 'g2',
+            logic: 'all',
+            children: [
+              { type: 'text', id: 'c2', field: 'text', op: 'contains', value: 'NOPE' },
+              { type: 'score', id: 's2', points: 10 },
+            ],
+          },
+        ],
+      },
+    }
+    const r = evaluateFeedL2(basePost, feed)
+    expect(r.matched).toBe(true)
+    // g1 passes (+3), g2 fails (no +10), cold-start +1
+    expect(r.editorScore).toBe(4)
+  })
+
+  it('multiple passing ANY branches stack scores', () => {
+    const feed: FeedConfig = {
+      ...baseFeed,
+      match: {
+        type: 'group',
+        id: 'root',
+        logic: 'any',
+        children: [
+          {
+            type: 'group',
+            id: 'g1',
+            logic: 'all',
+            children: [
+              { type: 'text', id: 'c1', field: 'text', op: 'contains', value: 'urbanism' },
+              { type: 'score', id: 's1', points: 1 },
+            ],
+          },
+          {
+            type: 'group',
+            id: 'g2',
+            logic: 'all',
+            children: [
+              { type: 'hashtag', id: 'h1', op: 'includes', tags: ['urbanism'] },
+              { type: 'score', id: 's2', points: 2 },
+            ],
+          },
+        ],
+      },
+    }
+    const r = evaluateFeedL2(basePost, feed)
+    expect(r.matched).toBe(true)
+    // Both branches pass: +1 + +2 + cold-start 1 = 4
+    expect(r.editorScore).toBe(4)
+  })
+
+  it('ALL group only commits scores when entire group passes', () => {
+    const feed: FeedConfig = {
+      ...baseFeed,
+      match: {
+        type: 'group',
+        id: 'root',
+        logic: 'all',
+        children: [
+          { type: 'text', id: 'c1', field: 'text', op: 'contains', value: 'urbanism' },
+          { type: 'text', id: 'c2', field: 'text', op: 'contains', value: 'NOPE' },
+          { type: 'score', id: 's1', points: 5 },
+        ],
+      },
+    }
+    const r = evaluateFeedL2(basePost, feed)
+    expect(r.matched).toBe(false)
+    expect(r.editorScore).toBe(0)
+  })
+
+  it('N_OF group accumulates scores from passing branches', () => {
+    const feed: FeedConfig = {
+      ...baseFeed,
+      match: {
+        type: 'group',
+        id: 'root',
+        logic: 'n_of',
+        minPass: 2,
+        children: [
+          {
+            type: 'group',
+            id: 'g1',
+            logic: 'all',
+            children: [
+              { type: 'text', id: 'c1', field: 'text', op: 'contains', value: 'urbanism' },
+              { type: 'score', id: 's1', points: 1 },
+            ],
+          },
+          {
+            type: 'group',
+            id: 'g2',
+            logic: 'all',
+            children: [
+              { type: 'hashtag', id: 'h1', op: 'includes', tags: ['urbanism'] },
+              { type: 'score', id: 's2', points: 2 },
+            ],
+          },
+          {
+            type: 'group',
+            id: 'g3',
+            logic: 'all',
+            children: [
+              { type: 'text', id: 'c3', field: 'text', op: 'contains', value: 'NOPE' },
+              { type: 'score', id: 's3', points: 99 },
+            ],
+          },
+        ],
+      },
+    }
+    const r = evaluateFeedL2(basePost, feed)
+    expect(r.matched).toBe(true)
+    // g1 passes (+1), g2 passes (+2), g3 fails (no +99), cold-start +1
+    expect(r.editorScore).toBe(4)
+  })
+
+  it('NONE group never accumulates scores', () => {
+    const feed: FeedConfig = {
+      ...baseFeed,
+      match: {
+        type: 'group',
+        id: 'root',
+        logic: 'all',
+        children: [
+          {
+            type: 'group',
+            id: 'none-g',
+            logic: 'none',
+            children: [
+              {
+                type: 'group',
+                id: 'inner',
+                logic: 'all',
+                children: [
+                  { type: 'text', id: 'c1', field: 'text', op: 'contains', value: 'NOPE' },
+                  { type: 'score', id: 's1', points: 50 },
+                ],
+              },
+            ],
+          },
+          { type: 'text', id: 'c2', field: 'text', op: 'contains', value: 'urbanism' },
+        ],
+      },
+    }
+    const r = evaluateFeedL2(basePost, feed)
+    expect(r.matched).toBe(true)
+    // none group passes (child failed), but scores from none children never commit
+    expect(r.editorScore).toBe(1)
+  })
+
+  it('deeply nested scores accumulate correctly', () => {
+    // root (any)
+    //   group-a (all)
+    //     hashtag: #urbanism
+    //     group-b (any)
+    //       group-c (all)
+    //         text: "transit"
+    //         score: +2
+    //       group-d (all)
+    //         text: "NOPE"
+    //         score: +10
+    //     score: +1
+    const feed: FeedConfig = {
+      ...baseFeed,
+      match: {
+        type: 'group',
+        id: 'root',
+        logic: 'any',
+        children: [
+          {
+            type: 'group',
+            id: 'ga',
+            logic: 'all',
+            children: [
+              { type: 'hashtag', id: 'h1', op: 'includes', tags: ['urbanism'] },
+              {
+                type: 'group',
+                id: 'gb',
+                logic: 'any',
+                children: [
+                  {
+                    type: 'group',
+                    id: 'gc',
+                    logic: 'all',
+                    children: [
+                      { type: 'text', id: 'c1', field: 'text', op: 'contains', value: 'transit' },
+                      { type: 'score', id: 's2', points: 2 },
+                    ],
+                  },
+                  {
+                    type: 'group',
+                    id: 'gd',
+                    logic: 'all',
+                    children: [
+                      { type: 'text', id: 'c2', field: 'text', op: 'contains', value: 'NOPE' },
+                      { type: 'score', id: 's3', points: 10 },
+                    ],
+                  },
+                ],
+              },
+              { type: 'score', id: 's1', points: 1 },
+            ],
+          },
+        ],
+      },
+    }
+    const r = evaluateFeedL2(basePost, feed)
+    expect(r.matched).toBe(true)
+    // ga passes (all children pass):
+    //   hashtag passes, gb passes (gc passes with +2, gd fails), s1 = +1
+    //   total: +2 + +1 = 3, plus cold-start +1 = 4
+    expect(r.editorScore).toBe(4)
+  })
+})

@@ -704,6 +704,74 @@
         "wholeWord": true,
         "sourceFeedId": "up-test",
         "sourceNodeId": "kw-mr2wz9pl"
+      },
+      {
+        "type": "hashtag",
+        "op": "includes",
+        "tags": [
+          "blackfridayparking",
+          "citibike",
+          "bikeshare",
+          "trafficcalming",
+          "congestionpricing",
+          "desireroad",
+          "plowthesidewalks",
+          "roadviolence",
+          "quaxing",
+          "endparkingmandates",
+          "arroganceofspace",
+          "parkingreform",
+          "treebybike",
+          "stopsuv",
+          "freetransit",
+          "carbrain",
+          "carblindness",
+          "plowsidewalkstoo",
+          "windshieldbias",
+          "cardependency",
+          "transit",
+          "drivernotcar",
+          "carsruincities",
+          "buslanes",
+          "transitsky",
+          "openstreets",
+          "nocars",
+          "bikebus",
+          "bancars",
+          "fuckcars",
+          "waroncars",
+          "urbanism",
+          "treecanopy",
+          "walkable",
+          "safestreet",
+          "streetsforall",
+          "universaldesign",
+          "accessibledesign",
+          "15minutecity",
+          "fifteenminutecity",
+          "carfree",
+          "accessiblecities",
+          "housing",
+          "YIMBY",
+          "NIMBY",
+          "QIMBY",
+          "PHIMBY",
+          "carryshitolympics",
+          "kidicalmass",
+          "speedkills",
+          "BikeToWork"
+        ],
+        "sourceFeedId": "up-test",
+        "sourceNodeId": "tag-mrb4habg"
+      },
+      {
+        "type": "hashtag",
+        "op": "includes",
+        "tags": [
+          "Urbanism+"
+        ],
+        "sourceFeedId": "up-test",
+        "sourceNodeId": "tag-mrb4gcr3"
       }
     ],
     "excludeBranches": [],
@@ -711,7 +779,9 @@
       {
         "type": "post_kind",
         "kinds": [
-          "root"
+          "root",
+          "quote",
+          "reply"
         ],
         "sourceFeedId": "up-test",
         "sourceNodeId": "kind-mr51v7pq"
@@ -719,9 +789,9 @@
     ]
   },
   "strictGateMeta": {
-    "compiledAt": "2026-07-07T00:30:48.333Z",
+    "compiledAt": "2026-07-15T21:40:38.596Z",
     "feedCount": 1,
-    "pathCount": 8,
+    "pathCount": 10,
     "contributingFeeds": [
       "up-test"
     ]

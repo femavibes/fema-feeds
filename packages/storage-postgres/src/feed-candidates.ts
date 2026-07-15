@@ -129,3 +129,20 @@ export async function getFeedSkeleton(
   const nextCursor = hasMore && last ? String(last.sort_key) : undefined
   return { feed, cursor: nextCursor }
 }
+
+/** Remove candidates for a feed whose posts are not in the given project's pool. */
+export async function purgeOutOfScopeCandidates(
+  pool: pg.Pool,
+  feedId: string,
+  projectId: string,
+): Promise<number> {
+  const res = await pool.query(
+    `DELETE FROM feed_candidates
+     WHERE feed_id = $1
+       AND post_uri NOT IN (
+         SELECT post_uri FROM ingested_post_projects WHERE project_id = $2
+       )`,
+    [feedId, projectId],
+  )
+  return res.rowCount ?? 0
+}

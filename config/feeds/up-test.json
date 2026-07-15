@@ -11,6 +11,13 @@
     "logic": "any",
     "children": [
       {
+        "id": "sub-mra9ankg",
+        "type": "substitute",
+        "direction": "reply_to_root",
+        "threshold": 1,
+        "timeWindowHours": 0
+      },
+      {
         "id": "group-mqvtbjl3",
         "type": "group",
         "logic": "all",
@@ -581,25 +588,120 @@
                   "text"
                 ],
                 "wholeWord": true
+              },
+              {
+                "id": "tag-mrb4habg",
+                "op": "includes",
+                "tags": [
+                  "blackfridayparking",
+                  "citibike",
+                  "bikeshare",
+                  "trafficcalming",
+                  "congestionpricing",
+                  "desireroad",
+                  "plowthesidewalks",
+                  "roadviolence",
+                  "quaxing",
+                  "endparkingmandates",
+                  "arroganceofspace",
+                  "parkingreform",
+                  "treebybike",
+                  "stopsuv",
+                  "freetransit",
+                  "carbrain",
+                  "carblindness",
+                  "plowsidewalkstoo",
+                  "windshieldbias",
+                  "cardependency",
+                  "transit",
+                  "drivernotcar",
+                  "carsruincities",
+                  "buslanes",
+                  "transitsky",
+                  "openstreets",
+                  "nocars",
+                  "bikebus",
+                  "bancars",
+                  "fuckcars",
+                  "waroncars",
+                  "urbanism",
+                  "treecanopy",
+                  "walkable",
+                  "safestreet",
+                  "streetsforall",
+                  "universaldesign",
+                  "accessibledesign",
+                  "15minutecity",
+                  "fifteenminutecity",
+                  "carfree",
+                  "accessiblecities",
+                  "housing",
+                  "YIMBY",
+                  "NIMBY",
+                  "QIMBY",
+                  "PHIMBY",
+                  "carryshitolympics",
+                  "kidicalmass",
+                  "speedkills",
+                  "BikeToWork"
+                ],
+                "type": "hashtag"
+              },
+              {
+                "id": "group-mrb4j4u8",
+                "type": "group",
+                "logic": "all",
+                "children": [
+                  {
+                    "id": "tag-mrb4gcr3",
+                    "op": "includes",
+                    "tags": [
+                      "Urbanism+"
+                    ],
+                    "type": "hashtag"
+                  },
+                  {
+                    "id": "score-mrb4jmey",
+                    "type": "score",
+                    "points": 2
+                  }
+                ]
               }
             ]
           }
         ]
+      },
+      {
+        "id": "score-mrb8kitt",
+        "type": "score",
+        "points": 1
       }
     ]
   },
   "visualLayout": {
     "edges": [
       {
-        "id": "e-start-group-mqvtbjl3",
+        "id": "e-start-sub-mra9ankg",
         "branch": true,
         "source": "start",
+        "target": "sub-mra9ankg"
+      },
+      {
+        "id": "e-sub-mra9ankg-group-mqvtbjl3",
+        "branch": true,
+        "source": "sub-mra9ankg",
         "target": "group-mqvtbjl3"
       },
       {
-        "id": "e-group-mqvtbjl3-end",
+        "id": "e-group-mqvtbjl3-score-mrb8kitt",
         "branch": true,
         "source": "group-mqvtbjl3",
+        "target": "score-mrb8kitt"
+      },
+      {
+        "id": "e-score-mrb8kitt-end",
+        "branch": true,
+        "source": "score-mrb8kitt",
         "target": "end"
       }
     ],
@@ -615,12 +717,12 @@
     },
     "positions": {
       "end": {
-        "x": 509.3333333333334,
-        "y": -54.66666666666667
+        "x": 916.9134558730116,
+        "y": -329.9520071576812
       },
       "start": {
-        "x": -342,
-        "y": -50.66666666666667
+        "x": -279.9867885528679,
+        "y": -197.0178456818985
       },
       "kw-mr2w4ndo": {
         "x": 82.7964071856288,
@@ -646,17 +748,37 @@
         "x": 142.22149832104523,
         "y": 345.12355691023845
       },
+      "sub-mra9ankg": {
+        "x": -173.81967217582292,
+        "y": -416.9773521520598
+      },
       "kind-mr51v7pq": {
         "x": 68.91417165668668,
         "y": -302.63162217232207
       },
+      "kind-mrabanxu": {
+        "x": 297.3397896634617,
+        "y": 347.40647151129565
+      },
       "group-mqvtbjl3": {
-        "x": -104.68837960844647,
-        "y": -461.6390108072891
+        "x": 92.86568618572488,
+        "y": -744.8086494956685
       },
       "group-mqy96dck": {
         "x": 11.105788423153768,
         "y": 133.70924817032596
+      },
+      "group-mrb4j4u8": {
+        "x": 16,
+        "y": 656
+      },
+      "score-mrb4jmey": {
+        "x": 16,
+        "y": 118
+      },
+      "score-mrb8kitt": {
+        "x": 557.4049321742473,
+        "y": -307.756897895715
       }
     },
     "nodeSources": {
@@ -669,65 +791,82 @@
       "kw-mr2wqcl7": "native",
       "kw-mr2wu4nr": "native",
       "kw-mr2wz9pl": "native",
+      "kw-mrab9pxx": "native",
+      "sub-mra9ankg": "native",
+      "sub-mrb0m4pm": "native",
+      "tag-mrb4gcr3": "native",
+      "tag-mrb4habg": "native",
       "kind-mr51v7pq": "native",
+      "kind-mrabanxu": "native",
+      "math-mrabuu94": "native",
+      "math-mrabvdar": "native",
+      "mime-mra2oq7i": "native",
+      "ring-mrb0npz7": "native",
       "group-mqvtbjl3": "native",
-      "group-mqy96dck": "native"
+      "group-mqy96dck": "native",
+      "group-mraba0ns": "native",
+      "group-mrb4j4u8": "native",
+      "score-mracmva0": "native",
+      "score-mrb4jmey": "native",
+      "score-mrb8kitt": "native",
+      "scout-mrb6ul3y": "native",
+      "author-mrb1i8oa": "native"
     }
   },
   "public": true,
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
   "published": true,
-  "liveAt": "2026-07-07T01:05:57.576Z",
+  "liveAt": "2026-07-15T21:40:38.551Z",
   "publishedAt": "2026-07-03T14:49:23.827Z",
   "publishedUri": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.feed.generator/up-test",
   "atprotoRkey": "up-test",
   "rank": {
     "sortKey": {
-      "type": "binary",
       "op": "+",
       "left": {
-        "type": "binary",
         "op": "+",
         "left": {
-          "type": "binary",
           "op": "+",
           "left": {
-            "type": "binary",
             "op": "+",
             "left": {
               "type": "field",
               "field": "like_count"
             },
+            "type": "binary",
             "right": {
               "type": "field",
               "field": "repost_count"
             }
           },
+          "type": "binary",
           "right": {
-            "type": "binary",
             "op": "*",
             "left": {
               "type": "field",
               "field": "reply_count"
             },
+            "type": "binary",
             "right": {
               "type": "literal",
               "value": 3
             }
           }
         },
+        "type": "binary",
         "right": {
           "type": "field",
           "field": "quote_count"
         }
       },
+      "type": "binary",
       "right": {
-        "type": "binary",
         "op": "*",
         "left": {
           "type": "field",
           "field": "bookmark_count"
         },
+        "type": "binary",
         "right": {
           "type": "literal",
           "value": 3

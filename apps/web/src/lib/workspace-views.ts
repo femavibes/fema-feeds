@@ -1,6 +1,6 @@
-export type FeedWorkspaceView = 'overview' | 'visual' | 'json' | 'sorting' | 'personalization' | 'injectors' | 'sources'
+export type FeedWorkspaceView = 'overview' | 'visual' | 'json' | 'sorting' | 'personalization' | 'injectors' | 'sources' | 'intelligence'
 
-export type IngestionWorkspaceView = 'overview' | 'visual' | 'json' | 'prefilter' | 'settings'
+export type IngestionWorkspaceView = 'overview' | 'visual' | 'json' | 'prefilter' | 'settings' | 'intelligence'
 
 export type MarketplaceWorkspaceView = 'browse' | 'installed' | 'verify' | 'moderate' | 'taxonomy'
 

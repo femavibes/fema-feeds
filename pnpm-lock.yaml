@@ -38,9 +38,15 @@ importers:
       '@cfb/feed-config':
         specifier: workspace:*
         version: link:../../packages/feed-config
+      '@cfb/feed-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/feed-intelligence
       '@cfb/feedgen':
         specifier: workspace:*
         version: link:../../packages/feedgen
+      '@cfb/ingest-jetstream':
+        specifier: workspace:*
+        version: link:../../packages/ingest-jetstream
       '@cfb/ingest-runner':
         specifier: workspace:*
         version: link:../../packages/ingest-runner
@@ -265,6 +271,22 @@ importers:
         specifier: ^3.2.4
         version: 3.2.6(@types/node@22.19.21)(tsx@4.22.4)
 
+  packages/feed-intelligence:
+    dependencies:
+      '@cfb/core-types':
+        specifier: workspace:*
+        version: link:../core-types
+      pg:
+        specifier: ^8.16.0
+        version: 8.21.0
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.15.2
+        version: 8.20.0
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.6(@types/node@22.19.21)(tsx@4.22.4)
+
   packages/feed-rank:
     dependencies:
       '@cfb/core-types':
@@ -333,6 +355,9 @@ importers:
       '@cfb/feed-config':
         specifier: workspace:*
         version: link:../feed-config
+      '@cfb/feed-intelligence':
+        specifier: workspace:*
+        version: link:../feed-intelligence
       '@cfb/ingest-jetstream':
         specifier: workspace:*
         version: link:../ingest-jetstream
@@ -477,6 +502,9 @@ importers:
       '@cfb/l2-graph':
         specifier: workspace:*
         version: link:../l2-graph
+      '@cfb/post-normalize':
+        specifier: workspace:*
+        version: link:../post-normalize
       '@cfb/profile-enrich':
         specifier: workspace:*
         version: link:../profile-enrich

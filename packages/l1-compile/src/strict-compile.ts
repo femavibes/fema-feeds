@@ -13,7 +13,7 @@ import type {
 } from '@cfb/core-types'
 import { buildIngestGateFromPaths } from './ingest-path-dnf.js'
 import { optimizeIngestGate } from './ingest-gate-optimize.js'
-import { extractStrictIncludePaths, type LogicBlockResolver } from './strict-extract.js'
+import { extractStrictIncludePaths, collectSubstitutionKindsFromFeeds, type LogicBlockResolver } from './strict-extract.js'
 
 export interface StrictCompileResult {
   strictIncludeGate: CompiledIngestGate
@@ -42,10 +42,23 @@ export function compileStrictGate(
   }
 
   const built = buildIngestGateFromPaths(allPaths)
+
+  // Widen post_kind restrictBranches to include kinds needed by substitution
+  const subKinds = collectSubstitutionKindsFromFeeds(projectFeeds)
+  let restrictBranches = built.restrictBranches
+  if (subKinds.size > 0) {
+    restrictBranches = restrictBranches.map((b) => {
+      if (b.type !== 'post_kind') return b
+      const merged = new Set(b.kinds)
+      for (const k of subKinds) merged.add(k)
+      return { ...b, kinds: [...merged] }
+    })
+  }
+
   const gate = optimizeIngestGate({
     includeBranches: built.includeBranches,
     excludeBranches: built.excludeBranches,
-    restrictBranches: built.restrictBranches,
+    restrictBranches,
   })
 
   return {

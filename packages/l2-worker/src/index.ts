@@ -12,6 +12,7 @@ export {
 export { loadIngestGateExtrasForProjects } from './ingest-gate-extras.js'
 export {
   processPostForFeeds,
+  type ProcessPostOptions,
   matchedProjectIdsFromL1,
   type ProcessPostResult,
 } from './process-post.js'
@@ -27,3 +28,29 @@ export { reevalPostInPool } from './reeval-post.js'
 export { listProjectPoolPosts, type ProjectPoolResult } from './list-project-pool.js'
 
 export { resolveSourcePosts } from './resolve-sources.js'
+
+export {
+  collectSubstituteNodes,
+  resolveTargetUri,
+  resolveInverseSourceUri,
+  postMatchesDirection,
+  isInverseDirection,
+  processSubstitution,
+  resolveTargetPost,
+  type SubstituteNodeInfo,
+  type SubstitutionResult,
+} from './substitution.js'
+
+export {
+  ScoutSignalCounter,
+  computeRequiredScouts,
+  type ScoutTrigger,
+  type SignalEntry,
+  type ScoutPersistence,
+} from './scout-discovery.js'
+
+export {
+  isDiscoverRing,
+  discoverFromRing,
+  type FollowRingDiscoverResult,
+} from './follow-ring-discover.js'

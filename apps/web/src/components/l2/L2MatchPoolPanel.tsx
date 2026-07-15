@@ -162,7 +162,11 @@ export function L2MatchPoolPanel({
       {result && (
         <div className={loading ? 'l2-match-pool-updating' : undefined}>
           <p className="l2-match-pool-summary">
-            <strong>{result.matchCount}</strong> matched · <strong>{rejected}</strong> rejected ·{' '}
+            <strong>{result.matchCount}</strong> matched
+            {(result.substitutedCount ?? 0) > 0 && (
+              <> (<strong>{result.substitutedCount}</strong> via substitution)</>
+            )}
+            {' '}· <strong>{rejected}</strong> rejected ·{' '}
             <strong>{result.scanned}</strong> scanned
             {result.poolTotal > result.scanned && (
               <>

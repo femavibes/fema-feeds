@@ -49,6 +49,7 @@ const FEED_ITEMS: { id: FeedWorkspaceView; label: string }[] = [
   { id: 'personalization', label: 'Personalization' },
   { id: 'injectors', label: 'Injectors' },
   { id: 'sources', label: 'Sources' },
+  { id: 'intelligence', label: 'Intelligence' },
 ]
 
 const INGESTION_ITEMS: { id: IngestionWorkspaceView; label: string }[] = [
@@ -57,6 +58,7 @@ const INGESTION_ITEMS: { id: IngestionWorkspaceView; label: string }[] = [
   { id: 'json', label: 'JSON editor' },
   { id: 'prefilter', label: 'Prefilter' },
   { id: 'settings', label: 'Settings' },
+  { id: 'intelligence', label: 'Intelligence' },
 ]
 
 const MARKETPLACE_ITEMS: { id: MarketplaceWorkspaceView; label: string }[] = [

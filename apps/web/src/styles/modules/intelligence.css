@@ -1,0 +1,135 @@
+.intelligence-panel {
+  padding: 1.5rem;
+  max-width: 800px;
+}
+
+.intelligence-header h3 {
+  margin: 0 0 0.25rem;
+}
+
+.intelligence-scope {
+  margin: 0.75rem 0;
+}
+
+.intelligence-scope-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.intelligence-controls {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  margin: 0.75rem 0;
+  flex-wrap: wrap;
+}
+
+.intelligence-slider {
+  flex: 1;
+  min-width: 120px;
+}
+
+.intelligence-slider input[type="range"] {
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.intelligence-filter {
+  min-width: 100px;
+}
+
+.intelligence-filter select {
+  width: 100%;
+}
+
+.intelligence-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.intelligence-toggle input[type="checkbox"] {
+  margin: 0;
+}
+
+.intelligence-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.75rem 0;
+  flex-wrap: wrap;
+}
+
+.intelligence-results {
+  margin-top: 1rem;
+}
+
+.intelligence-group {
+  margin-bottom: 1.25rem;
+}
+
+.intelligence-group h4 {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.intelligence-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.intelligence-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.intelligence-card-value {
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+
+.intelligence-card-meta {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.intelligence-card-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0.4;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 0.2rem;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.intelligence-card-dismiss:hover {
+  opacity: 1;
+  color: var(--danger);
+}
+
+.intelligence-footer {
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}

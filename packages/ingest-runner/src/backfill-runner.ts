@@ -4,7 +4,6 @@ import {
   getBackfillJob,
   updateBackfillJobStatus,
   updateBackfillJobProgress,
-  getActiveBackfillCount,
   getBackfillSettings,
 } from '@cfb/storage-postgres'
 import { persistL1Matches } from '@cfb/storage-postgres'
@@ -42,8 +41,9 @@ export async function startBackfillJob(
   if (!job || job.status !== 'queued') return
 
   const settings = await getBackfillSettings(pool)
-  const activeCount = await getActiveBackfillCount(pool)
-  if (activeCount >= settings.maxConcurrentBackfills) return
+  // Note: don't re-check concurrent limit here — the API already validated it
+  // before creating the job. The job itself counts as 'queued' which would
+  // self-block if we checked again.
 
   await updateBackfillJobStatus(pool, jobId, 'running')
 

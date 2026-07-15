@@ -1,3 +1,4 @@
+@import './modules/intelligence.css';
 :root {
   --bg: #0f1219;
   --bg-elevated: #171c27;
@@ -10399,3 +10400,4 @@ body.l2-visual-open #root {
   opacity: 0.6;
   margin-left: 0.2rem;
 }
+

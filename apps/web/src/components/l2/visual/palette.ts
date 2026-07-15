@@ -19,11 +19,13 @@ import {
   newPostKindCondition,
   newRegexCondition,
   newScoreNode,
+  newScoutCondition,
+  newSubstituteCondition,
   newFollowRingCondition,
   newUrlCondition,
 } from '../../../lib/l2-form'
 
-export type PaletteCategory = 'structure' | 'text' | 'media' | 'social' | 'math' | 'scoring'
+export type PaletteCategory = 'structure' | 'text' | 'media' | 'social' | 'math' | 'scoring' | 'discovery'
 
 export interface PaletteItem {
   id: string
@@ -37,6 +39,7 @@ export interface PaletteItem {
 export const PALETTE_CATEGORIES: { id: PaletteCategory; title: string }[] = [
   { id: 'structure', title: 'Groups' },
   { id: 'scoring', title: 'Scoring' },
+  { id: 'discovery', title: 'Discovery' },
   { id: 'text', title: 'Text & tags' },
   { id: 'media', title: 'Media & post' },
   { id: 'social', title: 'Authors' },
@@ -296,6 +299,22 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     category: 'scoring',
     action: 'condition',
     factory: newScoreNode,
+  },
+  {
+    id: 'substitute',
+    label: 'Substitute',
+    description: 'Replace matching replies/quotes with their root/parent/quoted post (vote threshold)',
+    category: 'discovery',
+    action: 'condition',
+    factory: newSubstituteCondition,
+  },
+  {
+    id: 'scout',
+    label: 'Scout discovery',
+    description: 'Discover posts via community engagement signals — N scouts interact → fetch & evaluate',
+    category: 'discovery',
+    action: 'condition',
+    factory: newScoutCondition,
   },
 ]
 

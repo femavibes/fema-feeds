@@ -171,6 +171,31 @@ export function ScoreNode({ id, data }: NodeProps<Node<GraphNodeData>>) {
   )
 }
 
+export function SubstituteNode({ id, data }: NodeProps<Node<GraphNodeData>>) {
+  const onAltExtract = useAltExtractPointer(id, data.canExtract)
+  const traceClass = data.traceOutcome ? `trace-${data.traceOutcome}` : ''
+  const customName = data.customName?.trim()
+  return (
+    <div
+      className={`l2-flow-node l2-flow-substitute ${data.selected ? 'selected' : ''} ${data.extracting ? 'l2-node-extracting' : ''} ${traceClass}`}
+      style={{ width: '100%', height: '100%' }}
+      onPointerDown={onAltExtract}
+    >
+      <NodeExtractHandle nodeId={id} visible={Boolean(data.canExtract)} />
+      {data.showPorts && (
+        <>
+          <Handle type="target" position={Position.Left} className="l2-flow-handle" id="in" />
+          <Handle type="source" position={Position.Right} className="l2-flow-handle" id="out" />
+        </>
+      )}
+      <span className="l2-flow-score-points">{data.subtitle ?? '⇄'}</span>
+      <span className={`l2-flow-condition-name${customName ? ' has-name' : ''}`}>
+        {customName ?? 'Substitute'}
+      </span>
+    </div>
+  )
+}
+
 export const graphNodeTypes = {
   start: StartNode,
   end: EndNode,
@@ -178,4 +203,5 @@ export const graphNodeTypes = {
   groupFrame: GroupFrameNode,
   condition: ConditionNode,
   score: ScoreNode,
+  substitute: SubstituteNode,
 }

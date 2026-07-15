@@ -150,6 +150,8 @@ export interface ProjectL1Config {
   keywordExclude?: KeywordFilterConfig
   /** Optional L1 follow-ring filter (account hub at ingest; viewer hub at skeleton). */
   followRing?: FollowRingFilterConfig
+  /** Scout discovery: community engagement signals for content discovery. */
+  scoutDiscovery?: import('./scout-discovery.js').ScoutDiscoveryConfig
   /** Always-on ingest graph — compiled to {@link ingestGate} on save. */
   prefilter?: import('./prefilter.js').ProjectPrefilter
   /** Compiled ingest gate (from {@link prefilter} or legacy feed compile). */
@@ -232,3 +234,5 @@ export { type NativePersonalizationConfig, DEFAULT_PERSONALIZATION } from './per
 export { type NativeInjectorConfig, type NativePinnedInjector, type NativePinnedPost, type NativeRotatingInjector } from './native-injectors.js'
 export { type NativeFeedSource, type ProjectPoolSource, type FeedCandidateSource, type StaticUriListSource, type SubscribedSourceConfig, type FeedSourcesConfig } from './feed-sources.js'
 export * from './backfill.js'
+export * from './substitution.js'
+export * from './scout-discovery.js'

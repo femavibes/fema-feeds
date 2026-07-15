@@ -68,6 +68,8 @@ export interface EngagementHandlerStats {
 export interface EngagementHandlerOptions {
   /** Called when engagement was bumped on a pooled post. */
   onBumped?: (postUri: string) => void | Promise<void>
+  /** Called for every create engagement event with actor info (for scout discovery). */
+  onScoutSignal?: (actorDid: string, subjectUri: string, collection: EngagementEvent['collection']) => void
 }
 
 export function createEngagementHandler(
@@ -77,6 +79,10 @@ export function createEngagementHandler(
 ): (event: EngagementEvent) => Promise<void> {
   return async (event) => {
     try {
+      // Always emit scout signal for create events (before pool check)
+      if (event.operation === 'create' && options?.onScoutSignal) {
+        options.onScoutSignal(event.actorDid, event.subjectUri, event.collection)
+      }
       const counter = engagementCounterForCollection(event.collection)
       const delta = engagementDelta(event.operation)
       if (delta === 0) return

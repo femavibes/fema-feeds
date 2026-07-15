@@ -1,4 +1,5 @@
 export { evaluateFeedL2, walkRuleNodes } from './evaluate.js'
+export { evalRuleNode, type ScoreAccumulator } from './nodes.js'
 export {
   evaluateViewerFollowRingOverlay,
   evaluateViewerFollowRingNode,
@@ -28,3 +29,4 @@ export {
   scanSortPackUpgrade,
 } from './sort-packs.js'
 export { buildL2Runtime, numericFieldValue } from './context.js'
+export type { L2RuntimeContext } from './context.js'

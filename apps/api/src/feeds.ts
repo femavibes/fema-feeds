@@ -687,6 +687,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
       feedId: id,
     })
 
+    recompileStrictGateIfNeeded(projectsDir, feedsDir, nextLive.projectId)
     return c.json({
       feed: nextLive,
       live: nextLive,
@@ -696,7 +697,6 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
       rebuilding: true,
       project: updatedProject,
     })
-    recompileStrictGateIfNeeded(projectsDir, feedsDir, nextLive.projectId)
   })
 
   app.get('/api/feeds/:id/rebuild-status', async (c) => {

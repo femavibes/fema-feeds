@@ -5,6 +5,9 @@ export type FollowRingDirection = 'follows' | 'followers' | 'both'
 
 export type FollowRingOp = 'includes' | 'excludes'
 
+/** Role determines whether the ring gates incoming posts or discovers new ones. */
+export type FollowRingRole = 'filter' | 'discover'
+
 /** Shared follow-ring shape for L1 project config and L2 nodes. */
 export interface FollowRingFilterConfig {
   /** account = fixed hub (ingest + skeleton); viewer = viewing user's DID at skeleton only */
@@ -14,6 +17,11 @@ export interface FollowRingFilterConfig {
   direction: FollowRingDirection
   op: FollowRingOp
   pollIntervalMinutes?: number
+  /**
+   * filter (default) = gate incoming posts by ring membership.
+   * discover = pull recent posts from ring members (account hub only).
+   */
+  role?: FollowRingRole
 }
 
 export function followRingHubSource(source?: FollowRingHubSource): FollowRingHubSource {

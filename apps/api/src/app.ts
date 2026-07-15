@@ -120,6 +120,7 @@ import { seedFollowRingsFromProjects } from '@cfb/l2-worker'
 import { resolvePostInput } from '@cfb/post-resolve'
 import { resolveListMemberProfiles, resolveActorProfiles } from './list-members.js'
 import { registerGlobalCommunityRoutes, resolveCommunityFeeds, syncLocalFeedsToGlobalRegistry } from './global-community-registry.js'
+import { registerIntelligenceRoutes } from './feed-intelligence.js'
 import { avatarPublicUrl } from './feed-avatar.js'
 import { existsSync } from 'node:fs'
 import { getFeedStats } from '@cfb/storage-postgres'
@@ -235,6 +236,7 @@ export function createApp(options?: {
   registerMarketplaceTaxonomyRoutes(app)
   registerBackfillRoutes(app, { pool, projectsDir: dir, feedsDir: feedDir })
   registerGlobalCommunityRoutes(app, pool)
+  registerIntelligenceRoutes(app, { pool, projectsDir: dir, ingest })
 
   if (pool) {
     void bootstrapDeploymentFromEnv(pool)

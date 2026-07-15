@@ -11,6 +11,7 @@ import { FeedSortingView } from './FeedSortingView'
 import { FeedPersonalizationView } from './FeedPersonalizationView'
 import { FeedInjectorsView } from './FeedInjectorsView'
 import { FeedSourcesView } from './FeedSourcesView'
+import { FeedIntelligencePanel } from '../FeedIntelligencePanel'
 import { L2JsonEditor } from './L2JsonEditor'
 import { L2VisualEditor } from './visual/L2VisualEditor'
 import { normalizeFeedLogicPatch, type FeedLogicPatch } from '../../lib/feed-graph-exchange'
@@ -359,6 +360,10 @@ export function FeedL2Workspace({
           settingsSaving={settingsSaving}
           onSaveSettings={onSaveSettings}
         />
+      )}
+
+      {view === 'intelligence' && (
+        <FeedIntelligencePanel projectId={project.projectId} feedId={draft.feedId} />
       )}
 
       {view === 'visual' && editorDraft && (

@@ -275,6 +275,31 @@ export function newMimeTypeCondition(): L2RuleNode {
   }
 }
 
+export function newSubstituteCondition(): L2RuleNode {
+  return {
+    type: 'substitute',
+    id: newId('sub'),
+    direction: 'reply_to_root',
+    threshold: 1,
+    timeWindowHours: 0,
+  }
+}
+
+export function newScoutCondition(): L2RuleNode {
+  return {
+    type: 'scout',
+    id: newId('scout'),
+    scouts: [],
+    threshold: {
+      min: 3,
+      max: 8,
+      scaleWindowMinutes: 60,
+      curve: 'linear',
+    },
+    maxPostAgeHours: 48,
+  }
+}
+
 export function newLogicBlockRef(pkg: {
   id: string
   version: string
