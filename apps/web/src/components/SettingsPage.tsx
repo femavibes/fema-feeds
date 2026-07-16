@@ -1067,7 +1067,7 @@ function FeedgenForm({
               />
             </label>
             <label>
-              Tunnel token (Docker only — skip if cloudflared Windows service is already running)
+              Tunnel token (optional — only needed if you don't already have a reverse proxy or tunnel pointing at this server)
               <input
                 className="mono"
                 type="password"
@@ -1078,7 +1078,7 @@ function FeedgenForm({
                 placeholder={
                   settings.cloudflareTunnelTokenSet
                     ? '•••••••• (saved — leave blank to keep)'
-                    : 'optional — only for Docker deploy'
+                    : 'skip if traffic already reaches this server (e.g. NPM, existing tunnel)'
                 }
               />
             </label>
