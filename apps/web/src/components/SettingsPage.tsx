@@ -659,7 +659,7 @@ function FeedgenForm({
 
   const setDeployHome = () => {
     setDeployTarget('home')
-    setHomeExposure('tailscale')
+    setHomeExposure('own-cloudflare')
   }
 
   const setDeployVps = () => {
@@ -908,20 +908,6 @@ function FeedgenForm({
             <strong>Step 2:</strong> How should Bluesky reach your PC without router port forwarding?
           </p>
           <div className="feedgen-mode-picker feedgen-mode-picker-compact">
-            <label className={`feedgen-mode-card${homeExposure === 'tailscale' ? ' active' : ''}`}>
-              <input
-                type="radio"
-                name="home-exposure"
-                value="tailscale"
-                checked={homeExposure === 'tailscale'}
-                disabled={!writable}
-                onChange={() => setHomeExposure('tailscale')}
-              />
-              <span className="feedgen-mode-title">Tailscale Funnel (easiest)</span>
-              <span className="feedgen-mode-desc">
-                Free <code>https://yourpc.your-tailnet.ts.net</code> — no domain purchase
-              </span>
-            </label>
             <label className={`feedgen-mode-card${homeExposure === 'own-cloudflare' ? ' active' : ''}`}>
               <input
                 type="radio"
@@ -931,8 +917,22 @@ function FeedgenForm({
                 disabled={!writable}
                 onChange={() => setHomeExposure('own-cloudflare')}
               />
-              <span className="feedgen-mode-title">My domain on Cloudflare (recommended)</span>
-              <span className="feedgen-mode-desc">You already have a hostname (e.g. feedbuilder.fema.monster)</span>
+              <span className="feedgen-mode-title">Cloudflare Tunnel (recommended)</span>
+              <span className="feedgen-mode-desc">Free tunnel with your own domain — no port forwarding needed</span>
+            </label>
+            <label className={`feedgen-mode-card${homeExposure === 'tailscale' ? ' active' : ''}`}>
+              <input
+                type="radio"
+                name="home-exposure"
+                value="tailscale"
+                checked={homeExposure === 'tailscale'}
+                disabled={!writable}
+                onChange={() => setHomeExposure('tailscale')}
+              />
+              <span className="feedgen-mode-title">Tailscale Funnel</span>
+              <span className="feedgen-mode-desc">
+                Free <code>https://yourpc.your-tailnet.ts.net</code> — no domain purchase
+              </span>
             </label>
             <label className={`feedgen-mode-card${homeExposure === 'custom' ? ' active' : ''}`}>
               <input
