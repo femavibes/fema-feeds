@@ -15,6 +15,7 @@ import { loadHydratedProjects } from '@cfb/list-cache'
 import { mapJetstreamCreateEvent } from '@cfb/ingest-jetstream'
 import { normalizeJetstreamPost, type JetstreamPostEvent } from '@cfb/post-normalize'
 import { matchedProjectIdsFromL1, processPostForFeeds } from '@cfb/l2-worker'
+import { buildStrictGates, postPassesStrictGate } from './strict-gate.js'
 
 /** In-memory tracking of active backfill jobs. */
 const activeJobs = new Map<string, { cancel: () => void }>()
@@ -60,6 +61,9 @@ export async function startBackfillJob(
     compileAllProjects([project])
     const feeds = (await loadAllFeeds(feedsDir)).filter(f => f.projectId === job.projectId && f.enabled)
 
+    // Build strict gate so backfill applies the same keyword filtering as live ingest
+    const strictState = buildStrictGates([project], feeds)
+
     const isCancelled = () => cancelled
     const limitReached = () =>
       progress.candidatesScanned >= job.candidateLimit ||
@@ -67,6 +71,8 @@ export async function startBackfillJob(
 
     const handlePost = async (post: NormalizedPost) => {
       progress.candidatesScanned++
+      // Apply strict gate (keyword filter) — same as live ingest
+      if (!postPassesStrictGate(post, project, strictState)) return
       const result = evaluateProjectL1(post, project)
       if (result.matched) {
         const matches = [{ projectId: job.projectId, matched: true, matchedVia: 'jetstream' as const, trace: [] }]
@@ -138,6 +144,8 @@ async function runJetstreamBackfill(
   // @ts-ignore - @skyware/jetstream types resolved at runtime
   const { Jetstream } = await (import('@skyware/jetstream') as Promise<any>)
 
+  const inflight = new Set<Promise<void>>()
+
   await new Promise<void>((resolve) => {
     const client = new Jetstream({
       endpoint: jetstreamUrl,
@@ -156,7 +164,9 @@ async function runJetstreamBackfill(
     client.onCreate('app.bsky.feed.post', (event: any) => {
       if (isCancelled() || limitReached()) { finish(); return }
       const mapped = mapJetstreamCreateEvent(event)
-      void handlePost(normalizeJetstreamPost(mapped)).catch(() => {})
+      const p = handlePost(normalizeJetstreamPost(mapped)).catch(() => {})
+      inflight.add(p)
+      p.finally(() => inflight.delete(p))
     })
 
     client.on('error', (err: unknown) => {
@@ -169,6 +179,9 @@ async function runJetstreamBackfill(
     // Safety timeout: max 10 minutes per backfill run
     setTimeout(() => finish(), 10 * 60 * 1000)
   })
+
+  // Wait for in-flight L1/L2 processing to finish before reporting progress
+  if (inflight.size > 0) await Promise.allSettled([...inflight])
 }
 
 // --- Bluesky Search API ---
