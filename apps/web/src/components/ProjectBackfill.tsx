@@ -123,7 +123,7 @@ export function ProjectBackfill({ projectId, poolSize }: Props) {
               <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 <span>Scanned: {activeJob.candidatesScanned.toLocaleString()} / {activeJob.candidateLimit.toLocaleString()}</span>
                 <span>Matched: {activeJob.matchesFound.toLocaleString()} / {activeJob.matchLimit.toLocaleString()}</span>
-                <span>Fed to feeds: {activeJob.l2Written.toLocaleString()}</span>
+                <span>Feed candidates: {activeJob.l2Written.toLocaleString()}</span>
                 {activeJob.errors > 0 && <span style={{ color: 'var(--danger)' }}>Errors: {activeJob.errors}</span>}
               </div>
             </>
@@ -293,7 +293,7 @@ export function ProjectBackfill({ projectId, poolSize }: Props) {
                 <span className={`badge ${j.status === 'completed' ? 'badge-muted' : j.status === 'failed' ? 'badge-danger' : ''}`} style={{ fontSize: '0.65rem', marginRight: '0.5rem' }}>
                   {j.status}
                 </span>
-                {j.method} — {j.candidatesScanned.toLocaleString()} scanned, {j.matchesFound.toLocaleString()} matched, {j.l2Written.toLocaleString()} fed
+                {j.method} — {j.candidatesScanned.toLocaleString()} scanned, {j.matchesFound.toLocaleString()} pooled, {j.l2Written.toLocaleString()} candidates
                 {j.finishedAt && <span> · {new Date(j.finishedAt).toLocaleString()}</span>}
               </div>
             ))}
