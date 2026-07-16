@@ -917,7 +917,7 @@ function FeedgenForm({
                 disabled={!writable}
                 onChange={() => setHomeExposure('tailscale')}
               />
-              <span className="feedgen-mode-title">Tailscale Funnel (recommended)</span>
+              <span className="feedgen-mode-title">Tailscale Funnel (easiest)</span>
               <span className="feedgen-mode-desc">
                 Free <code>https://yourpc.your-tailnet.ts.net</code> — no domain purchase
               </span>
@@ -931,7 +931,7 @@ function FeedgenForm({
                 disabled={!writable}
                 onChange={() => setHomeExposure('own-cloudflare')}
               />
-              <span className="feedgen-mode-title">My domain on Cloudflare</span>
+              <span className="feedgen-mode-title">My domain on Cloudflare (recommended)</span>
               <span className="feedgen-mode-desc">You already have a hostname (e.g. feedbuilder.fema.monster)</span>
             </label>
             <label className={`feedgen-mode-card${homeExposure === 'custom' ? ' active' : ''}`}>
