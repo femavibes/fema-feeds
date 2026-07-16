@@ -1249,10 +1249,12 @@ export function createApp(options?: {
       })
       if (activeMode === 'duckdns' && isDuckDnsConfigured(merged)) {
         merged = await applyDuckDnsSync(merged)
-      } else if (activeMode === 'cloudflare' || activeMode === 'tailscale') {
-        merged = await applyCloudflareCheck(merged)
       }
       await saveUserFeedgenSettings(pool, userDid, merged)
+      if (activeMode === 'cloudflare' || activeMode === 'tailscale') {
+        merged = await applyCloudflareCheck(merged)
+        await saveUserFeedgenSettings(pool, userDid, merged)
+      }
       const resolved = await resolveUserFeedgenSettings(pool, userDid, feedgenEnvFromProcess())
       return c.json({ settings: maskFeedgenSettings(resolved), publisherDid: userDid })
     }
@@ -1264,10 +1266,12 @@ export function createApp(options?: {
     })
     if (activeMode === 'duckdns' && isDuckDnsConfigured(merged)) {
       merged = await applyDuckDnsSync(merged)
-    } else if (activeMode === 'cloudflare' || activeMode === 'tailscale') {
-      merged = await applyCloudflareCheck(merged)
     }
     await saveFeedgenSettings(pool, merged)
+    if (activeMode === 'cloudflare' || activeMode === 'tailscale') {
+      merged = await applyCloudflareCheck(merged)
+      await saveFeedgenSettings(pool, merged)
+    }
     const resolved = await resolveFeedgenSettings(pool, feedgenEnvFromProcess())
     return c.json({ settings: maskFeedgenSettings(resolved), publisherDid: null })
   })
