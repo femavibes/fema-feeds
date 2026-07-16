@@ -397,6 +397,9 @@ importers:
       '@cfb/storage-postgres':
         specifier: workspace:*
         version: link:../storage-postgres
+      '@skyware/jetstream':
+        specifier: ^0.2.5
+        version: 0.2.5(react@19.2.7)
     devDependencies:
       '@types/pg':
         specifier: ^8.15.2
@@ -2300,13 +2303,11 @@ snapshots:
   '@atcute/atproto@3.1.12(@atcute/lexicons@1.3.1)':
     dependencies:
       '@atcute/lexicons': 1.3.1
-    optional: true
 
   '@atcute/bluesky@3.3.5(@atcute/lexicons@1.3.1)':
     dependencies:
       '@atcute/atproto': 3.1.12(@atcute/lexicons@1.3.1)
       '@atcute/lexicons': 1.3.1
-    optional: true
 
   '@atcute/lexicons@1.3.1':
     dependencies:
@@ -2314,15 +2315,12 @@ snapshots:
       '@atcute/util-text': 1.3.1
       '@standard-schema/spec': 1.1.0
       esm-env: 1.2.2
-    optional: true
 
-  '@atcute/uint8array@1.1.2':
-    optional: true
+  '@atcute/uint8array@1.1.2': {}
 
   '@atcute/util-text@1.3.1':
     dependencies:
       unicode-segmenter: 0.14.5
-    optional: true
 
   '@atproto-labs/did-resolver@0.3.2':
     dependencies:
@@ -3007,10 +3005,8 @@ snapshots:
       tiny-emitter: 2.1.0
     transitivePeerDependencies:
       - react
-    optional: true
 
-  '@standard-schema/spec@1.1.0':
-    optional: true
+  '@standard-schema/spec@1.1.0': {}
 
   '@types/babel__core@7.20.5':
     dependencies:
@@ -3380,15 +3376,13 @@ snapshots:
 
   escalade@3.2.0: {}
 
-  esm-env@1.2.2:
-    optional: true
+  esm-env@1.2.2: {}
 
   estree-walker@3.0.3:
     dependencies:
       '@types/estree': 1.0.9
 
-  event-target-polyfill@0.0.4:
-    optional: true
+  event-target-polyfill@0.0.4: {}
 
   expect-type@1.3.0: {}
 
@@ -3444,7 +3438,6 @@ snapshots:
       event-target-polyfill: 0.0.4
     optionalDependencies:
       react: 19.2.7
-    optional: true
 
   pathe@2.0.3: {}
 
@@ -3565,8 +3558,7 @@ snapshots:
 
   style-mod@4.1.3: {}
 
-  tiny-emitter@2.1.0:
-    optional: true
+  tiny-emitter@2.1.0: {}
 
   tinybench@2.9.0: {}
 

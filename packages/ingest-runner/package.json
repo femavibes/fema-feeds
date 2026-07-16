@@ -26,7 +26,8 @@
     "@cfb/post-normalize": "workspace:*",
     "@cfb/project-config": "workspace:*",
     "@cfb/feed-intelligence": "workspace:*",
-    "@cfb/storage-postgres": "workspace:*"
+    "@cfb/storage-postgres": "workspace:*",
+    "@skyware/jetstream": "^0.2.5"
   },
   "devDependencies": {
     "@types/pg": "^8.15.2",

@@ -113,7 +113,7 @@ export function buildFeedPublishInfo(
       id: 'candidates',
       label: 'Candidate list built for skeleton',
       ok: hasCandidates,
-      hint: 'Update rebuilds from the L1 pool. Ingest adds new matches automatically.',
+      hint: 'Not required to publish. Update rebuilds from the L1 pool; ingest adds new matches automatically.',
     },
     {
       id: 'published',
@@ -143,7 +143,6 @@ export function buildFeedPublishInfo(
     'public_url',
     'feed_enabled',
     'match_rules',
-    'candidates',
   ])
 
   const readyToPublish = checklist.filter((c) => prePublishIds.has(c.id)).every((c) => c.ok)

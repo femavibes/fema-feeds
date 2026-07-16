@@ -153,6 +153,11 @@ export function FeedPublishPanel({
 
   useEffect(() => {
     void refresh()
+    // Auto-poll while checklist has pending items
+    const interval = setInterval(() => {
+      void refresh()
+    }, 8000)
+    return () => clearInterval(interval)
   }, [refresh, livePublished])
 
   const publish = async () => {
