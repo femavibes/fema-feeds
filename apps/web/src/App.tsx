@@ -110,7 +110,7 @@ export function App() {
   }, [user?.did, user?.isMaster, checkMasterOnboarding])
 
   useEffect(() => {
-    document.title = appProfile === 'registry' ? 'CFB Marketplace' : 'WaffleIndex'
+    document.title = appProfile === 'registry' ? 'CFB Marketplace' : 'WaffleHouseIndex'
     const link = document.querySelector('link[rel=icon]') as HTMLLinkElement | null
     if (link) link.href = appProfile === 'registry' ? '/marketplace-icon.svg' : '/fema.jpg'
   }, [appProfile])
@@ -404,9 +404,9 @@ export function App() {
         >
           {appProfile === 'registry'
             ? <img className="brand-mark brand-mark-img" src="/marketplace-icon.svg" alt="Marketplace" />
-            : <img className="brand-mark brand-mark-img" src="/fema.jpg" alt="WaffleIndex" />}
+            : <img className="brand-mark brand-mark-img" src="/fema.jpg" alt="WaffleHouseIndex" />}
           <div>
-            <h1>{appProfile === 'registry' ? 'FEMA Marketplace' : 'WaffleIndex' /* WIP app name */}</h1>
+            <h1>{appProfile === 'registry' ? 'FEMA Marketplace' : 'WaffleHouseIndex' /* WIP app name */}</h1>
             <p>{workspaceSubtitle}</p>
           </div>
         </button>
