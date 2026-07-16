@@ -145,8 +145,8 @@ export function MarketplaceWorkspace() {
         : marketplaceProduct(productScope).browseHint
       : view === 'installed'
         ? productScope === 'all'
-          ? 'Everything you subscribe to across product types. Pins apply per feed Ã¢â‚¬â€ logic blocks in the visual editor; sort packs, personalization, and injectors on the Sorting tab.'
-          : `Pinned versions appear on feeds Ã¢â‚¬â€ ${marketplaceProduct(productScope).summary}`
+          ? 'Everything you subscribe to across product types. Pins apply per feed — logic blocks in the visual editor; sort packs, personalization, and injectors on the Sorting tab.'
+          : `Pinned versions appear on feeds — ${marketplaceProduct(productScope).summary}`
         : copy.hint
   const showProductMeta =
     (view === 'browse' || view === 'installed') && productScope !== 'all'

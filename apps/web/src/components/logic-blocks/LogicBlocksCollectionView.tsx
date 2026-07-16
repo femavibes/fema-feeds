@@ -45,6 +45,7 @@ export function LogicBlocksCollectionView({ selectedId, onSelect }: Props) {
             listing={pkg.listing}
             updatedAt={pkg.updatedAt}
             productKind="logic_block"
+            ownerDid={pkg.ownerDid}
             subtitle={pkg.slug}
             selected={selectedId === pkg.id}
             onClick={() => onSelect(pkg)}

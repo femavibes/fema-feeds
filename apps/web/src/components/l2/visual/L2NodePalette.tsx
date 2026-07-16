@@ -382,7 +382,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
                     <PaletteNodeButton
                       key={`${pkg.id}@${pkg.version}`}
                       label={pkg.name}
-                      description={pkg.description ?? `Reusable logic block Â· v${pkg.version}`}
+                      description={pkg.description ?? `Reusable logic block · v${pkg.version}`}
                       badge="Saved"
                       draggable
                       onClick={() => pickLogicBlock(entry)}
@@ -418,7 +418,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
                       key={`${pkg.id}@${versionPin}`}
                       label={pkg.name}
                       description={
-                        pkg.description ?? `Subscribed logic block Â· v${versionPin}`
+                        pkg.description ?? `Subscribed logic block · v${versionPin}`
                       }
                       badge="Sub"
                       draggable

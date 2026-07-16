@@ -49,11 +49,6 @@
       "id": "utility",
       "label": "Utility",
       "scope": "global"
-    },
-    {
-      "id": "franklin",
-      "label": "FRANKLIN",
-      "scope": "global"
     }
   ],
   "tags": [
@@ -255,11 +250,6 @@
     {
       "id": "music",
       "label": "Music",
-      "scope": "global"
-    },
-    {
-      "id": "monster",
-      "label": "MONSTER",
       "scope": "global"
     }
   ]

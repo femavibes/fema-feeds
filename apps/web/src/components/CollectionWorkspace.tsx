@@ -456,7 +456,7 @@ export function CollectionWorkspace() {
             <div className="workspace-context-head-row">
 
               <h2>
-                My collection Â· {scopeLabel}
+                My collection · {scopeLabel}
                 {product ? (
                   <span className="marketplace-product-tier">
                     {product.tier === 'native' ? 'Native' : 'Custom code'}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { LogicBlockPackage, LogicBlockRef, ProjectL1Config } from '@cfb/core-types'
 import { api } from '../api/client'
 import { LogicBlockCreateDialog } from './logic-blocks/LogicBlockCreateDialog'
+import { MarketplaceCatalogCard } from './marketplace/MarketplaceCatalogCard'
 
 interface Props {
   draft: ProjectL1Config
@@ -27,18 +28,14 @@ export function ProjectLogicBlocksPanel({ draft, onChange }: Props) {
   useEffect(() => { refresh() }, [])
 
   const pinned = draft.pinnedLogicBlock
-  const pinnedBlock = pinned ? blocks.find((b) => b.id === pinned.packageId) : null
 
   const handlePin = useCallback(
     async (pkg: LogicBlockPackage) => {
       const ref: LogicBlockRef = { packageId: pkg.id, versionPin: pkg.version }
       const updated = { ...draft, pinnedLogicBlock: ref }
       onChange(updated)
-      // Save immediately so it persists without needing manual save
       setSaving(true)
-      try {
-        await api.saveProject(updated)
-      } catch { /* onChange already updated local state */ }
+      try { await api.saveProject(updated) } catch {}
       setSaving(false)
     },
     [draft, onChange],
@@ -49,9 +46,7 @@ export function ProjectLogicBlocksPanel({ draft, onChange }: Props) {
     const updated = rest as ProjectL1Config
     onChange(updated)
     setSaving(true)
-    try {
-      await api.saveProject(updated)
-    } catch {}
+    try { await api.saveProject(updated) } catch {}
     setSaving(false)
   }, [draft, onChange])
 
@@ -77,14 +72,8 @@ export function ProjectLogicBlocksPanel({ draft, onChange }: Props) {
 
   return (
     <section className="card project-logic-blocks">
-      <h3>Project Logic Block</h3>
-      <p className="card-hint">
-        Pin a logic block to this project. It will be auto-inserted into new feeds
-        created under this project, so all feed variants share the same core logic.
-        Users can still move or remove it from individual feeds.
-      </p>
-
-      <div className="project-logic-blocks-actions">
+      <div className="card-head">
+        <h3>Project Logic Block</h3>
         <button
           type="button"
           className="btn btn-primary btn-sm"
@@ -93,27 +82,13 @@ export function ProjectLogicBlocksPanel({ draft, onChange }: Props) {
           Create new logic block
         </button>
       </div>
+      <p className="card-hint">
+        Pin a logic block to this project. It will be auto-inserted into new feeds
+        created under this project. Pinning a new block replaces the current one.
+      </p>
 
-      {pinned && pinnedBlock ? (
-        <div className="project-logic-blocks-pinned">
-          <div className="project-logic-blocks-pinned-info">
-            <strong>{pinnedBlock.name}</strong>
-            <span className="mono"> v{pinnedBlock.version}</span>
-            {pinnedBlock.description && (
-              <p className="card-hint">{pinnedBlock.description}</p>
-            )}
-          </div>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            disabled={saving}
-            onClick={() => void handleUnpin()}
-          >
-            {saving ? 'Saving…' : 'Unpin'}
-          </button>
-        </div>
-      ) : pinned && !pinnedBlock && !loading ? (
-        <div className="project-logic-blocks-pinned">
+      {pinned && !blocks.find((b) => b.id === pinned.packageId) && !loading && (
+        <div className="logic-block-card logic-block-card--missing" style={{ marginTop: '0.75rem' }}>
           <span className="field-warn">
             Pinned block <code className="mono">{pinned.packageId}</code> not found in collection
           </span>
@@ -121,44 +96,47 @@ export function ProjectLogicBlocksPanel({ draft, onChange }: Props) {
             Remove
           </button>
         </div>
-      ) : null}
+      )}
 
-      {!pinned && (
-        <>
-          {loading ? (
-            <p className="card-hint">Loading logic blocks…</p>
-          ) : blocks.length === 0 ? (
-            <p className="card-hint">
-              No logic blocks in your collection yet. Create one above or browse the marketplace.
-            </p>
-          ) : (
-            <>
-              <p className="card-hint" style={{ marginTop: '1rem' }}>
-                Pin an existing block from your collection:
-              </p>
-              <ul className="project-logic-blocks-list">
-                {blocks.map((pkg) => (
-                  <li key={pkg.id} className="project-logic-blocks-item">
-                    <div>
-                      <strong>{pkg.name}</strong>
-                      {pkg.description && (
-                        <span className="card-hint"> — {pkg.description}</span>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      disabled={saving}
-                      onClick={() => void handlePin(pkg)}
-                    >
-                      {saving ? 'Saving…' : 'Pin to project'}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </>
+      {loading ? (
+        <p className="card-hint" style={{ marginTop: '0.75rem' }}>Loading logic blocks…</p>
+      ) : blocks.length === 0 ? (
+        <p className="card-hint" style={{ marginTop: '0.75rem' }}>
+          No logic blocks in your collection yet. Create one above or browse the marketplace.
+        </p>
+      ) : (
+        <div className="marketplace-catalog-grid logic-blocks-pin-grid">
+          {blocks.map((pkg) => {
+            const isPinned = pinned?.packageId === pkg.id
+            return (
+              <div key={pkg.id} className={`logic-block-pin-item${isPinned ? ' is-pinned' : ''}`}>
+                <MarketplaceCatalogCard
+                  id={pkg.id}
+                  name={pkg.name}
+                  description={pkg.description}
+                  version={pkg.version}
+                  visibility={pkg.visibility}
+                  trustTier={pkg.trustTier}
+                  listing={pkg.listing}
+                  updatedAt={pkg.updatedAt}
+                  productKind="logic_block"
+                  ownerDid={pkg.ownerDid}
+                  subtitle={pkg.slug}
+                  selected={isPinned}
+                  onClick={() => {}}
+                />
+                <button
+                  type="button"
+                  className={`btn btn-sm logic-block-pin-btn${isPinned ? ' btn-ghost' : ' btn-secondary'}`}
+                  disabled={saving}
+                  onClick={() => void (isPinned ? handleUnpin() : handlePin(pkg))}
+                >
+                  {saving ? 'Saving…' : isPinned ? '✓ Pinned — Unpin' : 'Pin to project'}
+                </button>
+              </div>
+            )
+          })}
+        </div>
       )}
 
       {showCreate && (

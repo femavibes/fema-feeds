@@ -84,7 +84,7 @@ export function PluginDeveloperGuide() {
 
         <p className="card-hint">
 
-          Technical requirements for custom code packages ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â rankers and injectors ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â including WASM
+          Technical requirements for custom code packages — rankers and injectors — including WASM
 
           contracts, host limits, verification, and publishing.
 
@@ -162,7 +162,7 @@ export function PluginDeveloperGuide() {
 
               <td>Candidate pool build (pool sort)</td>
 
-              <td>No ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â native JSON formulas</td>
+              <td>No — native JSON formulas</td>
 
             </tr>
 
@@ -172,7 +172,7 @@ export function PluginDeveloperGuide() {
 
               <td>Skeleton serve (`{PLUGIN_HOOKS.ranker}`)</td>
 
-              <td>Yes ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â WASM, worker, remote, or native adapter</td>
+              <td>Yes — WASM, worker, remote, or native adapter</td>
 
             </tr>
 
@@ -182,7 +182,7 @@ export function PluginDeveloperGuide() {
 
               <td>After ranker (`{PLUGIN_HOOKS.injector}`)</td>
 
-              <td>Yes ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â WASM, worker, remote, or native adapter</td>
+              <td>Yes — WASM, worker, remote, or native adapter</td>
 
             </tr>
 
@@ -258,7 +258,7 @@ export function PluginDeveloperGuide() {
 
           Ask your deployment master for deployment verification, or the global marketplace operator
 
-          (fema.monster) for global listings. Use <strong>Marketplace ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Verify publisher</strong> to
+          (fema.monster) for global listings. Use <strong>Marketplace → Verify publisher</strong> to
 
           start the process.
 
@@ -314,7 +314,7 @@ export function PluginDeveloperGuide() {
 
 
 
-      <Section id="ranker" title={`Personalization ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â export ${PLUGIN_HOOKS.ranker}`}>
+      <Section id="ranker" title={`Personalization — export ${PLUGIN_HOOKS.ranker}`}>
 
         <p>
 
@@ -342,7 +342,7 @@ export function PluginDeveloperGuide() {
 
           <li>
 
-            Return a reordering of <code>candidates</code>. Subsets are allowed ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â missing URIs are
+            Return a reordering of <code>candidates</code>. Subsets are allowed — missing URIs are
 
             appended in original order by the host.
 
@@ -364,7 +364,7 @@ export function PluginDeveloperGuide() {
 
           <li>
 
-            <code>candidatePosts</code> ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â optional enrichment from CFB pool data (engagement, author
+            <code>candidatePosts</code> — optional enrichment from CFB pool data (engagement, author
 
             followers, media/alt, indexed time). Scoring plugins should declare{' '}
 
@@ -380,7 +380,7 @@ export function PluginDeveloperGuide() {
 
 
 
-      <Section id="injector" title={`Injector ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â export ${PLUGIN_HOOKS.injector}`}>
+      <Section id="injector" title={`Injector — export ${PLUGIN_HOOKS.injector}`}>
 
         <p>
 
@@ -402,13 +402,13 @@ export function PluginDeveloperGuide() {
 
           <li>
 
-            <code>slots.every</code> ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â insert after every N organic posts (minimum 1).
+            <code>slots.every</code> — insert after every N organic posts (minimum 1).
 
           </li>
 
           <li>
 
-            <code>slots.maxPerPage</code> ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â max injected URIs per skeleton page (CFB enforces).
+            <code>slots.maxPerPage</code> — max injected URIs per skeleton page (CFB enforces).
 
           </li>
 
@@ -436,13 +436,13 @@ export function PluginDeveloperGuide() {
 
           <li>
 
-            Personalization: POST body = ranker request JSON ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ respond with <code>{`{ "uris": [...] }`}</code>
+            Personalization: POST body = ranker request JSON → respond with <code>{`{ "uris": [...] }`}</code>
 
           </li>
 
           <li>
 
-            Injector: POST body = injector request JSON ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ respond with{' '}
+            Injector: POST body = injector request JSON → respond with{' '}
 
             <code>{`{ "uris": [...] }`}</code>
 
@@ -550,7 +550,7 @@ export function PluginDeveloperGuide() {
 
               <td>Sandbox</td>
 
-              <td>Extism / WASI ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no database or network from guest unless host adds functions</td>
+              <td>Extism / WASI — no database or network from guest unless host adds functions</td>
 
             </tr>
 
@@ -576,7 +576,7 @@ export function PluginDeveloperGuide() {
 
           <li>
 
-            <strong>New custom code</strong> (sidebar) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â pick kind (ranker / injector) and runtime.
+            <strong>New custom code</strong> (sidebar) — pick kind (ranker / injector) and runtime.
 
           </li>
 
@@ -590,7 +590,7 @@ export function PluginDeveloperGuide() {
 
           <li>Test from your collection; publish to deployment or submit to global marketplace.</li>
 
-          <li>Subscribers install from Marketplace ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ apply on feed <strong>Sorting</strong> tab.</li>
+          <li>Subscribers install from Marketplace → apply on feed <strong>Sorting</strong> tab.</li>
 
           <li>Preview skeleton to verify behavior (e.g. reversed order with the example ranker).</li>
 
@@ -636,7 +636,7 @@ export function PluginDeveloperGuide() {
 
         <p>
 
-          The repo ships a working ranker that reverses the candidate list ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â useful to validate upload,
+          The repo ships a working ranker that reverses the candidate list — useful to validate upload,
 
           publish, and feed wiring end-to-end.
 
@@ -652,7 +652,7 @@ export function PluginDeveloperGuide() {
 
           <span className="card-hint">
 
-            Source: <code>{EXAMPLE_REPO_PATH}</code> Ãƒâ€šÃ‚Â· ~235 KB compiled
+            Source: <code>{EXAMPLE_REPO_PATH}</code> · ~235 KB compiled
 
           </span>
 
@@ -660,13 +660,13 @@ export function PluginDeveloperGuide() {
 
         <ol className="plugin-dev-list">
 
-          <li>Verified publisher ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ <strong>New custom code</strong> Ã¢â€ â€™ Personalization, runtime WASM.</li>
+          <li>Verified publisher → <strong>New custom code</strong> → Personalization, runtime WASM.</li>
 
           <li>Upload the downloaded <code>{EXAMPLE_WASM_NAME}</code> in collection detail.</li>
 
-          <li>Publish ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ subscribe ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ set as serve-time ranker on a feed Sorting tab.</li>
+          <li>Publish → subscribe → set as serve-time ranker on a feed Sorting tab.</li>
 
-          <li>Preview skeleton ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â order should be reversed vs pool sort alone.</li>
+          <li>Preview skeleton — order should be reversed vs pool sort alone.</li>
 
         </ol>
 

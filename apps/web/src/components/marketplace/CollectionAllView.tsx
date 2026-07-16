@@ -65,6 +65,7 @@ export function CollectionAllView({ selection, onSelect }: Props) {
           listing={pkg.listing}
           updatedAt={pkg.updatedAt}
           productKind="logic_block"
+          ownerDid={pkg.ownerDid}
           selected={selection?.kind === 'logic_block' && selection.pkg.id === pkg.id}
           onClick={() => onSelect({ kind: 'logic_block', pkg })}
         />
@@ -86,6 +87,7 @@ export function CollectionAllView({ selection, onSelect }: Props) {
           listing={pkg.listing}
           updatedAt={pkg.updatedAt}
           productKind="sort_pack"
+          ownerDid={pkg.ownerDid}
           selected={selection?.kind === 'sort_pack' && selection.pkg.id === pkg.id}
           onClick={() => onSelect({ kind: 'sort_pack', pkg })}
         />
@@ -107,6 +109,7 @@ export function CollectionAllView({ selection, onSelect }: Props) {
           listing={pkg.listing}
           updatedAt={pkg.updatedAt}
           productKind="injector"
+          ownerDid={pkg.ownerDid}
           selected={selection?.kind === 'injector' && selection.pkg.id === pkg.id}
           onClick={() => onSelect({ kind: 'injector', pkg })}
         />
@@ -128,6 +131,7 @@ export function CollectionAllView({ selection, onSelect }: Props) {
           listing={pkg.listing}
           updatedAt={pkg.updatedAt}
           productKind="ranker"
+          ownerDid={pkg.ownerDid}
           selected={selection?.kind === 'ranker' && selection.pkg.id === pkg.id}
           onClick={() => onSelect({ kind: 'ranker', pkg })}
         />
