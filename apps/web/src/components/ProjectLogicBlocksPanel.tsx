@@ -84,6 +84,16 @@ export function ProjectLogicBlocksPanel({ draft, onChange }: Props) {
         Users can still move or remove it from individual feeds.
       </p>
 
+      <div className="project-logic-blocks-actions">
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => setShowCreate(true)}
+        >
+          Create new logic block
+        </button>
+      </div>
+
       {pinned && pinnedBlock ? (
         <div className="project-logic-blocks-pinned">
           <div className="project-logic-blocks-pinned-info">
@@ -115,16 +125,6 @@ export function ProjectLogicBlocksPanel({ draft, onChange }: Props) {
 
       {!pinned && (
         <>
-          <div className="project-logic-blocks-actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              onClick={() => setShowCreate(true)}
-            >
-              Create new logic block
-            </button>
-          </div>
-
           {loading ? (
             <p className="card-hint">Loading logic blocks…</p>
           ) : blocks.length === 0 ? (
@@ -134,7 +134,7 @@ export function ProjectLogicBlocksPanel({ draft, onChange }: Props) {
           ) : (
             <>
               <p className="card-hint" style={{ marginTop: '1rem' }}>
-                Or pin an existing block from your collection:
+                Pin an existing block from your collection:
               </p>
               <ul className="project-logic-blocks-list">
                 {blocks.map((pkg) => (

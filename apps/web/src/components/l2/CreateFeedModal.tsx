@@ -12,6 +12,7 @@ export type FeedLogicFields = Pick<
 export interface CreateFeedModalProps {
   projectId: string
   onClose: () => void
+  pinnedLogicBlock?: import('@cfb/core-types').LogicBlockRef
   onCreate: (feed: FeedConfig, avatarFile?: File) => Promise<void>
   /** Pre-filled logic when cloning */
   sourceLogic?: FeedLogicFields | null
@@ -38,6 +39,7 @@ const SETTINGS_KEYS = SETTINGS_TOGGLES.map((t) => t.key)
 export function CreateFeedModal({
   projectId,
   onClose,
+  pinnedLogicBlock,
   onCreate,
   sourceLogic,
   sourceLabel,
@@ -147,9 +149,15 @@ export function CreateFeedModal({
       description: description.trim() || undefined,
       enabled: false,
       poolScope: 'project_only',
-      match: effectiveLogic?.match ?? { type: 'group', id: 'root', logic: 'any', children: [] },
+      match: effectiveLogic?.match ?? (pinnedLogicBlock
+        ? { type: 'group', id: 'root', logic: 'any', children: [{ type: 'logic_block_ref', id: 'lb-project', packageId: pinnedLogicBlock.packageId, versionPin: pinnedLogicBlock.versionPin }] }
+        : { type: 'group', id: 'root', logic: 'any', children: [] }),
       ...(effectiveLogic?.rank && { rank: effectiveLogic.rank }),
-      ...(effectiveLogic?.visualLayout && { visualLayout: effectiveLogic.visualLayout }),
+      ...(effectiveLogic?.visualLayout
+        ? { visualLayout: effectiveLogic.visualLayout }
+        : pinnedLogicBlock
+          ? { visualLayout: { positions: { 'lb-project': { x: 300, y: 200 } }, edges: [{ id: 'e-start-lb-project', source: 'start', target: 'lb-project', branch: true }, { id: 'e-lb-project-end', source: 'lb-project', target: 'end', branch: true }] } }
+          : {}),
       ...(effectiveLogic?.injector && { injector: effectiveLogic.injector }),
       ...(effectiveLogic?.authorLists && { authorLists: effectiveLogic.authorLists }),
       ...(effectiveLogic?.sources && { sources: effectiveLogic.sources }),

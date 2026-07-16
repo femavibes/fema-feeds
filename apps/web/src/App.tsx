@@ -564,6 +564,7 @@ export function App() {
       {showCreateFeedModal && draft && (
         <CreateFeedModal
           projectId={draft.projectId}
+          pinnedLogicBlock={draft.pinnedLogicBlock}
           onClose={() => { setShowCreateFeedModal(false); setCreateFeedSourceLogic(null); setCreateFeedSourceLabel(null) }}
           onCreate={(feed, avatarFile) => handleCreateFeedFromModal(feed, avatarFile)}
           sourceLogic={createFeedSourceLogic}
