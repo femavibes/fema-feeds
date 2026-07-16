@@ -291,7 +291,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
             <input
               type="search"
               className="input input-sm l2-palette-search-input"
-              placeholder="Searchâ€¦"
+              placeholder="Search…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -301,7 +301,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
         <div className="l2-palette-catalog-body" ref={catalogRef}>
 
         {catalogLoading && source !== 'native' ? (
-          <p className="card-hint">Loadingâ€¦</p>
+          <p className="card-hint">Loading…</p>
         ) : null}
 
         {source === 'native' ? (
@@ -435,7 +435,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
         {source === 'subscriptions' && subscriptionSection === 'custom_code' ? (
           <p className="card-hint">
             Subscribed custom-code logic blocks (WASM / worker) with visual editor support will
-            appear here. Injectors and personalization plugins stay in feed settings â€” not on this canvas.
+            appear here. Injectors and personalization plugins stay in feed settings — not on this canvas.
           </p>
         ) : null}
         </div>
