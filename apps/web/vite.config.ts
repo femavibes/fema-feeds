@@ -20,6 +20,13 @@ function apiProxy(target: string): ProxyOptions {
   }
 }
 
+function passthroughProxy(target: string): ProxyOptions {
+  return {
+    target,
+    changeOrigin: false,
+  }
+}
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -29,6 +36,8 @@ export default defineConfig({
     proxy: {
       '/api': apiProxy('http://127.0.0.1:3000'),
       '/oauth': apiProxy('http://127.0.0.1:3000'),
+      '/.well-known': passthroughProxy('http://127.0.0.1:3000'),
+      '/xrpc': passthroughProxy('http://127.0.0.1:3000'),
     },
   },
 })
