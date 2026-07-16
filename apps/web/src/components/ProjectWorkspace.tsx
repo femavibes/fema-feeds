@@ -339,6 +339,7 @@ export function ProjectWorkspace({
             view={ingestionView}
             onViewChange={setIngestionView}
             onChange={onProjectChange}
+            onSave={() => { onSaveProject(); return Promise.resolve() }}
             listCache={listCache}
             onRefreshList={onRefreshList}
             feeds={feeds}

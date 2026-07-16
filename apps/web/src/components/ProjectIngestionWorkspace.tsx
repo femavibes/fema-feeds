@@ -23,6 +23,7 @@ interface Props {
   view: IngestionWorkspaceView
   onViewChange: (view: IngestionWorkspaceView) => void
   onChange: (next: ProjectL1Config) => void
+  onSave?: () => Promise<void>
   listCache: ListCacheEntry[]
   onRefreshList: (listId: string) => Promise<void>
   feeds?: FeedConfig[]
@@ -51,6 +52,7 @@ export function ProjectIngestionWorkspace({
   view,
   onViewChange,
   onChange,
+  onSave,
   listCache,
   onRefreshList,
   feeds,
@@ -144,7 +146,7 @@ export function ProjectIngestionWorkspace({
   }
 
   if (view === 'logic-blocks') {
-    return <ProjectLogicBlocksPanel draft={draft} onChange={onChange} />
+    return <ProjectLogicBlocksPanel draft={draft} onChange={onChange} onSave={onSave} />
   }
 
   if (view === 'intelligence') {
