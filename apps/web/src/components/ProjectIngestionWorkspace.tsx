@@ -15,6 +15,7 @@ import { L2JsonEditor } from './l2/L2JsonEditor'
 import { L2VisualEditor } from './l2/visual/L2VisualEditor'
 import { ProjectSettingsPage } from './ProjectSettingsPage'
 import { FeedIntelligencePanel } from './FeedIntelligencePanel'
+import { ProjectLogicBlocksPanel } from './ProjectLogicBlocksPanel'
 
 interface Props {
   draft: ProjectL1Config
@@ -34,6 +35,7 @@ export function ingestionNavItemsForMode(mode: 'strict' | 'manual'): { id: Inges
     { id: 'visual', label: 'Visual editor' },
     { id: 'json', label: 'JSON editor' },
     { id: 'prefilter', label: 'Prefilter' },
+    { id: 'logic-blocks', label: 'Logic Blocks' },
     { id: 'settings', label: 'Settings' },
     { id: 'intelligence', label: 'Intelligence' },
   ]
@@ -139,6 +141,10 @@ export function ProjectIngestionWorkspace({
         }}
       />
     )
+  }
+
+  if (view === 'logic-blocks') {
+    return <ProjectLogicBlocksPanel draft={draft} onChange={onChange} />
   }
 
   if (view === 'intelligence') {

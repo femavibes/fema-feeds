@@ -103,19 +103,47 @@ export function newId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}`
 }
 
-export function emptyFeed(projectId: string, feedId: string, name: string): FeedConfig {
+export function emptyFeed(
+  projectId: string,
+  feedId: string,
+  name: string,
+  pinnedLogicBlock?: import('@cfb/core-types').LogicBlockRef,
+): FeedConfig {
+  const blockNodeId = pinnedLogicBlock ? newId('lb') : ''
+  const match: FeedConfig['match'] = pinnedLogicBlock
+    ? {
+        type: 'group',
+        id: 'root',
+        logic: 'any',
+        children: [
+          {
+            type: 'logic_block_ref',
+            id: blockNodeId,
+            packageId: pinnedLogicBlock.packageId,
+            versionPin: pinnedLogicBlock.versionPin,
+          } as import('@cfb/core-types').L2RuleNode,
+        ],
+      }
+    : { type: 'group', id: 'root', logic: 'any', children: [] }
+
   return {
     feedId,
     projectId,
     name,
     enabled: false,
     poolScope: 'project_only',
-    match: {
-      type: 'group',
-      id: 'root',
-      logic: 'any',
-      children: [],
-    },
+    match,
+    ...(pinnedLogicBlock
+      ? {
+          visualLayout: {
+            positions: { [blockNodeId]: { x: 300, y: 200 } },
+            edges: [
+              { id: `e-start-${blockNodeId}`, source: 'start', target: blockNodeId, branch: true },
+              { id: `e-${blockNodeId}-end`, source: blockNodeId, target: 'end', branch: true },
+            ],
+          },
+        }
+      : {}),
   }
 }
 

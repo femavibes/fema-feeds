@@ -344,7 +344,7 @@ export function App() {
     setError(null)
     setMessage(null)
     try {
-      const { feed } = await api.createFeed(emptyFeed(draft.projectId, feedId, name))
+      const { feed } = await api.createFeed(emptyFeed(draft.projectId, feedId, name, draft.pinnedLogicBlock))
       setFeeds((prev) => [...prev, feed].sort((a, b) => a.name.localeCompare(b.name)))
       setSelectedFeedId(feed.feedId)
       setBuilderSection('project')

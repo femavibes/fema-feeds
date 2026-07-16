@@ -164,6 +164,8 @@ export interface ProjectL1Config {
   strictIncludeGate?: CompiledIngestGate
   /** Metadata about strict gate compilation. */
   strictGateMeta?: import('./strict-ingest.js').StrictGateMeta
+  /** Logic block pinned to this project — auto-inserted into new feeds. */
+  pinnedLogicBlock?: import('./logic-blocks.js').LogicBlockRef
 }
 
 export type { ProjectPrefilter } from './prefilter.js'
