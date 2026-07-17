@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import type { FeedConfig, L2Expr, AuthorFairnessMode, ContentSignals, EngagementWeights, MediaBonus, RatioSignals, SortTuning } from '@cfb/core-types'
+import type { FeedConfig, L2Expr, AuthorFairnessMode, ContentSignals, EngagementWeights, MediaBonus, RatioSignals, SortTuning, DecayMode } from '@cfb/core-types'
 
 import { ToggleRow } from '../ToggleRow'
 import { SortFormulaBuilder } from './SortFormulaBuilder'
@@ -139,15 +139,37 @@ function TuningSection({
     <fieldset className="feed-sorting-tuning-fields" disabled={disabled}>
       <p className="sidebar-block-title">Tuning</p>
       <label className="l2-inspector-field">
-        Time decay (half-life hours)
-        <input
-          type="number"
-          min="0"
-          step="1"
-          value={tuning.decayHalfLifeHours}
-          onChange={(e) => onChange({ ...tuning, decayHalfLifeHours: Math.max(0, parseInt(e.target.value) || 0) })}
-        />
-        <span className="card-hint">0 = off. Posts lose half their score every N hours.</span>
+        Time decay
+        <select
+          value={tuning.decayMode ?? 'none'}
+          onChange={(e) => onChange({ ...tuning, decayMode: e.target.value as DecayMode })}
+        >
+          <option value="none">Off</option>
+          <option value="halflife">Half-life (gentle)</option>
+          <option value="exponential">Exponential (aggressive)</option>
+          <option value="rate">Engagement rate (per-hour)</option>
+        </select>
+        {(tuning.decayMode === 'halflife' || tuning.decayMode === 'exponential') && (
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={tuning.decayHalfLifeHours}
+            onChange={(e) => onChange({ ...tuning, decayHalfLifeHours: Math.max(1, parseInt(e.target.value) || 24) })}
+          />
+        )}
+        {(!tuning.decayMode || tuning.decayMode === 'none') && (
+          <span className="card-hint">No time decay applied.</span>
+        )}
+        {tuning.decayMode === 'halflife' && (
+          <span className="card-hint">Gentle. Score halves every N hours — a viral post still stays visible for days.</span>
+        )}
+        {tuning.decayMode === 'exponential' && (
+          <span className="card-hint">Aggressive. Score compounds down — halves every N hours no matter how viral. Set N=24 for strong daily decay.</span>
+        )}
+        {tuning.decayMode === 'rate' && (
+          <span className="card-hint">Divides score by age in hours. Rewards posts gaining engagement fast — a post with 100 likes at 2h beats 1000 likes at 200h.</span>
+        )}
       </label>
       <label className="l2-inspector-field">
         Editor score boost

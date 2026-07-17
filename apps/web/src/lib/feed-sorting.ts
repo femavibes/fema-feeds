@@ -1,4 +1,4 @@
-import type { FeedConfig, L2Expr, L2NumericField, EngagementSignal, EngagementWeights, ContentSignals, RatioSignals, MediaBonus, AuthorFairnessMode, SortTuning } from '@cfb/core-types'
+import type { FeedConfig, L2Expr, L2NumericField, EngagementSignal, EngagementWeights, ContentSignals, RatioSignals, MediaBonus, AuthorFairnessMode, SortTuning, DecayMode } from '@cfb/core-types'
 
 export type SortMode = 'chronological' | 'engagement' | 'custom' | 'builder' | 'pack'
 
@@ -42,7 +42,8 @@ export const DEFAULT_MEDIA_BONUS: MediaBonus = {
 }
 
 export const DEFAULT_SORT_TUNING: SortTuning = {
-  decayHalfLifeHours: 0,
+  decayMode: 'none',
+  decayHalfLifeHours: 24,
   editorScoreWeight: 0,
   maxAgeHours: 0,
   authorFairness: 'off',
@@ -94,9 +95,18 @@ function binary(op: '+' | '-' | '*' | '/', left: L2Expr, right: L2Expr): L2Expr 
   return { type: 'binary', op, left, right }
 }
 
-/** score / (1 + post_age_hours / halfLife) */
-function applyDecay(base: L2Expr, halfLifeHours: number): L2Expr {
+function applyDecay(base: L2Expr, mode: DecayMode, halfLifeHours: number): L2Expr {
+  if (mode === 'none') return base
+  if (mode === 'rate') {
+    // score / (age_hours + 1) — rewards posts gaining engagement fast
+    return binary('/', base, binary('+', fieldExpr('post_age_hours'), literal(1)))
+  }
   if (halfLifeHours <= 0) return base
+  if (mode === 'exponential') {
+    // score * 0.5^(age_hours / halfLife) — true compounding, halves every N hours
+    return binary('*', base, { type: 'binary', op: '**', left: literal(0.5), right: binary('/', fieldExpr('post_age_hours'), literal(halfLifeHours)) })
+  }
+  // halflife: score / (1 + age_hours / halfLife) — gentle
   return binary('/', base, binary('+', literal(1), binary('/', fieldExpr('post_age_hours'), literal(halfLifeHours))))
 }
 
@@ -211,7 +221,7 @@ export function applyTuning(base: L2Expr, tuning: SortTuning): L2Expr {
   expr = applyRatioSignals(expr, tuning.ratioSignals)
   expr = applyMediaBonus(expr, tuning.mediaBonus)
   expr = applyAuthorFairness(expr, tuning.authorFairness)
-  expr = applyDecay(expr, tuning.decayHalfLifeHours)
+  expr = applyDecay(expr, tuning.decayMode ?? 'none', tuning.decayHalfLifeHours)
   if (tuning.maxAgeHours > 0) {
     const ageFactor = binary('-', literal(1), binary('/', fieldExpr('post_age_hours'), literal(tuning.maxAgeHours)))
     expr = binary('*', expr, ageFactor)

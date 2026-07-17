@@ -91,7 +91,10 @@ export interface MediaBonus {
 
 export type AuthorFairnessMode = 'off' | 'log' | 'sqrt' | 'sigmoid'
 
+export type DecayMode = 'none' | 'halflife' | 'exponential' | 'rate'
+
 export interface SortTuning {
+  decayMode: DecayMode
   decayHalfLifeHours: number
   editorScoreWeight: number
   maxAgeHours: number
