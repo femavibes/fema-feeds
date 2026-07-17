@@ -23,7 +23,7 @@ import {
   updateGroup,
 } from '../../../lib/l2-form'
 import { flattenTopLevelMatch, normalizeCanvasFeedStorage, normalizeRuleGroup, sanitizeCanvasEdges } from '@cfb/l2-graph'
-import { L2CanvasContextMenu, type CanvasContextMenuState, type ConnectTarget } from './L2CanvasContextMenu'
+import { L2CanvasContextMenu, type CanvasContextMenuState } from './L2CanvasContextMenu'
 import { L2GraphCanvas } from './L2GraphCanvas'
 import { L2PropertiesInspector } from './L2NodeInspector'
 import { L2PreviewRail } from './L2PreviewRail'
@@ -196,6 +196,8 @@ export function L2VisualEditor({
   const nodeSources = draft.visualLayout?.nodeSources ?? {}
   const [contextMenu, setContextMenu] = useState<CanvasContextMenuState>(null)
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null)
+  /** After "Connect to…", the next node tap completes the wire. */
+  const [connectFromId, setConnectFromId] = useState<string | null>(null)
 
   const applyHistorySnapshot = useCallback(
     (snapshot: VisualEditorSnapshot) => {
@@ -234,6 +236,11 @@ export function L2VisualEditor({
       recordBeforeChange()
       onDraftChange((prev) => {
         const next = { ...prev, ...patch }
+        // Merge visualLayout so a follow-up match patch in the same tick cannot
+        // clobber freshly saved node positions (root-node drag snap-back bug).
+        if (patch.visualLayout) {
+          next.visualLayout = { ...prev.visualLayout, ...patch.visualLayout }
+        }
         const nextMatch = normalizeRuleGroup(next.match)
         if (next.visualLayout?.edges?.length) {
           const cleaned = sanitizeCanvasEdges(nextMatch, next.visualLayout.edges)
@@ -252,12 +259,16 @@ export function L2VisualEditor({
   const patchMatch = useCallback(
     (next: L2RuleGroup) => {
       setTestTrace(null)
+      // Only touch edges — keep whatever positions are already on the draft
+      // (including a positions patch queued earlier in this drag-stop).
       patchDraft({
         match: next,
-        visualLayout: visualLayout({ edges: resolveCanvasEdges(next, canvasEdges) }),
+        visualLayout: {
+          edges: resolveCanvasEdges(next, canvasEdges),
+        } as FeedConfig['visualLayout'],
       })
     },
-    [patchDraft, visualLayout, canvasEdges],
+    [patchDraft, canvasEdges],
   )
 
   const patchLayout = useCallback(
@@ -363,49 +374,20 @@ export function L2VisualEditor({
     window.setTimeout(() => setStatusMessage(null), 2200)
   }, [])
 
-  const nodeDisplayLabel = useCallback(
-    (nodeId: string): string => {
-      if (nodeId === 'start') return 'START'
-      if (nodeId === 'end') return 'FEED'
-      const node = findInMatch(match, nodeId)
-      if (!node) return nodeId
-      if (node.type === 'group') {
-        const logic =
-          node.logic === 'all' ? 'AND' : node.logic === 'any' ? 'OR' : `N-of-${node.minPass ?? 2}`
-        return node.label?.trim() || `${logic} group`
-      }
-      return nodeLabels[nodeId]?.trim() || node.type.replace(/_/g, ' ')
-    },
-    [match, nodeLabels],
-  )
-
-  const connectTargetsFor = useCallback(
-    (sourceId: string): ConnectTarget[] => {
-      const candidates = ['start', 'end', ...match.children.map((c) => c.id)]
-      return candidates
-        .filter(
-          (targetId) =>
-            targetId !== sourceId &&
-            isValidCanvasConnection(
-              { source: sourceId, target: targetId, sourceHandle: null, targetHandle: null },
-              match,
-              canvasEdges,
-            ),
-        )
-        .map((id) => ({ id, label: nodeDisplayLabel(id) }))
-    },
-    [match, canvasEdges, nodeDisplayLabel],
-  )
+  const cancelConnectPicker = useCallback(() => {
+    setConnectFromId(null)
+    setStatusMessage(null)
+  }, [])
 
   const openNodeContextMenu = useCallback(
     (nodeId: string, x: number, y: number) => {
+      setConnectFromId(null)
       const isEndpoint = nodeId === 'start' || nodeId === 'end'
       const isRoot = nodeId === match.id
       // Nested inside an AND/OR/N-of: canvas wires are hidden, so no Connect to.
       const nested =
         !isEndpoint && !isRoot && !isTopLevelMatchNode(match, nodeId) && findParentId(match, nodeId) !== null
       const canConnect = !nested && !isRoot
-      const connectTargets = canConnect ? connectTargetsFor(nodeId) : []
       setContextMenu({
         kind: 'node',
         nodeId,
@@ -416,22 +398,23 @@ export function L2VisualEditor({
         canDuplicate: !isEndpoint && !isRoot,
         canOpenProperties: !isEndpoint,
         canConnect,
-        connectTargets,
       })
     },
-    [match, connectTargetsFor],
+    [match],
   )
 
   const openEdgeContextMenu = useCallback((edgeId: string, x: number, y: number) => {
+    setConnectFromId(null)
     setContextMenu({ kind: 'edge', edgeId, x, y })
   }, [])
 
-  const enterConnectPicker = useCallback(
-    (nodeId: string, x: number, y: number, targets: ConnectTarget[]) => {
-      setContextMenu({ kind: 'connect', nodeId, x, y, targets })
-    },
-    [],
-  )
+  const enterConnectPicker = useCallback((nodeId: string) => {
+    setContextMenu(null)
+    setConnectFromId(nodeId)
+    setSelectedId(nodeId)
+    setSelectedEdgeId(null)
+    setStatusMessage('Tap a node to connect · Esc cancels')
+  }, [])
 
   const connectNodes = useCallback(
     (sourceId: string, targetId: string) => {
@@ -442,17 +425,41 @@ export function L2VisualEditor({
           canvasEdges,
         )
       ) {
-        setContextMenu(null)
-        return
+        return false
       }
       const edge = newCanvasEdge(sourceId, targetId)
       if (!canvasEdges.some((e) => e.id === edge.id)) {
         patchDraft({ visualLayout: visualLayout({ edges: [...canvasEdges, edge] }) })
       }
+      setConnectFromId(null)
       setContextMenu(null)
       flash('Connected')
+      return true
     },
     [match, canvasEdges, patchDraft, visualLayout, flash],
+  )
+
+  const handleCanvasSelect = useCallback(
+    (id: string | null) => {
+      if (connectFromId) {
+        if (!id) {
+          cancelConnectPicker()
+          setSelectedId(null)
+          return
+        }
+        if (id === connectFromId) {
+          setSelectedId(id)
+          return
+        }
+        if (!connectNodes(connectFromId, id)) {
+          setStatusMessage("Can't connect to that node · tap another · Esc cancels")
+        }
+        setSelectedId(id)
+        return
+      }
+      setSelectedId(id)
+    },
+    [connectFromId, connectNodes, cancelConnectPicker],
   )
 
   const duplicateNode = useCallback(
@@ -524,6 +531,11 @@ export function L2VisualEditor({
           setRenameTargetId(null)
           return
         }
+        if (connectFromId) {
+          setConnectFromId(null)
+          setStatusMessage(null)
+          return
+        }
         if (contextMenu) {
           setContextMenu(null)
           return
@@ -555,6 +567,7 @@ export function L2VisualEditor({
     dirty,
     onSaveDraft,
     nestedOverlayOpen,
+    connectFromId,
   ])
 
   const addPaletteNode = useCallback(
@@ -715,7 +728,7 @@ export function L2VisualEditor({
     <div
       className={`l2-visual-fullscreen${readOnly ? ' l2-visual-fullscreen--nested' : ''}${
         !readOnly && nestedOverlayOpen ? ' l2-visual-fullscreen--obscured' : ''
-      }`}
+      }${connectFromId ? ' l2-visual-fullscreen--connect-pick' : ''}`}
       style={rails.gridStyle}
       role="dialog"
       aria-modal="true"
@@ -851,7 +864,7 @@ export function L2VisualEditor({
             selectedId={selectedId}
             selectedEdgeId={selectedEdgeId}
             testTrace={testTrace}
-            onSelect={setSelectedId}
+            onSelect={handleCanvasSelect}
             onSelectEdge={setSelectedEdgeId}
             onPositionsChange={(next) => patchLayout(next)}
             onEdgesChange={(edges) => {
@@ -898,7 +911,6 @@ export function L2VisualEditor({
               setContextMenu(null)
               openPropertiesForNode(nodeId)
             }}
-            onConnectNodes={connectNodes}
             onDisconnectEdge={deleteEdge}
             onEnterConnectPicker={enterConnectPicker}
           />

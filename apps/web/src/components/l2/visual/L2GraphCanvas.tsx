@@ -19,7 +19,6 @@ import { reorderMatchFromLayout } from '../../../lib/l2-form'
 import { graphNodeTypes, type GraphNodeData } from './graph-nodes'
 import { graphEdgeTypes } from './graph-edges'
 import { L2CanvasToolbar } from './L2CanvasToolbar'
-import { NodeExtractContext } from './node-extract-context'
 import {
   PALETTE_DRAG_MIME,
   PALETTE_ITEM_BY_ID,
@@ -28,6 +27,7 @@ import {
   type PalettePick,
 } from './palette'
 import {
+  applyNestedLayoutPositions,
   applyTraceOutcomes,
   absoluteNodeBounds,
   absoluteNodePosition,
@@ -44,6 +44,7 @@ import {
   relockNodeInParent,
   resolveCanvasSelectionId,
   shouldRelockInOriginGroup,
+  snapNestedConditionNodes,
   updateRfNodeLabels,
   type CanvasEdge,
   type NodeLabels,
@@ -137,8 +138,6 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
   nodeSourcesRef.current = nodeSources
   const edgesRef = useRef(canvasEdges)
   edgesRef.current = canvasEdges
-  const customExtractRef = useRef(false)
-  const dragOffsetRef = useRef({ x: 0, y: 0 })
   const extractSessionRef = useRef<{ nodeId: string; originParentId: string } | null>(null)
 
   const { screenToFlowPosition, getIntersectingNodes, getNode, getNodes } = useReactFlow()
@@ -234,11 +233,15 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
 
   const persistRelockedNodes = useCallback(
     (updatedNodes: Node<GraphNodeData>[]) => {
-      onPositionsChange(extractPositions(updatedNodes))
-      const reordered = reorderMatchFromLayout(match, layoutNodesForReorder(updatedNodes))
+      const snapped = snapNestedConditionNodes(updatedNodes)
+      const reordered = reorderMatchFromLayout(match, layoutNodesForReorder(snapped))
+      const layoutMatch = reordered !== match ? reordered : match
+      const laidOut = applyNestedLayoutPositions(snapped, layoutMatch)
+      if (laidOut !== snapped) setNodes(laidOut)
+      onPositionsChange(extractPositions(laidOut))
       if (reordered !== match) onMatchReorder(reordered)
     },
-    [match, onMatchReorder, onPositionsChange],
+    [match, onMatchReorder, onPositionsChange, setNodes],
   )
 
   const clearExtractState = useCallback(
@@ -274,7 +277,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
 
       const originBounds = absoluteNodeBounds(origin, nodeById)
       const hits = getIntersectingNodes(node) as Node<GraphNodeData>[]
-      const dropTarget = findGroupDropTarget(node, hits, match)
+      const dropTarget = findGroupDropTarget(node, hits, match, nds)
 
       setDropHighlight(null)
       extractSessionRef.current = null
@@ -313,88 +316,34 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     ],
   )
 
-  const startExtractDrag = useCallback(
-    (nodeId: string, event: { clientX: number; clientY: number }) => {
-      const node = getNode(nodeId) as Node<GraphNodeData> | undefined
-      if (!node?.parentId) return
-
-      customExtractRef.current = true
-      extractSessionRef.current = { nodeId, originParentId: node.parentId }
-
+  /** Nested nodes lift to absolute coords on drag so a normal drag can
+   *  reorder in-place, drop into another group, or pull out to the canvas. */
+  const onNodeDragStart: OnNodeDrag<Node<GraphNodeData>> = useCallback(
+    (_event, node) => {
+      if (readOnly || !node.parentId) return
+      if (extractSessionRef.current) return
+      extractSessionRef.current = { nodeId: node.id, originParentId: node.parentId }
       const lifted = liftNodeForExtract(node)
-      const flow = screenToFlowPosition({ x: event.clientX, y: event.clientY })
-      dragOffsetRef.current = {
-        x: flow.x - lifted.position.x,
-        y: flow.y - lifted.position.y,
-      }
-
-      setNodes((nds) => nds.map((n) => (n.id === nodeId ? lifted : n)))
-
-      const move = (e: PointerEvent) => {
-        const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY })
-        setNodes((nds) =>
-          nds.map((n) =>
-            n.id === nodeId
-              ? {
-                  ...n,
-                  position: {
-                    x: flowPos.x - dragOffsetRef.current.x,
-                    y: flowPos.y - dragOffsetRef.current.y,
-                  },
-                  data: {
-                    ...n.data,
-                    extracting: true,
-                    extractOriginParentId: extractSessionRef.current?.originParentId,
-                  },
-                }
-              : n,
-          ),
-        )
-        const current = getNode(nodeId) as Node<GraphNodeData> | undefined
-        if (current) {
-          const hits = getIntersectingNodes(current) as Node<GraphNodeData>[]
-          setDropHighlight(
-            findExtractDropHighlight(
-              current,
-              hits,
-              match,
-              extractSessionRef.current?.originParentId ?? null,
-            ),
-          )
-        }
-      }
-
-      const up = () => {
-        window.removeEventListener('pointermove', move)
-        window.removeEventListener('pointerup', up)
-        window.removeEventListener('pointercancel', up)
-        customExtractRef.current = false
-        finishExtractDrag(nodeId)
-      }
-
-      window.addEventListener('pointermove', move)
-      window.addEventListener('pointerup', up)
-      window.addEventListener('pointercancel', up)
+      setNodes((nds) => nds.map((n) => (n.id === node.id ? lifted : n)))
     },
-    [
-      finishExtractDrag,
-      getIntersectingNodes,
-      getNode,
-      liftNodeForExtract,
-      match,
-      screenToFlowPosition,
-      setDropHighlight,
-      setNodes,
-    ],
+    [liftNodeForExtract, readOnly, setNodes],
   )
 
   const onNodeDrag: OnNodeDrag<Node<GraphNodeData>> = useCallback(
     (_event, node) => {
+      const nds = getNodes() as Node<GraphNodeData>[]
       const hits = getIntersectingNodes(node) as Node<GraphNodeData>[]
-      const targetId = findGroupDropTarget(node, hits, match)
+      const session = extractSessionRef.current
+      if (session?.nodeId === node.id) {
+        setDropHighlight(
+          findExtractDropHighlight(node, hits, match, session.originParentId, nds),
+        )
+        return
+      }
+      const targetId = findGroupDropTarget(node, hits, match, nds)
       setDropHighlight(targetId)
     },
-    [getIntersectingNodes, match, setDropHighlight],
+    [getIntersectingNodes, getNodes, match, setDropHighlight],
   )
 
   const applyDragStopLayout = useCallback(
@@ -404,21 +353,32 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
         const dragged = draggedNodes.find((d) => d.id === n.id)
         return dragged ? { ...n, position: dragged.position } : n
       })
-      const reordered = reorderMatchFromLayout(match, layoutNodesForReorder(withDragged))
+      // Snap conditions by current Y order first so reorder + layout agree.
+      const snapped = snapNestedConditionNodes(withDragged)
+      const reordered = reorderMatchFromLayout(match, layoutNodesForReorder(snapped))
+      const layoutMatch = reordered !== match ? reordered : match
+      // Always re-apply nested layout positions so expanding parents / free
+      // drags don't leave conditions or nested OR/AND frames overlapping.
+      const laidOut = applyNestedLayoutPositions(snapped, layoutMatch)
+      if (laidOut !== snapped) setNodes(laidOut)
+      onPositionsChange(extractPositions(laidOut))
       if (reordered !== match) onMatchReorder(reordered)
-      onPositionsChange(extractPositions(withDragged))
     },
-    [getNodes, match, onMatchReorder, onPositionsChange],
+    [getNodes, match, onMatchReorder, onPositionsChange, setNodes],
   )
 
   const onNodeDragStop: OnNodeDrag<Node<GraphNodeData>> = useCallback(
     (_event, node, draggedNodes) => {
-      if (customExtractRef.current) return
-
       setDropHighlight(null)
 
+      if (extractSessionRef.current?.nodeId === node.id) {
+        finishExtractDrag(node.id)
+        return
+      }
+
+      const nds = getNodes() as Node<GraphNodeData>[]
       const hits = getIntersectingNodes(node) as Node<GraphNodeData>[]
-      const targetId = findGroupDropTarget(node, hits, match)
+      const targetId = findGroupDropTarget(node, hits, match, nds)
       if (targetId) {
         onReparent(node.id, targetId)
         return
@@ -426,7 +386,15 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
 
       applyDragStopLayout(draggedNodes)
     },
-    [applyDragStopLayout, getIntersectingNodes, match, onReparent, setDropHighlight],
+    [
+      applyDragStopLayout,
+      finishExtractDrag,
+      getIntersectingNodes,
+      getNodes,
+      match,
+      onReparent,
+      setDropHighlight,
+    ],
   )
 
   useEffect(() => {
@@ -562,7 +530,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
   )
 
   return (
-    <NodeExtractContext.Provider value={startExtractDrag}>
+    <>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -602,8 +570,9 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
           onSelect(null)
           onSelectEdge(null)
         }}
-        onNodeDrag={onNodeDrag}
-        onNodeDragStop={onNodeDragStop}
+        onNodeDragStart={readOnly ? undefined : onNodeDragStart}
+        onNodeDrag={readOnly ? undefined : onNodeDrag}
+        onNodeDragStop={readOnly ? undefined : onNodeDragStop}
         onConnect={readOnly ? undefined : onConnect}
         connectionLineType={ConnectionLineType.SmoothStep}
         isValidConnection={
@@ -645,7 +614,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
           bgColor="var(--bg-card)"
         />
       </ReactFlow>
-    </NodeExtractContext.Provider>
+    </>
   )
 })
 

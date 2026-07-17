@@ -10,7 +10,7 @@ import {
   sanitizeCanvasEdges,
   snapNestedConditionPosition,
 } from '@cfb/l2-graph'
-import { findInMatch, canDropIntoGroup } from '../../../lib/l2-form'
+import { findInMatch, findParentId, canDropIntoGroup } from '../../../lib/l2-form'
 import type { GraphNodeData } from './graph-nodes'
 import { FLOW_EDGE_INTERACTION_WIDTH } from './graph-edges'
 
@@ -52,9 +52,15 @@ function resolveNodePosition(
   box: { id: string; x: number; y: number; parentId?: string; kind: string },
   positions: NodePositions,
 ): { x: number; y: number } {
-  if (box.parentId && box.kind === 'condition') {
-    const index = nestedConditionSlotIndex(match, box.id, box.parentId)
-    return snapNestedConditionPosition({ x: box.x, y: box.y }, index)
+  // Nested children are laid out rigidly by layoutMatchFlow. Persisted drag
+  // coords go stale when the parent frame expands (add/remove siblings) and
+  // cause overlaps — always prefer the live layout box.
+  if (box.parentId && (box.kind === 'condition' || box.kind === 'group-frame')) {
+    if (box.kind === 'condition') {
+      const index = nestedConditionSlotIndex(match, box.id, box.parentId)
+      return snapNestedConditionPosition({ x: box.x, y: box.y }, index)
+    }
+    return { x: box.x, y: box.y }
   }
   return positions[box.id] ?? { x: box.x, y: box.y }
 }
@@ -90,7 +96,7 @@ export function flowGraphToRfNodes(
       id: box.id,
       position,
       parentId: box.parentId,
-      extent: nested ? ('parent' as const) : undefined,
+      extent: undefined,
       data: {
         label: box.label,
         subtitle: box.subtitle,
@@ -103,7 +109,6 @@ export function flowGraphToRfNodes(
         nested,
         topLevel: isTopLevel,
         draggableFrame,
-        canExtract: nested,
       },
       draggable: true,
       connectable: showPorts,
@@ -148,25 +153,45 @@ export function flowGraphToRfNodes(
           style: { width: box.width, height: box.height },
         }
       }
-      case 'condition':
+      case 'condition': {
+        const ruleType = box.rule?.type
+        const isScore = ruleType === 'score'
+        const substituteLabel =
+          ruleType === 'substitute' && box.rule && 'direction' in box.rule
+            ? box.rule.direction === 'reply_to_root'
+              ? 'reply→root'
+              : box.rule.direction === 'reply_to_parent'
+                ? 'reply→parent'
+                : 'quote→quoted'
+            : undefined
+        const scoutSubtitle =
+          ruleType === 'scout' && box.rule && 'threshold' in box.rule
+            ? `${box.rule.threshold.min}–${box.rule.threshold.max} scouts`
+            : undefined
         return {
           ...base,
-          type: box.rule?.type === 'score' ? ('score' as const) : box.rule?.type === 'substitute' || box.rule?.type === 'scout' ? ('substitute' as const) : ('condition' as const),
+          // Score keeps its own chrome; scout/substitute use standard condition style.
+          type: isScore ? ('score' as const) : ('condition' as const),
           data: {
             ...base.data,
             nodeId: box.id,
-            ruleType: box.rule?.type,
+            ruleType,
             rule: box.rule,
             title: box.rule ? conditionNodeTitle(box.rule) : box.label,
-            subtitle: box.rule?.type === 'score' ? `+${box.rule.points}` : box.rule?.type === 'substitute' ? (box.rule.direction === 'reply_to_root' ? 'reply→root' : box.rule.direction === 'reply_to_parent' ? 'reply→parent' : 'quote→quoted') : box.rule?.type === 'scout' ? `${box.rule.threshold.min}–${box.rule.threshold.max} scouts` : undefined,
+            subtitle: isScore ? `+${(box.rule as { points: number }).points}` : undefined,
             customName:
               nodeLabels[box.id]?.trim() ||
-              (box.rule?.type === 'logic_block_ref' ? box.rule.label?.trim() : undefined) ||
+              substituteLabel ||
+              scoutSubtitle ||
+              (ruleType === 'logic_block_ref'
+                ? (box.rule as { label?: string }).label?.trim()
+                : undefined) ||
               undefined,
             nodeProvenance: nodeSources[box.id] ?? defaultNodeProvenance(box.rule),
           },
           style: { width: box.width, height: box.height },
         }
+      }
     }
   })
 
@@ -296,8 +321,9 @@ export function updateRfNodeLabels(
 export function extractPositions(nodes: Node<GraphNodeData>[]): NodePositions {
   const out: NodePositions = {}
   for (const n of nodes) {
-    // Nested conditions use layout slots derived from match order — do not persist drag coords.
-    if (n.parentId && n.type === 'condition') continue
+    // Nested conditions + nested group frames use layoutMatchFlow slots —
+    // do not persist drag coords (they go stale when the parent expands).
+    if (n.parentId && (n.type === 'condition' || n.type === 'groupFrame')) continue
     out[n.id] = { x: n.position.x, y: n.position.y }
   }
   return out
@@ -335,6 +361,106 @@ export function snapNestedConditionNodes(nodes: Node<GraphNodeData>[]): Node<Gra
     const position = snappedPos.get(node.id)
     return position ? { ...node, position } : node
   })
+}
+
+/**
+ * Re-apply layoutMatchFlow positions/sizes for every nested child.
+ * Call after a drag that did not change match structure so nested frames
+ * don't stay at free-drag coords.
+ */
+export function applyNestedLayoutPositions(
+  nodes: Node<GraphNodeData>[],
+  match: L2RuleGroup,
+): Node<GraphNodeData>[] {
+  const layout = layoutMatchFlow(normalizeRuleGroup(match))
+  const byId = new Map(layout.nodes.map((box) => [box.id, box]))
+  let changed = false
+  const next = nodes.map((node) => {
+    if (!node.parentId) return node
+    if (node.type !== 'condition' && node.type !== 'groupFrame') return node
+    const box = byId.get(node.id)
+    if (!box) return node
+    const position = { x: box.x, y: box.y }
+    const samePos = node.position.x === position.x && node.position.y === position.y
+    if (node.type === 'groupFrame') {
+      const width = box.width
+      const height = box.height
+      const prevW = typeof node.style?.width === 'number' ? node.style.width : undefined
+      const prevH = typeof node.style?.height === 'number' ? node.style.height : undefined
+      if (samePos && prevW === width && prevH === height) return node
+      changed = true
+      return {
+        ...node,
+        position,
+        style: { ...node.style, width, height },
+      }
+    }
+    if (samePos) return node
+    changed = true
+    return { ...node, position }
+  })
+  return changed ? next : nodes
+}
+
+/** True when `groupId` is nested under `ancestorId` (not equal). */
+function isDescendantGroup(match: L2RuleGroup, ancestorId: string, groupId: string): boolean {
+  let id: string | null = groupId
+  while (id) {
+    const parent = findParentId(match, id)
+    if (parent === ancestorId) return true
+    if (!parent || parent === match.id) return false
+    id = parent
+  }
+  return false
+}
+
+/** Smallest intersecting group frame wins — drop node into that container. */
+export function findGroupDropTarget(
+  dragged: Node<GraphNodeData>,
+  intersecting: Node<GraphNodeData>[],
+  match: L2RuleGroup,
+  allNodes?: Node<GraphNodeData>[],
+): string | null {
+  if (dragged.id === 'start' || dragged.id === 'end') return null
+  if (dragged.type !== 'groupFrame' && dragged.type !== 'condition') return null
+
+  const nodeById = new Map((allNodes ?? intersecting.concat(dragged)).map((n) => [n.id, n]))
+  // Prefer intentional drops: require the dragged node's center to sit inside
+  // the target. Mere edge-overlap with a nested sibling OR/AND while reordering
+  // must not yank the node into that group.
+  const draggedAbs = absoluteNodeBounds(dragged, nodeById)
+  const cx = draggedAbs.x + draggedAbs.width / 2
+  const cy = draggedAbs.y + draggedAbs.height / 2
+
+  let candidates = intersecting.filter(
+    (n) =>
+      n.type === 'groupFrame' &&
+      n.id !== dragged.id &&
+      n.id !== match.id &&
+      canDropIntoGroup(match, dragged.id, n.id) &&
+      pointInBounds(cx, cy, absoluteNodeBounds(n, nodeById)),
+  )
+
+  // Reordering inside a group: the ancestor frame still contains the pointer, so
+  // without this guard every vertical drag would "promote" the node one level up.
+  // While the center stays in the current parent, only allow drops into nested
+  // child groups (e.g. into an OR inside an AND) — never into ancestors.
+  const currentParentId = dragged.parentId
+  if (currentParentId) {
+    const currentParent = nodeById.get(currentParentId)
+    if (currentParent) {
+      const stillInParent = pointInBounds(cx, cy, absoluteNodeBounds(currentParent, nodeById))
+      if (stillInParent) {
+        candidates = candidates.filter((n) => isDescendantGroup(match, currentParentId, n.id))
+      }
+    }
+  }
+
+  const ranked = candidates
+    .map((n) => ({ id: n.id, area: nodeArea(n) }))
+    .sort((a, b) => a.area - b.area)
+
+  return ranked[0]?.id ?? null
 }
 
 export function resolveCanvasSelectionId(nodeId: string, data: GraphNodeData): string {
@@ -381,29 +507,6 @@ function nodeArea(n: Node<GraphNodeData>): number {
   const w = n.measured?.width ?? (typeof n.style?.width === 'number' ? n.style.width : 220)
   const h = n.measured?.height ?? (typeof n.style?.height === 'number' ? n.style.height : 80)
   return w * h
-}
-
-/** Smallest intersecting group frame wins — drop node into that container. */
-export function findGroupDropTarget(
-  dragged: Node<GraphNodeData>,
-  intersecting: Node<GraphNodeData>[],
-  match: L2RuleGroup,
-): string | null {
-  if (dragged.id === 'start' || dragged.id === 'end') return null
-  if (dragged.type !== 'groupFrame' && dragged.type !== 'condition') return null
-
-  const ranked = intersecting
-    .filter(
-      (n) =>
-        n.type === 'groupFrame' &&
-        n.id !== dragged.id &&
-        n.id !== match.id &&
-        canDropIntoGroup(match, dragged.id, n.id),
-    )
-    .map((n) => ({ id: n.id, area: nodeArea(n) }))
-    .sort((a, b) => a.area - b.area)
-
-  return ranked[0]?.id ?? null
 }
 
 export type FlowBounds = { x: number; y: number; width: number; height: number }
@@ -483,8 +586,9 @@ export function findExtractDropHighlight(
   intersecting: Node<GraphNodeData>[],
   match: L2RuleGroup,
   originParentId: string | null,
+  allNodes?: Node<GraphNodeData>[],
 ): string | null {
-  const target = findGroupDropTarget(dragged, intersecting, match)
+  const target = findGroupDropTarget(dragged, intersecting, match, allNodes)
   if (target) return target
   if (originParentId && intersecting.some((n) => n.id === originParentId)) {
     return originParentId

@@ -195,7 +195,7 @@ export function L2PropertiesInspector({
                     <li>Boxes still have their own AND/OR logic for filters inside</li>
 
                     <li>Right-click a line to disconnect; right-click a node to rename or delete</li>
-                    <li>Drag the top-right grip (or Alt+drag) to move a node out of a group</li>
+                    <li>Drag a node to reorder inside a group, drop into another group, or pull it out onto the canvas</li>
                     <li>Drag nodes from the left palette onto the canvas</li>
 
                     <li>Drag from a node&apos;s dot to draw a new line</li>

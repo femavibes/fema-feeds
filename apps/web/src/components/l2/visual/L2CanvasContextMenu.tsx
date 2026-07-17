@@ -1,8 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 
-export type ConnectTarget = { id: string; label: string }
-
 export type CanvasContextMenuState =
   | {
       kind: 'node'
@@ -15,14 +13,6 @@ export type CanvasContextMenuState =
       canOpenProperties: boolean
       /** False when the node is nested inside an AND/OR/N-of group (no canvas wires). */
       canConnect: boolean
-      connectTargets: ConnectTarget[]
-    }
-  | {
-      kind: 'connect'
-      nodeId: string
-      x: number
-      y: number
-      targets: ConnectTarget[]
     }
   | { kind: 'edge'; edgeId: string; x: number; y: number }
   | null
@@ -34,9 +24,8 @@ interface Props {
   onDeleteNode: (nodeId: string) => void
   onDuplicateNode: (nodeId: string) => void
   onOpenProperties: (nodeId: string) => void
-  onConnectNodes: (sourceId: string, targetId: string) => void
   onDisconnectEdge: (edgeId: string) => void
-  onEnterConnectPicker: (nodeId: string, x: number, y: number, targets: ConnectTarget[]) => void
+  onEnterConnectPicker: (nodeId: string) => void
 }
 
 export function L2CanvasContextMenu({
@@ -46,7 +35,6 @@ export function L2CanvasContextMenu({
   onDeleteNode,
   onDuplicateNode,
   onOpenProperties,
-  onConnectNodes,
   onDisconnectEdge,
   onEnterConnectPicker,
 }: Props) {
@@ -118,14 +106,14 @@ export function L2CanvasContextMenu({
                 Duplicate node
               </button>
             ) : null}
-            {menu.canConnect && menu.connectTargets.length > 0 ? (
+            {menu.canConnect ? (
               <button
                 type="button"
                 role="menuitem"
                 onMouseDown={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  onEnterConnectPicker(menu.nodeId, menu.x, menu.y, menu.connectTargets)
+                  onEnterConnectPicker(menu.nodeId)
                 }}
               >
                 Connect to…
@@ -145,24 +133,6 @@ export function L2CanvasContextMenu({
                 Delete node
               </button>
             ) : null}
-          </>
-        ) : menu.kind === 'connect' ? (
-          <>
-            <div className="l2-context-menu-heading">Connect to</div>
-            {menu.targets.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                role="menuitem"
-                onMouseDown={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  onConnectNodes(menu.nodeId, t.id)
-                }}
-              >
-                {t.label}
-              </button>
-            ))}
           </>
         ) : (
           <button

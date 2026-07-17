@@ -650,6 +650,12 @@ export function reorderGroupChildren(
 }
 
 /** Reorder siblings from canvas drag positions (y for stacks, x for AND rows). */
+function sameChildOrder(group: L2RuleGroup, orderedIds: string[]): boolean {
+  const current = group.children.map((c) => c.id)
+  if (current.length !== orderedIds.length) return false
+  return current.every((id, i) => id === orderedIds[i])
+}
+
 export function reorderMatchFromLayout(
   root: L2RuleGroup,
   layoutNodes: Array<{
@@ -677,22 +683,19 @@ export function reorderMatchFromLayout(
     const sorted = [...children].sort((a, b) =>
       horizontal ? a.position.x - b.position.x : a.position.y - b.position.y,
     )
-    next = reorderGroupChildren(
-      next,
-      parentId,
-      sorted.map((n) => n.id),
-    )
+    const orderedIds = sorted.map((n) => n.id)
+    if (sameChildOrder(parent, orderedIds)) continue
+    next = reorderGroupChildren(next, parentId, orderedIds)
   }
 
   const topLevel = topLevelFlowNodeIds(next)
   const topNodes = layoutNodes.filter((n) => topLevel.includes(n.id) && !n.parentId)
   if (topNodes.length > 1) {
     const sorted = [...topNodes].sort((a, b) => a.position.x - b.position.x)
-    next = reorderGroupChildren(
-      next,
-      next.id,
-      sorted.map((n) => n.id),
-    )
+    const orderedIds = sorted.map((n) => n.id)
+    if (!sameChildOrder(next, orderedIds)) {
+      next = reorderGroupChildren(next, next.id, orderedIds)
+    }
   }
 
   return next

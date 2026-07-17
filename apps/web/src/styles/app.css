@@ -5985,6 +5985,15 @@ body.l2-visual-open #root {
   display: none;
 }
 
+.l2-visual-fullscreen--connect-pick {
+  cursor: crosshair;
+}
+
+.l2-visual-fullscreen--connect-pick .l2-visual-canvas,
+.l2-visual-fullscreen--connect-pick .l2-visual-canvas .react-flow__pane {
+  cursor: crosshair;
+}
+
 .l2-visual-main--nested-status {
   display: flex;
   align-items: center;
