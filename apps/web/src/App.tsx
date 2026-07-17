@@ -395,7 +395,7 @@ export function App() {
 
   return (
     <div className={`app${appProfile === 'registry' ? ' app-registry' : ''}`}>
-      <header className="app-header">
+      <header className="app-header" title="App.tsx">
         <button
           type="button"
           className="brand brand-home"
@@ -473,6 +473,17 @@ export function App() {
               ? ' main-panel-feeds'
               : ''
           }`}
+          title={
+            builderSection === 'settings'
+              ? 'SettingsWorkspace.tsx'
+              : builderSection === 'community'
+                ? 'CommunityWorkspace.tsx'
+                : builderSection === 'marketplace'
+                  ? 'MarketplaceWorkspace.tsx'
+                  : builderSection === 'collection'
+                    ? 'CollectionWorkspace.tsx'
+                    : 'ProjectWorkspace.tsx'
+          }
         >
           {builderSection === 'settings' ? (
             <SettingsWorkspace

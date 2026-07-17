@@ -53,6 +53,7 @@ export function RailPanelHead({
   collapseLabel,
   children,
   collapseSide = 'end',
+  sourceFile,
 }: {
   title?: string
   onCollapse: () => void
@@ -60,6 +61,8 @@ export function RailPanelHead({
   children?: ReactNode
   /** `start` = collapse control before title (left palette). `end` = right-aligned (properties, preview). */
   collapseSide?: 'start' | 'end'
+  /** Dev aid: hover tooltip naming the component source file for this rail. */
+  sourceFile?: string
 }) {
   const collapseBtn = (
     <button
@@ -74,7 +77,7 @@ export function RailPanelHead({
   )
 
   return (
-    <div className={`l2-rail-panel-head l2-rail-panel-head--collapse-${collapseSide}`}>
+    <div className={`l2-rail-panel-head l2-rail-panel-head--collapse-${collapseSide}`} title={sourceFile}>
       {collapseSide === 'start' ? collapseBtn : null}
       {title ? <span className="l2-rail-panel-title">{title}</span> : null}
       {children}

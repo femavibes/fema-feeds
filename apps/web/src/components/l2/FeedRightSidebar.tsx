@@ -77,7 +77,7 @@ export function FeedRightSidebar({
 
   return (
     <aside className="sidebar sidebar-right" aria-label="Feed actions">
-      <div className="sidebar-head">
+      <div className="sidebar-head" title="FeedRightSidebar.tsx">
         <div className="sidebar-head-text">
           <h2>Actions</h2>
           <span className="sidebar-head-sub">{feedDraft.name}</span>
@@ -116,7 +116,7 @@ export function FeedRightSidebar({
               className={`sidebar-panel-tab${effectiveTab === 'feed' ? ' active' : ''}`}
               onClick={() => setSidebarTab('feed')}
             >
-              Feed
+              Matches
             </button>
           </>
         ) : (
@@ -137,7 +137,7 @@ export function FeedRightSidebar({
               className={`sidebar-panel-tab${effectiveTab === 'feed' ? ' active' : ''}`}
               onClick={() => setSidebarTab('feed')}
             >
-              Feed
+              Matches
             </button>
             <button
               type="button"
@@ -263,7 +263,7 @@ export function FeedRightSidebarShell({
 }) {
   return (
     <aside className="sidebar sidebar-right" aria-label="Feed actions" aria-busy="true">
-      <div className="sidebar-head">
+      <div className="sidebar-head" title="FeedRightSidebar.tsx">
         <div className="sidebar-head-text">
           <h2>Actions</h2>
           <span className="sidebar-head-sub">{feedName ?? feedId}</span>
@@ -279,7 +279,7 @@ export function FeedRightSidebarShell({
           Deploy
         </button>
         <button type="button" role="tab" aria-selected={false} className="sidebar-panel-tab" disabled>
-          Feed
+          Matches
         </button>
         <button type="button" role="tab" aria-selected={false} className="sidebar-panel-tab" disabled>
           Settings

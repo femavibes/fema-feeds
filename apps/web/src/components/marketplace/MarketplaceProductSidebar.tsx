@@ -47,7 +47,7 @@ export function MarketplaceProductSidebar({
 
   return (
     <>
-      <div className="marketplace-sidebar-toolbar sidebar-head">
+      <div className="marketplace-sidebar-toolbar sidebar-head" title="MarketplaceProductSidebar.tsx">
         <div className="sidebar-head-text marketplace-sidebar-head-labels">
           <h2>Details</h2>
           <span className="sidebar-head-sub">Listing</span>

@@ -26,7 +26,7 @@ export function ProjectRightSidebar({
 
   return (
     <aside className="sidebar sidebar-right" aria-label="Project actions">
-      <div className="sidebar-head">
+      <div className="sidebar-head" title="ProjectRightSidebar.tsx">
         <div className="sidebar-head-text">
           <h2>Project</h2>
           <span className="sidebar-head-sub">{draft.name}</span>

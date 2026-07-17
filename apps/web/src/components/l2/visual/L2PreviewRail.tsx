@@ -31,6 +31,7 @@ export function L2PreviewRail({
         title=""
         onCollapse={onCollapse}
         collapseLabel="Collapse matches panel"
+        sourceFile="L2PreviewRail.tsx"
       >
         <div className="l2-inspector-tabs" role="tablist" aria-label="Feed preview">
           <button

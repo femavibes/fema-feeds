@@ -643,6 +643,7 @@ export function L2VisualEditor({
               collapseSide="start"
               onCollapse={rails.togglePalette}
               collapseLabel="Collapse palette"
+              sourceFile="L2NodePalette.tsx"
             />
             <L2NodePalette
               onPick={handlePalettePick}
@@ -746,6 +747,7 @@ export function L2VisualEditor({
               title="Properties"
               onCollapse={rails.toggleProps}
               collapseLabel="Collapse properties"
+              sourceFile="L2NodeInspector.tsx"
             />
             {metadataPanel ? (
               <div className="logic-block-editor-metadata">{metadataPanel}</div>

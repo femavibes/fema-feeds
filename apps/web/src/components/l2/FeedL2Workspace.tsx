@@ -21,6 +21,18 @@ type AutosaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 
 const AUTOSAVE_MS = 2000
 
+/** Dev aid: hover tooltip on the canvas naming the component behind the active view. */
+const VIEW_SOURCE_FILES: Record<FeedWorkspaceView, string> = {
+  overview: 'FeedEditorHome.tsx',
+  visual: 'visual/L2VisualEditor.tsx',
+  json: 'L2JsonEditor.tsx',
+  sorting: 'FeedSortingView.tsx',
+  personalization: 'FeedPersonalizationView.tsx',
+  injectors: 'FeedInjectorsView.tsx',
+  sources: 'FeedSourcesView.tsx',
+  intelligence: 'FeedIntelligencePanel.tsx',
+}
+
 interface Props {
   draft: FeedConfig
   project: ProjectL1Config
@@ -307,7 +319,10 @@ export function FeedL2Workspace({
   }
 
   return (
-    <div className={`feed-builder-main${isEditorView ? ' feed-builder-main-editor' : ''}`}>
+    <div
+      className={`feed-builder-main${isEditorView ? ' feed-builder-main-editor' : ''}`}
+      title={VIEW_SOURCE_FILES[view]}
+    >
       {!isEditorView ? (
         <FeedLogicBlockUpgradesPanel
           feedId={draft.feedId}

@@ -2871,6 +2871,12 @@ body {
   z-index: 1;
 }
 
+.workspace-nav-item-divided {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--border);
+}
+
 .workspace-nav-nested {
   list-style: none;
   margin: 0.2rem 0 0.5rem 0.35rem;

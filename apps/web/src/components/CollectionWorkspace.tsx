@@ -603,7 +603,7 @@ export function CollectionWorkspace() {
 
       <aside className="sidebar sidebar-right marketplace-sidebar">
 
-        <div className={`sidebar-head${showLogicEditInHeader ? ' marketplace-sidebar-toolbar' : ''}`}>
+        <div className={`sidebar-head${showLogicEditInHeader ? ' marketplace-sidebar-toolbar' : ''}`} title="CollectionWorkspace.tsx">
 
           <div className="sidebar-head-text marketplace-sidebar-head-labels">
 

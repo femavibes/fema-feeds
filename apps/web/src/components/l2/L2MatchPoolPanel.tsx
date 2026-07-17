@@ -83,7 +83,7 @@ export function L2MatchPoolPanel({
 
   const isFeed = variant === 'feed'
   const refreshLabel = loading ? 'Scanning…' : isFeed ? 'Refresh' : 'Scan pool'
-  const postsSectionTitle = isFeed ? 'Feed' : 'Matches'
+  const postsSectionTitle = 'Matches'
   const rejected = result ? rejectedCount(result) : 0
 
   return (
@@ -180,6 +180,9 @@ export function L2MatchPoolPanel({
           {result.posts.length > 0 ? (
             <>
               <h4 className="l2-match-pool-section-title">{postsSectionTitle}</h4>
+              <p className="card-hint">
+                Ordered as they'd appear in the live feed, before personalization.
+              </p>
               <ul className="l2-match-pool-list">
                 {result.posts.map((post) => (
                   <PoolMatchSampleRow

@@ -1431,7 +1431,10 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
 
 
-    const result = await previewFeedPoolMatches(pool, feed, {
+    // Resolve marketplace sort packs so the preview scores with the real formula.
+    const feedForPreview = await resolveFeedSortPack(pool, feed)
+
+    const result = await previewFeedPoolMatches(pool, feedForPreview, {
       limit: body.limit,
       scanLimit: body.scanLimit,
       rejectLimit: body.rejectLimit,

@@ -50,9 +50,11 @@ export interface PoolMatchResult {
   truncated: boolean
 }
 
-function defaultSortKey(indexedAt: string): number {
-  const t = Date.parse(indexedAt)
-  return Number.isFinite(t) ? t / 1000 : 0
+/** Live-feed ordering: sort_key DESC, then indexed_at DESC (matches the skeleton query). */
+function compareFeedOrder(a: PoolMatchItem, b: PoolMatchItem): number {
+  const diff = (b.sortKey ?? 0) - (a.sortKey ?? 0)
+  if (diff !== 0) return diff
+  return Date.parse(b.indexedAt) - Date.parse(a.indexedAt)
 }
 
 function postInFeedScope(feed: FeedConfig, projectIds: string[]): boolean {
@@ -103,8 +105,23 @@ export async function previewFeedPoolMatches(
     followRings,
   })
   const resolvedMatch = resolveFeedMatch(feed)
+  const hasSortFormula = Boolean(feed.rank?.sortKey || feed.rank?.packRef)
   const matches: PoolMatchItem[] = []
   const rejects: PoolMatchSample[] = []
+
+  // Keep the top-N matches by live-feed order rather than the first N in scan
+  // order, so the preview reflects what the real feed would serve.
+  const pushMatch = (item: PoolMatchItem) => {
+    if (matches.length < limit) {
+      matches.push(item)
+      return
+    }
+    let worst = 0
+    for (let i = 1; i < matches.length; i++) {
+      if (compareFeedOrder(matches[i]!, matches[worst]!) > 0) worst = i
+    }
+    if (compareFeedOrder(item, matches[worst]!) < 0) matches[worst] = item
+  }
   const allMatchedUris = new Set<string>()
   let scanned = 0
   let matchCount = 0
@@ -113,8 +130,11 @@ export async function previewFeedPoolMatches(
   const batchSize = 200
 
   while (scanned < scanLimit) {
-    // Early termination: stop if we have enough results to display
-    if (matches.length >= limit && rejects.length >= rejectLimit) break
+    // Early termination only for feeds without a sort formula: scan order is
+    // already feed order (newest first), so the first N matches are the feed.
+    // Formula feeds must keep scanning — a high-scoring post can sit deep in
+    // the pool.
+    if (!hasSortFormula && matches.length >= limit && rejects.length >= rejectLimit) break
 
     let rows: IngestedPostRow[]
     if (preFilter) {
@@ -184,13 +204,11 @@ export async function previewFeedPoolMatches(
 
       matchCount++
       allMatchedUris.add(post.uri)
-      if (matches.length < limit) {
-        matches.push({
-          ...buildPoolMatchSample(post, result.trace),
-          sortKey: result.sortKey ?? defaultSortKey(post.indexedAt),
-          editorScore: result.editorScore,
-        })
-      }
+      pushMatch({
+        ...buildPoolMatchSample(post, result.trace),
+        sortKey: result.sortKey ?? null,
+        editorScore: result.editorScore,
+      })
     }
 
     if (rows.length < batchSize) break
@@ -242,17 +260,15 @@ export async function previewFeedPoolMatches(
         substitutedCount++
         matchCount++
         allMatchedUris.add(uri)
-        if (matches.length < limit) {
-          const trace: L2NodeTrace[] = [
-            { nodeId: '__substitution__', nodeType: 'substitute', outcome: 'pass', detail: 'Promoted via substitution' },
-            ...result.trace,
-          ]
-          matches.push({
-            ...buildPoolMatchSample(post, trace),
-            sortKey: result.sortKey ?? defaultSortKey(post.indexedAt),
-            editorScore: result.editorScore,
-          })
-        }
+        const trace: L2NodeTrace[] = [
+          { nodeId: '__substitution__', nodeType: 'substitute', outcome: 'pass', detail: 'Promoted via substitution' },
+          ...result.trace,
+        ]
+        pushMatch({
+          ...buildPoolMatchSample(post, trace),
+          sortKey: result.sortKey ?? null,
+          editorScore: result.editorScore,
+        })
       } else {
         rejectCount++
         if (rejects.length < rejectLimit) {
@@ -261,6 +277,8 @@ export async function previewFeedPoolMatches(
       }
     }
   }
+
+  matches.sort(compareFeedOrder)
 
   const allSamples = [...matches, ...rejects]
   await enrichPoolMatchPreviews(allSamples)

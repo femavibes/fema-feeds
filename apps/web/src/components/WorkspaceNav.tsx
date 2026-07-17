@@ -41,15 +41,17 @@ interface Props {
   disabled?: boolean
 }
 
-const FEED_ITEMS: { id: FeedWorkspaceView; label: string }[] = [
+// Pipeline group in pipeline order: sources feed the pool → sorting →
+// personalization → injectors (ads / pinned posts run last).
+const FEED_ITEMS: { id: FeedWorkspaceView; label: string; dividerBefore?: boolean }[] = [
   { id: 'overview', label: 'Overview' },
-  { id: 'visual', label: 'Visual editor' },
+  { id: 'visual', label: 'Visual editor', dividerBefore: true },
   { id: 'json', label: 'JSON editor' },
+  { id: 'sources', label: 'Sources', dividerBefore: true },
   { id: 'sorting', label: 'Sorting' },
   { id: 'personalization', label: 'Personalization' },
   { id: 'injectors', label: 'Injectors' },
-  { id: 'sources', label: 'Sources' },
-  { id: 'intelligence', label: 'Intelligence' },
+  { id: 'intelligence', label: 'Intelligence', dividerBefore: true },
 ]
 
 const INGESTION_ITEMS: { id: IngestionWorkspaceView; label: string }[] = [
@@ -119,6 +121,7 @@ export function WorkspaceNav({
       ? FEED_ITEMS.map((item) => ({
           id: item.id,
           label: item.label,
+          dividerBefore: item.dividerBefore,
           active: feedView === item.id,
           onClick: () => onFeedViewChange?.(item.id),
         }))
@@ -130,12 +133,14 @@ export function WorkspaceNav({
           ? settingsItems.map((item) => ({
               id: item.id,
               label: item.label,
+              dividerBefore: false,
               active: settingsView === item.id,
               onClick: () => onSettingsViewChange?.(item.id),
             }))
           : ingestionItems.map((item) => ({
               id: item.id,
               label: item.label,
+              dividerBefore: false,
               active: ingestionView === item.id,
               onClick: () => onIngestionViewChange?.(item.id),
             }))
@@ -153,7 +158,7 @@ export function WorkspaceNav({
 
   return (
     <nav className="sidebar workspace-nav" aria-label="Workspace views">
-      <div className="sidebar-head workspace-nav-head">
+      <div className="sidebar-head workspace-nav-head" title="WorkspaceNav.tsx">
         <div className="sidebar-head-text">
           <h2>{modeLabel}</h2>
           <span className="sidebar-head-sub">{contextLabel}</span>
@@ -256,7 +261,7 @@ export function WorkspaceNav({
           </>
         ) : (
           items.map((item) => (
-            <li key={item.id}>
+            <li key={item.id} className={item.dividerBefore ? 'workspace-nav-item-divided' : undefined}>
               <button
                 type="button"
                 className={`workspace-nav-item${item.active ? ' active' : ''}`}
@@ -360,14 +365,14 @@ export function WorkspaceNavShell({
 }) {
   const labels =
     mode === 'feed'
-      ? FEED_ITEMS.map((i) => i.label)
+      ? FEED_ITEMS.map((i) => ({ label: i.label, dividerBefore: i.dividerBefore }))
       : mode === 'marketplace'
-        ? MARKETPLACE_ITEMS.map((i) => i.label)
+        ? MARKETPLACE_ITEMS.map((i) => ({ label: i.label, dividerBefore: false }))
         : mode === 'collection'
-          ? COLLECTION_ITEMS.map((i) => i.label)
+          ? COLLECTION_ITEMS.map((i) => ({ label: i.label, dividerBefore: false }))
           : mode === 'settings'
-            ? SETTINGS_ITEMS.map((i) => i.label)
-            : INGESTION_ITEMS.map((i) => i.label)
+            ? SETTINGS_ITEMS.map((i) => ({ label: i.label, dividerBefore: false }))
+            : INGESTION_ITEMS.map((i) => ({ label: i.label, dividerBefore: false }))
 
   const modeLabel =
     mode === 'feed'
@@ -382,21 +387,21 @@ export function WorkspaceNavShell({
 
   return (
     <nav className="sidebar workspace-nav" aria-label="Workspace views" aria-busy="true">
-      <div className="sidebar-head workspace-nav-head">
+      <div className="sidebar-head workspace-nav-head" title="WorkspaceNav.tsx">
         <div className="sidebar-head-text">
           <h2>{modeLabel}</h2>
           <span className="sidebar-head-sub">{contextLabel}</span>
         </div>
       </div>
       <ul className="workspace-nav-list">
-        {labels.map((label, i) => (
-          <li key={label}>
+        {labels.map((item, i) => (
+          <li key={item.label} className={item.dividerBefore ? 'workspace-nav-item-divided' : undefined}>
             <button
               type="button"
               className={`workspace-nav-item${i === 0 ? ' active' : ''}`}
               disabled
             >
-              {label}
+              {item.label}
             </button>
           </li>
         ))}

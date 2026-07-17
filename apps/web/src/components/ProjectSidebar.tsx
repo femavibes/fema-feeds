@@ -98,7 +98,7 @@ export function ProjectSidebar({
                   >
                     ‹
                   </button>
-                  <h2>{projectsLabel}</h2>
+                  <h2 title="ProjectSidebar.tsx">{projectsLabel}</h2>
                   <button type="button" className="btn btn-ghost btn-sm project-sidebar-new-btn" onClick={() => setShowNewProject(true)}>
                     + New
                   </button>
@@ -246,7 +246,7 @@ export function ProjectSidebar({
                 >
                   ‹
                 </button>
-                <h2>{projectsLabel}</h2>
+                <h2 title="ProjectSidebar.tsx">{projectsLabel}</h2>
               </div>
             )}
             <RailResizeHandle onMouseDown={onResizeStart} label="Resize projects sidebar" />

@@ -97,7 +97,7 @@ export function CommunityFeedDetail({ feed, emptyHint = 'Select a feed to view d
 
   return (
     <>
-      <div className="sidebar-head marketplace-sidebar-toolbar">
+      <div className="sidebar-head marketplace-sidebar-toolbar" title="CommunityFeedDetail.tsx">
         <div className="sidebar-head-text marketplace-sidebar-head-labels">
           <h2>Details</h2>
           <span className="sidebar-head-sub">Community feed</span>
