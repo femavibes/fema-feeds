@@ -1,71 +1,9 @@
-import type { FeedConfig, L2Expr, L2NumericField } from '@cfb/core-types'
+import type { FeedConfig, L2Expr, L2NumericField, EngagementSignal, EngagementWeights, ContentSignals, RatioSignals, MediaBonus, AuthorFairnessMode, SortTuning } from '@cfb/core-types'
 
 export type SortMode = 'chronological' | 'engagement' | 'custom' | 'builder' | 'pack'
 
 export function hasSortPackRef(rank: FeedConfig['rank']): boolean {
   return Boolean(rank?.packRef?.packageId)
-}
-
-export interface EngagementSignal {
-  enabled: boolean
-  weight: number
-}
-
-export interface EngagementWeights {
-  likes: EngagementSignal
-  reposts: EngagementSignal
-  replies: EngagementSignal
-  quotes: EngagementSignal
-  bookmarks: EngagementSignal
-  audienceLikes: EngagementSignal
-  audienceReposts: EngagementSignal
-}
-
-export interface ContentSignals {
-  authorFollowers: EngagementSignal
-  authorPosts: EngagementSignal
-  textLength: EngagementSignal
-  hashtagCount: EngagementSignal
-  mentionCount: EngagementSignal
-  linkCount: EngagementSignal
-  altTextBonus: EngagementSignal
-  /** Bonus for root posts (original, not reply/quote) */
-  rootPostBonus: EngagementSignal
-  /** Bonus for reply posts */
-  replyBonus: EngagementSignal
-  /** Bonus for quote posts */
-  quotePostBonus: EngagementSignal
-}
-
-export interface RatioSignals {
-  /** (likes+reposts) / (followers+1) — reach-normalized engagement */
-  engagementRate: EngagementSignal
-  /** replies / (likes+1) — discussion/controversy detector */
-  replyRatio: EngagementSignal
-  /** quotes / (likes+1) — quotability signal */
-  quoteRatio: EngagementSignal
-}
-
-export interface MediaBonus {
-  image: EngagementSignal
-  video: EngagementSignal
-  linkCard: EngagementSignal
-}
-
-export type AuthorFairnessMode = 'off' | 'log' | 'sqrt' | 'sigmoid'
-
-export interface SortTuning {
-  decayHalfLifeHours: number
-  editorScoreWeight: number
-  maxAgeHours: number
-  authorFairness: AuthorFairnessMode
-  mediaBonus: MediaBonus
-  contentSignals: ContentSignals
-  ratioSignals: RatioSignals
-  /** Max score any post can have. 0 = no cap. */
-  scoreCap: number
-  /** Min score floor. 0 = no floor (can go negative). */
-  scoreFloor: number
 }
 
 export const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementWeights = {
@@ -518,21 +456,4 @@ export function sortModeBadge(mode: SortMode, weights: EngagementWeights): strin
     case 'custom':
       return 'Custom formula'
   }
-}
-
-/** Reverse-parse a sortKey expression to recover tuning values. Only detects decay for now. */
-export function detectTuning(expr: L2Expr): Partial<SortTuning> {
-  const tuning: Partial<SortTuning> = {}
-  // Decay pattern: expr / (1 + post_age_hours / N)
-  if (
-    expr.type === 'binary' && expr.op === '/' &&
-    expr.right.type === 'binary' && expr.right.op === '+' &&
-    expr.right.left.type === 'literal' && expr.right.left.value === 1 &&
-    expr.right.right.type === 'binary' && expr.right.right.op === '/' &&
-    expr.right.right.left.type === 'field' && expr.right.right.left.field === 'post_age_hours' &&
-    expr.right.right.right.type === 'literal'
-  ) {
-    tuning.decayHalfLifeHours = expr.right.right.right.value
-  }
-  return tuning
 }

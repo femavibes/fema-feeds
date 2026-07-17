@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import type { FeedConfig, L2Expr } from '@cfb/core-types'
+import type { FeedConfig, L2Expr, EngagementWeights } from '@cfb/core-types'
 import { FeedSourceToggle, type FeedSourceMode } from '../FeedSourceToggle'
 import { FeedSortingPanel } from './FeedSortingPanel'
 import { SortPackFeedSection } from '../sort-packs/SortPackFeedSection'
 import { SaveSortPackModal } from '../sort-packs/SaveSortPackModal'
 import { exprToFormula } from '../../lib/formula-parser'
-import { detectSortMode, sortModeBadge, DEFAULT_ENGAGEMENT_WEIGHTS, detectEngagementWeights, type EngagementWeights } from '../../lib/feed-sorting'
+import { detectSortMode, sortModeBadge, DEFAULT_ENGAGEMENT_WEIGHTS, detectEngagementWeights } from '../../lib/feed-sorting'
 
 interface Props {
   draft: FeedConfig

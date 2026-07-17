@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import type { FeedConfig, L2Expr } from '@cfb/core-types'
+import type { FeedConfig, L2Expr, AuthorFairnessMode, ContentSignals, EngagementWeights, MediaBonus, RatioSignals, SortTuning } from '@cfb/core-types'
 
 import { ToggleRow } from '../ToggleRow'
 import { SortFormulaBuilder } from './SortFormulaBuilder'
@@ -11,18 +11,11 @@ import {
   applySortMode,
   applyTuning,
   detectEngagementWeights,
-  detectTuning,
   detectSortMode,
   engagementExpr,
   engagementFormulaLabel,
   sortModeBadge,
-  type AuthorFairnessMode,
-  type ContentSignals,
-  type EngagementWeights,
-  type MediaBonus,
-  type RatioSignals,
   type SortMode,
-  type SortTuning,
 } from '../../lib/feed-sorting'
 import { fieldLabel } from '../../lib/l2-form'
 import { FORMULA_FIELDS } from '../../lib/formula-parser'
@@ -325,19 +318,18 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
   )
 
   const [engagementWeights, setEngagementWeights] = useState<EngagementWeights>(detectedWeights)
-  const detectedTuning = useMemo(
-    () => draft.rank?.sortKey ? { ...DEFAULT_SORT_TUNING, ...detectTuning(draft.rank.sortKey) } : DEFAULT_SORT_TUNING,
-    [draft.rank?.sortKey],
+  const [tuning, setTuning] = useState<SortTuning>(
+    draft.rank?.tuning ? { ...DEFAULT_SORT_TUNING, ...draft.rank.tuning } : DEFAULT_SORT_TUNING,
   )
-  const [tuning, setTuning] = useState<SortTuning>(detectedTuning)
 
   useEffect(() => {
     setEngagementWeights(detectedWeights)
   }, [draft.feedId, detectedWeights])
 
   useEffect(() => {
-    setTuning(detectedTuning)
-  }, [draft.feedId, detectedTuning])
+    setTuning(draft.rank?.tuning ? { ...DEFAULT_SORT_TUNING, ...draft.rank.tuning } : DEFAULT_SORT_TUNING)
+  }, [draft.feedId])
+
 
   const [copied, setCopied] = useState(false)
 
@@ -377,7 +369,8 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
   const updateTuning = (next: SortTuning) => {
     setTuning(next)
     if (mode === 'engagement') {
-      onChange(applySortMode(draft, 'engagement', engagementWeights, next))
+      const updated = applySortMode(draft, 'engagement', engagementWeights, next)
+      onChange({ ...updated, rank: { ...updated.rank, tuning: next } })
     } else {
       rebuildCustomExpr(engagementWeights, next)
     }
@@ -385,7 +378,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
 
   const rebuildCustomExpr = (weights: EngagementWeights, t: SortTuning) => {
     const expr = applyTuning(engagementExpr(weights), t)
-    onChange({ ...draft, rank: { sortKey: expr } })
+    onChange({ ...draft, rank: { ...draft.rank, sortKey: expr, tuning: t } })
   }
 
   const isMain = layout === 'main'

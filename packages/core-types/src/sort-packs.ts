@@ -48,6 +48,61 @@ export interface SortPackUpgradeHint {
   patchUpgrade: boolean
 }
 
+
+export interface EngagementSignal {
+  enabled: boolean
+  weight: number
+}
+
+export interface EngagementWeights {
+  likes: EngagementSignal
+  reposts: EngagementSignal
+  replies: EngagementSignal
+  quotes: EngagementSignal
+  bookmarks: EngagementSignal
+  audienceLikes: EngagementSignal
+  audienceReposts: EngagementSignal
+}
+
+export interface ContentSignals {
+  authorFollowers: EngagementSignal
+  authorPosts: EngagementSignal
+  textLength: EngagementSignal
+  hashtagCount: EngagementSignal
+  mentionCount: EngagementSignal
+  linkCount: EngagementSignal
+  altTextBonus: EngagementSignal
+  rootPostBonus: EngagementSignal
+  replyBonus: EngagementSignal
+  quotePostBonus: EngagementSignal
+}
+
+export interface RatioSignals {
+  engagementRate: EngagementSignal
+  replyRatio: EngagementSignal
+  quoteRatio: EngagementSignal
+}
+
+export interface MediaBonus {
+  image: EngagementSignal
+  video: EngagementSignal
+  linkCard: EngagementSignal
+}
+
+export type AuthorFairnessMode = 'off' | 'log' | 'sqrt' | 'sigmoid'
+
+export interface SortTuning {
+  decayHalfLifeHours: number
+  editorScoreWeight: number
+  maxAgeHours: number
+  authorFairness: AuthorFairnessMode
+  mediaBonus: MediaBonus
+  contentSignals: ContentSignals
+  ratioSignals: RatioSignals
+  scoreCap: number
+  scoreFloor: number
+}
+
 /** Feed rank: inline expression and/or marketplace sort pack reference. */
 
 /** Sort modifier mode: how a modifier contributes to the final score. */
@@ -72,6 +127,8 @@ export interface FeedRankConfig {
   /** Stacked custom code sort modifiers (add/multiply on top of base score). */
   modifiers?: SortModifier[]
 
+  /** UI tuning values — stored alongside sortKey so the panel can restore them without pattern-matching. */
+  tuning?: SortTuning
   /** Custom ranker plugin — reorders skeleton at serve time; runs after DB sort, before inject. */
   rankerRef?: RankerRef
 }

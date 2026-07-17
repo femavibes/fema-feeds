@@ -2,15 +2,46 @@
   "feedId": "dev-feed",
   "projectId": "dev-project",
   "name": "Dev FEED",
-  "enabled": false,
+  "enabled": true,
   "poolScope": "project_only",
   "match": {
-    "type": "group",
     "id": "root",
+    "type": "group",
     "logic": "any",
     "children": []
   },
   "public": true,
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
-  "published": false
+  "published": false,
+  "rank": {
+    "sortKey": {
+      "type": "field",
+      "field": "like_count"
+    }
+  },
+  "liveAt": "2026-07-17T05:28:47.626Z",
+  "personalization": {
+    "boostFollowed": {
+      "enabled": true,
+      "factor": 1.3
+    },
+    "boostMutuals": {
+      "enabled": true,
+      "factor": 1.5
+    },
+    "suppressSeen": {
+      "enabled": true,
+      "penalty": 0.5,
+      "windowHours": 48
+    },
+    "authorDiversity": {
+      "enabled": true,
+      "maxConsecutive": 2
+    },
+    "affinityBoost": {
+      "enabled": true,
+      "factor": 1.2,
+      "windowDays": 30
+    }
+  }
 }

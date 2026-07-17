@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import type { FeedConfig } from '@cfb/core-types'
+import type { FeedConfig, EngagementWeights } from '@cfb/core-types'
 
 import { api } from '../../api/client'
-import { detectSortMode, rankExprForMode, DEFAULT_ENGAGEMENT_WEIGHTS, type EngagementWeights } from '../../lib/feed-sorting'
+import { detectSortMode, rankExprForMode, DEFAULT_ENGAGEMENT_WEIGHTS } from '../../lib/feed-sorting'
 
 interface Props {
   draft: FeedConfig
