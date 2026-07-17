@@ -87,7 +87,13 @@ export function clearEngagementRefreshStatus(scope: string): void {
 export function startBackgroundEngagementRefresh(
   pool: pg.Pool,
   feedIds: string[],
-  options: { scope: string; staleMinutes?: number; delayMs?: number },
+  options: {
+    scope: string
+    staleMinutes?: number
+    delayMs?: number
+    /** Called after a post's counts are refreshed — hook for sort_key re-eval. */
+    onRefreshed?: (postUri: string) => void
+  },
 ): EngagementRefreshProgress {
   const scope = options.scope
   const existing = activeJobs.get(scope)
@@ -116,7 +122,7 @@ export function startBackgroundEngagementRefresh(
 async function runBackgroundRefresh(
   pool: pg.Pool,
   feedIds: string[],
-  options: { staleMinutes?: number; delayMs?: number },
+  options: { staleMinutes?: number; delayMs?: number; onRefreshed?: (postUri: string) => void },
   progress: EngagementRefreshProgress,
 ): Promise<void> {
   const staleMinutes = options.staleMinutes ?? 60
@@ -152,6 +158,7 @@ async function runBackgroundRefresh(
             replyCount: view.replyCount ?? 0,
             quoteCount: view.quoteCount ?? 0,
           })
+          options.onRefreshed?.(view.uri)
           progress.refreshed++
         }
         // Posts we asked for but Bluesky didn't return — mark them so we don't loop
@@ -184,7 +191,7 @@ async function runBackgroundRefresh(
 export async function catchUpFeedEngagement(
   pool: pg.Pool,
   feedIds: string[],
-  options: { staleMinutes?: number; delayMs?: number } = {},
+  options: { staleMinutes?: number; delayMs?: number; onRefreshed?: (postUri: string) => void } = {},
 ): Promise<EngagementCatchUpResult> {
   const staleMinutes = options.staleMinutes ?? 60
   const delayMs = options.delayMs ?? 200
@@ -204,6 +211,7 @@ export async function catchUpFeedEngagement(
           replyCount: view.replyCount ?? 0,
           quoteCount: view.quoteCount ?? 0,
         })
+        options.onRefreshed?.(view.uri)
         result.postsRefreshed++
       }
       // Mark missing posts so we don't loop forever
@@ -231,6 +239,7 @@ export function startEngagementRefresh(
   pool: pg.Pool,
   intervalMs: number = 60_000,
   maxAgeHours: number = 48,
+  onRefreshed?: (postUri: string) => void,
 ): { stop: () => void; getStats: () => EngagementRefreshStats } {
   const stats: EngagementRefreshStats = { runs: 0, postsRefreshed: 0, errors: 0 }
 
@@ -247,6 +256,8 @@ export function startEngagementRefresh(
           replyCount: view.replyCount ?? 0,
           quoteCount: view.quoteCount ?? 0,
         })
+        // Counts changed — recompute sort_key so backfilled engagement moves feed order
+        onRefreshed?.(view.uri)
         stats.postsRefreshed++
       }
     } catch {

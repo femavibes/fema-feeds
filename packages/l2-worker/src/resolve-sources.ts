@@ -59,7 +59,8 @@ async function resolveFeedSource(
      FROM feed_candidates fc
      JOIN ingested_posts p ON p.uri = fc.post_uri
      WHERE fc.feed_id = $1
-     ORDER BY fc.sort_key DESC
+       AND (fc.expires_at IS NULL OR fc.expires_at > NOW())
+     ORDER BY fc.sort_key DESC, fc.post_indexed_at DESC NULLS LAST
      LIMIT $2`,
     [feedId, limit],
   )

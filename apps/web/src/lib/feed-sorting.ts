@@ -222,10 +222,9 @@ export function applyTuning(base: L2Expr, tuning: SortTuning): L2Expr {
   expr = applyMediaBonus(expr, tuning.mediaBonus)
   expr = applyAuthorFairness(expr, tuning.authorFairness)
   expr = applyDecay(expr, tuning.decayMode ?? 'none', tuning.decayHalfLifeHours)
-  if (tuning.maxAgeHours > 0) {
-    const ageFactor = binary('-', literal(1), binary('/', fieldExpr('post_age_hours'), literal(tuning.maxAgeHours)))
-    expr = binary('*', expr, ageFactor)
-  }
+  // maxAgeHours is NOT compiled into the formula: it sets expires_at on the
+  // candidate row (enforced at index time + skeleton query). The old
+  // multiplier (1 - age/maxAge) went negative past max age and got stale.
   // Score cap: min(score, cap) — approximated as cap - max(0, score - cap)
   // With only arithmetic we can't do true min/max, so we document this as enforced at DB write
   // Score floor: same — enforced at DB write, not in the expr
@@ -323,7 +322,7 @@ export function engagementFormulaLabel(weights: EngagementWeights, tuning: SortT
     formula = `(${formula}) / (1 + age/${tuning.decayHalfLifeHours}h)`
   }
   if (tuning.maxAgeHours > 0) {
-    formula = `(${formula}) × (1 - age/${tuning.maxAgeHours}h)`
+    formula = `${formula} · expires after ${tuning.maxAgeHours}h`
   }
   if (tuning.scoreCap > 0) {
     formula = `min(${formula}, ${tuning.scoreCap})`

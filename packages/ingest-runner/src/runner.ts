@@ -470,7 +470,18 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
 
       const refreshIntervalMs = Number(process.env.ENGAGEMENT_REFRESH_INTERVAL_SEC ?? 60) * 1000
       const refreshMaxAge = Number(process.env.ENGAGEMENT_REFRESH_MAX_AGE_HOURS ?? 48)
-      const refresh = startEngagementRefresh(pool, refreshIntervalMs, refreshMaxAge)
+      const refresh = startEngagementRefresh(pool, refreshIntervalMs, refreshMaxAge, (postUri) => {
+        if (feeds.length === 0) return
+        void reevalPostInPool(pool, postUri, feeds).then(
+          (r) => {
+            if (!r) return
+            l2Evaluated += r.evaluated
+            l2Matched += r.matched
+            l2Written += r.written
+          },
+          () => { l2Errors++ },
+        )
+      })
       stopEngagementRefresh = refresh.stop
       engagementRefreshStats = refresh.getStats()
 

@@ -13,6 +13,7 @@ const server = serve({ fetch: app.fetch, port }, () => {
 async function shutdown() {
   console.error('[api] shutting down…')
   app.stopDuckDnsPoller?.()
+  app.stopAgeSweep?.()
   await app.ingest.stop()
   await server.close()
   process.exit(0)

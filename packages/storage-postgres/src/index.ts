@@ -133,9 +133,13 @@ export {
   getStaleFeedCandidateUris,
   countStaleFeedCandidates,
   getFeedSkeleton,
+  getFeedCandidateWindow,
+  getAgeSweepPostUris,
+  purgeExpiredFeedCandidates,
   purgeOutOfScopeCandidates,
   bumpAudienceEngagement,
   type FeedCandidateInput,
+  type FeedCandidateWindowRow,
   type SkeletonPost,
 } from './feed-candidates.js'
 export {

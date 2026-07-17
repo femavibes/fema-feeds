@@ -15,15 +15,49 @@ export interface ViewerPersonalizationContext {
 }
 
 /**
- * Apply native personalization to a page of skeleton posts.
+ * Base score per post — the real sort_key from sorting, normalized so the
+ * minimum is 1 (keeps multiplicative boosts meaningful even with negative
+ * or zero keys). Falls back to page position when the window has no score
+ * variance (e.g. chronological feeds where every sort_key is 0) or when no
+ * sort keys were provided.
+ */
+function resolveBaseScores(
+  posts: SkeletonPost[],
+  sortKeys: Map<string, number> | undefined,
+): (post: SkeletonPost, idx: number) => number {
+  if (sortKeys && sortKeys.size > 0) {
+    let min = Infinity
+    let max = -Infinity
+    for (const p of posts) {
+      const k = sortKeys.get(p.post)
+      if (k == null) continue
+      if (k < min) min = k
+      if (k > max) max = k
+    }
+    if (Number.isFinite(min) && max > min) {
+      return (post) => {
+        const k = sortKeys.get(post.post)
+        return k == null ? 1 : k - min + 1
+      }
+    }
+  }
+  return (_post, idx) => posts.length - idx
+}
+
+/**
+ * Apply native personalization to a window of skeleton posts.
  * If formulaEnabled, evaluates the formula per post. Otherwise uses toggle-based logic.
+ * `sortKeys` maps post URI → real sort_key (base_score for formulas).
  */
 export function applyNativePersonalization(
   posts: SkeletonPost[],
   config: NativePersonalizationConfig | undefined,
   viewer: ViewerPersonalizationContext | undefined,
+  sortKeys?: Map<string, number>,
 ): SkeletonPost[] {
   if (!config || !viewer) return posts
+
+  const baseScoreOf = resolveBaseScores(posts, sortKeys)
 
   // Formula mode: evaluate the L2Expr personalization formula per post
   if (config.formulaEnabled && config.formula) {
@@ -32,7 +66,7 @@ export function applyNativePersonalization(
       const postCtx: PersonalizationPostContext = {
         postUri: post.post,
         authorDid,
-        baseScore: posts.length - originalIdx, // position-based base score
+        baseScore: baseScoreOf(post, originalIdx),
       }
       const score = evalPersonalizationFormula(config.formula!, viewer, postCtx)
       return { post, score, authorDid }
@@ -48,7 +82,7 @@ export function applyNativePersonalization(
 
   // Toggle mode: apply individual toggles
   const scored = posts.map((post, originalIdx) => {
-    let score = posts.length - originalIdx
+    let score = baseScoreOf(post, originalIdx)
     const authorDid = extractAuthorDid(post.post)
 
     // Boost followed

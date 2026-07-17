@@ -18,24 +18,24 @@ export interface ProcessPostResult {
   matchedFeedIds: string[]
 }
 
-function defaultSortKey(post: NormalizedPost): number {
+/**
+ * sort_key is purely the formula result. Recency is handled by the secondary
+ * sort column (post_indexed_at DESC) in the skeleton query, so equal scores
+ * sort newest-first without a hidden time term dominating the formula.
+ * Chronological feeds (no formula) write 0 and rely entirely on the tiebreaker.
+ */
+function postIndexedAtDate(post: NormalizedPost): Date | null {
   const t = Date.parse(post.indexedAt)
-  return Number.isFinite(t) ? t / 1000 : 0
+  return Number.isFinite(t) ? new Date(t) : null
 }
 
-/**
- * When a formula-based sortKey is used (e.g. engagement sorting),
- * combine the formula score with a time-based tiebreaker so that:
- * - Posts with equal scores sort chronologically
- * - Each unit of engagement score is worth ~1 hour of recency
- */
-function composeSortKey(formulaScore: number, post: NormalizedPost): number {
+/** Candidate expiry from tuning.maxAgeHours (replaces the old score multiplier). */
+function candidateExpiresAt(feed: FeedConfig, post: NormalizedPost): Date | null {
+  const maxAgeHours = feed.rank?.tuning?.maxAgeHours ?? 0
+  if (maxAgeHours <= 0) return null
   const t = Date.parse(post.indexedAt)
-  const epochSec = Number.isFinite(t) ? t / 1000 : 0
-  // Normalize time to hours since epoch for a reasonable scale
-  const timeHours = epochSec / 3600
-  // Each engagement point = 1 hour of boost
-  return timeHours + formulaScore
+  if (!Number.isFinite(t)) return null
+  return new Date(t + maxAgeHours * 60 * 60 * 1000)
 }
 
 function feedsForPost(
@@ -95,14 +95,14 @@ export async function processPostForFeeds(
     }
     matched++
     matchedFeedIds.push(feed.feedId)
-    const sortKey = result.sortKey != null
-      ? composeSortKey(result.sortKey, post)
-      : defaultSortKey(post)
+    const sortKey = result.sortKey ?? 0
     await upsertFeedCandidate(pool, {
       feedId: feed.feedId,
       postUri: post.uri,
       score: sortKey,
       sortKey,
+      postIndexedAt: postIndexedAtDate(post),
+      expiresAt: candidateExpiresAt(feed, post),
     })
     written++
   }

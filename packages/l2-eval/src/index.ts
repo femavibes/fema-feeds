@@ -7,7 +7,7 @@ export {
   collectAllViewerFollowRingNodes,
   projectViewerFollowRingNode,
 } from './viewer-overlay.js'
-export { evalExpr, compareNumbers } from './expr.js'
+export { evalExpr, compareNumbers, exprUsesField } from './expr.js'
 export {
   collectLogicBlockRefs,
   createLogicBlockResolver,

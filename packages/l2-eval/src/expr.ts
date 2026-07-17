@@ -74,6 +74,37 @@ export function evalExpr(ctx: L2RuntimeContext, expr: L2Expr): number {
   }
 }
 
+/** Walk an L2 expression and report whether it references a numeric field. */
+export function exprUsesField(expr: L2Expr, field: string): boolean {
+  switch (expr.type) {
+    case 'literal':
+      return false
+    case 'field':
+      return expr.field === field
+    case 'enrichment_field':
+      return false
+    case 'binary':
+      return exprUsesField(expr.left, field) || exprUsesField(expr.right, field)
+    case 'unary':
+      return exprUsesField(expr.operand, field)
+    case 'clamp':
+      return (
+        exprUsesField(expr.value, field) ||
+        exprUsesField(expr.min, field) ||
+        exprUsesField(expr.max, field)
+      )
+    case 'cond':
+      return (
+        exprUsesField(expr.left, field) ||
+        exprUsesField(expr.right, field) ||
+        exprUsesField(expr.then, field) ||
+        exprUsesField(expr.else, field)
+      )
+    case 'ratio':
+      return exprUsesField(expr.numerator, field) || exprUsesField(expr.denominator, field)
+  }
+}
+
 export function compareNumbers(left: number, op: L2CompareOp, right: number): boolean {
   switch (op) {
     case '==':

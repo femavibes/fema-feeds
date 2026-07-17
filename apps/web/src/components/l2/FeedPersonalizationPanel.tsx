@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FeedConfig, L2Expr, NativePersonalizationConfig } from '@cfb/core-types'
-import { DEFAULT_PERSONALIZATION } from '@cfb/core-types'
+import { DEFAULT_PERSONALIZATION, PERSONALIZATION_DEPTH_DEFAULT, PERSONALIZATION_DEPTH_MAX } from '@cfb/core-types'
 import { PERSONALIZATION_FIELDS } from '../../lib/formula-parser'
 import { ToggleRow } from '../ToggleRow'
 import { SortFormulaBuilder, type FormulaTemplate, type FormulaFieldGroup } from './SortFormulaBuilder'
@@ -87,6 +87,27 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
           ariaLabel="Formula-based personalization"
         />
       </div>
+
+      <section className="feed-personalization-section">
+        <label className="feed-personalization-field">
+          Personalization depth
+          <input
+            type="number"
+            step="50"
+            min="50"
+            max={PERSONALIZATION_DEPTH_MAX}
+            value={config.depth ?? PERSONALIZATION_DEPTH_DEFAULT}
+            onChange={(e) => {
+              const raw = parseInt(e.target.value) || PERSONALIZATION_DEPTH_DEFAULT
+              update({ depth: Math.max(50, Math.min(raw, PERSONALIZATION_DEPTH_MAX)) })
+            }}
+          />
+          <span className="card-hint">
+            How many top-sorted posts personalization can reorder. Sorting already surfaced the best
+            candidates, so this doesn't need to cover the whole pool — bigger reaches deeper, smaller serves faster.
+          </span>
+        </label>
+      </section>
 
       {mode === 'toggles' && (
         <div className="feed-personalization-toggles">

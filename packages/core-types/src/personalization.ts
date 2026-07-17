@@ -16,7 +16,16 @@ export interface NativePersonalizationConfig {
    */
   formulaEnabled?: boolean
   formula?: import('./l2.js').L2Expr
+  /**
+   * How many top-sorted candidates personalization may reorder.
+   * Sorting already surfaced the best posts, so this needn't cover the
+   * whole pool — it bounds serve-time cost.
+   */
+  depth?: number
 }
+
+export const PERSONALIZATION_DEPTH_DEFAULT = 500
+export const PERSONALIZATION_DEPTH_MAX = 2000
 
 export const DEFAULT_PERSONALIZATION: NativePersonalizationConfig = {
   boostFollowed: { enabled: false, factor: 1.3 },
@@ -24,4 +33,5 @@ export const DEFAULT_PERSONALIZATION: NativePersonalizationConfig = {
   suppressSeen: { enabled: false, penalty: 0.5, windowHours: 48 },
   authorDiversity: { enabled: false, maxConsecutive: 2 },
   affinityBoost: { enabled: false, factor: 1.2, windowDays: 30 },
+  depth: PERSONALIZATION_DEPTH_DEFAULT,
 }

@@ -57,7 +57,7 @@ import {
 } from '@cfb/list-cache'
 import { refreshAllProjectAuthorLists } from '@cfb/list-sources'
 import { createIngestRunner, runProjectDryRun, isDryRunInProgress, runIngestSmokeTest, isIngestSmokeTestInProgress, getLastIngestSmokeTestResult, runIngestStressTest, isIngestStressTestInProgress, getLastIngestStressTestResult, type IngestRunner } from '@cfb/ingest-runner'
-import { listProjectPoolPosts } from '@cfb/l2-worker'
+import { listProjectPoolPosts, startAgeSweep } from '@cfb/l2-worker'
 import {
   getLatestIngestSmokeTest,
   getLatestIngestStressTest,
@@ -162,6 +162,12 @@ export function createApp(options?: {
   const ingest =
     options?.ingest ??
     createIngestRunner({ projectsDir: dir, feedsDir: feedDir, pool, ownsPool: false })
+
+  // Age sweep: re-evals sort keys for feeds whose formula uses post_age_hours
+  // and purges expired candidates. Runs with the API — independent of ingest —
+  // so time-based feeds stay fresh even when ingest is stopped.
+  const ageSweep = pool ? startAgeSweep(pool, () => loadAllFeeds(feedDir)) : null
+
   const app = new Hono()
 
   const corsOrigins = [
@@ -434,9 +440,14 @@ export function createApp(options?: {
     const body = (await c.req.json<{ forceAll?: boolean }>().catch(() => null)) ?? {}
     const staleMinutes = body.forceAll ? 0 : 60
     const { startBackgroundEngagementRefresh, getEngagementRefreshStatus } = await import('@cfb/ingest-runner')
+    const { reevalPostInPool } = await import('@cfb/l2-worker')
     const existing = getEngagementRefreshStatus('__all__')
     if (existing?.active) return c.json(existing)
-    const progress = startBackgroundEngagementRefresh(pool, feedIds, { scope: '__all__', staleMinutes })
+    const progress = startBackgroundEngagementRefresh(pool, feedIds, {
+      scope: '__all__',
+      staleMinutes,
+      onRefreshed: (postUri) => { void reevalPostInPool(pool, postUri, allFeeds).catch(() => {}) },
+    })
     return c.json(progress)
   })
 
@@ -1010,9 +1021,14 @@ export function createApp(options?: {
     const body = (await c.req.json<{ forceAll?: boolean }>().catch(() => null)) ?? {}
     const staleMinutes = body.forceAll ? 0 : 60
     const { startBackgroundEngagementRefresh, getEngagementRefreshStatus } = await import('@cfb/ingest-runner')
+    const { reevalPostInPool } = await import('@cfb/l2-worker')
     const existing = getEngagementRefreshStatus(id)
     if (existing?.active) return c.json(existing)
-    const progress = startBackgroundEngagementRefresh(pool, feedIds, { scope: id, staleMinutes })
+    const progress = startBackgroundEngagementRefresh(pool, feedIds, {
+      scope: id,
+      staleMinutes,
+      onRefreshed: (postUri) => { void reevalPostInPool(pool, postUri, projectFeeds).catch(() => {}) },
+    })
     return c.json(progress)
   })
 
@@ -1557,6 +1573,7 @@ export function createApp(options?: {
 
   return Object.assign(app, {
     ingest,
+    stopAgeSweep: () => ageSweep?.stop(),
     stopDuckDnsPoller: () => {
       if (duckdnsTimer) clearInterval(duckdnsTimer)
     },

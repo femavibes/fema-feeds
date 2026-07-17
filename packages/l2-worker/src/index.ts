@@ -25,6 +25,7 @@ export type {
   PoolMatchSample,
 } from './pool-match-sample.js'
 export { reevalPostInPool } from './reeval-post.js'
+export { startAgeSweep, type AgeSweepStats } from './age-sweep.js'
 export { listProjectPoolPosts, type ProjectPoolResult } from './list-project-pool.js'
 
 export { resolveSourcePosts } from './resolve-sources.js'
