@@ -63,6 +63,7 @@ export function App() {
   const [confirmDeleteProject, setConfirmDeleteProject] = useState(false)
   const [createFeedSourceLogic, setCreateFeedSourceLogic] = useState<FeedLogicFields | null>(null)
   const [createFeedSourceLabel, setCreateFeedSourceLabel] = useState<string | null>(null)
+  const [mobileProjectsOpen, setMobileProjectsOpen] = useState(false)
 
   const checkMasterOnboarding = useCallback(async (isMaster: boolean) => {
     if (!isMaster) return
@@ -256,6 +257,13 @@ export function App() {
     return () => window.removeEventListener('cfb:clone-feed', handler)
   }, [])
 
+  // Mobile: workspace nav bars host their own hamburger and signal via event.
+  useEffect(() => {
+    const handler = () => setMobileProjectsOpen((v) => !v)
+    window.addEventListener('cfb:toggle-projects', handler)
+    return () => window.removeEventListener('cfb:toggle-projects', handler)
+  }, [])
+
   if (!authReady) {
     return <div className="app app-loading">Loading…</div>
   }
@@ -394,8 +402,21 @@ export function App() {
               : 'Select a project'
 
   return (
-    <div className={`app${appProfile === 'registry' ? ' app-registry' : ''}`}>
+    <div
+      className={`app${appProfile === 'registry' ? ' app-registry' : ''}${
+        mobileProjectsOpen ? ' mobile-projects-open' : ''
+      }`}
+    >
       <header className="app-header" title="App.tsx">
+        <button
+          type="button"
+          className="mobile-nav-toggle"
+          aria-label={mobileProjectsOpen ? 'Close navigation' : 'Open navigation'}
+          aria-expanded={mobileProjectsOpen}
+          onClick={() => setMobileProjectsOpen((v) => !v)}
+        >
+          ☰
+        </button>
         <button
           type="button"
           className="brand brand-home"
@@ -443,6 +464,11 @@ export function App() {
       )}
 
       <div className="app-body">
+        <div
+          className={`mobile-projects-backdrop${mobileProjectsOpen ? ' open' : ''}`}
+          aria-hidden
+          onClick={() => setMobileProjectsOpen(false)}
+        />
         <ProjectSidebar
           projects={projects}
           selectedId={selectedId}
@@ -450,13 +476,22 @@ export function App() {
           feeds={feeds}
           selectedFeedId={selectedFeedId}
           builderSection={builderSection}
-          projectsOpen={projectSidebarRail.projectsOpen}
+          projectsOpen={projectSidebarRail.projectsOpen || mobileProjectsOpen}
           onToggleProjects={projectSidebarRail.toggleProjects}
           onResizeStart={projectSidebarRail.startResize}
           sidebarStyle={projectSidebarRail.sidebarStyle}
-          onSelect={selectProject}
-          onSelectFeed={selectFeed}
-          onGlobalNavSelect={openBuilderSection}
+          onSelect={(id) => {
+            setMobileProjectsOpen(false)
+            selectProject(id)
+          }}
+          onSelectFeed={(feedId) => {
+            setMobileProjectsOpen(false)
+            selectFeed(feedId)
+          }}
+          onGlobalNavSelect={(section) => {
+            setMobileProjectsOpen(false)
+            openBuilderSection(section)
+          }}
           onCreate={handleCreate}
           onCreateFeed={(id, name) => void handleCreateFeed(id, name)}
           onOpenCreateFeedModal={() => openCreateFeedModal()}

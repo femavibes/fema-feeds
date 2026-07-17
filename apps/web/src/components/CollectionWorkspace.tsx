@@ -9,6 +9,7 @@ import { isCustomCodeProduct, marketplaceProduct } from '../lib/marketplace-prod
 import { api } from '../api/client'
 
 import { WorkspaceNav } from './WorkspaceNav'
+import { MobileRail } from './MobileRail'
 
 import { LogicBlockCreateDialog } from './logic-blocks/LogicBlockCreateDialog'
 
@@ -601,6 +602,7 @@ export function CollectionWorkspace() {
 
 
 
+      <MobileRail label="Details">
       <aside className="sidebar sidebar-right marketplace-sidebar">
 
         <div className={`sidebar-head${showLogicEditInHeader ? ' marketplace-sidebar-toolbar' : ''}`} title="CollectionWorkspace.tsx">
@@ -882,6 +884,7 @@ export function CollectionWorkspace() {
           <SidebarExpandBar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((v) => !v)} />
         )}
       </aside>
+      </MobileRail>
 
       </div>
     </>

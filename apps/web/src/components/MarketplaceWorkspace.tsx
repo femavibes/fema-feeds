@@ -30,6 +30,7 @@ import { InjectorsBrowseView } from './plugins/InjectorsBrowseView'
 import { InjectorsInstalledView } from './plugins/InjectorsInstalledView'
 
 import { MarketplaceProductSidebar } from './marketplace/MarketplaceProductSidebar'
+import { MobileRail } from './MobileRail'
 import { MarketplaceFeaturedBrowseView } from './marketplace/MarketplaceFeaturedBrowseView'
 import { SidebarExpandBar } from './SidebarExpandBar'
 
@@ -599,6 +600,7 @@ export function MarketplaceWorkspace() {
 
 
 
+      <MobileRail label="Details">
       <aside className="sidebar sidebar-right marketplace-sidebar">
 
         {(view === 'browse' || view === 'installed') && (
@@ -630,6 +632,7 @@ export function MarketplaceWorkspace() {
           <SidebarExpandBar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((v) => !v)} />
         )}
       </aside>
+      </MobileRail>
 
     </div>
 

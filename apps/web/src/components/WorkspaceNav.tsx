@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type {
   CollectionWorkspaceView,
   FeedWorkspaceView,
@@ -115,6 +116,8 @@ export function WorkspaceNav({
 }: Props) {
   const settingsItems = settingsNavItems ?? SETTINGS_ITEMS
   const ingestionItems = ingestionNavItems ?? INGESTION_ITEMS
+  // Mobile: nav collapses to a "current view" bar; tapping expands the menu.
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const items =
     mode === 'feed'
@@ -123,7 +126,10 @@ export function WorkspaceNav({
           label: item.label,
           dividerBefore: item.dividerBefore,
           active: feedView === item.id,
-          onClick: () => onFeedViewChange?.(item.id),
+          onClick: () => {
+            setMobileMenuOpen(false)
+            onFeedViewChange?.(item.id)
+          },
         }))
       : mode === 'marketplace'
         ? []
@@ -135,15 +141,30 @@ export function WorkspaceNav({
               label: item.label,
               dividerBefore: false,
               active: settingsView === item.id,
-              onClick: () => onSettingsViewChange?.(item.id),
+              onClick: () => {
+                setMobileMenuOpen(false)
+                onSettingsViewChange?.(item.id)
+              },
             }))
           : ingestionItems.map((item) => ({
               id: item.id,
               label: item.label,
               dividerBefore: false,
               active: ingestionView === item.id,
-              onClick: () => onIngestionViewChange?.(item.id),
+              onClick: () => {
+                setMobileMenuOpen(false)
+                onIngestionViewChange?.(item.id)
+              },
             }))
+
+  const activeLabel =
+    mode === 'marketplace'
+      ? marketplaceView === 'installed'
+        ? 'Subscriptions'
+        : 'Browse'
+      : mode === 'collection'
+        ? 'My collection'
+        : items.find((item) => item.active)?.label ?? 'Views'
 
   const modeLabel =
     mode === 'feed'
@@ -156,13 +177,46 @@ export function WorkspaceNav({
             ? 'Settings'
             : 'Ingestion'
 
+  // Mobile bar: signal what kind of thing is selected ("Project" reads
+  // better than "Ingestion" next to the hamburger).
+  const mobileContextLabel = mode === 'ingestion' ? 'Project' : modeLabel
+
   return (
-    <nav className="sidebar workspace-nav" aria-label="Workspace views">
+    <nav
+      className={`sidebar workspace-nav workspace-nav--${mode}${mobileMenuOpen ? ' mobile-menu-open' : ''}`}
+      aria-label="Workspace views"
+    >
       <div className="sidebar-head workspace-nav-head" title="WorkspaceNav.tsx">
         <div className="sidebar-head-text">
           <h2>{modeLabel}</h2>
           <span className="sidebar-head-sub">{contextLabel}</span>
         </div>
+      </div>
+
+      <div className="workspace-nav-mobile-bar">
+        <button
+          type="button"
+          className="mobile-nav-toggle"
+          aria-label="Open navigation"
+          onClick={() => window.dispatchEvent(new CustomEvent('cfb:toggle-projects'))}
+        >
+          ☰
+        </button>
+        <span className="workspace-nav-mobile-context">{mobileContextLabel}</span>
+        <button
+          type="button"
+          className="workspace-nav-current"
+          aria-expanded={mobileMenuOpen}
+          onClick={() => setMobileMenuOpen((v) => !v)}
+        >
+          <span className="workspace-nav-current-caret" aria-hidden>
+            {mobileMenuOpen ? '▾' : '▴'}
+          </span>
+          {activeLabel}
+          <span className="workspace-nav-current-caret" aria-hidden>
+            {mobileMenuOpen ? '▾' : '▴'}
+          </span>
+        </button>
       </div>
 
       <ul className="workspace-nav-list">
@@ -191,6 +245,7 @@ export function WorkspaceNav({
                   overviewLabel="Featured"
                   activeKind={marketplaceProductKind}
                   onSelect={(kind) => {
+                    setMobileMenuOpen(false)
                     onMarketplaceViewChange?.('browse')
                     onMarketplaceProductKindChange?.(kind)
                   }}
@@ -220,6 +275,7 @@ export function WorkspaceNav({
                   overviewLabel="All"
                   activeKind={marketplaceProductKind}
                   onSelect={(kind) => {
+                    setMobileMenuOpen(false)
                     onMarketplaceViewChange?.('installed')
                     onMarketplaceProductKindChange?.(kind)
                   }}
@@ -252,6 +308,7 @@ export function WorkspaceNav({
                   overviewLabel="All"
                   activeKind={collectionProductKind}
                   onSelect={(kind) => {
+                    setMobileMenuOpen(false)
                     onCollectionViewChange?.('blocks')
                     onCollectionProductKindChange?.(kind)
                   }}
@@ -285,7 +342,7 @@ export function WorkspaceNav({
                   type="button"
                   className={`sidebar-global-item${marketplaceView === 'moderate' ? ' active' : ''}`}
                   aria-current={marketplaceView === 'moderate' ? 'page' : undefined}
-                  onClick={() => onModerateListingsClick?.()}
+                  onClick={() => { setMobileMenuOpen(false); onModerateListingsClick?.() }}
                 >
                   Moderate listings
                 </button>
@@ -297,7 +354,7 @@ export function WorkspaceNav({
                   type="button"
                   className={`sidebar-global-item${marketplaceView === 'verify' ? ' active' : ''}`}
                   aria-current={marketplaceView === 'verify' ? 'page' : undefined}
-                  onClick={() => onVerifyPublisherClick?.()}
+                  onClick={() => { setMobileMenuOpen(false); onVerifyPublisherClick?.() }}
                 >
                   Verify publisher
                 </button>
@@ -309,7 +366,7 @@ export function WorkspaceNav({
                   type="button"
                   className={`sidebar-global-item${marketplaceView === 'taxonomy' ? ' active' : ''}`}
                   aria-current={marketplaceView === 'taxonomy' ? 'page' : undefined}
-                  onClick={() => onTaxonomyClick?.()}
+                  onClick={() => { setMobileMenuOpen(false); onTaxonomyClick?.() }}
                 >
                   Categories & Tags
                 </button>
@@ -326,7 +383,7 @@ export function WorkspaceNav({
               <button
                 type="button"
                 className="sidebar-global-item"
-                onClick={() => onNewLogicBlockClick?.()}
+                onClick={() => { setMobileMenuOpen(false); onNewLogicBlockClick?.() }}
               >
                 New logic block
               </button>
@@ -335,7 +392,7 @@ export function WorkspaceNav({
               <button
                 type="button"
                 className="sidebar-global-item"
-                onClick={() => onNewCustomCodeClick?.()}
+                onClick={() => { setMobileMenuOpen(false); onNewCustomCodeClick?.() }}
               >
                 New custom code
               </button>
@@ -344,7 +401,7 @@ export function WorkspaceNav({
               <button
                 type="button"
                 className={`sidebar-global-item${collectionView === 'developer_guide' ? ' active' : ''}`}
-                onClick={() => onOpenDeveloperGuide?.()}
+                onClick={() => { setMobileMenuOpen(false); onOpenDeveloperGuide?.() }}
               >
                 Plugin developer guide
               </button>
@@ -386,7 +443,29 @@ export function WorkspaceNavShell({
             : 'Ingestion'
 
   return (
-    <nav className="sidebar workspace-nav" aria-label="Workspace views" aria-busy="true">
+    <nav className={`sidebar workspace-nav workspace-nav--${mode}`} aria-label="Workspace views" aria-busy="true">
+      <div className="workspace-nav-mobile-bar">
+        <button
+          type="button"
+          className="mobile-nav-toggle"
+          aria-label="Open navigation"
+          onClick={() => window.dispatchEvent(new CustomEvent('cfb:toggle-projects'))}
+        >
+          ☰
+        </button>
+        <span className="workspace-nav-mobile-context">
+          {mode === 'ingestion' ? 'Project' : mode === 'feed' ? 'Feed' : ''}
+        </span>
+        <button type="button" className="workspace-nav-current" disabled>
+          <span className="workspace-nav-current-caret" aria-hidden>
+            ▴
+          </span>
+          Loading…
+          <span className="workspace-nav-current-caret" aria-hidden>
+            ▴
+          </span>
+        </button>
+      </div>
       <div className="sidebar-head workspace-nav-head" title="WorkspaceNav.tsx">
         <div className="sidebar-head-text">
           <h2>{modeLabel}</h2>

@@ -1934,6 +1934,64 @@ body {
   gap: 0.5rem;
 }
 
+.user-menu-trigger {
+  padding: 0.25rem 0.6rem 0.25rem 0.3rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.user-menu-trigger:hover {
+  border-color: var(--border);
+  background: var(--bg-card);
+}
+
+.user-modal {
+  min-width: min(320px, calc(100vw - 2rem));
+  max-width: 420px;
+}
+
+.user-modal-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.user-modal-avatar {
+  flex-shrink: 0;
+}
+
+.user-modal-names {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.user-modal-display-name {
+  font-weight: 600;
+}
+
+.user-modal-handle {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.user-modal-did {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  word-break: break-all;
+}
+
+.user-modal-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+}
+
 .user-menu-avatar {
   border-radius: 50%;
   object-fit: cover;
@@ -3771,7 +3829,8 @@ input.readonly {
   grid-row: 1;
 }
 
-.main-panel-feeds .project-workspace--catalog > .sidebar-right {
+.main-panel-feeds .project-workspace--catalog > .sidebar-right,
+.main-panel-feeds .project-workspace--catalog > .mobile-rail-host > .sidebar-right {
   grid-column: 3;
   grid-row: 1;
 }
@@ -8654,17 +8713,8 @@ body.l2-visual-open #root {
 }
 
 @media (max-width: 768px) {
-  .app-body {
-    flex-direction: column;
-  }
-
   .feed-editor-launchers {
     grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    width: 100%;
-    max-height: 220px;
   }
 
   .field-grid {
@@ -9969,7 +10019,8 @@ body.l2-visual-open #root {
   display: none;
 }
 
-.project-workspace--catalog.is-sidebar-expanded > .sidebar-right {
+.project-workspace--catalog.is-sidebar-expanded > .sidebar-right,
+.project-workspace--catalog.is-sidebar-expanded > .mobile-rail-host > .sidebar-right {
   grid-column: 2 / -1;
 }
 
@@ -10438,4 +10489,279 @@ body.l2-visual-open #root {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   flex: 1;
+}
+
+/* ============================================================
+   Mobile shell (Phase 1)
+   Desktop keeps the multi-rail layout untouched. Below 768px:
+   - projects sidebar becomes a left slide-in drawer (hamburger)
+   - workspace nav becomes a horizontal strip above the canvas
+   - right rails (Actions / Details) become right slide-in
+     drawers behind a floating button (MobileRail component)
+   ============================================================ */
+
+/* Desktop defaults for mobile-only chrome */
+.mobile-nav-toggle,
+.mobile-rail-fab,
+.mobile-rail-close,
+.mobile-rail-backdrop,
+.mobile-projects-backdrop,
+.workspace-nav-mobile-bar {
+  display: none;
+}
+
+.workspace-nav-mobile-context {
+  flex-shrink: 0;
+  /* fixed width so the view dropdown starts at the same spot in every section */
+  width: 5.4rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.mobile-rail-host {
+  display: contents;
+}
+
+@media (max-width: 768px) {
+  .app {
+    height: 100dvh;
+  }
+
+  .app-header {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .app-header .brand h1 {
+    font-size: 1rem;
+  }
+
+  .app-header .brand p {
+    display: none;
+  }
+
+  .app-header .user-menu-label {
+    max-width: 7rem;
+  }
+
+  .mobile-nav-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 2.4rem;
+    height: 2.4rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 8px);
+    background: var(--bg-card);
+    color: var(--text);
+    font-size: 1.15rem;
+    cursor: pointer;
+  }
+
+  /* --- Projects sidebar: left drawer --- */
+  .app-body > .sidebar.project-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(85vw, 320px) !important;
+    z-index: 1000;
+    border-right: 1px solid var(--border);
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.45);
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+  }
+
+  .app.mobile-projects-open .app-body > .sidebar.project-sidebar {
+    transform: translateX(0);
+  }
+
+  .mobile-projects-backdrop.open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 990;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  /* Hide desktop-only collapse/resize chrome inside the drawer */
+  .project-sidebar .l2-rail-resize-handle,
+  .project-sidebar .project-sidebar-collapse {
+    display: none;
+  }
+
+  /* --- Workspace nav: bottom bar (thumb reach); menu opens upward --- */
+  .main-panel-feeds .project-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .main-panel-feeds .project-workspace--catalog,
+  .main-panel-feeds .project-workspace--settings {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .main-panel-feeds .workspace-nav,
+  .main-panel-feeds .project-workspace--catalog > .workspace-nav {
+    grid-column: 1;
+    grid-row: 2;
+    width: 100%;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    /* bar at the bottom, expanded menu stacking upward above it */
+    flex-direction: column-reverse;
+  }
+
+  .main-panel-feeds .l2-main-panel,
+  .main-panel-feeds .project-workspace--catalog > .l2-main-panel,
+  .main-panel-feeds .project-workspace--settings .l2-main-panel {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 0.85rem 0.75rem 1.25rem;
+  }
+
+  .workspace-nav .sidebar-head {
+    display: none;
+  }
+
+  /* Collapsed: a bar with the projects hamburger and the current view.
+     Tapping the view expands the normal vertical menu (same markup and
+     styles as desktop) in place. */
+  .workspace-nav-mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: calc(3.2rem + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    /* clear the docked Actions/Details button on the right */
+    padding: 0.35rem 6.5rem calc(0.35rem + env(safe-area-inset-bottom, 0px)) 0.5rem;
+  }
+
+  /* Nav bars carry their own hamburger — hide the header fallback then */
+  .app:has(.workspace-nav-mobile-bar) .app-header .mobile-nav-toggle {
+    display: none;
+  }
+
+  .workspace-nav-current {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    margin-left: 0.35rem;
+    padding: 0.55rem 0.6rem 0.55rem 0.75rem;
+    border: none;
+    border-left: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text);
+    text-align: center;
+    cursor: pointer;
+  }
+
+  .workspace-nav-current-caret {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+
+  .workspace-nav:not(.mobile-menu-open) .workspace-nav-list,
+  .workspace-nav:not(.mobile-menu-open) .workspace-nav-footer {
+    display: none;
+  }
+
+  .workspace-nav.mobile-menu-open .workspace-nav-list {
+    max-height: 55dvh;
+    overflow-y: auto;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* --- Right rails: drawer behind a button docked into the bottom bar --- */
+  .mobile-rail-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    z-index: 940;
+    width: 6rem;
+    height: calc(3.2rem + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    padding: 0 0.75rem env(safe-area-inset-bottom, 0px);
+    border: none;
+    border-top: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .mobile-rail-backdrop.open {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 950;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  .mobile-rail-host {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(88vw, 360px);
+    z-index: 960;
+    background: var(--bg-elevated);
+    border-left: 1px solid var(--border);
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.45);
+    transform: translateX(105%);
+    transition: transform 0.2s ease;
+  }
+
+  .mobile-rail-host.open {
+    transform: translateX(0);
+  }
+
+  .mobile-rail-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0.55rem;
+    right: 0.65rem;
+    z-index: 5;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg-card);
+    color: var(--text);
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  .mobile-rail-host > .sidebar,
+  .mobile-rail-host > .sidebar-right {
+    width: 100% !important;
+    height: 100%;
+    min-height: 0;
+    border-left: none;
+  }
 }

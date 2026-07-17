@@ -14,6 +14,7 @@ import { WorkspaceNav, WorkspaceNavShell } from './WorkspaceNav'
 
 import { FeedL2Workspace } from './l2/FeedL2Workspace'
 import { FeedRightSidebar, FeedRightSidebarShell } from './l2/FeedRightSidebar'
+import { MobileRail } from './MobileRail'
 
 type FeedListItem = FeedConfig & { hasUnpublishedDraft?: boolean }
 type SettingsAutosaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
@@ -347,6 +348,7 @@ export function ProjectWorkspace({
         )}
       </main>
 
+      <MobileRail label="Actions">
       {feedId ? (
         feedDraft ? (
           <FeedRightSidebar
@@ -387,6 +389,7 @@ export function ProjectWorkspace({
           onDeleteProject={onDeleteProject}
         />
       )}
+      </MobileRail>
 
       {confirmDeleteFeed && feedDraft && (
         <ConfirmModal

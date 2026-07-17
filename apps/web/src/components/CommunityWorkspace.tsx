@@ -6,6 +6,7 @@ import { CommunityFeedsPanel } from './community/CommunityFeedsPanel'
 import { CommunityUsersPanel } from './community/CommunityUsersPanel'
 import { CommunityFeedDetail } from './community/CommunityFeedDetail'
 import { SidebarExpandBar } from './SidebarExpandBar'
+import { MobileRail } from './MobileRail'
 
 const VIEW_COPY: Record<CommunityWorkspaceView, { title: string; hint: string }> = {
   feeds: {
@@ -63,6 +64,7 @@ export function CommunityWorkspace() {
         </div>
       </main>
 
+      <MobileRail label="Details">
       <aside className="sidebar sidebar-right marketplace-sidebar">
         <CommunityFeedDetail
           feed={selectedFeed}
@@ -74,6 +76,7 @@ export function CommunityWorkspace() {
           <SidebarExpandBar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((v) => !v)} />
         )}
       </aside>
+      </MobileRail>
     </div>
   )
 }
