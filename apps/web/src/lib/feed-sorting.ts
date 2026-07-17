@@ -17,6 +17,8 @@ export interface EngagementWeights {
   replies: EngagementSignal
   quotes: EngagementSignal
   bookmarks: EngagementSignal
+  audienceLikes: EngagementSignal
+  audienceReposts: EngagementSignal
 }
 
 export interface ContentSignals {
@@ -72,6 +74,8 @@ export const DEFAULT_ENGAGEMENT_WEIGHTS: EngagementWeights = {
   replies: { enabled: true, weight: 1 },
   quotes: { enabled: false, weight: 1 },
   bookmarks: { enabled: false, weight: 3 },
+  audienceLikes: { enabled: false, weight: 3 },
+  audienceReposts: { enabled: false, weight: 5 },
 }
 
 export const DEFAULT_CONTENT_SIGNALS: ContentSignals = {
@@ -295,6 +299,8 @@ export function engagementExpr(weights: EngagementWeights): L2Expr {
   add('reply_count', weights.replies)
   add('quote_count', weights.quotes)
   add('bookmark_count', weights.bookmarks)
+  add('audience_like_count', weights.audienceLikes)
+  add('audience_repost_count', weights.audienceReposts)
   if (terms.length === 0) return fieldExpr('like_count')
   return terms.reduce((acc, t) => binary('+', acc, t))
 }
@@ -311,6 +317,8 @@ export function engagementFormulaLabel(weights: EngagementWeights, tuning: SortT
   add('replies', weights.replies)
   add('quotes', weights.quotes)
   add('bookmarks', weights.bookmarks)
+  add('audience_likes', weights.audienceLikes)
+  add('audience_reposts', weights.audienceReposts)
   let formula = parts.length ? parts.join(' + ') : 'likes'
 
   if (tuning.editorScoreWeight > 0) {
@@ -402,12 +410,16 @@ export function detectEngagementWeights(expr: L2Expr): EngagementWeights {
     replies: { enabled: false, weight: 1 },
     quotes: { enabled: false, weight: 1 },
     bookmarks: { enabled: false, weight: 1 },
+    audienceLikes: { enabled: false, weight: 3 },
+    audienceReposts: { enabled: false, weight: 5 },
   }
   detectFieldWeight(expr, 'like_count', w, 'likes')
   detectFieldWeight(expr, 'repost_count', w, 'reposts')
   detectFieldWeight(expr, 'reply_count', w, 'replies')
   detectFieldWeight(expr, 'quote_count', w, 'quotes')
   detectFieldWeight(expr, 'bookmark_count', w, 'bookmarks')
+  detectFieldWeight(expr, 'audience_like_count', w, 'audienceLikes')
+  detectFieldWeight(expr, 'audience_repost_count', w, 'audienceReposts')
   return w
 }
 

@@ -38,6 +38,8 @@ const ENGAGEMENT_SIGNALS: { key: keyof EngagementWeights; label: string }[] = [
   { key: 'replies', label: 'Replies' },
   { key: 'quotes', label: 'Quotes' },
   { key: 'bookmarks', label: 'Bookmarks' },
+  { key: 'audienceLikes', label: 'Audience likes' },
+  { key: 'audienceReposts', label: 'Audience reposts' },
 ]
 
 const MEDIA_SIGNALS: { key: keyof MediaBonus; label: string }[] = [
