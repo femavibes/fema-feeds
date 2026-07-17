@@ -11,6 +11,7 @@ import {
   applySortMode,
   applyTuning,
   detectEngagementWeights,
+  detectTuning,
   detectSortMode,
   engagementExpr,
   engagementFormulaLabel,
@@ -324,11 +325,19 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
   )
 
   const [engagementWeights, setEngagementWeights] = useState<EngagementWeights>(detectedWeights)
-  const [tuning, setTuning] = useState<SortTuning>(DEFAULT_SORT_TUNING)
+  const detectedTuning = useMemo(
+    () => draft.rank?.sortKey ? { ...DEFAULT_SORT_TUNING, ...detectTuning(draft.rank.sortKey) } : DEFAULT_SORT_TUNING,
+    [draft.rank?.sortKey],
+  )
+  const [tuning, setTuning] = useState<SortTuning>(detectedTuning)
 
   useEffect(() => {
     setEngagementWeights(detectedWeights)
   }, [draft.feedId, detectedWeights])
+
+  useEffect(() => {
+    setTuning(detectedTuning)
+  }, [draft.feedId, detectedTuning])
 
   const [copied, setCopied] = useState(false)
 

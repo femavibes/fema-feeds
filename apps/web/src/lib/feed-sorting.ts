@@ -519,3 +519,20 @@ export function sortModeBadge(mode: SortMode, weights: EngagementWeights): strin
       return 'Custom formula'
   }
 }
+
+/** Reverse-parse a sortKey expression to recover tuning values. Only detects decay for now. */
+export function detectTuning(expr: L2Expr): Partial<SortTuning> {
+  const tuning: Partial<SortTuning> = {}
+  // Decay pattern: expr / (1 + post_age_hours / N)
+  if (
+    expr.type === 'binary' && expr.op === '/' &&
+    expr.right.type === 'binary' && expr.right.op === '+' &&
+    expr.right.left.type === 'literal' && expr.right.left.value === 1 &&
+    expr.right.right.type === 'binary' && expr.right.right.op === '/' &&
+    expr.right.right.left.type === 'field' && expr.right.right.left.field === 'post_age_hours' &&
+    expr.right.right.right.type === 'literal'
+  ) {
+    tuning.decayHalfLifeHours = expr.right.right.right.value
+  }
+  return tuning
+}
