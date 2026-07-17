@@ -486,6 +486,19 @@ export function findInMatch(
   return null
 }
 
+/** Deep-clone a rule node (and nested children) with fresh ids. */
+export function cloneNodeWithNewIds(node: L2RuleNode): L2RuleNode {
+  const cloned = structuredClone(node)
+  const reId = (n: L2RuleNode) => {
+    n.id = newId(n.type === 'group' ? 'group' : n.type)
+    if (n.type === 'group') {
+      for (const child of n.children) reId(child)
+    }
+  }
+  reId(cloned)
+  return cloned
+}
+
 /** Author list IDs referenced by author conditions anywhere in the feed rule tree. */
 export function collectAuthorListIdsFromMatch(root: L2RuleGroup): Set<string> {
   const ids = new Set<string>()

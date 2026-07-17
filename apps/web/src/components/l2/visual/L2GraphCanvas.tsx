@@ -79,6 +79,8 @@ interface Props {
   ) => void
   onNodeContextMenu: (nodeId: string, x: number, y: number) => void
   onEdgeContextMenu: (edgeId: string, x: number, y: number) => void
+  /** Double-click / double-tap on a node — open its properties panel. */
+  onNodeOpenProperties?: (nodeId: string) => void
   canUndo?: boolean
   canRedo?: boolean
   onUndo?: () => void
@@ -116,6 +118,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     onPaletteDrop,
     onNodeContextMenu,
     onEdgeContextMenu,
+    onNodeOpenProperties,
     canUndo = false,
     canRedo = false,
     onUndo,
@@ -469,10 +472,46 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     el.addEventListener('dragover', onDragOver)
     el.addEventListener('dragleave', onDragLeave)
     el.addEventListener('drop', onDrop)
+
+    // Touch drag from the palette (mobile bottom sheet). The palette
+    // dispatches these because HTML5 drag events never fire on touch.
+    const onTouchDrag = (e: Event) => {
+      const { phase } = (e as CustomEvent<{ phase: 'start' | 'end' }>).detail
+      el.classList.toggle('l2-canvas-palette-drag-over', phase === 'start')
+    }
+    const onTouchDrop = (e: Event) => {
+      const { pick, clientX, clientY } = (
+        e as CustomEvent<{ pick: PalettePick; clientX: number; clientY: number }>
+      ).detail
+      const rect = el.getBoundingClientRect()
+      if (
+        clientX < rect.left ||
+        clientX > rect.right ||
+        clientY < rect.top ||
+        clientY > rect.bottom
+      ) {
+        return
+      }
+      // The palette sheet overlaps the canvas rect on mobile — releasing
+      // over the sheet itself is not a drop.
+      if (document.elementFromPoint(clientX, clientY)?.closest('.l2-visual-rail')) return
+      const flowPosition = screenToFlowPosition({ x: clientX, y: clientY })
+      const dropGroupId = findGroupAtFlowPoint(
+        flowPosition,
+        getNodes() as Node<GraphNodeData>[],
+        match,
+      )
+      onPaletteDrop(pick, flowPosition, dropGroupId)
+    }
+    window.addEventListener('cfb:palette-touch-drag', onTouchDrag)
+    window.addEventListener('cfb:palette-touch-drop', onTouchDrop)
+
     return () => {
       el.removeEventListener('dragover', onDragOver)
       el.removeEventListener('dragleave', onDragLeave)
       el.removeEventListener('drop', onDrop)
+      window.removeEventListener('cfb:palette-touch-drag', onTouchDrag)
+      window.removeEventListener('cfb:palette-touch-drop', onTouchDrop)
       el.classList.remove('l2-canvas-palette-drag-over')
     }
   }, [getNodes, match, onPaletteDrop, screenToFlowPosition])
@@ -536,6 +575,11 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
         onNodeClick={(_, node) => {
           onSelectEdge(null)
           onSelect(resolveCanvasSelectionId(node.id, node.data))
+        }}
+        onNodeDoubleClick={(_, node) => {
+          if (!onNodeOpenProperties) return
+          onSelectEdge(null)
+          onNodeOpenProperties(resolveCanvasSelectionId(node.id, node.data))
         }}
         onNodeContextMenu={(event, node) => {
           event.preventDefault()

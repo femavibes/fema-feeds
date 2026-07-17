@@ -28,11 +28,15 @@ function matchesSearch(text: string, q: string): boolean {
   return text.toLowerCase().includes(q)
 }
 
+const TOUCH_DRAG_HOLD_MS = 260
+const TOUCH_DRAG_SLOP_PX = 8
+
 function PaletteNodeButton({
   label,
   description,
   badge,
   draggable,
+  pick,
   onClick,
   onDragStart,
 }: {
@@ -40,17 +44,121 @@ function PaletteNodeButton({
   description: string
   badge?: string
   draggable: boolean
+  /** Payload for touch drag-and-drop (HTML5 DnD doesn't fire on touch). */
+  pick?: PalettePick
   onClick: () => void
   onDragStart: (e: React.DragEvent) => void
 }) {
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const dragActiveRef = useRef(false)
+  const suppressClickRef = useRef(false)
+
+  // Long-press on a touch device starts a custom drag: a ghost chip follows
+  // the finger, and releasing over the canvas dispatches a drop event that
+  // L2GraphCanvas turns into the same onPaletteDrop path as desktop DnD.
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (!draggable || !pick) return
+    const el = btnRef.current
+    const start = e.touches[0]
+    if (!el || !start) return
+    const state = {
+      startX: start.clientX,
+      startY: start.clientY,
+      ghost: null as HTMLDivElement | null,
+    }
+
+    const activate = () => {
+      dragActiveRef.current = true
+      const ghost = document.createElement('div')
+      ghost.className = 'l2-palette-touch-ghost'
+      ghost.textContent = label
+      document.body.appendChild(ghost)
+      moveGhost(ghost, state.startX, state.startY)
+      state.ghost = ghost
+      window.dispatchEvent(
+        new CustomEvent('cfb:palette-touch-drag', { detail: { phase: 'start' } }),
+      )
+      try {
+        navigator.vibrate?.(10)
+      } catch {
+        // ignore
+      }
+    }
+
+    const moveGhost = (ghost: HTMLDivElement, x: number, y: number) => {
+      ghost.style.left = `${x}px`
+      ghost.style.top = `${y}px`
+    }
+
+    const timer = window.setTimeout(activate, TOUCH_DRAG_HOLD_MS)
+
+    const cleanup = (drop: boolean, x: number, y: number) => {
+      window.clearTimeout(timer)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+      el.removeEventListener('touchcancel', onCancel)
+      state.ghost?.remove()
+      if (dragActiveRef.current) {
+        dragActiveRef.current = false
+        suppressClickRef.current = true
+        window.dispatchEvent(
+          new CustomEvent('cfb:palette-touch-drag', { detail: { phase: 'end' } }),
+        )
+        if (drop) {
+          window.dispatchEvent(
+            new CustomEvent('cfb:palette-touch-drop', {
+              detail: { pick, clientX: x, clientY: y },
+            }),
+          )
+        }
+      }
+    }
+
+    const onMove = (ev: TouchEvent) => {
+      const t = ev.touches[0]
+      if (!t) return
+      if (!dragActiveRef.current) {
+        const moved = Math.hypot(t.clientX - state.startX, t.clientY - state.startY)
+        if (moved > TOUCH_DRAG_SLOP_PX) cleanup(false, 0, 0)
+        return
+      }
+      ev.preventDefault()
+      if (state.ghost) moveGhost(state.ghost, t.clientX, t.clientY)
+    }
+    const onEnd = (ev: TouchEvent) => {
+      const t = ev.changedTouches[0]
+      if (!t) {
+        cleanup(false, 0, 0)
+        return
+      }
+      cleanup(true, t.clientX, t.clientY)
+    }
+    const onCancel = () => cleanup(false, 0, 0)
+
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd)
+    el.addEventListener('touchcancel', onCancel)
+  }
+
   return (
     <li>
       <button
+        ref={btnRef}
         type="button"
         className="l2-palette-item"
         draggable={draggable}
-        onClick={onClick}
+        onClick={() => {
+          if (suppressClickRef.current) {
+            suppressClickRef.current = false
+            return
+          }
+          onClick()
+        }}
         onDragStart={onDragStart}
+        onTouchStart={onTouchStart}
+        onContextMenu={(e) => {
+          if (dragActiveRef.current) e.preventDefault()
+        }}
         title={description}
       >
         <span className="l2-palette-item-head">
@@ -285,18 +393,19 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
                   : 'Subscriptions'}
             </h3>
           </div>
-
-          <label className="l2-palette-search">
-            <span className="sr-only">Search nodes</span>
-            <input
-              type="search"
-              className="input input-sm l2-palette-search-input"
-              placeholder="Search…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </label>
         </div>
+
+        {/* Direct flex child so mobile CSS can dock it below the catalog */}
+        <label className="l2-palette-search">
+          <span className="sr-only">Search nodes</span>
+          <input
+            type="search"
+            className="input input-sm l2-palette-search-input"
+            placeholder="Search…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
 
         <div className="l2-palette-catalog-body" ref={catalogRef}>
 
@@ -328,6 +437,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
                           label={item.label}
                           description={item.description}
                           draggable={Boolean(item.factory)}
+                          pick={{ kind: 'native', item }}
                           onClick={() => pickNative(item)}
                           onDragStart={bindNativeDrag(item)}
                         />
@@ -352,6 +462,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
                         label={label}
                         description={desc}
                         draggable
+                        pick={{ kind: 'source', entry }}
                         onClick={() => onPick({ kind: 'source', entry })}
                         onDragStart={(e) => {
                           const { mime, data } = paletteDragPayload({ kind: 'source', entry })
@@ -385,6 +496,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
                       description={pkg.description ?? `Reusable logic block · v${pkg.version}`}
                       badge="Saved"
                       draggable
+                      pick={{ kind: 'logic_block', entry }}
                       onClick={() => pickLogicBlock(entry)}
                       onDragStart={bindLogicBlockDrag(entry)}
                     />
@@ -422,6 +534,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
                       }
                       badge="Sub"
                       draggable
+                      pick={{ kind: 'logic_block', entry }}
                       onClick={() => pickLogicBlock(entry)}
                       onDragStart={bindLogicBlockDrag(entry)}
                     />

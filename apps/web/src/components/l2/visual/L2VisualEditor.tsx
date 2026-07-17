@@ -11,8 +11,11 @@ import { VisualEditorNestContext } from './visual-editor-nest'
 import {
   addToGroup,
   clearPositionsForSubtree,
+  cloneNodeWithNewIds,
   extractNodeFromGroup,
   findInMatch,
+  findParentId,
+  isTopLevelMatchNode,
   newLogicBlockRef,
   removeNode,
   reparentNode,
@@ -20,15 +23,24 @@ import {
   updateGroup,
 } from '../../../lib/l2-form'
 import { flattenTopLevelMatch, normalizeCanvasFeedStorage, normalizeRuleGroup, sanitizeCanvasEdges } from '@cfb/l2-graph'
-import { L2CanvasContextMenu, type CanvasContextMenuState } from './L2CanvasContextMenu'
+import { L2CanvasContextMenu, type CanvasContextMenuState, type ConnectTarget } from './L2CanvasContextMenu'
 import { L2GraphCanvas } from './L2GraphCanvas'
 import { L2PropertiesInspector } from './L2NodeInspector'
 import { L2PreviewRail } from './L2PreviewRail'
 import { RailCollapseStrip, RailPanelHead, RailResizeHandle } from './L2RailChrome'
+import { MobileSheetHandle } from './MobileSheetHandle'
 import { L2NodePalette } from './L2NodePalette'
 import { L2NodeRenameDialog } from './L2NodeRenameDialog'
 import { LogicBlockInnerPreview } from '../../logic-blocks/LogicBlockInnerPreview'
-import { resolveCanvasEdges, type CanvasEdge, type NodeLabels, type NodePositions, type NodeSources } from './graph-sync'
+import {
+  isValidCanvasConnection,
+  newCanvasEdge,
+  resolveCanvasEdges,
+  type CanvasEdge,
+  type NodeLabels,
+  type NodePositions,
+  type NodeSources,
+} from './graph-sync'
 import { type PaletteItem, type PaletteLogicBlockEntry, type PalettePick } from './palette'
 
 type AutosaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
@@ -91,7 +103,7 @@ export function L2VisualEditor({
   editorTitle,
   editorSubtitle = 'Visual rule editor',
   saveLabel = 'Save draft',
-  closeLabel = 'Back to rules',
+  closeLabel: _closeLabel = 'Back to rules',
   canvasHint = 'Separate paths from START are OR. Chain on one path (START → A → B → FEED) for AND. Changes autosave as draft — use Deploy in the sidebar to update live or publish.',
   hideJsonButton = false,
   readOnly = false,
@@ -112,6 +124,39 @@ export function L2VisualEditor({
     title?: string
   } | null>(null)
   const nestedOverlayOpen = innerLogicPreview !== null
+
+  // Mobile: rails render as bottom sheets toggled from the editor's bottom
+  // bar. Start with all sheets closed, and only allow one open at a time.
+  const railsRef = useRef(rails)
+  railsRef.current = rails
+  useEffect(() => {
+    if (!window.matchMedia('(max-width: 768px)').matches) return
+    const r = railsRef.current
+    if (r.paletteOpen) r.togglePalette()
+    if (r.propsOpen) r.toggleProps()
+    if (r.previewOpen) r.togglePreview()
+  }, [])
+
+  // Double-click / double-tap on a canvas node: select it and make sure the
+  // properties panel is showing (as the exclusive sheet on mobile).
+  const openPropertiesForNode = useCallback((nodeId: string) => {
+    setSelectedId(nodeId)
+    const r = railsRef.current
+    if (window.matchMedia('(max-width: 768px)').matches) {
+      if (r.paletteOpen) r.togglePalette()
+      if (r.previewOpen) r.togglePreview()
+    }
+    if (!r.propsOpen) r.toggleProps()
+  }, [])
+
+  const toggleMobileRail = (which: 'palette' | 'props' | 'preview') => {
+    if (which !== 'palette' && rails.paletteOpen) rails.togglePalette()
+    if (which !== 'props' && rails.propsOpen) rails.toggleProps()
+    if (which !== 'preview' && rails.previewOpen) rails.togglePreview()
+    if (which === 'palette') rails.togglePalette()
+    if (which === 'props') rails.toggleProps()
+    if (which === 'preview') rails.togglePreview()
+  }
 
   const registerNestedOverlay = useCallback(() => {
     return () => {}
@@ -313,23 +358,137 @@ export function L2VisualEditor({
       })()
     : ''
 
+  const flash = useCallback((msg: string | null) => {
+    setStatusMessage(msg)
+    window.setTimeout(() => setStatusMessage(null), 2200)
+  }, [])
+
+  const nodeDisplayLabel = useCallback(
+    (nodeId: string): string => {
+      if (nodeId === 'start') return 'START'
+      if (nodeId === 'end') return 'FEED'
+      const node = findInMatch(match, nodeId)
+      if (!node) return nodeId
+      if (node.type === 'group') {
+        const logic =
+          node.logic === 'all' ? 'AND' : node.logic === 'any' ? 'OR' : `N-of-${node.minPass ?? 2}`
+        return node.label?.trim() || `${logic} group`
+      }
+      return nodeLabels[nodeId]?.trim() || node.type.replace(/_/g, ' ')
+    },
+    [match, nodeLabels],
+  )
+
+  const connectTargetsFor = useCallback(
+    (sourceId: string): ConnectTarget[] => {
+      const candidates = ['start', 'end', ...match.children.map((c) => c.id)]
+      return candidates
+        .filter(
+          (targetId) =>
+            targetId !== sourceId &&
+            isValidCanvasConnection(
+              { source: sourceId, target: targetId, sourceHandle: null, targetHandle: null },
+              match,
+              canvasEdges,
+            ),
+        )
+        .map((id) => ({ id, label: nodeDisplayLabel(id) }))
+    },
+    [match, canvasEdges, nodeDisplayLabel],
+  )
+
   const openNodeContextMenu = useCallback(
     (nodeId: string, x: number, y: number) => {
+      const isEndpoint = nodeId === 'start' || nodeId === 'end'
+      const isRoot = nodeId === match.id
+      // Nested inside an AND/OR/N-of: canvas wires are hidden, so no Connect to.
+      const nested =
+        !isEndpoint && !isRoot && !isTopLevelMatchNode(match, nodeId) && findParentId(match, nodeId) !== null
+      const canConnect = !nested && !isRoot
+      const connectTargets = canConnect ? connectTargetsFor(nodeId) : []
       setContextMenu({
         kind: 'node',
         nodeId,
         x,
         y,
-        canRename: nodeId !== 'start' && nodeId !== 'end',
-        canDelete: nodeId !== 'start' && nodeId !== 'end' && nodeId !== match.id,
+        canRename: !isEndpoint && !isRoot,
+        canDelete: !isEndpoint && !isRoot,
+        canDuplicate: !isEndpoint && !isRoot,
+        canOpenProperties: !isEndpoint,
+        canConnect,
+        connectTargets,
       })
     },
-    [match.id],
+    [match, connectTargetsFor],
   )
 
   const openEdgeContextMenu = useCallback((edgeId: string, x: number, y: number) => {
     setContextMenu({ kind: 'edge', edgeId, x, y })
   }, [])
+
+  const enterConnectPicker = useCallback(
+    (nodeId: string, x: number, y: number, targets: ConnectTarget[]) => {
+      setContextMenu({ kind: 'connect', nodeId, x, y, targets })
+    },
+    [],
+  )
+
+  const connectNodes = useCallback(
+    (sourceId: string, targetId: string) => {
+      if (
+        !isValidCanvasConnection(
+          { source: sourceId, target: targetId, sourceHandle: null, targetHandle: null },
+          match,
+          canvasEdges,
+        )
+      ) {
+        setContextMenu(null)
+        return
+      }
+      const edge = newCanvasEdge(sourceId, targetId)
+      if (!canvasEdges.some((e) => e.id === edge.id)) {
+        patchDraft({ visualLayout: visualLayout({ edges: [...canvasEdges, edge] }) })
+      }
+      setContextMenu(null)
+      flash('Connected')
+    },
+    [match, canvasEdges, patchDraft, visualLayout, flash],
+  )
+
+  const duplicateNode = useCallback(
+    (nodeId: string) => {
+      if (nodeId === 'start' || nodeId === 'end' || nodeId === match.id) return
+      const source = findInMatch(match, nodeId)
+      if (!source) return
+      const clone = cloneNodeWithNewIds(source)
+      const parentId = findParentId(match, nodeId) ?? match.id
+      const nextMatch =
+        parentId === match.id
+          ? { ...match, children: [...match.children, clone] }
+          : addToGroup(match, parentId, clone)
+      const origin = positions[nodeId]
+      const nextPositions = {
+        ...positions,
+        [clone.id]: {
+          x: (origin?.x ?? 80) + 40,
+          y: (origin?.y ?? 80) + 40,
+        },
+      }
+      const nextLabels = { ...nodeLabels }
+      if (nodeLabels[nodeId]) nextLabels[clone.id] = `${nodeLabels[nodeId]} copy`
+      patchDraft({
+        match: nextMatch,
+        visualLayout: visualLayout({
+          positions: nextPositions,
+          labels: nextLabels,
+        }),
+      })
+      setSelectedId(clone.id)
+      setContextMenu(null)
+      flash('Duplicated')
+    },
+    [match, positions, nodeLabels, patchDraft, visualLayout, flash],
+  )
 
   useEffect(() => {
     const isEditableTarget = (target: EventTarget | null) =>
@@ -397,10 +556,6 @@ export function L2VisualEditor({
     onSaveDraft,
     nestedOverlayOpen,
   ])
-  const flash = (msg: string | null) => {
-    setStatusMessage(msg)
-    window.setTimeout(() => setStatusMessage(null), 2200)
-  }
 
   const addPaletteNode = useCallback(
     (
@@ -486,16 +641,27 @@ export function L2VisualEditor({
     [canvasEdges, positions, patchDraft, visualLayout],
   )
 
+  // On mobile the palette is a bottom sheet; close it once a node lands so
+  // the user immediately sees the canvas result.
+  const closeMobilePalette = useCallback(() => {
+    if (!window.matchMedia('(max-width: 768px)').matches) return
+    const r = railsRef.current
+    if (r.paletteOpen) r.togglePalette()
+  }, [])
+
   const handlePalettePick = (pick: PalettePick) => {
     if (pick.kind === 'native') {
       addPaletteNode(pick.item)
+      closeMobilePalette()
       return
     }
     if (pick.kind === 'source') {
       addSourceNode(pick.entry)
+      closeMobilePalette()
       return
     }
     addLogicBlockNode(pick.entry)
+    closeMobilePalette()
   }
 
   const onPaletteDrop = useCallback(
@@ -509,19 +675,22 @@ export function L2VisualEditor({
         const groupId =
           dropGroupId ?? resolveAddTargetGroupId(match, selectedId, item.action)
         addPaletteNode(item, { groupId, position: flowPosition })
+        closeMobilePalette()
         return
       }
 
       if (pick.kind === 'source') {
         addSourceNode(pick.entry, flowPosition)
+        closeMobilePalette()
         return
       }
 
       const groupId =
         dropGroupId ?? resolveAddTargetGroupId(match, selectedId, 'condition')
       addLogicBlockNode(pick.entry, { groupId, position: flowPosition })
+      closeMobilePalette()
     },
-    [addLogicBlockNode, addPaletteNode, match, selectedId],
+    [addLogicBlockNode, addPaletteNode, closeMobilePalette, match, selectedId],
   )
 
   const onExtractNode = useCallback(
@@ -563,7 +732,6 @@ export function L2VisualEditor({
         <div className="l2-visual-toolbar-actions">
           {!readOnly ? (
             <>
-              <span className="l2-editor-switch" aria-hidden="true" />
               {onUpdateLive ? (
                 <button
                   type="button"
@@ -578,7 +746,7 @@ export function L2VisualEditor({
               {hideSaveDraft && revertToLive ? (
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-secondary btn-sm"
                   disabled={!revertToLive.enabled || saving}
                   title={
                     revertToLive.enabled
@@ -595,7 +763,7 @@ export function L2VisualEditor({
               ) : !hideSaveDraft ? (
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-secondary btn-sm"
                   disabled={!dirty}
                   onClick={() => {
                     resetHistory()
@@ -616,28 +784,29 @@ export function L2VisualEditor({
                 </button>
               ) : null}
               {!hideJsonButton && onOpenJson ? (
-                <>
-                  <span className="l2-editor-switch" aria-hidden="true" />
-                  <button type="button" className="btn btn-secondary btn-sm" onClick={onOpenJson}>
-                    Open JSON editor
-                  </button>
-                </>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={onOpenJson}>
+                  JSON Editor
+                </button>
               ) : null}
             </>
           ) : null}
-          <span className="l2-visual-hint" title="Keyboard shortcuts">
-            {readOnly ? 'Esc' : hideSaveDraft ? 'Ctrl+Z · Esc' : 'Ctrl+Z · Ctrl+S · Esc'}
-          </span>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={handleClose}>
-            {closeLabel}
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm l2-editor-close"
+            onClick={handleClose}
+            aria-label="Close editor"
+            title="Close"
+          >
+            ×
           </button>
         </div>
       </header>
 
       {!readOnly ? (
-      <aside className="l2-visual-rail l2-visual-rail-left">
+      <aside className={`l2-visual-rail l2-visual-rail-left${rails.paletteOpen ? ' is-open' : ''}`}>
         {rails.paletteOpen ? (
           <>
+            <MobileSheetHandle onClose={rails.togglePalette} />
             <RailPanelHead
               title="Palette"
               collapseSide="start"
@@ -697,6 +866,7 @@ export function L2VisualEditor({
             nodeSources={nodeSources}
             onNodeContextMenu={openNodeContextMenu}
             onEdgeContextMenu={openEdgeContextMenu}
+            onNodeOpenProperties={openPropertiesForNode}
             onReparent={(nodeId, targetGroupId) => {
               const nextMatch = reparentNode(match, nodeId, targetGroupId)
               if (nextMatch === match) return
@@ -717,12 +887,20 @@ export function L2VisualEditor({
             onUndo={undo}
             onRedo={redo}
             onResetPanels={rails.resetPanels}
-          />          <L2CanvasContextMenu
+          />
+          <L2CanvasContextMenu
             menu={contextMenu}
             onClose={() => setContextMenu(null)}
             onRenameNode={renameNode}
             onDeleteNode={deleteNode}
+            onDuplicateNode={duplicateNode}
+            onOpenProperties={(nodeId) => {
+              setContextMenu(null)
+              openPropertiesForNode(nodeId)
+            }}
+            onConnectNodes={connectNodes}
             onDisconnectEdge={deleteEdge}
+            onEnterConnectPicker={enterConnectPicker}
           />
           <L2NodeRenameDialog
             nodeId={renameTargetId}
@@ -734,9 +912,10 @@ export function L2VisualEditor({
       </main>
 
       {!nestedOverlayOpen ? (
-      <aside className="l2-visual-rail l2-visual-rail-props">
+      <aside className={`l2-visual-rail l2-visual-rail-props${rails.propsOpen ? ' is-open' : ''}`}>
         {rails.propsOpen ? (
           <>
+            <MobileSheetHandle onClose={rails.toggleProps} />
             {!readOnly ? (
               <RailResizeHandle
                 label="Resize properties panel"
@@ -784,9 +963,10 @@ export function L2VisualEditor({
       ) : null}
 
       {!readOnly && !nestedOverlayOpen ? (
-      <aside className="l2-visual-rail l2-visual-rail-preview">
+      <aside className={`l2-visual-rail l2-visual-rail-preview${rails.previewOpen ? ' is-open' : ''}`}>
         {rails.previewOpen ? (
           <>
+            <MobileSheetHandle onClose={rails.togglePreview} />
             <RailResizeHandle
               label="Resize matches panel"
               onMouseDown={rails.startResizePreview}
@@ -808,6 +988,34 @@ export function L2VisualEditor({
         )}
       </aside>
       ) : null}
+
+      <div className="l2-visual-mobile-bar">
+        {!readOnly ? (
+          <button
+            type="button"
+            className={rails.paletteOpen ? 'active' : undefined}
+            onClick={() => toggleMobileRail('palette')}
+          >
+            Nodes
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={rails.propsOpen ? 'active' : undefined}
+          onClick={() => toggleMobileRail('props')}
+        >
+          Properties
+        </button>
+        {!readOnly ? (
+          <button
+            type="button"
+            className={rails.previewOpen ? 'active' : undefined}
+            onClick={() => toggleMobileRail('preview')}
+          >
+            Matches
+          </button>
+        ) : null}
+      </div>
     </div>
     {innerLogicPreview ? (
       <LogicBlockInnerPreview

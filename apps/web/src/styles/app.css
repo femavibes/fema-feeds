@@ -3,6 +3,10 @@
   --bg: #0f1219;
   --bg-elevated: #171c27;
   --bg-card: #1c2230;
+  /* Surface scale — was referenced widely but never defined (rendered transparent). */
+  --surface-1: #0f1219;
+  --surface: #171c27;
+  --surface-2: #1c2230;
   --border: #2a3344;
   --border-strong: #3a455c;
   --text: #e8ecf4;
@@ -5761,7 +5765,7 @@ body.l2-visual-open #root {
   z-index: 10000;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
-  grid-template-rows: 52px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   width: 100vw;
   height: 100dvh;
   background: var(--surface-1);
@@ -5798,7 +5802,9 @@ body.l2-visual-open #root {
 }
 
 .l2-json-codemirror .cm-content {
-  padding: 12px 0;
+  /* Keep long lines scrollable (wrapping JSON is worse), but leave
+     breathing room so text never kisses the viewport edge. */
+  padding: 12px 1.25rem 12px 0;
 }
 
 .l2-json-codemirror .cm-gutters {
@@ -6124,7 +6130,11 @@ body.l2-visual-open #root {
 
 .l2-palette-search {
   display: block;
-  margin: 0 0 0.65rem;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 0.75rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
 .l2-palette-search-input {
@@ -6302,17 +6312,24 @@ body.l2-visual-open #root {
 
 .l2-visual-toolbar-left {
   display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .l2-visual-toolbar-left h2 {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .l2-visual-toolbar-sub {
+  flex-shrink: 0;
   font-size: 0.8rem;
   color: var(--text-muted);
 }
@@ -6320,8 +6337,67 @@ body.l2-visual-open #root {
 .l2-visual-toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  flex-shrink: 0;
   position: relative;
+}
+
+.l2-editor-close {
+  min-width: 2rem;
+  padding-left: 0.45rem;
+  padding-right: 0.45rem;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--text-muted);
+}
+
+.l2-editor-close:hover:not(:disabled) {
+  color: var(--text);
+}
+
+/* Must beat `.l2-visual-toolbar { display: flex }` (same element, later rule). */
+.l2-visual-toolbar.l2-json-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  justify-content: stretch;
+  gap: 0.35rem 0.75rem;
+  padding: 0.45rem 0.75rem 0.5rem 1rem;
+}
+
+.l2-visual-toolbar.l2-json-toolbar .l2-visual-toolbar-left {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.l2-visual-toolbar.l2-json-toolbar .l2-visual-toolbar-actions {
+  grid-column: 2;
+  grid-row: 1;
+  flex: 0 0 auto;
+}
+
+.l2-json-toolbar-editor-tools {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Tip: line numbers select a paste target on tap */
+.l2-json-codemirror .cm-lineNumbers {
+  cursor: pointer;
+}
+
+.l2-json-codemirror .cm-lineNumbers .cm-gutterElement:hover {
+  color: var(--accent);
 }
 
 .l2-graph-exchange {
@@ -6368,7 +6444,6 @@ body.l2-visual-open #root {
 .l2-visual-palette-sticky {
   flex-shrink: 0;
   padding: 0.75rem 0.75rem 0;
-  border-bottom: 1px solid var(--border);
   background: var(--surface-2);
 }
 
@@ -6778,11 +6853,23 @@ body.l2-visual-open #root {
   position: fixed;
   z-index: 10051;
   min-width: 10rem;
+  max-width: min(16rem, calc(100vw - 1.5rem));
+  max-height: min(70dvh, 24rem);
+  overflow-y: auto;
   padding: 0.35rem;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--surface-2);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.l2-context-menu-heading {
+  padding: 0.35rem 0.65rem 0.45rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .l2-context-menu button {
@@ -10763,5 +10850,454 @@ body.l2-visual-open #root {
     height: 100%;
     min-height: 0;
     border-left: none;
+  }
+}
+
+/* ============================================================
+   Mobile: visual editor + JSON editor (Phase 3)
+   Desktop keeps the multi-rail grid. Below 768px the editors
+   become: toolbar (wrapping) / full-screen canvas / bottom bar.
+   Rails open as bottom sheets from the editor's own bottom bar.
+   ============================================================ */
+
+.l2-visual-mobile-bar {
+  display: none;
+}
+
+/* Sheet drag handle — only shown on mobile open rails */
+.l2-sheet-handle {
+  display: none;
+}
+
+/* Floating chip that follows the finger during a palette touch drag */
+.l2-palette-touch-ghost {
+  position: fixed;
+  z-index: 10020;
+  transform: translate(-50%, -130%);
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* Long-press starts a drag; keep the browser from selecting text or
+   popping the iOS callout while the finger is held down */
+.l2-palette-item {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.l2-json-mobile-error {
+  display: none;
+}
+
+.l2-json-mobile-error-host {
+  display: none;
+}
+
+.l2-json-error-jump {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+  border: none;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg-elevated));
+  color: var(--danger);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.l2-json-error-jump:hover {
+  background: color-mix(in srgb, var(--danger) 18%, var(--bg-elevated));
+}
+
+.l2-json-error-jump-hint {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--danger) 70%, var(--text-muted));
+}
+
+.l2-json-guide-error .l2-json-error-jump {
+  margin-top: 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.l2-json-toolbar-editor-tools .btn-ghost.is-active {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+/* Larger fold/gutter hit targets — helps on touch, fine on desktop */
+.l2-json-codemirror .cm-gutters {
+  min-width: 2.5rem;
+}
+
+.l2-json-codemirror .cm-foldGutter span {
+  padding: 0.15rem 0.35rem;
+}
+
+/* CodeMirror Find panel — restyle the stock chrome to match the app */
+.l2-json-codemirror .cm-panels {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.l2-json-codemirror .cm-panels-top {
+  border-bottom: 1px solid var(--border);
+}
+
+.l2-json-codemirror .cm-panel.cm-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+  padding: 0.55rem 0.75rem;
+  font-family: var(--font);
+  font-size: 0.82rem;
+}
+
+.l2-json-codemirror .cm-panel.cm-search input[type='checkbox'] {
+  accent-color: var(--accent);
+  margin: 0 0.25rem 0 0;
+  vertical-align: middle;
+}
+
+.l2-json-codemirror .cm-panel.cm-search label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.l2-json-codemirror .cm-panel.cm-search .cm-textfield {
+  box-sizing: border-box;
+  min-width: 10rem;
+  flex: 1 1 10rem;
+  max-width: 20rem;
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.l2-json-codemirror .cm-panel.cm-search .cm-textfield:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.l2-json-codemirror .cm-panel.cm-search .cm-button {
+  margin: 0;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.l2-json-codemirror .cm-panel.cm-search .cm-button:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-elevated);
+}
+
+.l2-json-codemirror .cm-panel.cm-search button[name='close'] {
+  margin-left: auto;
+  padding: 0.2rem 0.45rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.l2-json-codemirror .cm-panel.cm-search button[name='close']:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.l2-json-codemirror .cm-panel.cm-search br {
+  display: none;
+}
+
+.l2-json-codemirror .cm-searchMatch {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.l2-json-codemirror .cm-searchMatch-selected {
+  background: color-mix(in srgb, var(--accent) 48%, transparent);
+}
+
+/* Paste target preview — shows what Replace block / Append to array will affect */
+.l2-json-codemirror .cm-paste-preview {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: 2px;
+}
+
+.l2-json-graph-modal {
+  width: min(24rem, calc(100vw - 2rem));
+}
+
+.l2-json-graph-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.7rem 0.85rem;
+  white-space: normal;
+}
+
+.l2-json-graph-option-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.l2-json-graph-option-desc {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  /* --- Visual editor grid: toolbar / canvas / bottom bar --- */
+  .l2-visual-fullscreen,
+  .l2-visual-fullscreen--nested {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .l2-visual-toolbar {
+    grid-column: 1;
+    grid-row: 1;
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+    padding: 0.35rem 0.5rem 0.35rem 0.65rem;
+    min-height: 52px;
+  }
+
+  .l2-visual-toolbar-left {
+    gap: 0.4rem;
+  }
+
+  .l2-visual-toolbar-left h2 {
+    font-size: 0.9rem;
+  }
+
+  .l2-visual-toolbar-actions {
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+  }
+
+  .l2-visual-toolbar-actions .btn-sm {
+    padding: 0.35rem 0.55rem;
+    white-space: nowrap;
+  }
+
+  .l2-visual-toolbar-sub,
+  .l2-visual-hint,
+  .l2-visual-canvas-hint,
+  .l2-visual-toolbar-left .badge,
+  .l2-visual-toolbar-left .l2-json-status {
+    display: none;
+  }
+
+  .l2-visual-main,
+  .l2-visual-fullscreen--nested .l2-visual-main {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* --- Rails become bottom sheets ---
+     Open rails share grid row 2 with the canvas and stack on top of it,
+     so they always start below the toolbar and end above the bottom bar
+     no matter how many rows the toolbar wraps to. */
+  .l2-visual-rail {
+    display: none;
+  }
+
+  .l2-visual-rail.is-open {
+    display: flex;
+    grid-column: 1;
+    grid-row: 2;
+    z-index: 30;
+    min-height: 0;
+    height: auto;
+    border-top: 1px solid var(--border);
+    border-right: none;
+    border-left: none;
+    box-shadow: 0 -10px 32px rgba(0, 0, 0, 0.45);
+    background: var(--bg-elevated);
+  }
+
+  .l2-sheet-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 0.45rem 0 0.2rem;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  .l2-sheet-handle-bar {
+    display: block;
+    width: 2.4rem;
+    height: 0.28rem;
+    border-radius: 999px;
+    background: var(--border-strong);
+  }
+
+  /* Nodes sheet: half height so the canvas stays visible for touch drops */
+  .l2-visual-rail-left.is-open {
+    align-self: end;
+    height: 50%;
+  }
+
+  /* Nodes sheet: search docked at the bottom */
+  .l2-visual-rail-left .l2-palette-search {
+    order: 1;
+    padding: 0.5rem 0.75rem;
+    border-bottom: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .l2-visual-rail .l2-rail-resize-handle {
+    display: none;
+  }
+
+  /* Minimap steals too much canvas on a phone; "Panels" resets desktop
+     rail widths, which is meaningless with bottom sheets */
+  .l2-visual-minimap {
+    display: none;
+  }
+
+  .l2-canvas-toolbar-btn-text {
+    display: none;
+  }
+
+  /* --- Editor bottom bar --- */
+  .l2-visual-mobile-bar {
+    grid-column: 1;
+    grid-row: 3;
+    display: flex;
+    align-items: stretch;
+    height: calc(3.2rem + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+
+  .l2-visual-mobile-bar button {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    border-top: 2px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .l2-visual-mobile-bar button + button {
+    border-left: 1px solid var(--border);
+  }
+
+  .l2-visual-mobile-bar button.active {
+    color: var(--text);
+    border-top-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  /* --- JSON editor: single column, guide hidden, inline error strip --- */
+  .l2-json-fullscreen {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .l2-json-toolbar {
+    gap: 0.3rem 0.4rem;
+    padding: 0.35rem 0.5rem 0.4rem 0.65rem;
+  }
+
+  .l2-visual-toolbar.l2-json-toolbar {
+    display: grid;
+    flex-wrap: unset;
+    min-height: 0;
+    gap: 0.3rem 0.4rem;
+    padding: 0.35rem 0.5rem 0.4rem 0.65rem;
+  }
+
+  .l2-json-toolbar-editor-tools {
+    gap: 0.2rem;
+    flex-wrap: wrap;
+  }
+
+  .l2-json-codemirror .cm-content {
+    padding-right: 1.5rem;
+  }
+
+  .l2-json-codemirror .cm-gutters {
+    min-width: 2.75rem;
+  }
+
+  .l2-json-codemirror .cm-foldGutter span {
+    padding: 0.25rem 0.45rem;
+  }
+
+  .l2-json-guide {
+    display: none;
+  }
+
+  .l2-json-mobile-error-host {
+    display: block;
+    grid-column: 1;
+    grid-row: 2;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-elevated);
+  }
+
+  .l2-json-mobile-error-host .l2-json-error-jump {
+    background: transparent;
+  }
+
+  .l2-json-main {
+    grid-column: 1;
+    grid-row: 3;
+    border-right: none;
   }
 }
