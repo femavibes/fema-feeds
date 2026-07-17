@@ -190,6 +190,9 @@ const ADD_SNIPPETS: { label: string; text: string }[] = [
   { label: 'Image bonus', text: 'if(images > 0, 20, 0)' },
   { label: 'Time decay', text: '(age_hours / 24 + 1)' },
   { label: 'Editor score', text: 'editor_score' },
+  { label: 'Audience likes', text: 'audience_likes' },
+  { label: 'Audience reposts', text: 'audience_reposts' },
+  { label: 'Audience boost', text: 'audience_likes * 3 + audience_reposts * 5' },
   { label: 'Power likes', text: 'pow(likes + 1, 0.7) * 10' },
   { label: 'Custom...', text: '' },
 ]

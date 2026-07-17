@@ -1,4 +1,5 @@
 import type { FeedInteractionEvent, ServedPostRecord, ViewerContext } from '@cfb/core-types'
+import { bumpAudienceEngagement } from './feed-candidates.js'
 import type pg from 'pg'
 
 const FOLLOW_CACHE_TTL_HOURS = 6
@@ -287,5 +288,14 @@ export async function applyFeedInteractionEvents(
         interaction.reqId ?? null,
       ],
     )
+
+    // Bump audience engagement on the candidate so sort_key stays live
+    if (interaction.feedId) {
+      if (interaction.event === 'interactionLike') {
+        await bumpAudienceEngagement(pool, interaction.feedId, interaction.postUri, 'like')
+      } else if (interaction.event === 'interactionRepost') {
+        await bumpAudienceEngagement(pool, interaction.feedId, interaction.postUri, 'repost')
+      }
+    }
   }
 }

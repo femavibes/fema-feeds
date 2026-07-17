@@ -146,3 +146,19 @@ export async function purgeOutOfScopeCandidates(
   )
   return res.rowCount ?? 0
 }
+
+/** Bump audience engagement on a candidate when a feed reader interacts with a post. */
+export async function bumpAudienceEngagement(
+  pool: pg.Pool,
+  feedId: string,
+  postUri: string,
+  counter: 'like' | 'repost',
+  delta = 1,
+): Promise<boolean> {
+  const col = counter === 'like' ? 'audience_likes' : 'audience_reposts'
+  const res = await pool.query(
+    `UPDATE feed_candidates SET ${col} = GREATEST(0, ${col} + $3) WHERE feed_id = $1 AND post_uri = $2`,
+    [feedId, postUri, delta],
+  )
+  return (res.rowCount ?? 0) > 0
+}

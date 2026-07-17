@@ -44,6 +44,8 @@ export const L2_NUMERIC_FIELDS: L2NumericField[] = [
   'facet_link_count',
   'facet_mention_count',
   'editor_score',
+  'audience_like_count',
+  'audience_repost_count',
 ]
 
 export const L2_MEDIA_STAT_METRICS: L2MediaStatMetric[] = [
@@ -376,11 +378,11 @@ export function fieldLabel(field: string): string {
     case 'bookmark_count':
       return 'Bookmarks'
     case 'author_follower_count':
-      return 'Author followers'
+      return 'Author followers (Bluesky)'
     case 'author_follows_count':
-      return 'Author follows'
+      return 'Author following count'
     case 'author_posts_count':
-      return 'Author posts'
+      return 'Author total posts'
     case 'facet_tag_count':
       return 'Hashtag count'
     case 'hidden_facet_tag_count':
@@ -414,9 +416,13 @@ export function fieldLabel(field: string): string {
     case 'link_thumb_size_bytes':
       return 'Link card thumb size (bytes)'
     case 'facet_link_count':
-      return 'Link facet count'
+      return 'Link count (in post)'
     case 'facet_mention_count':
-      return 'Mention facet count'
+      return 'Mention count (in post)'
+    case 'audience_like_count':
+      return 'Audience likes (this feed\'s readers)'
+    case 'audience_repost_count':
+      return 'Audience reposts (this feed\'s readers)'
     case 'has_video':
       return 'Has video'
     case 'has_image':

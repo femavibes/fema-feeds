@@ -27,6 +27,8 @@ export function buildL2Runtime(
       authorFollowerCount: metrics?.authorFollowerCount ?? 0,
       authorFollowsCount: metrics?.authorFollowsCount ?? 0,
       authorPostsCount: metrics?.authorPostsCount ?? 0,
+      audienceLikes: metrics?.audienceLikes ?? 0,
+      audienceReposts: metrics?.audienceReposts ?? 0,
     },
     rankSnapshot: buildPostRankSnapshot(post),
     nowMs,
@@ -99,6 +101,10 @@ export function numericFieldValue(
       return ctx.rankSnapshot.mediaStats.facetMentionCount
     case 'editor_score':
       return 0 // editor_score is resolved at eval result level, not per-field lookup
+    case 'audience_like_count':
+      return ctx.metrics.audienceLikes
+    case 'audience_repost_count':
+      return ctx.metrics.audienceReposts
   }
 }
 

@@ -27,6 +27,8 @@ export type L2NumericField =
   | 'facet_link_count'
   | 'facet_mention_count'
   | 'editor_score'
+  | 'audience_like_count'
+  | 'audience_repost_count'
 
 /** Subset of numeric fields exposed in the Media stats condition UI. */
 export type L2MediaStatMetric = Extract<
@@ -430,6 +432,8 @@ export interface PostMetrics {
   authorFollowerCount?: number
   authorFollowsCount?: number
   authorPostsCount?: number
+  audienceLikes?: number
+  audienceReposts?: number
 }
 
 export interface L2EvalInput {

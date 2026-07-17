@@ -134,6 +134,7 @@ export {
   countStaleFeedCandidates,
   getFeedSkeleton,
   purgeOutOfScopeCandidates,
+  bumpAudienceEngagement,
   type FeedCandidateInput,
   type SkeletonPost,
 } from './feed-candidates.js'

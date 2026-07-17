@@ -74,12 +74,14 @@ CREATE INDEX IF NOT EXISTS idx_author_list_cache_remote_poll
 CREATE INDEX IF NOT EXISTS idx_author_list_cache_poll ON author_list_cache (next_poll_at);
 
 CREATE TABLE IF NOT EXISTS feed_candidates (
-  feed_id      TEXT NOT NULL,
-  post_uri     TEXT NOT NULL REFERENCES ingested_posts(post_uri) ON DELETE CASCADE,
-  score        DOUBLE PRECISION NOT NULL DEFAULT 0,
-  sort_key     DOUBLE PRECISION NOT NULL DEFAULT 0,
-  expires_at   TIMESTAMPTZ,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  feed_id          TEXT NOT NULL,
+  post_uri         TEXT NOT NULL REFERENCES ingested_posts(post_uri) ON DELETE CASCADE,
+  score            DOUBLE PRECISION NOT NULL DEFAULT 0,
+  sort_key         DOUBLE PRECISION NOT NULL DEFAULT 0,
+  expires_at       TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  audience_likes   INTEGER NOT NULL DEFAULT 0,
+  audience_reposts INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (feed_id, post_uri)
 );
 

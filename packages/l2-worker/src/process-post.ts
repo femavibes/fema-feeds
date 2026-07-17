@@ -68,7 +68,7 @@ export async function processPostForFeeds(
   }
 
   const [metrics, authorLists, mentionByFeed, followRingByFeed] = await Promise.all([
-    loadPostMetrics(pool, post.uri, post.authorDid),
+    loadPostMetrics(pool, post.uri, post.authorDid, applicable[0]?.feedId),
     loadAuthorListsForFeeds(pool, applicable),
     loadMentionDidsForFeeds(pool, applicable),
     loadFollowRingsForFeeds(pool, applicable),

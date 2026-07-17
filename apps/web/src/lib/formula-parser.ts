@@ -18,6 +18,8 @@ export const FORMULA_FIELDS: Record<string, L2NumericField> = {
   mentions: 'facet_mention_count',
   editor_score: 'editor_score',
   age_hours: 'post_age_hours',
+  audience_likes: 'audience_like_count',
+  audience_reposts: 'audience_repost_count',
 }
 
 /** Personalization fields — viewer-relative signals available at serve time. */
