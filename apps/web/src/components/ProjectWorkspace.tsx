@@ -7,6 +7,7 @@ import { ConfirmModal } from './ConfirmModal'
 
 import { persistFeedDraft, prepareFeedDraftPayload } from '../lib/feed-draft'
 import type { FeedWorkspaceView, IngestionWorkspaceView } from '../lib/workspace-views'
+import { readWorkspaceSession, writeWorkspaceSession } from '../lib/workspace-session'
 
 import { ProjectIngestionWorkspace, ingestionNavItemsForMode } from './ProjectIngestionWorkspace'
 import { ProjectRightSidebar } from './ProjectRightSidebar'
@@ -68,11 +69,16 @@ export function ProjectWorkspace({
   const [settingsAutosaveState, setSettingsAutosaveState] =
     useState<SettingsAutosaveState>('idle')
   const [ingestionView, setIngestionView] = useState<IngestionWorkspaceView>('overview')
-  const [feedView, setFeedView] = useState<FeedWorkspaceView>('overview')
+  const [feedView, setFeedView] = useState<FeedWorkspaceView>(() => {
+    const session = readWorkspaceSession()
+    if (session?.feedId && session.feedId === feedId) return session.feedView
+    return 'overview'
+  })
   const [confirmDeleteFeed, setConfirmDeleteFeed] = useState(false)
 
   const settingsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const feedNavigateRef = useRef<((view: FeedWorkspaceView) => Promise<boolean>) | null>(null)
+  const prevFeedIdRef = useRef<string | null>(feedId)
   const loadingFeedMeta = feedId ? feeds.find((f) => f.feedId === feedId) : null
 
   const clearSettingsAutosave = () => {
@@ -106,14 +112,23 @@ export function ProjectWorkspace({
       setSettingsAutosaveState('idle')
       setFeedView('overview')
       clearSettingsAutosave()
+      prevFeedIdRef.current = null
       return
     }
+    const switchedFeed = prevFeedIdRef.current != null && prevFeedIdRef.current !== feedId
+    prevFeedIdRef.current = feedId
     setSettingsDirty(false)
     setSettingsAutosaveState('idle')
-    setFeedView('overview')
     clearSettingsAutosave()
+    // Reload / remount of the same feed keeps the session view (e.g. visual editor).
+    // Switching to a different feed starts on overview.
+    if (switchedFeed) setFeedView('overview')
     loadFeedEditor(feedId)
   }, [feedId])
+
+  useEffect(() => {
+    writeWorkspaceSession({ feedId: feedId ?? null, feedView })
+  }, [feedId, feedView])
 
   useEffect(() => {
     setIngestionView('overview')

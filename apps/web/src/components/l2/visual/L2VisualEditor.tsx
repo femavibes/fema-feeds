@@ -939,7 +939,6 @@ export function L2VisualEditor({
               selectedEdgeId={selectedEdgeId}
               canvasEdges={canvasEdges}
               onChange={patchMatch}
-              onLabelsChange={(labels) => patchDraft({ visualLayout: visualLayout({ labels }) })}
               onDeleteSelected={deleteSelected}
               onRenameNode={renameNode}
               onDraftChange={onDraftChange}

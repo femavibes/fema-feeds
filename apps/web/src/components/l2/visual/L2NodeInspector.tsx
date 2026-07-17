@@ -66,11 +66,9 @@ interface Props {
 
   onChange: (match: L2RuleGroup) => void
 
-  onLabelsChange: (labels: NodeLabels) => void
-
   onDeleteSelected: () => void
 
-  onRenameNode: (nodeId: string) => void
+  onRenameNode?: (nodeId: string) => void
 
   onTestTrace?: (trace: L2NodeTrace[] | null) => void
 
@@ -111,8 +109,6 @@ export function L2PropertiesInspector({
   canvasEdges,
 
   onChange,
-
-  onLabelsChange,
 
   onDeleteSelected,
 
@@ -248,7 +244,11 @@ export function L2PropertiesInspector({
 
                     <>
 
-                      <h4>Group</h4>
+                      <div className="l2-inspector-section-head">
+
+                        <h4>Group</h4>
+
+                      </div>
 
                       {selected.label ? <p className="card-hint">Label: {selected.label}</p> : null}
 
@@ -284,59 +284,29 @@ export function L2PropertiesInspector({
 
                   <>
 
-                    <h4>Group</h4>
+                    <div className="l2-inspector-section-head">
 
-                    <label className="l2-inspector-field">
+                      <h4>Group</h4>
 
-                      Display name
+                      {!readOnly && onRenameNode && selectedId ? (
 
-                      <input
+                        <button
 
-                        value={selected.label ?? ''}
+                          type="button"
 
-                        onChange={(e) =>
+                          className="l2-inspector-rename btn btn-secondary btn-sm"
 
-                          onChange(
+                          onClick={() => onRenameNode(selectedId)}
 
-                            updateGroup(match, selected.id, (g) => ({
+                        >
 
-                              ...g,
+                          Rename
 
-                              label: e.target.value || undefined,
+                        </button>
 
-                            })),
+                      ) : null}
 
-                          )
-
-                        }
-
-                        onBlur={(e) => {
-
-                          const trimmed = e.target.value.trim()
-
-                          if (trimmed !== (selected.label ?? '')) {
-
-                            onChange(
-
-                              updateGroup(match, selected.id, (g) => ({
-
-                                ...g,
-
-                                label: trimmed || undefined,
-
-                              })),
-
-                            )
-
-                          }
-
-                        }}
-
-                        placeholder="Optional label on canvas"
-
-                      />
-
-                    </label>
+                    </div>
 
                     <label className="l2-inspector-field">
 
@@ -472,51 +442,29 @@ export function L2PropertiesInspector({
 
               <>
 
-                <h4>Logic block</h4>
+                <div className="l2-inspector-section-head">
 
-                {!readOnly ? (
-                <label className="l2-inspector-field">
+                  <h4>Logic block</h4>
 
-                  Display name
+                  {!readOnly && onRenameNode && selectedId ? (
 
-                  <input
+                    <button
 
-                    value={nodeLabels[selected.id] ?? ''}
+                      type="button"
 
-                    onChange={(e) => {
+                      className="l2-inspector-rename btn btn-secondary btn-sm"
 
-                      const labels = { ...nodeLabels }
+                      onClick={() => onRenameNode(selectedId)}
 
-                      const raw = e.target.value
+                    >
 
-                      if (raw) labels[selected.id] = raw
+                      Rename
 
-                      else delete labels[selected.id]
+                    </button>
 
-                      onLabelsChange(labels)
+                  ) : null}
 
-                    }}
-
-                    onBlur={(e) => {
-
-                      const trimmed = e.target.value.trim()
-
-                      const labels = { ...nodeLabels }
-
-                      if (trimmed) labels[selected.id] = trimmed
-
-                      else delete labels[selected.id]
-
-                      onLabelsChange(labels)
-
-                    }}
-
-                    placeholder={selected.label ?? 'Custom logic'}
-
-                  />
-
-                </label>
-                ) : null}
+                </div>
 
                 <p className="card-hint">
 
@@ -588,7 +536,18 @@ export function L2PropertiesInspector({
 
             {selected && selected.type === 'score' && (
               <>
-                <h4>Score node</h4>
+                <div className="l2-inspector-section-head">
+                  <h4>Score node</h4>
+                  {!readOnly && onRenameNode && selectedId ? (
+                    <button
+                      type="button"
+                      className="l2-inspector-rename btn btn-secondary btn-sm"
+                      onClick={() => onRenameNode(selectedId)}
+                    >
+                      Rename
+                    </button>
+                  ) : null}
+                </div>
                 {!readOnly ? (
                 <label className="l2-inspector-field">
                   Points
@@ -616,53 +575,29 @@ export function L2PropertiesInspector({
 
               <div className="l2-inspector-condition">
 
-                <h4>Condition</h4>
+                <div className="l2-inspector-section-head">
 
-                {!readOnly ? (
-                <label className="l2-inspector-field">
+                  <h4>Condition</h4>
 
-                  Display name
+                  {!readOnly && onRenameNode && selectedId ? (
 
-                  <input
+                    <button
 
-                    value={nodeLabels[selected.id] ?? ''}
+                      type="button"
 
-                    onChange={(e) => {
+                      className="l2-inspector-rename btn btn-secondary btn-sm"
 
-                      const labels = { ...nodeLabels }
+                      onClick={() => onRenameNode(selectedId)}
 
-                      const raw = e.target.value
+                    >
 
-                      if (raw) labels[selected.id] = raw
+                      Rename
 
-                      else delete labels[selected.id]
+                    </button>
 
-                      onLabelsChange(labels)
+                  ) : null}
 
-                    }}
-
-                    onBlur={(e) => {
-
-                      const trimmed = e.target.value.trim()
-
-                      const labels = { ...nodeLabels }
-
-                      if (trimmed) labels[selected.id] = trimmed
-
-                      else delete labels[selected.id]
-
-                      onLabelsChange(labels)
-
-                    }}
-
-                    placeholder="Optional label on canvas"
-
-                  />
-
-                </label>
-                ) : nodeLabels[selected.id]?.trim() ? (
-                  <p className="card-hint">Label: {nodeLabels[selected.id]}</p>
-                ) : null}
+                </div>
 
                 <ConditionRow
 
@@ -738,24 +673,6 @@ export function L2PropertiesInspector({
           {showFooter ? (
 
             <footer className="l2-inspector-footer sidebar-footer">
-
-              {canDeleteNode && selectedId ? (
-
-                <button
-
-                  type="button"
-
-                  className="btn btn-ghost btn-sm"
-
-                  onClick={() => onRenameNode(selectedId)}
-
-                >
-
-                  Rename…
-
-                </button>
-
-              ) : null}
 
               <button type="button" className="btn btn-danger btn-sm" onClick={onDeleteSelected}>
 

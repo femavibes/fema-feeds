@@ -147,19 +147,35 @@ function indentBlock(pretty: string, indent: string): string {
     .join('\n')
 }
 
-async function readClipboardJson(): Promise<{ ok: true; value: unknown; raw: string } | { ok: false; error: string }> {
+async function readClipboardJson(): Promise<
+  { ok: true; value: unknown } | { ok: false; error: string; needPaste: boolean }
+> {
   let clip = ''
   try {
     clip = await navigator.clipboard.readText()
   } catch {
-    return { ok: false, error: 'Could not read clipboard — paste permission denied' }
+    return {
+      ok: false,
+      error: 'Clipboard blocked — paste into the box instead',
+      needPaste: true,
+    }
   }
   const trimmed = clip.trim()
-  if (!trimmed) return { ok: false, error: 'Clipboard is empty' }
+  if (!trimmed) return { ok: false, error: 'Clipboard is empty', needPaste: true }
   try {
-    return { ok: true, value: JSON.parse(trimmed) as unknown, raw: trimmed }
+    return { ok: true, value: JSON.parse(trimmed) as unknown }
   } catch {
-    return { ok: false, error: 'Clipboard is not valid JSON' }
+    return { ok: false, error: 'Clipboard is not valid JSON', needPaste: false }
+  }
+}
+
+function parsePastedJson(raw: string): { ok: true; value: unknown } | { ok: false; error: string } {
+  const trimmed = raw.trim()
+  if (!trimmed) return { ok: false, error: 'Paste some JSON first' }
+  try {
+    return { ok: true, value: JSON.parse(trimmed) as unknown }
+  } catch {
+    return { ok: false, error: 'That text is not valid JSON' }
   }
 }
 
@@ -244,6 +260,9 @@ export function L2JsonEditor({
   const [wrapLines, setWrapLines] = useState(readWrapPref)
   /** First tap previews; second tap confirms (needed on touch where hover doesn't exist). */
   const [armedPaste, setArmedPaste] = useState<'replace' | 'append' | null>(null)
+  const [pastePrompt, setPastePrompt] = useState<'replace' | 'append' | null>(null)
+  const [pastePromptText, setPastePromptText] = useState('')
+  const pastePromptRef = useRef<HTMLTextAreaElement>(null)
 
   const cmRef = useRef<ReactCodeMirrorRef>(null)
 
@@ -346,6 +365,11 @@ export function L2JsonEditor({
         return
       }
       if (e.key === 'Escape') {
+        if (pastePrompt) {
+          setPastePrompt(null)
+          setPastePromptText('')
+          return
+        }
         if (graphModalOpen) {
           setGraphModalOpen(false)
           return
@@ -365,7 +389,7 @@ export function L2JsonEditor({
       window.removeEventListener('keydown', onKey)
       releaseBodyEditorOpen()
     }
-  }, [onClose, onAutosaveDraft, undo, redo, canonical, dirty, draft, saving, text, flash, graphModalOpen, armedPaste, getView])
+  }, [onClose, onAutosaveDraft, undo, redo, canonical, dirty, draft, saving, text, flash, graphModalOpen, armedPaste, getView, pastePrompt])
 
   const handleFormat = () => {
     setError(null)
@@ -424,11 +448,9 @@ export function L2JsonEditor({
     if (view) clearPastePreview(view)
   }
 
-  const runReplaceBlock = async () => {
+  const applyReplaceWithValue = (value: unknown) => {
     const view = getView()
     if (!view) return
-    setError(null)
-
     const target = resolveReplaceTarget(view)
     if (!target) {
       setError('Put the cursor inside an object, array, or value — or tap a line number to select one')
@@ -436,15 +458,7 @@ export function L2JsonEditor({
       return
     }
 
-    showPastePreview(view, target.from, target.to)
-
-    const clip = await readClipboardJson()
-    if (!clip.ok) {
-      setError(clip.error)
-      return
-    }
-
-    const pretty = JSON.stringify(clip.value, null, 2)
+    const pretty = JSON.stringify(value, null, 2)
     const line = view.state.doc.lineAt(target.from)
     const indent = line.text.match(/^\s*/)?.[0] ?? ''
     const indented = indentBlock(pretty, indent)
@@ -459,27 +473,19 @@ export function L2JsonEditor({
     setText(next)
     setDirty(next !== canonical)
     setArmedPaste(null)
-    flash(`Replaced ${target.label} from clipboard`)
+    setPastePrompt(null)
+    setPastePromptText('')
+    flash(`Replaced ${target.label}`)
     view.focus()
   }
 
-  const runAppendToArray = async () => {
+  const applyAppendWithValue = (value: unknown) => {
     const view = getView()
     if (!view) return
-    setError(null)
-
     const target = resolveAppendTarget(view)
     if (!target) {
       setError('Put the cursor inside an array — or tap a line number inside one to select it')
       setArmedPaste(null)
-      return
-    }
-
-    showPastePreview(view, target.from, target.to)
-
-    const clip = await readClipboardJson()
-    if (!clip.ok) {
-      setError(clip.error)
       return
     }
 
@@ -498,7 +504,7 @@ export function L2JsonEditor({
     const line = view.state.doc.lineAt(arrayNode.from)
     const baseIndent = line.text.match(/^\s*/)?.[0] ?? ''
     const itemIndent = `${baseIndent}  `
-    const pretty = indentBlock(JSON.stringify(clip.value, null, 2), itemIndent)
+    const pretty = indentBlock(JSON.stringify(value, null, 2), itemIndent)
 
     let insertFrom: number
     let insertText: string
@@ -524,8 +530,83 @@ export function L2JsonEditor({
     setText(next)
     setDirty(next !== canonical)
     setArmedPaste(null)
+    setPastePrompt(null)
+    setPastePromptText('')
     flash('Appended item to array')
     view.focus()
+  }
+
+  const openPastePrompt = (kind: 'replace' | 'append') => {
+    setPastePrompt(kind)
+    setPastePromptText('')
+    setError(null)
+    window.setTimeout(() => pastePromptRef.current?.focus(), 50)
+  }
+
+  const submitPastePrompt = () => {
+    if (!pastePrompt) return
+    const parsed = parsePastedJson(pastePromptText)
+    if (!parsed.ok) {
+      setError(parsed.error)
+      return
+    }
+    setError(null)
+    if (pastePrompt === 'replace') applyReplaceWithValue(parsed.value)
+    else applyAppendWithValue(parsed.value)
+  }
+
+  const runReplaceBlock = async () => {
+    const view = getView()
+    if (!view) return
+    setError(null)
+
+    const target = resolveReplaceTarget(view)
+    if (!target) {
+      setError('Put the cursor inside an object, array, or value — or tap a line number to select one')
+      setArmedPaste(null)
+      return
+    }
+
+    showPastePreview(view, target.from, target.to)
+
+    const clip = await readClipboardJson()
+    if (!clip.ok) {
+      if (clip.needPaste) {
+        openPastePrompt('replace')
+        flash('Paste JSON below — phone blocked clipboard access')
+        return
+      }
+      setError(clip.error)
+      return
+    }
+    applyReplaceWithValue(clip.value)
+  }
+
+  const runAppendToArray = async () => {
+    const view = getView()
+    if (!view) return
+    setError(null)
+
+    const target = resolveAppendTarget(view)
+    if (!target) {
+      setError('Put the cursor inside an array — or tap a line number inside one to select it')
+      setArmedPaste(null)
+      return
+    }
+
+    showPastePreview(view, target.from, target.to)
+
+    const clip = await readClipboardJson()
+    if (!clip.ok) {
+      if (clip.needPaste) {
+        openPastePrompt('append')
+        flash('Paste JSON below — phone blocked clipboard access')
+        return
+      }
+      setError(clip.error)
+      return
+    }
+    applyAppendWithValue(clip.value)
   }
 
   /** First tap highlights the target; second tap pastes. Hover still previews on desktop. */
@@ -921,6 +1002,75 @@ export function L2JsonEditor({
               >
                 <span className="l2-json-graph-option-title">Import graph</span>
                 <span className="l2-json-graph-option-desc">Load a .json file into the editor</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pastePrompt ? (
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            setPastePrompt(null)
+            setPastePromptText('')
+          }}
+          role="presentation"
+        >
+          <div
+            className="modal-dialog l2-json-paste-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Paste JSON"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>{pastePrompt === 'replace' ? 'Replace — paste JSON' : 'Append — paste JSON'}</h2>
+              <button
+                type="button"
+                className="modal-close"
+                aria-label="Close"
+                onClick={() => {
+                  setPastePrompt(null)
+                  setPastePromptText('')
+                }}
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="card-hint">
+                Phones often block apps from reading the clipboard. Long-press and paste here instead.
+              </p>
+              <textarea
+                ref={pastePromptRef}
+                className="input l2-json-paste-textarea"
+                rows={8}
+                placeholder='{"type":"text", ... }'
+                value={pastePromptText}
+                onChange={(e) => setPastePromptText(e.target.value)}
+                onPaste={(e) => {
+                  // Prefer the paste event payload — works without clipboard permission.
+                  const pasted = e.clipboardData.getData('text')
+                  if (!pasted) return
+                  e.preventDefault()
+                  setPastePromptText(pasted)
+                }}
+              />
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  setPastePrompt(null)
+                  setPastePromptText('')
+                }}
+              >
+                Cancel
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={submitPastePrompt}>
+                {pastePrompt === 'replace' ? 'Replace' : 'Append'}
               </button>
             </div>
           </div>

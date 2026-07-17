@@ -26,6 +26,7 @@ import { mergeCompiledIngestFromServer } from './lib/project-ingest'
 import { projectConfigsEqual } from './lib/project-draft'
 import type { BuilderSection, CfbAppProfile } from './lib/global-nav'
 import type { SettingsWorkspaceView } from './lib/workspace-views'
+import { readWorkspaceSession, writeWorkspaceSession } from './lib/workspace-session'
 
 const MASTER_ONBOARDING_DISMISS_KEY = 'cfb_master_onboarding_dismissed'
 
@@ -35,17 +36,21 @@ function isAuthenticatedUser(user: AuthUser | null): user is AuthUser {
   return Boolean(user?.did)
 }
 
+const initialSession = readWorkspaceSession()
+
 export function App() {
   const [authReady, setAuthReady] = useState(false)
   const [loginRequired, setLoginRequired] = useState(false)
   const [user, setUser] = useState<AuthUser | null>(null)
   const [projects, setProjects] = useState<ProjectL1Config[]>([])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(initialSession?.projectId ?? null)
   const [draft, setDraft] = useState<ProjectL1Config | null>(null)
   const [savedProject, setSavedProject] = useState<ProjectL1Config | null>(null)
   const [feeds, setFeeds] = useState<FeedListItem[]>([])
-  const [selectedFeedId, setSelectedFeedId] = useState<string | null>(null)
-  const [builderSection, setBuilderSection] = useState<BuilderSection>('project')
+  const [selectedFeedId, setSelectedFeedId] = useState<string | null>(initialSession?.feedId ?? null)
+  const [builderSection, setBuilderSection] = useState<BuilderSection>(
+    initialSession?.builderSection ?? 'project',
+  )
   const projectSidebarRail = useProjectSidebarRail(builderSection)
   const [stats, setStats] = useState<IngestStats | null>(null)
   const [listCache, setListCache] = useState<ListCacheEntry[]>([])
@@ -164,9 +169,20 @@ export function App() {
   useEffect(() => {
     if (!authReady || (loginRequired && !isAuthenticatedUser(user))) return
     void load().then((list) => {
-      setSelectedId((prev) => prev ?? list[0]?.projectId ?? null)
+      setSelectedId((prev) => {
+        if (prev && list.some((p) => p.projectId === prev)) return prev
+        return list[0]?.projectId ?? null
+      })
     })
   }, [load, authReady, loginRequired, user])
+
+  useEffect(() => {
+    writeWorkspaceSession({
+      builderSection,
+      projectId: selectedId,
+      feedId: selectedFeedId,
+    })
+  }, [builderSection, selectedId, selectedFeedId])
 
   useEffect(() => {
     if (!authReady || (loginRequired && !isAuthenticatedUser(user))) return
@@ -190,7 +206,12 @@ export function App() {
   const loadFeeds = useCallback(async (projectId: string) => {
     const { feeds: list } = await api.listFeeds(projectId)
     setFeeds(list)
-    setSelectedFeedId((prev) => (prev && list.some((f) => f.feedId === prev) ? prev : null))
+    setSelectedFeedId((prev) => {
+      if (prev && list.some((f) => f.feedId === prev)) return prev
+      const sessionFeed = readWorkspaceSession()?.feedId
+      if (sessionFeed && list.some((f) => f.feedId === sessionFeed)) return sessionFeed
+      return null
+    })
   }, [])
 
   useEffect(() => {

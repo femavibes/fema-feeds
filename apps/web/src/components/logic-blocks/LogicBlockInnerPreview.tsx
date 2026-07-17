@@ -6,9 +6,10 @@ import { normalizeRuleGroup } from '@cfb/l2-graph'
 
 import { api } from '../../api/client'
 import { logicBlockToFeedDraft } from '../../lib/logic-block-editor'
-import { useVisualEditorRails } from '../../hooks/useVisualEditorRails'
+import { DEFAULT_RAIL_WIDTHS } from '../../hooks/useVisualEditorRails'
 import { L2GraphCanvas } from '../l2/visual/L2GraphCanvas'
 import { L2PropertiesInspector } from '../l2/visual/L2NodeInspector'
+import { MobileSheetHandle } from '../l2/visual/MobileSheetHandle'
 import { RailCollapseStrip, RailPanelHead } from '../l2/visual/L2RailChrome'
 
 interface Props {
@@ -18,15 +19,21 @@ interface Props {
   onClose: () => void
 }
 
+const COLLAPSED_PROPS_W = '40px'
+
 const CANVAS_HINT =
   "Read-only preview of this block's inner logic. Separate paths from START are OR; nodes chained on one path are AND."
 
 export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }: Props) {
-  const rails = useVisualEditorRails()
+  // Own open state — do not share the main editor's session-backed rails, or
+  // the preview inherits "props open" and opens as a side panel / sheet.
+  const [propsOpen, setPropsOpen] = useState(false)
   const [pkg, setPkg] = useState<LogicBlockPackage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+
+  const toggleProps = useCallback(() => setPropsOpen((open) => !open), [])
 
   useEffect(() => {
     setPkg(null)
@@ -59,14 +66,17 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
 
   const noop = useCallback(() => {}, [])
 
+  const openPropertiesForNode = useCallback((nodeId: string) => {
+    setSelectedId(nodeId)
+    setPropsOpen(true)
+  }, [])
+
   const gridStyle = useMemo(
     () =>
       ({
-        '--l2-props-w': rails.propsOpen
-          ? String(rails.gridStyle['--l2-props-w' as keyof typeof rails.gridStyle])
-          : '40px',
+        '--l2-props-w': propsOpen ? `${DEFAULT_RAIL_WIDTHS.props}px` : COLLAPSED_PROPS_W,
       }) as CSSProperties,
-    [rails.propsOpen, rails.gridStyle],
+    [propsOpen],
   )
 
   const label = title ?? pkg?.name ?? 'Logic block preview'
@@ -129,17 +139,19 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
               onReparent={noop}
               onExtract={noop}
               onPaletteDrop={noop}
+              onNodeOpenProperties={openPropertiesForNode}
             />
           </ReactFlowProvider>
         )}
       </main>
 
-      <aside className="l2-visual-rail l2-visual-rail-props">
-        {rails.propsOpen ? (
+      <aside className={`l2-visual-rail l2-visual-rail-props${propsOpen ? ' is-open' : ''}`}>
+        {propsOpen ? (
           <>
+            <MobileSheetHandle onClose={toggleProps} />
             <RailPanelHead
               title="Properties"
-              onCollapse={rails.toggleProps}
+              onCollapse={toggleProps}
               collapseLabel="Collapse properties"
             />
             {draft && match ? (
@@ -151,9 +163,7 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
                 selectedEdgeId={selectedEdgeId}
                 canvasEdges={canvasEdges}
                 onChange={noop}
-                onLabelsChange={noop}
                 onDeleteSelected={noop}
-                onRenameNode={noop}
                 readOnly
               />
             ) : (
@@ -164,10 +174,20 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
           <RailCollapseStrip
             label="Props"
             expandLabel="Show properties"
-            onExpand={rails.toggleProps}
+            onExpand={toggleProps}
           />
         )}
       </aside>
+
+      <div className="l2-visual-mobile-bar">
+        <button
+          type="button"
+          className={propsOpen ? 'active' : undefined}
+          onClick={toggleProps}
+        >
+          Properties
+        </button>
+      </div>
     </div>
   )
 }
