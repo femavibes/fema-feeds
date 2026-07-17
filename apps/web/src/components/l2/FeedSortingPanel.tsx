@@ -23,7 +23,8 @@ import {
   type SortMode,
   type SortTuning,
 } from '../../lib/feed-sorting'
-import { L2_NUMERIC_FIELDS, fieldLabel } from '../../lib/l2-form'
+import { fieldLabel } from '../../lib/l2-form'
+import { FORMULA_FIELDS } from '../../lib/formula-parser'
 
 interface Props {
   draft: FeedConfig
@@ -592,7 +593,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
                 } catch { /* ignore parse errors while typing */ }
               }}
             />
-            <p className="card-hint">Available fields: {L2_NUMERIC_FIELDS.map(f => fieldLabel(f)).join(', ')}</p>
+            <p className="card-hint">Available fields: {Object.keys(FORMULA_FIELDS).join(', ')}</p>
           </div>
         </div>
       )}

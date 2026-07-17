@@ -35,8 +35,16 @@ interface Props {
 
 const SORT_FIELD_GROUPS: FormulaFieldGroup[] = [
   {
-    label: 'Post metrics',
-    fields: ['likes', 'reposts', 'replies', 'quotes', 'bookmarks', 'followers', 'follows', 'posts'],
+    label: 'Network engagement',
+    fields: ['likes', 'reposts', 'replies', 'quotes', 'bookmarks'],
+  },
+  {
+    label: 'Audience engagement (this feed\'s readers)',
+    fields: ['audience_likes', 'audience_reposts'],
+  },
+  {
+    label: 'Author',
+    fields: ['followers', 'follows', 'posts'],
   },
   {
     label: 'Content',
@@ -55,6 +63,8 @@ const SORT_TEMPLATES: FormulaTemplate[] = [
   { name: 'Time decay', formula: '(likes + reposts * 2) / (age_hours / 24 + 1)' },
   { name: 'Discussion finder', formula: 'replies * 3 + quotes * 5 - likes * 0.1' },
   { name: 'Small account boost', formula: '(likes + reposts) * max(1, 100 / (followers + 1))' },
+  { name: 'Audience boost', formula: 'likes + reposts * 2 + audience_likes * 3 + audience_reposts * 5' },
+  { name: 'Audience-first', formula: 'audience_likes * 10 + audience_reposts * 15 + log(likes + 1) * 5' },
 ]
 
 export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, placeholder }: Props) {
