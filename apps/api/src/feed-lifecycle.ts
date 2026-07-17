@@ -26,6 +26,8 @@ export function mergeDraftIntoLive(live: FeedConfig, draft: FeedConfig): FeedCon
     visualLayout: normalized.visualLayout,
     rank: normalized.rank,
     injector: normalized.injector,
+    sources: normalized.sources,
+    personalization: normalized.personalization,
     authorLists: normalized.authorLists,
     feedId: live.feedId,
     projectId: live.projectId,
