@@ -39,27 +39,15 @@ export function defaultCanvasEdges(match: L2RuleGroup): CanvasEdge[] {
   }))
 }
 
-function nestedConditionSlotIndex(match: L2RuleGroup, nodeId: string, parentId: string): number {
-  const parent = findInMatch(match, parentId)
-  if (!parent || parent.type !== 'group') return 0
-  const siblings = parent.children.filter((c) => c.type !== 'group')
-  const index = siblings.findIndex((c) => c.id === nodeId)
-  return index >= 0 ? index : 0
-}
-
 function resolveNodePosition(
   match: L2RuleGroup,
   box: { id: string; x: number; y: number; parentId?: string; kind: string },
   positions: NodePositions,
 ): { x: number; y: number } {
-  // Nested children are laid out rigidly by layoutMatchFlow. Persisted drag
-  // coords go stale when the parent frame expands (add/remove siblings) and
-  // cause overlaps — always prefer the live layout box.
+  // Nested children follow layoutMatchFlow in match-child order (conditions and
+  // nested groups interleaved). Never prefer stale drag slots that forced
+  // leaves above subgroups.
   if (box.parentId && (box.kind === 'condition' || box.kind === 'group-frame')) {
-    if (box.kind === 'condition') {
-      const index = nestedConditionSlotIndex(match, box.id, box.parentId)
-      return snapNestedConditionPosition({ x: box.x, y: box.y }, index)
-    }
     return { x: box.x, y: box.y }
   }
   return positions[box.id] ?? { x: box.x, y: box.y }
@@ -248,9 +236,11 @@ export function resolveCanvasEdges(
   match: L2RuleGroup,
   saved?: CanvasEdge[],
 ): CanvasEdge[] {
-  if (!saved?.length) return defaultCanvasEdges(match)
-  const cleaned = sanitizeCanvasEdges(match, saved)
-  return cleaned.length ? cleaned : defaultCanvasEdges(match)
+  // Only invent START→node→FEED wires when the draft has never stored edges.
+  // An explicit [] (or edges wiped by sanitize after nest) must stay empty —
+  // otherwise disconnecting / nesting keeps "healing" auto-wires back in.
+  if (saved === undefined) return defaultCanvasEdges(match)
+  return sanitizeCanvasEdges(match, saved)
 }
 
 export function defaultNodeProvenance(rule?: L2RuleNode): L2NodeProvenance {
@@ -414,7 +404,11 @@ function isDescendantGroup(match: L2RuleGroup, ancestorId: string, groupId: stri
   return false
 }
 
-/** Smallest intersecting group frame wins — drop node into that container. */
+/**
+ * Pick a group frame under the pointer for nest/reparent.
+ * Conditions/score prefer deepest (smallest) frames; group→group prefers
+ * outermost (largest) so nested ANDs don't steal the drop.
+ */
 export function findGroupDropTarget(
   dragged: Node<GraphNodeData>,
   intersecting: Node<GraphNodeData>[],
@@ -422,7 +416,9 @@ export function findGroupDropTarget(
   allNodes?: Node<GraphNodeData>[],
 ): string | null {
   if (dragged.id === 'start' || dragged.id === 'end') return null
-  if (dragged.type !== 'groupFrame' && dragged.type !== 'condition') return null
+  if (dragged.type !== 'groupFrame' && dragged.type !== 'condition' && dragged.type !== 'score') {
+    return null
+  }
 
   const nodeById = new Map((allNodes ?? intersecting.concat(dragged)).map((n) => [n.id, n]))
   // Prefer intentional drops: require the dragged node's center to sit inside
@@ -458,7 +454,12 @@ export function findGroupDropTarget(
 
   const ranked = candidates
     .map((n) => ({ id: n.id, area: nodeArea(n) }))
-    .sort((a, b) => a.area - b.area)
+    .sort((a, b) =>
+      // Groups dropped onto groups: prefer the outermost frame under the
+      // cursor. Smallest-area (deepest) targeting makes a top-level OR fall
+      // into a nested AND inside the OR you aimed at.
+      dragged.type === 'groupFrame' ? b.area - a.area : a.area - b.area,
+    )
 
   return ranked[0]?.id ?? null
 }

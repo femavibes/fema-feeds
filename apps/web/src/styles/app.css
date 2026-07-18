@@ -8216,6 +8216,7 @@ body.l2-visual-open #root {
   padding: 0;
   border: none;
   background: transparent;
+  overflow: visible !important;
 }
 
 .l2-flow-merge {

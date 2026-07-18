@@ -142,246 +142,125 @@ function pushEdge(ctx: LayoutCtx, source: string, target: string): void {
 
 
 
-/** @param parentSlotW When nested, total frame width must fit this slot (parent inner width). */
-function measureGroup(group: L2RuleGroup, parentSlotW = 0): Measured {
-
+/** True when AND children are all groups — lay out as a horizontal row. */
+function isHorizontalAndOfGroups(group: L2RuleGroup): boolean {
   const children = group.children ?? []
-  const leaves = children.filter((c) => c.type !== 'group')
-
-  const subgroups = children.filter((c) => c.type === 'group') as L2RuleGroup[]
-
-
-
-  let innerH = FRAME_HEADER + FRAME_PAD
-
-  let innerW = Math.max(MIN_FRAME_W - FRAME_PAD * 2, 0)
-
-
-
-  if (leaves.length > 0) {
-
-    innerH += leaves.length * COND_H + (leaves.length - 1) * V_GAP + V_GAP
-
-    innerW = Math.max(innerW, COND_W)
-
-  }
-
-
-
-  if (subgroups.length > 0) {
-
-    const metrics = subgroups.map((sg) => measureGroup(sg))
-
-    if (group.logic === 'all') {
-
-      const rowW = metrics.reduce((s, m, i) => s + m.width + (i > 0 ? H_GAP : 0), 0)
-
-      const rowH = Math.max(...metrics.map((m) => m.height))
-
-      innerW = Math.max(innerW, rowW)
-
-      innerH += rowH + (leaves.length > 0 ? V_GAP : 0)
-
-    } else {
-
-      const stackH = metrics.reduce((s, m, i) => s + m.height + (i > 0 ? V_GAP : 0), 0)
-
-      const stackW = Math.max(...metrics.map((m) => m.width))
-
-      innerW = Math.max(innerW, stackW)
-
-      innerH += stackH + (leaves.length > 0 ? V_GAP : 0)
-
-    }
-
-  }
-
-
-
-  if (children.length === 0) {
-
-    innerH += COND_H
-
-    innerW = Math.max(innerW, COND_W)
-
-  }
-
-
-
-  let width = Math.max(MIN_FRAME_W, innerW + FRAME_PAD * 2)
-
-  if (parentSlotW > 0) {
-
-    width = parentSlotW
-
-  }
-
-
-
-  return {
-
-    width,
-
-    height: innerH + FRAME_PAD,
-
-  }
-
+  return group.logic === 'all' && children.length > 0 && children.every((c) => c.type === 'group')
 }
 
+/** @param parentSlotW When nested, total frame width must fit this slot (parent inner width). */
+function measureGroup(group: L2RuleGroup, parentSlotW = 0): Measured {
+  const children = group.children ?? []
+  let innerH = FRAME_HEADER + FRAME_PAD
+  let innerW = Math.max(MIN_FRAME_W - FRAME_PAD * 2, 0)
 
+  if (children.length === 0) {
+    innerH += COND_H
+    innerW = Math.max(innerW, COND_W)
+  } else if (isHorizontalAndOfGroups(group)) {
+    const subgroups = children as L2RuleGroup[]
+    const metrics = subgroups.map((sg) => measureGroup(sg))
+    const rowW = metrics.reduce((s, m, i) => s + m.width + (i > 0 ? H_GAP : 0), 0)
+    const rowH = Math.max(...metrics.map((m) => m.height))
+    innerW = Math.max(innerW, rowW)
+    innerH += rowH
+  } else {
+    // Interleaved match order: conditions and nested groups share one vertical stack.
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i]!
+      if (child.type === 'group') {
+        const m = measureGroup(child)
+        innerW = Math.max(innerW, m.width)
+        innerH += m.height
+      } else {
+        innerW = Math.max(innerW, COND_W)
+        innerH += COND_H
+      }
+      if (i < children.length - 1) innerH += V_GAP
+    }
+  }
+
+  let width = Math.max(MIN_FRAME_W, innerW + FRAME_PAD * 2)
+  if (parentSlotW > 0) {
+    width = parentSlotW
+  }
+
+  return {
+    width,
+    height: innerH + FRAME_PAD,
+  }
+}
 
 /** Place a logic container and nested children (conditions + inner groups). */
-
 function layoutGroup(
-
   ctx: LayoutCtx,
-
   group: L2RuleGroup,
-
   x: number,
-
   y: number,
-
   parentId?: string,
-
   topLevel = false,
-
   parentSlotW = 0,
-
 ): Measured {
-
   const size = measureGroup(group, parentSlotW)
-
   const innerW = size.width - FRAME_PAD * 2
-
   const groupChildren = group.children ?? []
-  const leaves = groupChildren.filter((c) => c.type !== 'group')
-
-  const subgroups = groupChildren.filter((c) => c.type === 'group') as L2RuleGroup[]
-
-
 
   ctx.nodes.push({
-
     id: group.id,
-
     kind: 'group-frame',
-
     x,
-
     y,
-
     width: size.width,
-
     height: size.height,
-
     parentId,
-
     logic: group.logic,
-
     label: groupNodeTitle(group.logic, group.minPass),
-
     subtitle: undefined,
-
     topLevel,
-
     groupId: group.id,
-
   })
-
-
-
-  let cy = FRAME_HEADER + FRAME_PAD
 
   const innerX = FRAME_PAD
 
-
-
-  for (const leaf of leaves) {
-
-    ctx.nodes.push({
-
-      id: leaf.id,
-
-      kind: 'condition',
-
-      parentId: group.id,
-
-      x: innerX,
-
-      y: cy,
-
-      width: innerW,
-
-      height: COND_H,
-
-      rule: leaf,
-
-      label: conditionNodeTitle(leaf),
-
-    })
-
-    cy += COND_H + V_GAP
-
-  }
-
-
-
-  const groupY = leaves.length > 0 ? cy + V_GAP : FRAME_HEADER + FRAME_PAD
-
-  let gx = innerX
-
-  let stackY = groupY
-
-  let prevGroupId: string | null = null
-
-
-
-  for (const child of subgroups) {
-
-    const fillSlot = group.logic === 'any' || subgroups.length === 1
-
-    const slotW = fillSlot ? innerW : 0
-
-    const sub = measureGroup(child, slotW)
-
-    const childX = group.logic === 'all' ? gx : innerX
-
-    const childY = group.logic === 'all' ? groupY : stackY
-
-    layoutGroup(ctx, child, childX, childY, group.id, false, slotW)
-
-
-
-    if (group.logic === 'all' && prevGroupId) {
-
-      pushEdge(ctx, prevGroupId, child.id)
-
-    }
-
-
-
-    prevGroupId = child.id
-
-    if (group.logic === 'all') {
-
+  if (isHorizontalAndOfGroups(group)) {
+    let gx = innerX
+    let prevGroupId: string | null = null
+    const groupY = FRAME_HEADER + FRAME_PAD
+    for (const child of groupChildren as L2RuleGroup[]) {
+      const sub = measureGroup(child)
+      layoutGroup(ctx, child, gx, groupY, group.id, false, 0)
+      if (prevGroupId) pushEdge(ctx, prevGroupId, child.id)
+      prevGroupId = child.id
       gx += sub.width + H_GAP
-
-    } else {
-
-      stackY += sub.height + V_GAP
-
     }
-
+  } else {
+    let cy = FRAME_HEADER + FRAME_PAD
+    for (const child of groupChildren) {
+      if (child.type === 'group') {
+        // Fill parent width for stacked nested frames (OR/N-of and mixed AND).
+        const slotW = innerW
+        const sub = measureGroup(child, slotW)
+        layoutGroup(ctx, child, innerX, cy, group.id, false, slotW)
+        cy += sub.height + V_GAP
+      } else {
+        ctx.nodes.push({
+          id: child.id,
+          kind: 'condition',
+          parentId: group.id,
+          x: innerX,
+          y: cy,
+          width: innerW,
+          height: COND_H,
+          rule: child,
+          label: conditionNodeTitle(child),
+        })
+        cy += COND_H + V_GAP
+      }
+    }
   }
-
-
 
   return size
-
 }
-
-
 
 function placeStartEnd(ctx: LayoutCtx, midY: number, endX: number): void {
 

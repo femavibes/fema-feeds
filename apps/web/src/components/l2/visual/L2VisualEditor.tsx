@@ -191,7 +191,8 @@ export function L2VisualEditor({
 
   const match = useMemo(() => normalizeRuleGroup(draft.match), [draft.match])
   const positions = draft.visualLayout?.positions ?? {}
-  const canvasEdges = draft.visualLayout?.edges ?? []
+  const savedCanvasEdges = draft.visualLayout?.edges
+  const canvasEdges = savedCanvasEdges ?? []
   const nodeLabels = draft.visualLayout?.labels ?? {}
   const nodeSources = draft.visualLayout?.nodeSources ?? {}
   const [contextMenu, setContextMenu] = useState<CanvasContextMenuState>(null)
@@ -264,11 +265,11 @@ export function L2VisualEditor({
       patchDraft({
         match: next,
         visualLayout: {
-          edges: resolveCanvasEdges(next, canvasEdges),
+          edges: resolveCanvasEdges(next, savedCanvasEdges),
         } as FeedConfig['visualLayout'],
       })
     },
-    [patchDraft, canvasEdges],
+    [patchDraft, savedCanvasEdges],
   )
 
   const patchLayout = useCallback(

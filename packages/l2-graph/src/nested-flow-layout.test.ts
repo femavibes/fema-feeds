@@ -204,6 +204,57 @@ describe('layoutMatchFlow', () => {
 
   })
 
+
+  it('interleaves conditions and nested groups in match child order', () => {
+    const { nodes } = layoutMatchFlow({
+      type: 'group',
+      id: 'root',
+      logic: 'any',
+      children: [
+        {
+          type: 'group',
+          id: 'outer',
+          logic: 'any',
+          children: [
+            { type: 'keyword', id: 'kw', op: 'includes', terms: ['a'], fields: ['text'] },
+            { type: 'group', id: 'or', logic: 'any', children: [] },
+            { type: 'group', id: 'and', logic: 'all', children: [] },
+          ],
+        },
+      ],
+    })
+
+    const kw = nodes.find((n) => n.id === 'kw')!
+    const or = nodes.find((n) => n.id === 'or')!
+    const and = nodes.find((n) => n.id === 'and')!
+    expect(kw.parentId).toBe('outer')
+    expect(or.parentId).toBe('outer')
+    expect(and.parentId).toBe('outer')
+    expect(kw.y).toBeLessThan(or.y)
+    expect(or.y).toBeLessThan(and.y)
+
+    const { nodes: mid } = layoutMatchFlow({
+      type: 'group',
+      id: 'root',
+      logic: 'any',
+      children: [
+        {
+          type: 'group',
+          id: 'outer',
+          logic: 'any',
+          children: [
+            { type: 'group', id: 'or', logic: 'any', children: [] },
+            { type: 'keyword', id: 'kw', op: 'includes', terms: ['a'], fields: ['text'] },
+            { type: 'group', id: 'and', logic: 'all', children: [] },
+          ],
+        },
+      ],
+    })
+    const kw2 = mid.find((n) => n.id === 'kw')!
+    const or2 = mid.find((n) => n.id === 'or')!
+    const and2 = mid.find((n) => n.id === 'and')!
+    expect(or2.y).toBeLessThan(kw2.y)
+    expect(kw2.y).toBeLessThan(and2.y)
+  })
+
 })
-
-
