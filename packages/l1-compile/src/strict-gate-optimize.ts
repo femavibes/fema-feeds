@@ -106,11 +106,20 @@ export function buildOptimizedStrictGate(gate: CompiledIngestGate): OptimizedStr
   }
 }
 
+export type StrictGateExtras = {
+  followRingDids?: Record<string, string[]>
+  authorListDids?: Record<string, string[]>
+}
+
 /**
  * Evaluate a post against an optimized strict gate.
  * Returns true if the post should be kept.
  */
-export function evalOptimizedStrictGate(opt: OptimizedStrictGate, post: NormalizedPost): boolean {
+export function evalOptimizedStrictGate(
+  opt: OptimizedStrictGate,
+  post: NormalizedPost,
+  extras: StrictGateExtras = {},
+): boolean {
   if (opt.pathCount === 0) return false
 
   // 1. Hoisted language pre-check (eliminates 70-90% of firehose for most users)
@@ -132,33 +141,41 @@ export function evalOptimizedStrictGate(opt: OptimizedStrictGate, post: Normaliz
   // 3. Full path evaluation using the standard gate evaluator
   //    The gate.includeBranches are already ordered by the compiler.
   //    We use evaluateIngestGate logic inline for maximum control.
-  return evalGateIncludes(opt, post)
+  return evalGateIncludes(opt, post, extras)
 }
 
-function evalGateIncludes(opt: OptimizedStrictGate, post: NormalizedPost): boolean {
+function evalGateIncludes(
+  opt: OptimizedStrictGate,
+  post: NormalizedPost,
+  extras: StrictGateExtras,
+): boolean {
   for (const rule of opt.gate.includeBranches) {
-    if (evalRule(rule, post)) return true
+    if (evalRule(rule, post, extras)) return true
   }
   return false
 }
 
-function evalRule(rule: IngestGateRule, post: NormalizedPost): boolean {
+function evalRule(
+  rule: IngestGateRule,
+  post: NormalizedPost,
+  extras: StrictGateExtras,
+): boolean {
   if (!isIngestGateComposite(rule)) {
-    return evalBranch(rule as IngestGateBranch, post)
+    return evalBranch(rule as IngestGateBranch, post, extras)
   }
   const children = ingestCompositeChildren(rule)
   switch (rule.type) {
     case 'all':
-      return children.every((c) => evalRule(c, post))
+      return children.every((c) => evalRule(c, post, extras))
     case 'any':
-      return children.some((c) => evalRule(c, post))
+      return children.some((c) => evalRule(c, post, extras))
     case 'none':
-      return !children.some((c) => evalRule(c, post))
+      return !children.some((c) => evalRule(c, post, extras))
     case 'n_of': {
       const need = Math.max(1, rule.minPass ?? 2)
       let pass = 0
       for (const c of children) {
-        if (evalRule(c, post)) { pass++; if (pass >= need) return true }
+        if (evalRule(c, post, extras)) { pass++; if (pass >= need) return true }
       }
       return false
     }
@@ -167,7 +184,32 @@ function evalRule(rule: IngestGateRule, post: NormalizedPost): boolean {
   }
 }
 
-function evalBranch(branch: IngestGateBranch, post: NormalizedPost): boolean {
+function authorDidOnBranch(
+  branch: Extract<IngestGateBranch, { type: 'author' }>,
+  post: NormalizedPost,
+  extras: StrictGateExtras,
+): boolean {
+  const fromList =
+    branch.listId && extras.authorListDids?.[branch.listId]
+      ? extras.authorListDids[branch.listId]!
+      : []
+  const manual = branch.dids ?? []
+  const fromNodeKey =
+    !branch.listId && branch.sourceNodeId
+      ? (extras.authorListDids?.[branch.sourceNodeId] ?? [])
+      : []
+  return (
+    fromList.includes(post.authorDid) ||
+    manual.includes(post.authorDid) ||
+    fromNodeKey.includes(post.authorDid)
+  )
+}
+
+function evalBranch(
+  branch: IngestGateBranch,
+  post: NormalizedPost,
+  extras: StrictGateExtras,
+): boolean {
   switch (branch.type) {
     case 'keyword': {
       if (branch.terms.length === 0) return false
@@ -220,12 +262,16 @@ function evalBranch(branch: IngestGateBranch, post: NormalizedPost): boolean {
       if (branch.values.length === 0) return false
       return labelScopeMatches(post, branch.values, branch.scope)
     }
-    case 'follow_ring':
-      // Follow ring eval needs extras (preloaded DIDs) — handled at higher level
-      return false
-    case 'author':
-      // Author list eval needs extras — handled at higher level
-      return false
+    case 'follow_ring': {
+      const nodeId = branch.sourceNodeId ?? ''
+      const ring = new Set(extras.followRingDids?.[nodeId] ?? [])
+      const on = ring.has(post.authorDid)
+      return branch.op === 'includes' ? on : !on
+    }
+    case 'author': {
+      const on = authorDidOnBranch(branch, post, extras)
+      return branch.op === 'in_list' ? on : !on
+    }
     case 'url': {
       if (branch.patterns.length === 0) return false
       const urls = collectPostUrls(post, branch.sources as PostUrlSource[])

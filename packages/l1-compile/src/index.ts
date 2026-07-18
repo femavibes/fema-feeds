@@ -47,7 +47,7 @@ export {
 export { extractStrictIncludePaths, collectSubstitutionKindsFromFeeds, type LogicBlockResolver } from './strict-extract.js'
 export { compileStrictGate, applyStrictGate, type StrictCompileResult } from './strict-compile.js'
 export { buildAutomaton, type AhoCorasickAutomaton, type AhoCorasickMatch } from './aho-corasick.js'
-export { buildOptimizedStrictGate, evalOptimizedStrictGate, type OptimizedStrictGate } from './strict-gate-optimize.js'
+export { buildOptimizedStrictGate, evalOptimizedStrictGate, type OptimizedStrictGate, type StrictGateExtras } from './strict-gate-optimize.js'
 export {
   formatIngestLeafLabel,
   formatBranchWithSource,

@@ -72,7 +72,7 @@ export const L2_MEDIA_TYPE_VALUES: L2MediaTypeValue[] = [0, 1, 2, 3, 4, 5]
 export function mediaTypeLabel(value: L2MediaTypeValue): string {
   switch (value) {
     case 0:
-      return 'Text only'
+      return 'Text'
     case 1:
       return 'Image'
     case 2:
@@ -251,7 +251,7 @@ export function newLabelsCondition(): L2RuleNode {
 }
 
 export function newAuthorCondition(): L2RuleNode {
-  return { type: 'author', id: newId('author'), op: 'in_list', dids: [] }
+  return { type: 'author', id: newId('author'), op: 'in_list', dids: [], role: 'discover' }
 }
 
 export function newCompareCondition(): L2RuleNode {

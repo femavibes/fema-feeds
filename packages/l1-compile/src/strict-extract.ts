@@ -14,7 +14,7 @@ import type {
   L2RuleNode,
   LogicBlockRef,
 } from '@cfb/core-types'
-import { isIngestEligibleNodeType, isViewerFollowRing } from '@cfb/core-types'
+import { isIngestEligibleNodeType, isViewerFollowRing, nodeRunsAtIngest } from '@cfb/core-types'
 import { resolveFeedMatch } from '@cfb/l2-graph'
 import { branchFromPrefilterNode } from './compile-prefilter.js'
 import { dnfPathsFromRule } from './ingest-path-dnf.js'
@@ -36,6 +36,10 @@ function isStrictEligibleLeaf(node: L2RuleNode): boolean {
   if (!isIngestEligibleNodeType(node.type)) return false
   if (node.type === 'follow_ring' && isViewerFollowRing(node.hubSource)) return false
   if (isExcludeNode(node)) return false
+  // Author not_in_list is a Filter gate only — never Discover/L1.
+  if (node.type === 'author' && node.op === 'not_in_list') return false
+  // Discover role (author/follow_ring) or other nodes that run at ingest.
+  if (!nodeRunsAtIngest(node)) return false
   return true
 }
 

@@ -1,13 +1,25 @@
-import type { FeedConfig, ProjectL1Config } from '@cfb/core-types'
+import type { CompiledIngestGate, FeedConfig, ProjectL1Config } from '@cfb/core-types'
 import {
   collectAuthorIncludeBranches,
   collectFollowRingBranches,
+  compileStrictGate,
 } from '@cfb/l1-compile'
 import { getAuthorListCache } from '@cfb/storage-postgres'
 import type pg from 'pg'
 import { followRingCacheListId, loadFollowRingsForFeed } from './follow-ring-cache.js'
 
-/** Load follow-ring + author-list DIDs for compiled ingest_gate eval. */
+function gateForExtras(project: ProjectL1Config, feeds: FeedConfig[]): CompiledIngestGate | null {
+  if (project.ingestGate) return project.ingestGate
+  if (project.strictIncludeGate) return project.strictIncludeGate
+  if (project.prefilterMode === 'strict') {
+    // Runtime compile so Discover author/follow-ring lists load even before
+    // strictIncludeGate is persisted on the project row.
+    return compileStrictGate(project, feeds).strictIncludeGate
+  }
+  return null
+}
+
+/** Load follow-ring + author-list DIDs for compiled ingest_gate / strict gate eval. */
 export async function loadIngestGateExtrasForProject(
   pool: pg.Pool,
   project: ProjectL1Config,
@@ -19,7 +31,7 @@ export async function loadIngestGateExtrasForProject(
   const followRingDids: Record<string, string[]> = {}
   const authorListDids: Record<string, string[]> = {}
 
-  const gate = project.ingestGate
+  const gate = gateForExtras(project, feeds)
   if (!gate) return { followRingDids, authorListDids }
 
   for (const branch of collectFollowRingBranches(gate.includeBranches)) {
@@ -76,7 +88,9 @@ export async function loadIngestGateExtrasForProjects(
   > = {}
   await Promise.all(
     projects.map(async (project) => {
-      if (!project.ingestGate) return
+      if (!project.ingestGate && project.prefilterMode !== 'strict' && !project.strictIncludeGate) {
+        return
+      }
       out[project.projectId] = await loadIngestGateExtrasForProject(pool, project, feeds)
     }),
   )

@@ -47,3 +47,10 @@ export function languageDisplayName(code: string): string {
   const hit = COMMON_LANGUAGES.find((l) => l.code === code.toLowerCase())
   return hit ? hit.name : code
 }
+
+/** Canvas / picker style: "english (en)". */
+export function languageExpandLabel(code: string): string {
+  const name = languageDisplayName(code)
+  if (name === code) return code
+  return `${name.toLowerCase()} (${code})`
+}

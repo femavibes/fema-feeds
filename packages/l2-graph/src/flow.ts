@@ -131,7 +131,7 @@ function formatConditionBracket(op: string): string {
 export function conditionNodeTitle(node: L2RuleNode): string {
   switch (node.type) {
     case 'text':
-      return `TEXT ${formatConditionBracket(node.op)}`
+      return `TEXT (LEGACY) ${formatConditionBracket(node.op)}`
     case 'keyword':
       return `KEYWORD ${formatConditionBracket(node.op)}`
     case 'regex':

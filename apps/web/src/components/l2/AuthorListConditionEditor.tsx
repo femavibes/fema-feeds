@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type {
   AuthorListConfig,
   FeedAuthorListConfig,
@@ -10,7 +10,7 @@ import {
   feedAuthorListHasContent,
   findDuplicateAuthorList,
   isFeedAuthorList,
-  listManualDids,
+  isProjectAuthorList,
   listSourceUri,
   newFeedAuthorList,
   remotePollKeyForUri,
@@ -20,9 +20,6 @@ import { AuthorListMembersPanel } from './AuthorListMembersPanel'
 import { AuthorDidListEditor } from './AuthorDidListEditor'
 import { AuthorListSourceSummary } from './AuthorListSourceSummary'
 import { ToggleRow } from '../ToggleRow'
-
-const MANUAL = '__manual__'
-const NEW_LIST = '__new__'
 
 interface Props {
   node: L2AuthorCondition
@@ -57,38 +54,14 @@ function linkedFeedList(
   return feedAuthorLists.find((l) => l.listId === node.listId)
 }
 
-function isProjectList(
-  value: string,
-  projectAuthorLists: AuthorListConfig[],
-): boolean {
-  return projectAuthorLists.some((l) => l.listId === value)
+function listDisplayTitle(listId: string, cache: ListCacheEntry | undefined): string {
+  return cache?.graphName?.trim() || listId
 }
 
-function deriveSourceMode(
-  node: L2AuthorCondition,
-  projectAuthorLists: AuthorListConfig[],
-  feedAuthorLists: FeedAuthorListConfig[],
-): string {
-  if (node.listId && isProjectList(node.listId, projectAuthorLists)) return node.listId
-  if (!node.listId && (node.dids?.length ?? 0) > 0) return MANUAL
-  if (node.listId && isFeedAuthorList(node.listId, feedAuthorLists)) return NEW_LIST
-  return NEW_LIST
-}
-
-function ingestionOptionLabel(
-  listId: string,
-  cache: ListCacheEntry | undefined,
-): string {
+function ingestionOptionLabel(listId: string, cache: ListCacheEntry | undefined): string {
   const label = cache?.graphName?.trim() || listId
   if (cache?.memberCount != null) return `${label} (${cache.memberCount} members)`
   return label
-}
-
-function listDisplayTitle(
-  listId: string,
-  cache: ListCacheEntry | undefined,
-): string {
-  return cache?.graphName?.trim() || listId
 }
 
 export function AuthorListConditionEditor({
@@ -119,48 +92,24 @@ export function AuthorListConditionEditor({
     [projectAuthorLists, feedAuthorLists, projectListCache, projectId],
   )
 
-  const [listNameConflict, setListNameConflict] = useState<string | null>(null)
-  const [sourceMode, setSourceMode] = useState(() =>
-    deriveSourceMode(node, projectAuthorLists, feedAuthorLists),
+  const linkedFeed = linkedFeedList(node, feedAuthorLists)
+  const isProject = isProjectAuthorList(node.listId, projectAuthorLists)
+  const projectList = isProject
+    ? projectAuthorLists.find((l) => l.listId === node.listId)
+    : undefined
+  const hasLinkedList = Boolean(node.listId && (linkedFeed || projectList))
+
+  /** Edit URI / swap list — open when nothing linked yet, or after Edit. */
+  const [editingList, setEditingList] = useState(!hasLinkedList)
+  const [draftUri, setDraftUri] = useState(() =>
+    linkedFeed ? listSourceUri(linkedFeed) : '',
+  )
+  const [draftList, setDraftList] = useState<FeedAuthorListConfig | null>(
+    () => linkedFeed ?? null,
   )
 
-  const [feedEditorList, setFeedEditorList] = useState<FeedAuthorListConfig | null>(() => {
-    const linked = linkedFeedList(node, feedAuthorLists)
-    if (linked) return linked
-    if (deriveSourceMode(node, projectAuthorLists, feedAuthorLists) === NEW_LIST) {
-      return newFeedAuthorList(feedAuthorLists)
-    }
-    return null
-  })
-
-  useEffect(() => {
-    if (node.listId && isProjectList(node.listId, projectAuthorLists)) {
-      setSourceMode(node.listId)
-      setFeedEditorList(null)
-      return
-    }
-    if (!node.listId && (node.dids?.length ?? 0) > 0) {
-      setSourceMode(MANUAL)
-      setFeedEditorList(null)
-      return
-    }
-    if (node.listId && isFeedAuthorList(node.listId, feedAuthorLists)) {
-      setSourceMode(NEW_LIST)
-      const linked = linkedFeedList(node, feedAuthorLists)
-      if (linked) setFeedEditorList(linked)
-      return
-    }
-    if (sourceMode === NEW_LIST) {
-      setFeedEditorList((prev) => prev ?? newFeedAuthorList(feedAuthorLists))
-    }
-  }, [node.listId, node.dids, feedAuthorLists, projectAuthorLists, sourceMode])
-
-  const projectList =
-    sourceMode !== NEW_LIST &&
-    sourceMode !== MANUAL &&
-    isProjectList(sourceMode, projectAuthorLists)
-      ? projectAuthorLists.find((l) => l.listId === sourceMode)
-      : undefined
+  const cacheForList = (id: string | undefined) =>
+    id ? projectListCache.find((c) => c.listId === id) : undefined
 
   const commitFeedList = (lists: FeedAuthorListConfig[], nextNode: L2AuthorCondition) => {
     if (onAuthorFeedUpdate) {
@@ -171,11 +120,8 @@ export function AuthorListConditionEditor({
     onChange(nextNode)
   }
 
-  const saveFeedList = (
-    list: FeedAuthorListConfig,
-    nextNode: L2AuthorCondition = { ...node, listId: list.listId, dids: undefined },
-  ) => {
-    setFeedEditorList(list)
+  const saveFeedList = (list: FeedAuthorListConfig, nextNode: L2AuthorCondition) => {
+    setDraftList(list)
     if (!feedAuthorListHasContent(list)) {
       onChange({ ...nextNode, listId: undefined })
       return
@@ -185,216 +131,222 @@ export function AuthorListConditionEditor({
   }
 
   const adoptDuplicate = (entry: { listId: string; scope: AuthorListScope }) => {
-    setListNameConflict(null)
-    setFeedEditorList(null)
-    setSourceMode(entry.listId)
-    onChange({ ...node, listId: entry.listId, dids: undefined })
+    setDraftList(null)
+    setDraftUri('')
+    setEditingList(false)
+    onChange({ ...node, listId: entry.listId })
   }
 
-  const handleFeedListUri = (list: FeedAuthorListConfig, uri: string) => {
-    const dup = findDuplicateAuthorList(uri, registered.filter((r) => r.listId !== list.listId))
-    if (dup && remotePollKeyForUri(uri)) {
+  const applyListUri = (uri: string) => {
+    const trimmed = uri.trim()
+    setDraftUri(uri)
+    // Wait until the URL/URI parses as a Bluesky list or starter pack.
+    if (!trimmed || !remotePollKeyForUri(trimmed)) return
+
+    const working = draftList ?? linkedFeed ?? newFeedAuthorList(feedAuthorLists)
+    const dup = findDuplicateAuthorList(
+      trimmed,
+      registered.filter((r) => r.listId !== working.listId),
+    )
+    if (dup) {
       adoptDuplicate(dup)
       return
     }
-    saveFeedList({
-      ...list,
-      sources: [{ type: 'bluesky_list', uri, pollIntervalMinutes: 60 }],
-    })
+
+    const nextList: FeedAuthorListConfig = {
+      ...working,
+      sources: [{ type: 'bluesky_list', uri: trimmed, pollIntervalMinutes: 60 }],
+      // Extra accounts live on the condition node (union at eval), not on the list def.
+      dids: undefined,
+    }
+    saveFeedList(nextList, { ...node, listId: nextList.listId })
+    setEditingList(false)
   }
 
-  const feedFormList =
-    sourceMode === NEW_LIST
-      ? (linkedFeedList(node, feedAuthorLists) ?? feedEditorList)
-      : null
+  const clearList = () => {
+    const prevId = node.listId
+    onChange({ ...node, listId: undefined })
+    if (prevId && isFeedAuthorList(prevId, feedAuthorLists)) {
+      onFeedAuthorListsChange(feedAuthorLists.filter((l) => l.listId !== prevId))
+    }
+    setDraftList(null)
+    setDraftUri('')
+    setEditingList(true)
+  }
+
+  const startEditList = () => {
+    if (linkedFeed) {
+      setDraftList(linkedFeed)
+      setDraftUri(listSourceUri(linkedFeed))
+    } else if (projectList) {
+      setDraftList(newFeedAuthorList(feedAuthorLists))
+      setDraftUri(listSourceUri(projectList))
+    } else {
+      setDraftList(newFeedAuthorList(feedAuthorLists))
+      setDraftUri('')
+    }
+    setEditingList(true)
+  }
+
+  const linkProjectList = (listId: string) => {
+    if (!listId) return
+    // Drop unused feed-only def if we were pointing at one.
+    const prevId = node.listId
+    if (prevId && isFeedAuthorList(prevId, feedAuthorLists) && prevId !== listId) {
+      onFeedAuthorListsChange(feedAuthorLists.filter((l) => l.listId !== prevId))
+    }
+    setDraftList(null)
+    setDraftUri('')
+    setEditingList(false)
+    onChange({ ...node, listId })
+  }
+
+  const showSummary = hasLinkedList && !editingList
+  const summaryTitle = projectList
+    ? listDisplayTitle(projectList.listId, cacheForList(projectList.listId))
+    : node.listId
+      ? listDisplayTitle(node.listId, cacheForList(node.listId))
+      : ''
+  const summaryUri = projectList
+    ? listSourceUri(projectList) || undefined
+    : linkedFeed
+      ? listSourceUri(linkedFeed) || undefined
+      : undefined
 
   const duplicateUri =
-    feedFormList && listSourceUri(feedFormList).trim()
+    editingList && draftUri.trim()
       ? findDuplicateAuthorList(
-          listSourceUri(feedFormList),
-          registered.filter((r) => r.listId !== feedFormList.listId),
+          draftUri,
+          registered.filter((r) => r.listId !== (draftList ?? linkedFeed)?.listId),
         )
       : null
 
-  const cacheForList = (id: string | undefined) =>
-    id ? projectListCache.find((c) => c.listId === id) : undefined
-
-  const handleListSelect = (value: string) => {
-    setListNameConflict(null)
-    setSourceMode(value)
-
-    if (value === MANUAL) {
-      setFeedEditorList(null)
-      onChange({ ...node, listId: undefined, dids: node.dids ?? [] })
-      return
-    }
-
-    if (value === NEW_LIST) {
-      const created = newFeedAuthorList(feedAuthorLists)
-      setFeedEditorList(created)
-      onChange({ ...node, listId: undefined, dids: undefined })
-      return
-    }
-
-    setFeedEditorList(null)
-    onChange({ ...node, listId: value, dids: undefined })
-  }
-
   return (
     <div className="l2-author-list-editor">
-      <label>
-        Source
-        <select value={sourceMode} onChange={(e) => handleListSelect(e.target.value)}>
-          <option value={NEW_LIST}>New list</option>
-          {projectAuthorLists.length > 0 ? (
-            <optgroup label="L1 ingestion">
-              {projectAuthorLists.map((list) => {
-                const cache = projectListCache.find((c) => c.listId === list.listId)
-                return (
-                  <option key={list.listId} value={list.listId}>
-                    {ingestionOptionLabel(list.listId, cache)}
-                  </option>
-                )
-              })}
-            </optgroup>
-          ) : null}
-          <option value={MANUAL}>DIDs only</option>
-        </select>
-      </label>
-
-      {projectList ? (
-        <div className="l2-author-list-feed-form card">
-          <AuthorListSourceSummary
-            title={listDisplayTitle(projectList.listId, cacheForList(projectList.listId))}
-            uri={listSourceUri(projectList) || undefined}
-          />
-          <AuthorListMembersPanel
-            listId={projectList.listId}
-            extraDids={node.dids}
-            cache={cacheForList(projectList.listId)}
-            onRefreshList={onRefreshList}
-          />
-          <AuthorDidListEditor
-            label="Additional DIDs (optional)"
-            dids={node.dids ?? []}
-            onChange={(dids) =>
-              onChange({
-                ...node,
-                listId: projectList.listId,
-                dids: dids.length ? dids : undefined,
-              })
-            }
-            hint="Unioned with the L1 list at evaluation time — for one-off accounts not on the list."
-          />
-        </div>
-      ) : null}
-
-      {feedFormList ? (
-        <>
-          <div className="l2-author-list-feed-form card">
-            <label>
-              List name
-              <input
-                value={feedFormList.listId}
-                onChange={(e) => {
-                  const nextId = e.target.value.trim()
-                  setListNameConflict(null)
-                  if (!nextId || nextId === feedFormList.listId) return
-                  const taken = registered.some((r) => r.listId === nextId)
-                  if (taken) {
-                    setListNameConflict(nextId)
-                    return
-                  }
-                  saveFeedList({ ...feedFormList, listId: nextId }, { ...node, listId: nextId })
-                }}
-                placeholder="vip-sources"
-              />
-            </label>
-            {listNameConflict ? (
-              <p className="field-error">
-                The name <strong>{listNameConflict}</strong> is already used — pick a different label.
-              </p>
-            ) : null}
-            <label>
-              Bluesky list or starter-pack URL
-              <input
-                value={listSourceUri(feedFormList)}
-                onChange={(e) => handleFeedListUri(feedFormList, e.target.value)}
-                placeholder="https://bsky.app/profile/…/lists/…"
-              />
-            </label>
-            <AuthorDidListEditor
-              label="Additional DIDs (optional)"
-              dids={listManualDids(feedFormList)}
-              onChange={(dids) =>
-                saveFeedList({
-                  ...feedFormList,
-                  dids: dids.length ? dids : undefined,
-                  sources: (feedFormList.sources ?? []).filter((s) => s.type !== 'manual_dids'),
-                })
-              }
-            />
-          </div>
-
-          {node.listId ? (
-            <AuthorListMembersPanel
-              listId={node.listId}
-              extraDids={listManualDids(feedFormList)}
-              cache={cacheForList(node.listId)}
-              onRefreshList={onRefreshList}
-            />
-          ) : null}
-
-          {duplicateUri ? (
-            <p className="field-error">
-              This Bluesky list is already registered as <strong>{duplicateUri.listId}</strong> (
-              {scopeLabel(duplicateUri.scope)}). Reusing it avoids duplicate polling.
+      <div className="l2-author-list-section">
+        <div className="l2-author-list-section-head">
+          <span className="l2-author-list-section-label">Bluesky list</span>
+          {showSummary ? (
+            <span className="l2-author-list-section-actions">
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
-                onClick={() => adoptDuplicate(duplicateUri)}
+                onClick={startEditList}
               >
-                Use {duplicateUri.listId}
+                Edit
               </button>
-            </p>
-          ) : (
-            <p className="l2-condition-hint">
-              Feed-only — applies to this feed&apos;s rules, not L1 ingestion. Saved when you add a URL
-              or DIDs.
-            </p>
-          )}
-        </>
-      ) : null}
+              <button type="button" className="btn btn-ghost btn-sm" onClick={clearList}>
+                Remove
+              </button>
+            </span>
+          ) : null}
+        </div>
 
-      {sourceMode === MANUAL ? (
-        <>
-          <AuthorDidListEditor
-            label="Author DIDs"
-            dids={node.dids ?? []}
-            onChange={(dids) =>
-              onChange({
-                ...node,
-                listId: undefined,
-                dids,
-              })
-            }
-            hint="Match only these accounts — no Bluesky list."
-          />
-          <AuthorListMembersPanel manualDids={node.dids} />
-        </>
-      ) : null}
+        {showSummary ? (
+          <div className="l2-author-list-feed-form">
+            <AuthorListSourceSummary title={summaryTitle} uri={summaryUri} />
+            {isProject ? (
+              <p className="l2-condition-hint">
+                Linked to an L1 project list (used for pool ingestion). Same list can also gate this
+                feed&apos;s Author rule.
+              </p>
+            ) : (
+              <p className="l2-condition-hint">
+                Feed-scoped list: polled for this feed&apos;s Author rules only. Separate from L1
+                project lists that filter what enters the ingestion pool.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="l2-author-list-feed-form">
+            <label>
+              List or starter-pack URL
+              <input
+                value={draftUri}
+                onChange={(e) => applyListUri(e.target.value)}
+                placeholder="https://bsky.app/profile/…/lists/…"
+              />
+            </label>
+            {projectAuthorLists.length > 0 ? (
+              <label>
+                Or use an L1 ingestion list
+                <select
+                  value={isProject ? (node.listId ?? '') : ''}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    if (v) linkProjectList(v)
+                  }}
+                >
+                  <option value="">—</option>
+                  {projectAuthorLists.map((list) => {
+                    const cache = projectListCache.find((c) => c.listId === list.listId)
+                    return (
+                      <option key={list.listId} value={list.listId}>
+                        {ingestionOptionLabel(list.listId, cache)}
+                      </option>
+                    )
+                  })}
+                </select>
+              </label>
+            ) : null}
+            {hasLinkedList ? (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingList(false)}>
+                Cancel
+              </button>
+            ) : null}
+            {duplicateUri ? (
+              <p className="field-error">
+                This Bluesky list is already registered as <strong>{duplicateUri.listId}</strong> (
+                {scopeLabel(duplicateUri.scope)}). Reusing it avoids duplicate polling.
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => adoptDuplicate(duplicateUri)}
+                >
+                  Use {duplicateUri.listId}
+                </button>
+              </p>
+            ) : (
+              <p className="l2-condition-hint">
+                Paste a URL to attach a list. Extra accounts go in DIDs below — both are unioned at
+                match time.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
-      {projectAuthorLists.length === 0 && sourceMode === NEW_LIST && !prefilterMode ? (
-        <p className="l2-condition-hint">
-          Feed-only list — saved with this feed. Use at L2 to narrow which pooled posts appear in this
-          feed.
-        </p>
+      <AuthorDidListEditor
+        label="Author DIDs"
+        dids={node.dids ?? []}
+        onChange={(dids) =>
+          onChange({
+            ...node,
+            dids: dids.length ? dids : undefined,
+          })
+        }
+        hint={
+          node.listId
+            ? 'Optional extras — unioned with the list members at evaluation time.'
+            : 'Match these accounts. Add a Bluesky list above if you also want list members.'
+        }
+      />
+
+      {node.listId ? (
+        <AuthorListMembersPanel
+          listId={node.listId}
+          extraDids={node.dids}
+          cache={cacheForList(node.listId)}
+          onRefreshList={onRefreshList}
+        />
+      ) : (node.dids?.length ?? 0) > 0 ? (
+        <AuthorListMembersPanel manualDids={node.dids} />
       ) : null}
 
       {prefilterMode && node.op === 'in_list' ? (
         <ToggleRow
           label="Authors only"
-          hint="Block everyone not on this list — strangers won't enter the pool"
+          hint="Block everyone not on this list — strangers won't enter the pool (manual ingest only)"
           checked={node.authorsOnly ?? false}
           onChange={(checked) => onChange({ ...node, authorsOnly: checked || undefined })}
           ariaLabel="Authors only ingest"

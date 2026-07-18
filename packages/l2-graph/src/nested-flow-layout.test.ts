@@ -257,4 +257,34 @@ describe('layoutMatchFlow', () => {
     expect(kw2.y).toBeLessThan(and2.y)
   })
 
+  it('grows keyword height when expanded', () => {
+    const match = {
+      type: 'group' as const,
+      id: 'root',
+      logic: 'any' as const,
+      children: [
+        {
+          type: 'group' as const,
+          id: 'g',
+          logic: 'all' as const,
+          children: [
+            {
+              type: 'keyword' as const,
+              id: 'kw',
+              op: 'includes' as const,
+              terms: ['alpha', 'beta', 'gamma'],
+              fields: ['text' as const],
+            },
+          ],
+        },
+      ],
+    }
+    const collapsed = layoutMatchFlow(match).nodes.find((n) => n.id === 'kw')!
+    const expanded = layoutMatchFlow(match, { expandedIds: ['kw'] }).nodes.find((n) => n.id === 'kw')!
+    expect(expanded.height).toBeGreaterThan(collapsed.height)
+    const frameCollapsed = layoutMatchFlow(match).nodes.find((n) => n.id === 'g')!
+    const frameExpanded = layoutMatchFlow(match, { expandedIds: ['kw'] }).nodes.find((n) => n.id === 'g')!
+    expect(frameExpanded.height).toBeGreaterThan(frameCollapsed.height)
+  })
+
 })

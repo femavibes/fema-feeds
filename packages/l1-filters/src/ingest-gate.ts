@@ -162,19 +162,21 @@ function evalIncludeBranch(
     }
 
     case 'author': {
-
-      const dids =
-
-        (branch.listId ? extras.authorListDids?.[branch.listId] : undefined) ??
-
-        branch.dids ??
-
-        []
-
-      const on = dids.includes(post.authorDid)
+      const fromList =
+        branch.listId && extras.authorListDids?.[branch.listId]
+          ? extras.authorListDids[branch.listId]!
+          : []
+      const manual = branch.dids ?? []
+      const fromNodeKey =
+        !branch.listId && branch.sourceNodeId
+          ? (extras.authorListDids?.[branch.sourceNodeId] ?? [])
+          : []
+      const on =
+        fromList.includes(post.authorDid) ||
+        manual.includes(post.authorDid) ||
+        fromNodeKey.includes(post.authorDid)
 
       return branch.op === 'in_list' ? on : !on
-
     }
 
     case 'url': {

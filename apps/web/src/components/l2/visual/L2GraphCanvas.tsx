@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useImperativeHandle, useRef, forwardRef } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, forwardRef } from 'react'
 import {
   Background,
   Controls,
@@ -19,6 +19,7 @@ import { reorderMatchFromLayout } from '../../../lib/l2-form'
 import { graphNodeTypes, type GraphNodeData } from './graph-nodes'
 import { graphEdgeTypes } from './graph-edges'
 import { L2CanvasToolbar } from './L2CanvasToolbar'
+import { NodeExpandProvider } from './node-expand-context'
 import {
   PALETTE_DRAG_MIME,
   PALETTE_ITEM_BY_ID,
@@ -58,6 +59,12 @@ interface Props {
   positions: NodePositions
   nodeLabels?: NodeLabels
   nodeSources?: NodeSources
+  expandedNodeIds?: string[]
+  lockedNodeIds?: string[]
+  onToggleNodeExpanded?: (nodeId: string) => void
+  onToggleNodeLocked?: (nodeId: string) => void
+  onCollapseAllInGroup?: (groupId: string) => void
+  onExpandAllInGroup?: (groupId: string) => void
   feedSources?: import('@cfb/core-types').NativeFeedSource[]
   canvasEdges: CanvasEdge[]
   selectedId: string | null
@@ -79,6 +86,8 @@ interface Props {
   onEdgeContextMenu: (edgeId: string, x: number, y: number) => void
   /** Double-click / double-tap on a node — open its properties panel. */
   onNodeOpenProperties?: (nodeId: string) => void
+  /** Persist node removals from React Flow delete / multi-select. */
+  onDeleteNodes?: (nodeIds: string[]) => void
   canUndo?: boolean
   canRedo?: boolean
   onUndo?: () => void
@@ -88,7 +97,8 @@ interface Props {
 }
 
 function minimapNodeColor(node: Node<GraphNodeData>): string {
-  if (node.id === 'start' || node.id === 'end') return '#5b8def'
+  if (node.id === 'start') return '#10b981'
+  if (node.id === 'end') return '#f97316'
   if (node.type === 'groupFrame') {
     return node.data.groupLogic === 'any' ? '#f97316' : '#3b82f6'
   }
@@ -101,6 +111,12 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     positions,
     nodeLabels = {},
     nodeSources = {},
+    expandedNodeIds = [],
+    lockedNodeIds = [],
+    onToggleNodeExpanded,
+    onToggleNodeLocked,
+    onCollapseAllInGroup,
+    onExpandAllInGroup,
     feedSources,
     canvasEdges,
     selectedId,
@@ -117,6 +133,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     onNodeContextMenu,
     onEdgeContextMenu,
     onNodeOpenProperties,
+    onDeleteNodes,
     canUndo = false,
     canRedo = false,
     onUndo,
@@ -133,8 +150,33 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
   nodeLabelsRef.current = nodeLabels
   const nodeSourcesRef = useRef(nodeSources)
   nodeSourcesRef.current = nodeSources
+  const expandedNodeIdsRef = useRef(expandedNodeIds)
+  expandedNodeIdsRef.current = expandedNodeIds
+  const lockedNodeIdsRef = useRef(lockedNodeIds)
+  lockedNodeIdsRef.current = lockedNodeIds
   const edgesRef = useRef(canvasEdges)
   edgesRef.current = canvasEdges
+  const expandedKey = expandedNodeIds.join('\0')
+  const lockedKey = lockedNodeIds.join('\0')
+
+  const expandApi = useMemo(
+    () => ({
+      toggleExpanded: (nodeId: string) => onToggleNodeExpanded?.(nodeId),
+      collapseAllInGroup: (groupId: string) => onCollapseAllInGroup?.(groupId),
+      expandAllInGroup: (groupId: string) => onExpandAllInGroup?.(groupId),
+      toggleLocked: (nodeId: string) => onToggleNodeLocked?.(nodeId),
+      openProperties: (nodeId: string) => onNodeOpenProperties?.(nodeId),
+      readOnly,
+    }),
+    [
+      onToggleNodeExpanded,
+      onCollapseAllInGroup,
+      onExpandAllInGroup,
+      onToggleNodeLocked,
+      onNodeOpenProperties,
+      readOnly,
+    ],
+  )
   const { screenToFlowPosition, getIntersectingNodes, getNode, getNodes } = useReactFlow()
 
   useImperativeHandle(
@@ -162,10 +204,12 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
         nodeLabelsRef.current,
         nodeSourcesRef.current,
         feedSources,
+        expandedNodeIdsRef.current,
+        lockedNodeIdsRef.current,
       ),
     )
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))
-  }, [structureKey, match, selectedEdgeId, canvasEdges, setNodes, setEdges])
+  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, lockedKey, feedSources, setNodes, setEdges])
 
   useEffect(() => {
     setNodes((nds) =>
@@ -176,11 +220,13 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
           selectedId,
           nodeLabelsRef.current,
           nodeSourcesRef.current,
+          expandedNodeIdsRef.current,
+          lockedNodeIdsRef.current,
         ),
         testTrace,
       ),
     )
-  }, [match, selectedId, testTrace, nodeLabels, nodeSources, setNodes])
+  }, [match, selectedId, testTrace, nodeLabels, nodeSources, expandedKey, lockedKey, setNodes])
 
   useEffect(() => {
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))
@@ -216,7 +262,11 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
       })
       const reordered = reorderMatchFromLayout(match, layoutNodesForReorder(withDragged))
       const layoutMatch = reordered !== match ? reordered : match
-      const laidOut = applyNestedLayoutPositions(withDragged, layoutMatch)
+      const laidOut = applyNestedLayoutPositions(
+        withDragged,
+        layoutMatch,
+        expandedNodeIdsRef.current,
+      )
       if (laidOut !== withDragged) setNodes(laidOut)
       onPositionsChange(extractPositions(laidOut))
       if (reordered !== match) onMatchReorder(reordered)
@@ -385,6 +435,28 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     [match, onEdgesChange],
   )
 
+  const handleNodesChange = useCallback(
+    (changes: Parameters<typeof onNodesChange>[0]) => {
+      // Never let React Flow drop START/FEED from local state.
+      const filtered = changes.filter(
+        (c) => !(c.type === 'remove' && (c.id === 'start' || c.id === 'end')),
+      )
+      if (filtered.length > 0) onNodesChange(filtered)
+    },
+    [onNodesChange],
+  )
+
+  const handleNodesDelete = useCallback(
+    (deleted: Node<GraphNodeData>[]) => {
+      if (!onDeleteNodes || readOnly) return
+      const ids = deleted
+        .map((n) => n.id)
+        .filter((id) => id !== 'start' && id !== 'end')
+      if (ids.length > 0) onDeleteNodes(ids)
+    },
+    [onDeleteNodes, readOnly],
+  )
+
   const handleEdgesChange = useCallback(
     (changes: Parameters<typeof onRfEdgesChange>[0]) => {
       onRfEdgesChange(changes)
@@ -418,13 +490,14 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
   )
 
   return (
-    <>
+    <NodeExpandProvider value={expandApi}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={graphNodeTypes}
         edgeTypes={graphEdgeTypes}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
+        onNodesDelete={readOnly ? undefined : handleNodesDelete}
         onEdgesChange={handleEdgesChange}
         noDragClassName="nodrag"
         noPanClassName="nopan"
@@ -501,7 +574,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
           bgColor="var(--bg-card)"
         />
       </ReactFlow>
-    </>
+    </NodeExpandProvider>
   )
 })
 

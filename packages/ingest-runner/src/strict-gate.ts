@@ -8,6 +8,7 @@ import {
   evalOptimizedStrictGate,
   type LogicBlockResolver,
   type OptimizedStrictGate,
+  type StrictGateExtras,
 } from '@cfb/l1-compile'
 
 export interface StrictGateState {
@@ -44,9 +45,10 @@ export function postPassesStrictGate(
   post: NormalizedPost,
   project: ProjectL1Config,
   strictState: StrictGateState,
+  extras: StrictGateExtras = {},
 ): boolean {
   if (project.prefilterMode !== 'strict') return true
   const gate = strictState.gates.get(project.projectId)
   if (!gate) return false
-  return evalOptimizedStrictGate(gate, post)
+  return evalOptimizedStrictGate(gate, post, extras)
 }

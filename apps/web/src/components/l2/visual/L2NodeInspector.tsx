@@ -68,6 +68,9 @@ interface Props {
 
   onDeleteSelected: () => void
 
+  /** When true, hide destructive delete for the selected node. */
+  selectedNodeLocked?: boolean
+
   onRenameNode?: (nodeId: string) => void
 
   onTestTrace?: (trace: L2NodeTrace[] | null) => void
@@ -112,6 +115,8 @@ export function L2PropertiesInspector({
 
   onDeleteSelected,
 
+  selectedNodeLocked = false,
+
   onRenameNode,
 
   onDraftChange,
@@ -151,7 +156,9 @@ export function L2PropertiesInspector({
 
     selectedId !== 'end' &&
 
-    selectedId !== match.id
+    selectedId !== match.id &&
+
+    !selectedNodeLocked
 
   const canDeleteEdge = Boolean(selectedEdgeId)
 

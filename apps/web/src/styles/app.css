@@ -5202,38 +5202,61 @@ input.readonly {
 
 .l2-flow-start,
 .l2-flow-end {
-  font-weight: 600;
-  background: var(--surface-3);
-}
-
-.l2-flow-score {
   box-sizing: border-box;
-  width: 100%;
-  height: 100%;
-  border: 2px solid #f59e0b;
-  border-radius: 10px;
-  background: color-mix(in srgb, #f59e0b 12%, var(--surface-1));
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.15rem;
-  padding: 0.25rem;
-}
-
-.l2-flow-score.selected {
-  box-shadow: 0 0 0 2px #f59e0b;
-}
-
-.l2-flow-score.trace-pass {
-  border-color: var(--success);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--success) 40%, transparent);
-}
-
-.l2-flow-score-points {
-  font-size: 1rem;
+  gap: 0.4rem;
+  width: 100%;
+  height: 100%;
+  padding: 0 0.75rem;
+  border-radius: 999px;
   font-weight: 700;
-  color: #f59e0b;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1.5px solid transparent;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, #000 35%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent);
+}
+
+.l2-flow-start {
+  color: #ecfdf5;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #10b981 55%, #064e3b), color-mix(in srgb, #059669 40%, #022c22));
+  border-color: color-mix(in srgb, #34d399 55%, transparent);
+}
+
+.l2-flow-end {
+  color: #fff7ed;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, #f97316 50%, #7c2d12), color-mix(in srgb, #ea580c 35%, #431407));
+  border-color: color-mix(in srgb, #fb923c 55%, transparent);
+}
+
+.l2-flow-endpoint-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  opacity: 0.95;
+}
+
+.l2-flow-endpoint-label {
+  line-height: 1;
+}
+
+.l2-flow-start.selected,
+.l2-flow-end.selected {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent),
+    0 2px 10px color-mix(in srgb, #000 40%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent);
+}
+
+/* Score shares .l2-flow-condition chrome (green / provenance). Points stay bold. */
+.l2-flow-score-points {
+  font-size: 0.85rem;
+  font-weight: 800;
   letter-spacing: 0.02em;
 }
 
@@ -5261,10 +5284,15 @@ input.readonly {
   text-align: left;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.15rem;
-  padding: 0.4rem 0.65rem;
+  padding: 0.4rem 0.65rem 0.55rem;
   transition: box-shadow 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+}
+
+.l2-flow-condition.is-expanded {
+  /* Keep title pinned under the same top padding as collapsed — never re-center. */
+  padding-bottom: 0.65rem;
 }
 
 .l2-flow-node.l2-flow-condition.selected {
@@ -5317,15 +5345,16 @@ input.readonly {
 
 .l2-flow-condition-source-badge,
 .l2-flow-condition-code-badge {
-  position: absolute;
-  top: 3px;
-  left: 4px;
-  z-index: 2;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1rem;
   font-size: 0.55rem;
   font-weight: 800;
   letter-spacing: 0.03em;
   line-height: 1;
-  padding: 0.1rem 0.25rem;
+  padding: 0 0.25rem;
   border-radius: 3px;
   color: var(--text-muted);
   background: color-mix(in srgb, var(--surface-1) 70%, transparent);
@@ -5335,6 +5364,263 @@ input.readonly {
 .l2-flow-condition-code-badge {
   font-family: var(--mono);
   color: var(--l2-provenance-custom);
+}
+
+.l2-flow-condition.l2-flow-provenance-collection .l2-flow-condition-source-badge {
+  color: var(--l2-provenance-collection);
+}
+
+.l2-flow-condition.l2-flow-provenance-subscription .l2-flow-condition-source-badge {
+  color: var(--l2-provenance-subscription);
+}
+
+.l2-flow-condition-head {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.l2-flow-condition-expand {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.l2-flow-condition-expand:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.l2-flow-condition-head .l2-flow-condition-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.l2-flow-condition-teaser {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  margin-top: 0.1rem;
+  pointer-events: auto;
+}
+
+.l2-flow-condition-body {
+  margin-top: 0.1rem;
+  min-width: 0;
+}
+
+.l2-flow-condition-body-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.l2-flow-condition-body-line {
+  display: block;
+  height: 17px;
+  font-size: 0.68rem;
+  line-height: 17px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.l2-flow-condition-body-empty {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.l2-flow-profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.l2-flow-profile-list-meta {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+}
+
+.l2-flow-profile-more-btn {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.1rem 0.1rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.l2-flow-profile-more-btn:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.l2-flow-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 40px;
+  min-width: 0;
+  padding: 0.15rem 0.1rem;
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+  box-sizing: border-box;
+}
+
+.l2-flow-profile-row:hover {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.l2-flow-profile-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.l2-flow-profile-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.l2-flow-profile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.l2-flow-profile-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.l2-flow-profile-handle {
+  font-size: 0.6rem;
+  font-family: var(--mono);
+  color: var(--text-muted);
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.l2-flow-condition-lock {
+  position: static;
+  flex-shrink: 0;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.55;
+  pointer-events: auto;
+  transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
+}
+
+.l2-flow-condition:hover .l2-flow-condition-lock,
+.l2-flow-condition-lock.is-locked,
+.l2-flow-condition-lock:focus-visible {
+  opacity: 1;
+}
+
+.l2-flow-condition-lock:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.l2-flow-condition-lock.is-locked {
+  color: #f59e0b;
+}
+
+.l2-group-frame-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.l2-group-frame-actions .l2-flow-condition-lock {
+  opacity: 0.7;
+}
+
+.l2-group-frame-fold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0;
+  flex-shrink: 0;
+  height: 1.35rem;
+  padding: 0 0.45rem 0 0.35rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+.l2-group-frame-fold:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.l2-group-frame-fold-chevron {
+  font-size: 0.7rem;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.l2-group-frame-fold-label {
+  line-height: 1;
 }
 
 .l2-flow-condition-title {
@@ -5510,11 +5796,6 @@ input.readonly {
     0 0 18px 3px color-mix(in srgb, var(--accent) 65%, transparent),
     0 0 36px 6px color-mix(in srgb, var(--accent) 35%, transparent);
   background: color-mix(in srgb, var(--accent) 28%, var(--surface-2));
-}
-
-.l2-flow-start.selected,
-.l2-flow-end.selected {
-  background: color-mix(in srgb, var(--accent-soft) 35%, var(--surface-3));
 }
 
 .l2-flow-inspector {
@@ -6543,11 +6824,15 @@ body.l2-visual-open #root {
   width: 100%;
   height: 100%;
   background: var(--surface-1);
+  /* Native conditions (keyword, score, engagement math, …) */
+  --l2-condition: #22c55e;
+  /* Logic frames */
   --l2-and: #3b82f6;
   --l2-or: #f97316;
-  --l2-condition: #22c55e;
+  --l2-nof: #a855f7;
+  /* Provenance: collection / subscribed blocks / custom CODE */
   --l2-provenance-collection: #14b8a6;
-  --l2-provenance-subscription: #a855f7;
+  --l2-provenance-subscription: #f43f5e;
   --l2-provenance-custom: #f59e0b;
   --l2-edge-flow: var(--success);
   --l2-edge-logic: var(--text-muted);
@@ -7349,7 +7634,35 @@ body.l2-visual-open #root {
 .l2-author-list-editor {
   display: flex;
   flex-direction: column;
+  gap: 0.65rem;
+}
+
+.l2-author-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.l2-author-list-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
+}
+
+.l2-author-list-section-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.l2-author-list-section-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
 }
 
 .l2-author-list-feed-head {
@@ -8099,8 +8412,8 @@ body.l2-visual-open #root {
 }
 
 .l2-group-frame.logic-nof {
-  border-color: color-mix(in srgb, #a855f7 80%, var(--border));
-  background: color-mix(in srgb, #a855f7 12%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--l2-nof) 80%, var(--border));
+  background: color-mix(in srgb, var(--l2-nof) 12%, var(--surface-2));
 }
 
 .l2-group-frame.logic-none {
@@ -8127,12 +8440,12 @@ body.l2-visual-open #root {
 }
 
 .l2-group-frame.logic-nof.selected {
-  border: 3px solid #a855f7 !important;
+  border: 3px solid var(--l2-nof) !important;
   box-shadow:
-    0 0 0 4px color-mix(in srgb, #a855f7 45%, transparent),
-    0 0 22px 4px color-mix(in srgb, #a855f7 70%, transparent),
-    0 0 44px 8px color-mix(in srgb, #a855f7 35%, transparent) !important;
-  background: color-mix(in srgb, #a855f7 26%, var(--surface-2)) !important;
+    0 0 0 4px color-mix(in srgb, var(--l2-nof) 45%, transparent),
+    0 0 22px 4px color-mix(in srgb, var(--l2-nof) 70%, transparent),
+    0 0 44px 8px color-mix(in srgb, var(--l2-nof) 35%, transparent) !important;
+  background: color-mix(in srgb, var(--l2-nof) 26%, var(--surface-2)) !important;
 }
 
 .l2-group-frame.logic-none.selected {
@@ -8154,9 +8467,13 @@ body.l2-visual-open #root {
   border-bottom-color: color-mix(in srgb, var(--l2-or) 55%, var(--border));
 }
 
-.l2-group-frame.logic-nof.selected .l2-group-frame-header,
+.l2-group-frame.logic-nof.selected .l2-group-frame-header {
+  background: color-mix(in srgb, var(--l2-nof) 40%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--l2-nof) 55%, var(--border));
+}
+
 .l2-group-frame.logic-none.selected .l2-group-frame-header {
-  background: color-mix(in srgb, currentColor 15%, transparent);
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
 }
 
 .l2-group-frame-top.selected {
@@ -8210,6 +8527,10 @@ body.l2-visual-open #root {
 
 .l2-group-frame.logic-any .l2-group-frame-logic {
   color: color-mix(in srgb, var(--l2-or) 25%, #fff);
+}
+
+.l2-group-frame.logic-nof .l2-group-frame-logic {
+  color: color-mix(in srgb, var(--l2-nof) 30%, #fff);
 }
 
 .l2-visual-canvas .react-flow__node-groupFrame {

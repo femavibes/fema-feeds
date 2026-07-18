@@ -60,8 +60,12 @@ export function flowGraphToRfNodes(
   nodeLabels: NodeLabels = {},
   nodeSources: NodeSources = {},
   feedSources?: import('@cfb/core-types').NativeFeedSource[],
+  expandedNodeIds: readonly string[] = [],
+  lockedNodeIds: readonly string[] = [],
 ): Node<GraphNodeData>[] {
-  const layout = layoutMatchFlow(normalizeRuleGroup(match))
+  const layout = layoutMatchFlow(normalizeRuleGroup(match), { expandedIds: expandedNodeIds })
+  const expandedSet = new Set(expandedNodeIds)
+  const lockedSet = new Set(lockedNodeIds)
 
   const nodes: Node<GraphNodeData>[] = layout.nodes.map((box) => {
     const nested = Boolean(box.parentId)
@@ -116,9 +120,19 @@ export function flowGraphToRfNodes(
 
     switch (box.kind) {
       case 'start':
-        return { ...base, type: 'start' as const, style: { width: box.width, height: box.height } }
+        return {
+          ...base,
+          type: 'start' as const,
+          deletable: false,
+          style: { width: box.width, height: box.height },
+        }
       case 'end':
-        return { ...base, type: 'end' as const, style: { width: box.width, height: box.height } }
+        return {
+          ...base,
+          type: 'end' as const,
+          deletable: false,
+          style: { width: box.width, height: box.height },
+        }
       case 'group-frame': {
         const inMatch = findInMatch(match, box.id)
         const logic: L2GroupLogic =
@@ -127,9 +141,13 @@ export function flowGraphToRfNodes(
         const title = groupNodeTitle(logic, minPass)
         const customName =
           inMatch?.type === 'group' ? inMatch.label?.trim() || undefined : undefined
+        const leafIds = collectDescendantLeafIds(match, box.id)
+        const locked = lockedSet.has(box.id)
         return {
           ...base,
           type: 'groupFrame' as const,
+          deletable: !locked,
+          draggable: !locked,
           data: {
             ...base.data,
             label: title,
@@ -137,6 +155,9 @@ export function flowGraphToRfNodes(
             customName,
             subtitle: undefined,
             groupLogic: logic,
+            locked,
+            hasExpandableContents: leafIds.length > 0,
+            contentsExpanded: leafIds.some((id) => expandedSet.has(id)),
           },
           style: { width: box.width, height: box.height },
         }
@@ -144,22 +165,14 @@ export function flowGraphToRfNodes(
       case 'condition': {
         const ruleType = box.rule?.type
         const isScore = ruleType === 'score'
-        const substituteLabel =
-          ruleType === 'substitute' && box.rule && 'direction' in box.rule
-            ? box.rule.direction === 'reply_to_root'
-              ? 'reply→root'
-              : box.rule.direction === 'reply_to_parent'
-                ? 'reply→parent'
-                : 'quote→quoted'
-            : undefined
-        const scoutSubtitle =
-          ruleType === 'scout' && box.rule && 'threshold' in box.rule
-            ? `${box.rule.threshold.min}–${box.rule.threshold.max} scouts`
-            : undefined
+        const locked = lockedSet.has(box.id)
         return {
           ...base,
-          // Score keeps its own chrome; scout/substitute use standard condition style.
+          // Score keeps a dedicated RF type for the +points layout; chrome matches
+          // other native conditions (green). Scout/substitute are conditions too.
           type: isScore ? ('score' as const) : ('condition' as const),
+          deletable: !locked,
+          draggable: !locked,
           data: {
             ...base.data,
             nodeId: box.id,
@@ -169,13 +182,13 @@ export function flowGraphToRfNodes(
             subtitle: isScore ? `+${(box.rule as { points: number }).points}` : undefined,
             customName:
               nodeLabels[box.id]?.trim() ||
-              substituteLabel ||
-              scoutSubtitle ||
               (ruleType === 'logic_block_ref'
                 ? (box.rule as { label?: string }).label?.trim()
                 : undefined) ||
               undefined,
             nodeProvenance: nodeSources[box.id] ?? defaultNodeProvenance(box.rule),
+            expanded: expandedSet.has(box.id),
+            locked,
           },
           style: { width: box.width, height: box.height },
         }
@@ -254,7 +267,11 @@ export function updateRfNodeLabels(
   selectedId: string | null,
   nodeLabels: NodeLabels = {},
   nodeSources: NodeSources = {},
+  expandedNodeIds: readonly string[] = [],
+  lockedNodeIds: readonly string[] = [],
 ): Node<GraphNodeData>[] {
+  const expandedSet = new Set(expandedNodeIds)
+  const lockedSet = new Set(lockedNodeIds)
   return nodes.map((node) => {
     if (node.type === 'groupFrame') {
       const inMatch = findInMatch(match, node.id)
@@ -263,9 +280,13 @@ export function updateRfNodeLabels(
       const title = groupNodeTitle(logic, minPass)
       const customName =
         inMatch?.type === 'group' ? inMatch.label?.trim() || undefined : undefined
+      const leafIds = collectDescendantLeafIds(match, node.id)
+      const locked = lockedSet.has(node.id)
       return {
         ...node,
         selected: node.id === selectedId,
+        deletable: !locked,
+        draggable: !locked,
         data: {
           ...node.data,
           selected: node.id === selectedId,
@@ -276,26 +297,35 @@ export function updateRfNodeLabels(
           logic: logic.toUpperCase(),
           isRoot: false,
           groupLogic: logic,
+          locked,
+          hasExpandableContents: leafIds.length > 0,
+          contentsExpanded: leafIds.some((id) => expandedSet.has(id)),
         },
       }
     }
-    if (node.type === 'condition') {
+    if (node.type === 'condition' || node.type === 'score') {
       const rule = findInMatch(match, node.id)
       if (rule && rule.type !== 'group') {
         const customName =
           nodeLabels[node.id]?.trim() ||
           (rule.type === 'logic_block_ref' ? rule.label?.trim() : undefined)
+        const locked = lockedSet.has(node.id)
         return {
           ...node,
           selected: node.id === selectedId,
+          deletable: !locked,
+          draggable: !locked,
           data: {
             ...node.data,
             selected: node.id === selectedId,
             title: conditionNodeTitle(rule),
+            subtitle: rule.type === 'score' ? `+${rule.points}` : node.data.subtitle,
             customName: customName || undefined,
             ruleType: rule.type,
             rule,
             nodeProvenance: nodeSources[node.id] ?? defaultNodeProvenance(rule),
+            expanded: expandedSet.has(node.id),
+            locked,
           },
         }
       }
@@ -313,7 +343,7 @@ export function extractPositions(nodes: Node<GraphNodeData>[]): NodePositions {
   for (const n of nodes) {
     // Nested conditions + nested group frames use layoutMatchFlow slots —
     // do not persist drag coords (they go stale when the parent expands).
-    if (n.parentId && (n.type === 'condition' || n.type === 'groupFrame')) continue
+    if (n.parentId && (n.type === 'condition' || n.type === 'score' || n.type === 'groupFrame')) continue
     out[n.id] = { x: n.position.x, y: n.position.y }
   }
   return out
@@ -361,35 +391,101 @@ export function snapNestedConditionNodes(nodes: Node<GraphNodeData>[]): Node<Gra
 export function applyNestedLayoutPositions(
   nodes: Node<GraphNodeData>[],
   match: L2RuleGroup,
+  expandedNodeIds: readonly string[] = [],
 ): Node<GraphNodeData>[] {
-  const layout = layoutMatchFlow(normalizeRuleGroup(match))
+  const layout = layoutMatchFlow(normalizeRuleGroup(match), { expandedIds: expandedNodeIds })
+  const expandedSet = new Set(expandedNodeIds)
   const byId = new Map(layout.nodes.map((box) => [box.id, box]))
   let changed = false
   const next = nodes.map((node) => {
-    if (!node.parentId) return node
-    if (node.type !== 'condition' && node.type !== 'groupFrame') return node
+    if (!node.parentId) {
+      // Top-level conditions still need height updates when expand toggles.
+      if (node.type !== 'condition' && node.type !== 'score') return node
+      const box = byId.get(node.id)
+      if (!box) return node
+      const height = box.height
+      const width = box.width
+      const prevW = typeof node.style?.width === 'number' ? node.style.width : undefined
+      const prevH = typeof node.style?.height === 'number' ? node.style.height : undefined
+      const expanded = expandedSet.has(node.id)
+      if (prevW === width && prevH === height && node.data.expanded === expanded) return node
+      changed = true
+      return {
+        ...node,
+        data: { ...node.data, expanded },
+        style: { ...node.style, width, height },
+      }
+    }
+    if (node.type !== 'condition' && node.type !== 'score' && node.type !== 'groupFrame') {
+      return node
+    }
     const box = byId.get(node.id)
     if (!box) return node
     const position = { x: box.x, y: box.y }
     const samePos = node.position.x === position.x && node.position.y === position.y
-    if (node.type === 'groupFrame') {
-      const width = box.width
-      const height = box.height
-      const prevW = typeof node.style?.width === 'number' ? node.style.width : undefined
-      const prevH = typeof node.style?.height === 'number' ? node.style.height : undefined
-      if (samePos && prevW === width && prevH === height) return node
-      changed = true
-      return {
-        ...node,
-        position,
-        style: { ...node.style, width, height },
-      }
+    const width = box.width
+    const height = box.height
+    const prevW = typeof node.style?.width === 'number' ? node.style.width : undefined
+    const prevH = typeof node.style?.height === 'number' ? node.style.height : undefined
+    const expanded =
+      node.type === 'condition' || node.type === 'score' ? expandedSet.has(node.id) : undefined
+    if (
+      samePos &&
+      prevW === width &&
+      prevH === height &&
+      (expanded === undefined || node.data.expanded === expanded)
+    ) {
+      return node
     }
-    if (samePos) return node
     changed = true
-    return { ...node, position }
+    return {
+      ...node,
+      position,
+      data: expanded === undefined ? node.data : { ...node.data, expanded },
+      style: { ...node.style, width, height },
+    }
   })
   return changed ? next : nodes
+}
+
+/** Every non-group descendant under `groupId` (any depth). */
+export function collectDescendantLeafIds(match: L2RuleGroup, groupId: string): string[] {
+  const group = findInMatch(match, groupId)
+  if (!group || group.type !== 'group') return []
+  const out: string[] = []
+  const walk = (n: L2RuleNode) => {
+    if (n.type === 'group') {
+      for (const c of n.children ?? []) walk(c)
+    } else {
+      out.push(n.id)
+    }
+  }
+  for (const c of group.children ?? []) walk(c)
+  return out
+}
+
+/** True if `nodeId` is locked, or (for groups) any descendant is locked. */
+export function subtreeContainsLocked(
+  match: L2RuleGroup,
+  nodeId: string,
+  locked: ReadonlySet<string>,
+): boolean {
+  if (locked.has(nodeId)) return true
+  const node = findInMatch(match, nodeId)
+  if (!node || node.type !== 'group') return false
+  const walk = (n: L2RuleNode): boolean => {
+    if (locked.has(n.id)) return true
+    if (n.type === 'group') {
+      for (const c of n.children ?? []) {
+        if (walk(c)) return true
+      }
+    }
+    return false
+  }
+  for (const c of node.children ?? []) {
+    if (walk(c)) return true
+  }
+  return false
 }
 
 /** True when `groupId` is nested under `ancestorId` (not equal). */

@@ -241,8 +241,13 @@ export interface L2AuthorCondition {
   dids?: string[]
   runAtIngest?: boolean
   /**
-   * When pool ingest is on: block posts from authors not on this list, even if other
-   * discovery rules (keywords, etc.) would match.
+   * filter = gate posts already in play (L2 / path conjunct).
+   * discover = list members can enter the L1 pool (like keyword include). Default discover.
+   */
+  role?: import('./follow-ring.js').FollowRingRole
+  /**
+   * Legacy / manual-prefilter only: block authors not on this list even if other
+   * discovery would match. Unused under strict-from-feeds.
    */
   authorsOnly?: boolean
 }
@@ -371,6 +376,16 @@ export interface L2VisualLayout {
   labels?: Record<string, string>
   /** Canvas styling: native built-ins vs collection / subscription / custom code. */
   nodeSources?: Record<string, L2NodeProvenance>
+  /**
+   * Leaf nodes whose canvas body is expanded. Default is collapsed (type + op only).
+   * Group frames are never listed — use group collapse/expand-all to toggle descendants.
+   */
+  expandedNodeIds?: string[]
+  /**
+   * Nodes locked on the canvas: pin position, immune to group expand/collapse-all,
+   * and cannot be deleted / extracted / reparented. Direct expand and property edits still work.
+   */
+  lockedNodeIds?: string[]
 }
 
 export interface FeedConfig {

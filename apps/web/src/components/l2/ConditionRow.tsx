@@ -316,8 +316,8 @@ export function ConditionRow({
                   }
                   title="When the post has no language tag"
                 >
-                  <option value="exclude">no tag → fail</option>
-                  <option value="include">no tag → pass</option>
+                  <option value="exclude">unknown: exclude</option>
+                  <option value="include">unknown: include</option>
                 </select>
               }
             />
@@ -535,11 +535,41 @@ export function ConditionRow({
             <select
               disabled={readOnly}
               value={node.op}
-              onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
+              onChange={(e) => {
+                const op = e.target.value as typeof node.op
+                onChange({
+                  ...node,
+                  op,
+                  // not_in_list is Filter-only
+                  ...(op === 'not_in_list' ? { role: 'filter' as const } : {}),
+                })
+              }}
             >
               <option value="in_list">in list</option>
               <option value="not_in_list">not in list</option>
             </select>
+            {node.op === 'in_list' ? (
+              <label>
+                Mode
+                <select
+                  disabled={readOnly}
+                  value={node.role ?? 'discover'}
+                  onChange={(e) =>
+                    onChange({
+                      ...node,
+                      role: e.target.value as 'filter' | 'discover',
+                    })
+                  }
+                >
+                  <option value="discover">
+                    Discover (list members can enter the pool)
+                  </option>
+                  <option value="filter">
+                    Filter (only allow posts already in play from these authors)
+                  </option>
+                </select>
+              </label>
+            ) : null}
             {onAuthorFeedUpdate || onFeedAuthorListsChange ? (
               <AuthorListConditionEditor
                 node={node}
@@ -655,7 +685,7 @@ export function ConditionRow({
               following the hub. Account hub filters at ingest; viewer hub personalizes at serve time.
             </p>
             <label>
-              Role
+              Mode
               <select
                 disabled={readOnly}
                 value={node.role ?? 'filter'}
@@ -669,7 +699,9 @@ export function ConditionRow({
                 }
               >
                 <option value="filter">Filter (only allow posts from ring members)</option>
-                <option value="discover">Discover (pull recent posts from ring members)</option>
+                <option value="discover">
+                  Discover (ring members can enter the pool + recent-post poll)
+                </option>
               </select>
             </label>
             <label>

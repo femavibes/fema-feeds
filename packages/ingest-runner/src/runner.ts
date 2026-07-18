@@ -339,7 +339,15 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
 
       // Strict mode projects: only strict gate (no manual prefilter L1)
       const strictMatched = strictConfigs
-        .filter((c) => c.enabled && postPassesStrictGate(resolved, c, strictGateState))
+        .filter((c) =>
+          c.enabled &&
+          postPassesStrictGate(
+            resolved,
+            c,
+            strictGateState,
+            ingestGateExtrasByProject[c.projectId],
+          ),
+        )
         .map((c) => ({ projectId: c.projectId, matched: true, matchedVia: 'jetstream' as const, trace: [] }))
 
       const matched = [...manualMatched, ...strictMatched]

@@ -33,9 +33,11 @@ import { L2NodePalette } from './L2NodePalette'
 import { L2NodeRenameDialog } from './L2NodeRenameDialog'
 import { LogicBlockInnerPreview } from '../../logic-blocks/LogicBlockInnerPreview'
 import {
+  collectDescendantLeafIds,
   isValidCanvasConnection,
   newCanvasEdge,
   resolveCanvasEdges,
+  subtreeContainsLocked,
   type CanvasEdge,
   type NodeLabels,
   type NodePositions,
@@ -195,6 +197,9 @@ export function L2VisualEditor({
   const canvasEdges = savedCanvasEdges ?? []
   const nodeLabels = draft.visualLayout?.labels ?? {}
   const nodeSources = draft.visualLayout?.nodeSources ?? {}
+  const expandedNodeIds = draft.visualLayout?.expandedNodeIds ?? []
+  const lockedNodeIds = draft.visualLayout?.lockedNodeIds ?? []
+  const lockedSet = useMemo(() => new Set(lockedNodeIds), [lockedNodeIds])
   const [contextMenu, setContextMenu] = useState<CanvasContextMenuState>(null)
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null)
   /** After "Connect to…", the next node tap completes the wire. */
@@ -223,13 +228,17 @@ export function L2VisualEditor({
       edges?: CanvasEdge[]
       labels?: NodeLabels
       nodeSources?: NodeSources
+      expandedNodeIds?: string[]
+      lockedNodeIds?: string[]
     }) => ({
       positions: patch.positions ?? positions,
       edges: patch.edges ?? canvasEdges,
       labels: patch.labels ?? nodeLabels,
       nodeSources: patch.nodeSources ?? nodeSources,
+      expandedNodeIds: patch.expandedNodeIds ?? expandedNodeIds,
+      lockedNodeIds: patch.lockedNodeIds ?? lockedNodeIds,
     }),
-    [positions, canvasEdges, nodeLabels, nodeSources],
+    [positions, canvasEdges, nodeLabels, nodeSources, expandedNodeIds, lockedNodeIds],
   )
 
   const patchDraft = useCallback(
@@ -283,6 +292,59 @@ export function L2VisualEditor({
     [patchDraft, visualLayout, positions, canvasEdges],
   )
 
+  const toggleNodeExpanded = useCallback(
+    (nodeId: string) => {
+      const set = new Set<string>(expandedNodeIds)
+      if (set.has(nodeId)) set.delete(nodeId)
+      else set.add(nodeId)
+      patchDraft({ visualLayout: visualLayout({ expandedNodeIds: [...set] }) })
+    },
+    [expandedNodeIds, patchDraft, visualLayout],
+  )
+
+  const toggleNodeLocked = useCallback(
+    (nodeId: string) => {
+      if (nodeId === 'start' || nodeId === 'end' || nodeId === match.id) return
+      const set = new Set<string>(lockedNodeIds)
+      if (set.has(nodeId)) set.delete(nodeId)
+      else set.add(nodeId)
+      patchDraft({ visualLayout: visualLayout({ lockedNodeIds: [...set] }) })
+    },
+    [lockedNodeIds, match.id, patchDraft, visualLayout],
+  )
+
+  const collapseAllInGroup = useCallback(
+    (groupId: string) => {
+      const leaves = collectDescendantLeafIds(match, groupId)
+      if (leaves.length === 0) return
+      const remove = new Set(leaves.filter((id) => !lockedSet.has(id)))
+      if (remove.size === 0) return
+      const next = expandedNodeIds.filter((id: string) => !remove.has(id))
+      if (next.length === expandedNodeIds.length) return
+      patchDraft({ visualLayout: visualLayout({ expandedNodeIds: next }) })
+    },
+    [expandedNodeIds, lockedSet, match, patchDraft, visualLayout],
+  )
+
+  const expandAllInGroup = useCallback(
+    (groupId: string) => {
+      const leaves = collectDescendantLeafIds(match, groupId)
+      if (leaves.length === 0) return
+      const set = new Set<string>(expandedNodeIds)
+      let changed = false
+      for (const id of leaves) {
+        if (lockedSet.has(id)) continue
+        if (!set.has(id)) {
+          set.add(id)
+          changed = true
+        }
+      }
+      if (!changed) return
+      patchDraft({ visualLayout: visualLayout({ expandedNodeIds: [...set] }) })
+    },
+    [expandedNodeIds, lockedSet, match, patchDraft, visualLayout],
+  )
+
   const handleClose = useCallback(() => {
     onClose()
   }, [onClose])
@@ -298,27 +360,68 @@ export function L2VisualEditor({
     [canvasEdges, patchDraft, selectedEdgeId, visualLayout],
   )
 
-  const deleteNode = useCallback(
-    (nodeId: string) => {
-      if (nodeId === 'start' || nodeId === 'end' || nodeId === match.id) return
+  const deleteNodes = useCallback(
+    (nodeIds: string[]) => {
+      const ids = [
+        ...new Set(
+          nodeIds.filter(
+            (id) =>
+              id !== 'start' &&
+              id !== 'end' &&
+              id !== match.id &&
+              !subtreeContainsLocked(match, id, lockedSet),
+          ),
+        ),
+      ]
+      if (ids.length === 0) return
+
+      const idSet = new Set(ids)
       const nextPositions = { ...positions }
-      delete nextPositions[nodeId]
-      const nextEdges = canvasEdges.filter((e) => e.source !== nodeId && e.target !== nodeId)
       const nextLabels = { ...nodeLabels }
-      delete nextLabels[nodeId]
-      const nextMatch = removeNode(match, nodeId)
+      for (const id of ids) {
+        delete nextPositions[id]
+        delete nextLabels[id]
+      }
+      const nextEdges = canvasEdges.filter(
+        (e) => !idSet.has(e.source) && !idSet.has(e.target),
+      )
+      let nextMatch = match
+      for (const id of ids) {
+        nextMatch = removeNode(nextMatch, id)
+      }
+      const nextLocked = lockedNodeIds.filter((id) => !idSet.has(id))
+      const nextExpanded = expandedNodeIds.filter((id) => !idSet.has(id))
       patchDraft({
         match: nextMatch,
         visualLayout: visualLayout({
           positions: nextPositions,
           edges: nextEdges,
           labels: nextLabels,
+          lockedNodeIds: nextLocked,
+          expandedNodeIds: nextExpanded,
         }),
       })
       setSelectedId(null)
       setContextMenu(null)
     },
-    [match, canvasEdges, positions, nodeLabels, patchDraft, visualLayout],
+    [
+      match,
+      canvasEdges,
+      positions,
+      nodeLabels,
+      lockedSet,
+      lockedNodeIds,
+      expandedNodeIds,
+      patchDraft,
+      visualLayout,
+    ],
+  )
+
+  const deleteNode = useCallback(
+    (nodeId: string) => {
+      deleteNodes([nodeId])
+    },
+    [deleteNodes],
   )
 
   const deleteSelected = useCallback(() => {
@@ -389,19 +492,20 @@ export function L2VisualEditor({
       const nested =
         !isEndpoint && !isRoot && !isTopLevelMatchNode(match, nodeId) && findParentId(match, nodeId) !== null
       const canConnect = !nested && !isRoot
+      const locked = lockedSet.has(nodeId) || subtreeContainsLocked(match, nodeId, lockedSet)
       setContextMenu({
         kind: 'node',
         nodeId,
         x,
         y,
         canRename: !isEndpoint && !isRoot,
-        canDelete: !isEndpoint && !isRoot,
+        canDelete: !isEndpoint && !isRoot && !locked,
         canDuplicate: !isEndpoint && !isRoot,
         canOpenProperties: !isEndpoint,
         canConnect,
       })
     },
-    [match],
+    [match, lockedSet],
   )
 
   const openEdgeContextMenu = useCallback((edgeId: string, x: number, y: number) => {
@@ -543,10 +647,12 @@ export function L2VisualEditor({
         }
         handleClose()
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && (selectedEdgeId || selectedId)) {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedEdgeId) {
+        // Node multi-delete is handled by React Flow → onNodesDelete → deleteNodes.
+        // Only edges go through this window handler (inspector still uses deleteSelected).
         if (editing) return
         e.preventDefault()
-        deleteSelected()
+        deleteEdge(selectedEdgeId)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -560,8 +666,7 @@ export function L2VisualEditor({
     contextMenu,
     renameTargetId,
     selectedEdgeId,
-    selectedId,
-    deleteSelected,
+    deleteEdge,
     undo,
     redo,
     saving,
@@ -709,6 +814,10 @@ export function L2VisualEditor({
 
   const onExtractNode = useCallback(
     (nodeId: string, flowPosition: { x: number; y: number }) => {
+      if (lockedSet.has(nodeId)) {
+        flash('Unlock node to move it out of the group')
+        return
+      }
       const nextMatch = extractNodeFromGroup(match, nodeId)
       if (nextMatch === match) return
 
@@ -721,7 +830,7 @@ export function L2VisualEditor({
       setSelectedId(nodeId)
       flash('Moved out of group')
     },
-    [match, positions, patchDraft, visualLayout, flash],
+    [match, positions, patchDraft, visualLayout, flash, lockedSet],
   )
 
   const overlay = (
@@ -878,10 +987,21 @@ export function L2VisualEditor({
             onMatchReorder={patchMatch}
             nodeLabels={nodeLabels}
             nodeSources={nodeSources}
+            expandedNodeIds={expandedNodeIds}
+            lockedNodeIds={lockedNodeIds}
+            onToggleNodeExpanded={toggleNodeExpanded}
+            onToggleNodeLocked={toggleNodeLocked}
+            onCollapseAllInGroup={collapseAllInGroup}
+            onExpandAllInGroup={expandAllInGroup}
             onNodeContextMenu={openNodeContextMenu}
             onEdgeContextMenu={openEdgeContextMenu}
             onNodeOpenProperties={openPropertiesForNode}
+            onDeleteNodes={deleteNodes}
             onReparent={(nodeId, targetGroupId) => {
+              if (lockedSet.has(nodeId)) {
+                flash('Unlock node to move it into a group')
+                return
+              }
               const nextMatch = reparentNode(match, nodeId, targetGroupId)
               if (nextMatch === match) return
               const nextPositions = clearPositionsForSubtree(positions, match, nodeId)
@@ -953,6 +1073,12 @@ export function L2VisualEditor({
               canvasEdges={canvasEdges}
               onChange={patchMatch}
               onDeleteSelected={deleteSelected}
+              selectedNodeLocked={
+                Boolean(
+                  selectedId &&
+                    subtreeContainsLocked(match, selectedId, lockedSet),
+                )
+              }
               onRenameNode={renameNode}
               onDraftChange={onDraftChange}
               onPatchDraft={patchDraft}

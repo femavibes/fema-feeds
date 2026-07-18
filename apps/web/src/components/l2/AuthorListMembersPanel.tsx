@@ -71,15 +71,25 @@ export function AuthorListMembersPanel({
 
   if (!listId && !manualOnly) return null
 
-  const title = graphName ?? cache?.listId ?? listId ?? 'Author list'
+  const title =
+    graphName?.trim() ||
+    cache?.graphName?.trim() ||
+    listId ||
+    cache?.listId ||
+    'Author list'
+  const internalId = listId || cache?.listId
+  const showInternalId = Boolean(
+    (graphName?.trim() || cache?.graphName?.trim()) &&
+      internalId &&
+      (graphName?.trim() || cache?.graphName?.trim()) !== internalId,
+  )
 
   return (
     <div className="l2-author-list-members card">
       <div className="l2-author-list-members-meta">
-        <strong>{title}</strong>
-        {graphName && listId && cache?.listId && graphName !== cache.listId ? (
-          <span className="l2-author-list-members-id mono"> ({cache.listId})</span>
-        ) : null}
+        <strong title={showInternalId ? `Internal id: ${internalId}` : undefined}>
+          {title}
+        </strong>
         <p className="l2-condition-hint">
           {memberCount} member{memberCount === 1 ? '' : 's'}
           {extraDids.length > 0 ? ` + ${extraDids.length} extra on this condition` : ''}

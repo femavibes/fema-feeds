@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, type ListMemberEntry } from '../../api/client'
 
 interface Props {
@@ -8,8 +8,12 @@ interface Props {
   hint?: string
 }
 
-function normalizeDid(raw: string): string {
-  return raw.trim()
+/** Normalize pasted profile URLs / @handles / DIDs into a lookup token. */
+function normalizeActor(raw: string): string {
+  let v = raw.trim().replace(/^@+/, '')
+  const profileMatch = v.match(/bsky\.app\/profile\/([^/?#]+)/i)
+  if (profileMatch?.[1]) v = decodeURIComponent(profileMatch[1])
+  return v.trim()
 }
 
 function isLikelyDid(value: string): boolean {
@@ -51,7 +55,7 @@ function ResolvedAuthorChip({ member }: { member: ListMemberEntry }) {
       )}
       <span className="author-did-resolved-text">
         <span className="author-did-resolved-name">{memberLabel(member)}</span>
-        {member.handle && member.displayName?.trim() ? (
+        {member.handle ? (
           <span className="author-did-resolved-handle mono">@{member.handle}</span>
         ) : null}
       </span>
@@ -60,21 +64,27 @@ function ResolvedAuthorChip({ member }: { member: ListMemberEntry }) {
 }
 
 export function AuthorDidListEditor({ label, dids, onChange, hint }: Props) {
-  const [rows, setRows] = useState<string[]>(() => (dids.length ? dids : ['']))
+  const [rows, setRows] = useState<string[]>(() => (dids.length ? [...dids] : ['']))
   const [resolved, setResolved] = useState<Map<string, ListMemberEntry>>(new Map())
   const [resolving, setResolving] = useState(false)
+  /** Skip prop→local sync right after we emitted (avoids wiping in-progress empty rows). */
+  const lastEmittedKey = useRef(dids.join('\n'))
 
   useEffect(() => {
-    setRows(dids.length ? dids : [''])
+    const key = dids.join('\n')
+    if (key === lastEmittedKey.current) return
+    lastEmittedKey.current = key
+    setRows(dids.length ? [...dids] : [''])
   }, [dids])
 
-  const validDids = useMemo(
-    () => [...new Set(rows.map(normalizeDid).filter(isLikelyDid))],
+  const lookupRefs = useMemo(
+    () =>
+      [...new Set(rows.map(normalizeActor).filter(Boolean))],
     [rows],
   )
 
   useEffect(() => {
-    if (validDids.length === 0) {
+    if (lookupRefs.length === 0) {
       setResolved(new Map())
       return
     }
@@ -83,10 +93,15 @@ export function AuthorDidListEditor({ label, dids, onChange, hint }: Props) {
     const timer = window.setTimeout(() => {
       setResolving(true)
       void api
-        .resolveAuthorProfiles(validDids)
+        .resolveActors(lookupRefs)
         .then((res) => {
           if (cancelled) return
-          setResolved(new Map(res.members.map((m) => [m.did, m])))
+          const map = new Map<string, ListMemberEntry>()
+          for (const m of res.members) {
+            map.set(m.did, m)
+            if (m.handle) map.set(m.handle.toLowerCase(), m)
+          }
+          setResolved(map)
         })
         .catch(() => {
           if (!cancelled) setResolved(new Map())
@@ -100,11 +115,15 @@ export function AuthorDidListEditor({ label, dids, onChange, hint }: Props) {
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [validDids.join('\n')])
+  }, [lookupRefs.join('\n')])
 
   const emit = (nextRows: string[]) => {
-    setRows(nextRows.length ? nextRows : [''])
-    onChange(nextRows.map(normalizeDid).filter(Boolean))
+    const normalized = nextRows.map(normalizeActor)
+    setRows(normalized.length ? normalized : [''])
+    // Keep empty trailing row locally; only persist non-empty actors.
+    const committed = normalized.filter(Boolean)
+    lastEmittedKey.current = committed.join('\n')
+    onChange(committed)
   }
 
   const updateRow = (index: number, value: string) => {
@@ -122,6 +141,13 @@ export function AuthorDidListEditor({ label, dids, onChange, hint }: Props) {
     emit([...rows, ''])
   }
 
+  const memberForRow = (row: string): ListMemberEntry | undefined => {
+    const ref = normalizeActor(row)
+    if (!ref) return undefined
+    if (isLikelyDid(ref)) return resolved.get(ref)
+    return resolved.get(ref.toLowerCase())
+  }
+
   return (
     <div className="author-did-list-editor">
       <div className="author-did-list-head">
@@ -131,22 +157,21 @@ export function AuthorDidListEditor({ label, dids, onChange, hint }: Props) {
 
       <div className="author-did-list-rows">
         {rows.map((row, index) => {
-          const did = normalizeDid(row)
-          const member = did && isLikelyDid(did) ? resolved.get(did) : undefined
+          const member = memberForRow(row)
           return (
-            <div key={`${index}-${did || 'empty'}`} className="author-did-row">
+            <div key={index} className="author-did-row">
               <div className="author-did-row-inputs">
                 <input
                   className="mono author-did-input"
                   value={row}
                   onChange={(e) => updateRow(index, e.target.value)}
-                  placeholder="did:plc:…"
+                  placeholder="handle, did:plc:…, or bsky.app/profile/…"
                 />
                 <button
                   type="button"
                   className="btn btn-ghost btn-sm author-did-remove"
                   onClick={() => removeRow(index)}
-                  aria-label="Remove DID"
+                  aria-label="Remove author"
                   disabled={rows.length <= 1 && !row.trim()}
                 >
                   ×
@@ -159,7 +184,7 @@ export function AuthorDidListEditor({ label, dids, onChange, hint }: Props) {
       </div>
 
       <button type="button" className="btn btn-ghost btn-sm author-did-add" onClick={addRow}>
-        + Add DID
+        + Add author
       </button>
 
       {hint ? <p className="l2-condition-hint">{hint}</p> : null}
