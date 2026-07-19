@@ -26,6 +26,7 @@ import type {
   L2TextCondition,
   L2UrlCondition,
 } from '@cfb/core-types'
+import { applyParametersToMatch } from '@cfb/l2-graph'
 import {
   DEFAULT_URL_SOURCES,
   isViewerFollowRing,
@@ -552,8 +553,8 @@ export function evalRuleNode(
       })
 
       if (resolved) {
-        // Native logic block — evaluate the resolved rule tree
-        ok = evalRuleNode(resolved, ctx, input, traces)
+        const concrete = applyParametersToMatch(resolved, { values: node.paramValues })
+        ok = evalRuleNode(concrete, ctx, input, traces)
         detail = ok
           ? undefined
           : `logic block ${node.label ?? node.packageId} did not match`
@@ -583,6 +584,17 @@ export function evalRuleNode(
       trace(traces, node, 'fail', detail)
       return false
     }
+    case 'parameters':
+      // Should be stripped by applyParametersToMatch; treat as skip-pass if reached.
+      ok = true
+      detail = 'parameters (ignored)'
+      traces.push({
+        nodeId: node.id,
+        nodeType: node.type,
+        outcome: 'skip',
+        detail,
+      })
+      return ok
   }
 
   trace(traces, node, ok ? 'pass' : 'fail', detail)

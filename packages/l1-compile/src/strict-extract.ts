@@ -15,7 +15,7 @@ import type {
   LogicBlockRef,
 } from '@cfb/core-types'
 import { isIngestEligibleNodeType, isViewerFollowRing, nodeRunsAtIngest } from '@cfb/core-types'
-import { resolveFeedMatch } from '@cfb/l2-graph'
+import { applyParametersToMatch, resolveFeedMatch } from '@cfb/l2-graph'
 import { branchFromPrefilterNode } from './compile-prefilter.js'
 import { dnfPathsFromRule } from './ingest-path-dnf.js'
 
@@ -30,7 +30,12 @@ function isExcludeNode(node: L2RuleNode): boolean {
 
 /** Check if a leaf node is ingest-eligible AND is an include (not exclude). */
 function isStrictEligibleLeaf(node: L2RuleNode): boolean {
-  if (node.type === 'group' || node.type === 'graze_stub' || node.type === 'logic_block_ref') {
+  if (
+    node.type === 'group' ||
+    node.type === 'graze_stub' ||
+    node.type === 'logic_block_ref' ||
+    node.type === 'parameters'
+  ) {
     return false
   }
   if (!isIngestEligibleNodeType(node.type)) return false
@@ -58,9 +63,11 @@ function compileStrictNode(
     if (!resolver) return null
     const resolved = resolver({ packageId: node.packageId, versionPin: node.versionPin })
     if (!resolved) return null
-    // Treat the resolved graph as a group and extract from it
-    return compileStrictNode(feedId, resolved, resolver)
+    const concrete = applyParametersToMatch(resolved, { values: node.paramValues })
+    return compileStrictNode(feedId, concrete, resolver)
   }
+
+  if (node.type === 'parameters') return null
 
   if (node.type === 'group') {
     const childRules: IngestGateRule[] = []
@@ -108,7 +115,7 @@ export function extractStrictIncludePaths(
 ): IngestGateBranch[][] {
   if (!feed.enabled) return []
 
-  const match = resolveFeedMatch(feed)
+  const match = applyParametersToMatch(resolveFeedMatch(feed))
   const orChildren: L2RuleNode[] = match.logic === 'any' ? match.children : [match]
   const paths: IngestGateBranch[][] = []
 

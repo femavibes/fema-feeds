@@ -1,16 +1,29 @@
-import { type SyntheticEvent } from 'react'
+import { type SyntheticEvent, useLayoutEffect, useRef } from 'react'
 import { type Node, type NodeProps, Handle, Position } from '@xyflow/react'
-import type { L2NodeProvenance, L2RuleNode } from '@cfb/core-types'
+import type { L2NodeProvenance, L2ParametersCondition, L2RuleNode } from '@cfb/core-types'
 import {
   COND_TEASER_MAX,
   conditionCollapseMetrics,
   conditionExpandMetrics,
+  getConditionExpandBodyHeight,
+  setConditionExpandBodyHeight,
+  usesPropertiesStyleExpand,
 } from '@cfb/l2-graph'
 import { ingestRoleBadgeFor } from '../../../lib/l2-ingest-badge'
+import {
+  collectParamPropertyLocks,
+  overlayParamLockedValues,
+  paramLockSummary,
+  paramLockedPropertySet,
+  restoreParamLockedValues,
+} from '../../../lib/param-bind-preview'
 import { NodeRoleIcon } from '../NodeRoleIcon'
+import { ToggleRow } from '../../ToggleRow'
+import { ConditionRow } from '../ConditionRow'
 import { useNodeExpand } from './node-expand-context'
 import { ConditionExpandProfiles } from './ConditionExpandProfiles'
 import { LogicBlockExpandOutline } from './LogicBlockExpandOutline'
+import { applyParametersToMatch, indexRuleNodesById } from '@cfb/l2-graph'
 
 export type GraphNodeData = {
   label: string
@@ -33,6 +46,12 @@ export type GraphNodeData = {
   extracting?: boolean
   extractOriginParentId?: string
   nodeProvenance?: L2NodeProvenance
+  /** Excluded by a Parameter control — greyed on canvas. */
+  paramDisabled?: boolean
+  /** Node after Parameter property patches (for badges / live preview). */
+  effectiveRule?: L2RuleNode
+  /** Targeted by at least one Parameter Presence or property bind. */
+  paramDriven?: boolean
   /** Leaf body expanded (keyword terms, …). Default false. */
   expanded?: boolean
   /** Locked: skip group expand/collapse-all; block delete / extract / reparent. */
@@ -151,7 +170,7 @@ export function GroupFrameNode({ data }: NodeProps<Node<GraphNodeData>>) {
 
   return (
     <div
-      className={`l2-group-frame ${logicClass} ${data.isRoot ? 'l2-group-frame-root' : ''} ${data.topLevel ? 'l2-group-frame-top' : ''} ${data.draggableFrame ? 'l2-group-frame-draggable' : ''} ${data.dropTarget ? 'l2-group-frame-drop-target' : ''} ${data.selected ? 'selected' : ''} ${data.extracting ? 'l2-node-extracting' : ''} ${traceClass}`}
+      className={`l2-group-frame ${logicClass} ${data.isRoot ? 'l2-group-frame-root' : ''} ${data.topLevel ? 'l2-group-frame-top' : ''} ${data.draggableFrame ? 'l2-group-frame-draggable' : ''} ${data.dropTarget ? 'l2-group-frame-drop-target' : ''} ${data.selected ? 'selected' : ''} ${data.extracting ? 'l2-node-extracting' : ''} ${data.paramDisabled ? 'is-param-disabled' : ''} ${traceClass}`}
       style={{ width: '100%', height: '100%' }}
     >
       {data.showPorts && (
@@ -205,6 +224,73 @@ function TextBodyLines({ lines }: { lines: string[] }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+/** Interactive toggles / dropdowns on an expanded Parameter Node. */
+function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
+  const expandApi = useNodeExpand()
+  const controls = rule.controls ?? []
+  const values = rule.values ?? {}
+  const readOnly = Boolean(expandApi?.readOnly) || !expandApi?.patchParameterValues
+
+  if (controls.length === 0) {
+    return <span className="l2-flow-condition-body-empty">No controls yet</span>
+  }
+
+  const setValue = (name: string, value: boolean | string) => {
+    expandApi?.patchParameterValues?.(rule.id, { ...values, [name]: value })
+  }
+
+  return (
+    <div
+      className="l2-flow-parameters-controls nodrag nopan"
+      onMouseDown={stopNodeGesture}
+    >
+      {controls.map((control) => {
+        const live = values[control.name] ?? control.default
+        if (control.type === 'boolean') {
+          const on = live === true || live === 'true'
+          return (
+            <div key={control.name} className="l2-flow-parameters-control-row">
+              <ToggleRow
+                label={control.label || control.name}
+                hint={control.description || undefined}
+                checked={on}
+                readOnly={readOnly}
+                ariaLabel={`${control.label || control.name} parameter`}
+                onChange={(checked) => setValue(control.name, checked)}
+              />
+            </div>
+          )
+        }
+        return (
+          <div key={control.name} className="l2-flow-parameters-control-row l2-flow-parameters-enum-row">
+            <label className="l2-flow-parameters-enum-head">
+              <span className="l2-flow-parameters-enum-label" title={control.description || control.name}>
+                {control.label || control.name}
+              </span>
+              <select
+                className="nodrag nopan"
+                disabled={readOnly}
+                value={String(live)}
+                onMouseDown={stopNodeGesture}
+                onChange={(e) => {
+                  stopNodeGesture(e)
+                  setValue(control.name, e.target.value)
+                }}
+              >
+                {(control.options ?? []).map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label || o.value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
@@ -296,10 +382,77 @@ function ConditionExpandBody({
     )
   }
 
+  if (rule.type === 'parameters') {
+    return <ParametersExpandControls rule={rule} />
+  }
+
+  if (usesPropertiesStyleExpand(rule.type)) {
+    return <ConditionExpandProperties rule={rule} nodeId={nodeId} />
+  }
+
   if (metrics.textLines.length === 0) {
     return <span className="l2-flow-condition-body-empty">Nothing to show</span>
   }
   return <TextBodyLines lines={metrics.textLines} />
+}
+
+/** Full Properties form on the canvas — same controls as the inspector. */
+function ConditionExpandProperties({
+  rule,
+  nodeId,
+}: {
+  rule: L2RuleNode
+  nodeId: string
+}) {
+  const expandApi = useNodeExpand()
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const match = expandApi?.match
+  const readOnly = Boolean(expandApi?.readOnly) || !expandApi?.patchRuleNode
+
+  const locks = match ? collectParamPropertyLocks(match, nodeId) : []
+  const effective = match
+    ? indexRuleNodesById(applyParametersToMatch(match)).get(nodeId)
+    : undefined
+  const display = overlayParamLockedValues(rule, effective, locks)
+
+  useLayoutEffect(() => {
+    const el = bodyRef.current
+    if (!el) return
+    const publish = () => {
+      const h = Math.ceil(el.getBoundingClientRect().height)
+      const prev = getConditionExpandBodyHeight(nodeId)
+      if (prev !== undefined && Math.abs(prev - h) < 2) return
+      setConditionExpandBodyHeight(nodeId, h)
+      expandApi?.requestLayoutRefresh?.()
+    }
+    publish()
+    const ro = new ResizeObserver(publish)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [nodeId, expandApi, display, locks.length, readOnly])
+
+  return (
+    <div
+      ref={bodyRef}
+      className="l2-flow-condition-props nodrag nopan"
+      onMouseDown={stopNodeGesture}
+    >
+      <ConditionRow
+        node={display}
+        onChange={(next) => {
+          if (!match || !expandApi?.patchRuleNode) return
+          const authored = restoreParamLockedValues(next, rule, locks)
+          expandApi.patchRuleNode(nodeId, authored)
+        }}
+        onRemove={() => undefined}
+        showRemove={false}
+        canvasEmbed
+        readOnly={readOnly}
+        paramLockedProps={paramLockedPropertySet(locks)}
+        paramLockHint={locks.length ? paramLockSummary(locks) : undefined}
+      />
+    </div>
+  )
 }
 
 /** Collapsed teaser — under rename slot; never uses the custom-name row. */
@@ -389,7 +542,8 @@ export function ConditionNode({ data }: NodeProps<Node<GraphNodeData>>) {
   const expandApi = useNodeExpand()
   const traceClass = data.traceOutcome ? `trace-${data.traceOutcome}` : ''
   const header = data.title ?? data.label
-  const ingestBadges = data.rule ? ingestRoleBadgeFor(data.rule) : []
+  const badgeRule = data.effectiveRule ?? data.rule
+  const ingestBadges = badgeRule ? ingestRoleBadgeFor(badgeRule) : []
   const customName = data.customName?.trim()
   const provenance = data.nodeProvenance ?? 'native'
   const provenanceClass =
@@ -399,7 +553,7 @@ export function ConditionNode({ data }: NodeProps<Node<GraphNodeData>>) {
 
   return (
     <div
-      className={`l2-flow-node l2-flow-condition ${expanded ? 'is-expanded' : ''} ${data.locked ? 'is-locked' : ''} ${provenanceClass} ${data.selected ? 'selected' : ''} ${data.extracting ? 'l2-node-extracting' : ''} ${traceClass}`}
+      className={`l2-flow-node l2-flow-condition ${expanded ? 'is-expanded' : ''} ${data.locked ? 'is-locked' : ''} ${provenanceClass} ${data.selected ? 'selected' : ''} ${data.extracting ? 'l2-node-extracting' : ''} ${data.paramDisabled ? 'is-param-disabled' : ''} ${data.paramDriven ? 'is-param-driven' : ''} ${data.ruleType === 'parameters' ? 'l2-flow-parameters' : ''} ${traceClass}`}
       style={{ width: '100%', height: '100%' }}
     >
       {data.showPorts && (
@@ -429,6 +583,14 @@ export function ConditionNode({ data }: NodeProps<Node<GraphNodeData>>) {
         {data.rule?.type === 'logic_block_ref' ? (
           <span className="l2-flow-condition-version" title={`Logic block v${data.rule.versionPin}`}>
             v{data.rule.versionPin}
+          </span>
+        ) : null}
+        {data.paramDriven ? (
+          <span
+            className="l2-flow-condition-param-badge"
+            title="Driven by a Parameter control (Presence and/or properties)"
+          >
+            Param
           </span>
         ) : null}
         {provenance === 'custom_code' ? (
@@ -477,7 +639,7 @@ export function ScoreNode({ data }: NodeProps<Node<GraphNodeData>>) {
 
   return (
     <div
-      className={`l2-flow-node l2-flow-condition l2-flow-score ${expanded ? 'is-expanded' : ''} ${data.locked ? 'is-locked' : ''} ${provenanceClass} ${data.selected ? 'selected' : ''} ${data.extracting ? 'l2-node-extracting' : ''} ${traceClass}`}
+      className={`l2-flow-node l2-flow-condition l2-flow-score ${expanded ? 'is-expanded' : ''} ${data.locked ? 'is-locked' : ''} ${provenanceClass} ${data.selected ? 'selected' : ''} ${data.extracting ? 'l2-node-extracting' : ''} ${data.paramDisabled ? 'is-param-disabled' : ''} ${traceClass}`}
       style={{ width: '100%', height: '100%' }}
     >
       {data.showPorts && (

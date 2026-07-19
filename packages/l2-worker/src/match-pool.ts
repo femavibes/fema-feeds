@@ -1,5 +1,5 @@
 import type { FeedConfig, L2NodeTrace, PostMetrics } from '@cfb/core-types'
-import { resolveFeedMatch } from '@cfb/l2-graph'
+import { applyParametersToMatch, resolveFeedMatch } from '@cfb/l2-graph'
 import { evaluateFeedL2 } from '@cfb/l2-eval'
 import type pg from 'pg'
 import {
@@ -163,7 +163,7 @@ export async function previewFeedPoolMatches(
     mentionDids,
     followRings,
   })
-  const resolvedMatch = resolveFeedMatch(feed)
+  const resolvedMatch = applyParametersToMatch(resolveFeedMatch(feed))
   const hasSortFormula = Boolean(feed.rank?.sortKey || feed.rank?.packRef)
   const matches: PoolMatchItem[] = []
   const rejects: PoolMatchSample[] = []

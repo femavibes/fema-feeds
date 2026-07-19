@@ -1,6 +1,7 @@
 import type { FeedConfig, L2RuleGroup, L2RuleNode } from '@cfb/core-types'
 import { layoutMatchFlow } from './nested-flow-layout.js'
 import { normalizeRuleGroup } from './normalize-match.js'
+import { collectParameterNodes } from './apply-parameters.js'
 
 export interface FlowCanvasEdge {
   source: string
@@ -34,6 +35,8 @@ function findParentIdInMatch(root: L2RuleGroup, nodeId: string): string | null {
 /** Canvas wires only connect start/end and direct children of the feed root. */
 export function isTopLevelCanvasNode(match: L2RuleGroup, nodeId: string): boolean {
   if (nodeId === 'start' || nodeId === 'end' || nodeId === match.id) return false
+  const node = findInTree(match, nodeId)
+  if (node?.type === 'parameters') return false
   return findParentIdInMatch(match, nodeId) === match.id
 }
 
@@ -199,5 +202,13 @@ export function resolveFeedMatch(feed: Pick<FeedConfig, 'match' | 'visualLayout'
     : layoutMatchFlow(flat).edges.map((e) => ({ source: e.source, target: e.target }))
   const edges = sanitizeCanvasEdges(flat, rawEdges)
 
-  return canvasEdgesToMatch(flat, edges)
+  const resolved = canvasEdgesToMatch(flat, edges)
+  // Parameter Nodes are eval-neutral and must not require START/FEED wires —
+  // reattach any panels from the authored tree so applyParameters can see them.
+  const panels = collectParameterNodes(feed.match)
+  if (panels.length === 0) return resolved
+  const existing = new Set(collectParameterNodes(resolved).map((p) => p.id))
+  const missing = panels.filter((p) => !existing.has(p.id)).map((p) => structuredClone(p))
+  if (missing.length === 0) return resolved
+  return { ...resolved, children: [...missing, ...(resolved.children ?? [])] }
 }

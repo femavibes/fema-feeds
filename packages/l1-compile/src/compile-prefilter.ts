@@ -26,7 +26,12 @@ function groupMeta(scopeId: string, node: L2RuleGroup): Pick<IngestGateAllRule, 
 
 /** Prefilter leaves always participate in ingest — no per-node pool toggle. */
 export function nodeIncludedInPrefilter(node: L2RuleNode): boolean {
-  if (node.type === 'group' || node.type === 'graze_stub' || node.type === 'logic_block_ref') {
+  if (
+    node.type === 'group' ||
+    node.type === 'graze_stub' ||
+    node.type === 'logic_block_ref' ||
+    node.type === 'parameters'
+  ) {
     return false
   }
   if (!isIngestEligibleNodeType(node.type)) return false

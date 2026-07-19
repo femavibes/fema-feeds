@@ -9,8 +9,12 @@ import {
   normalizeRuleGroup,
   sanitizeCanvasEdges,
   snapNestedConditionPosition,
+  collectExcludedNodeIds,
+  applyParametersToMatch,
+  indexRuleNodesById,
 } from '@cfb/l2-graph'
 import { findInMatch, findParentId, canDropIntoGroup } from '../../../lib/l2-form'
+import { isTargetOfAnyParam } from '../../../lib/param-bind-preview'
 import type { GraphNodeData } from './graph-nodes'
 import { FLOW_EDGE_INTERACTION_WIDTH } from './graph-edges'
 
@@ -66,6 +70,8 @@ export function flowGraphToRfNodes(
   const layout = layoutMatchFlow(normalizeRuleGroup(match), { expandedIds: expandedNodeIds })
   const expandedSet = new Set(expandedNodeIds)
   const lockedSet = new Set(lockedNodeIds)
+  const paramExcluded = collectExcludedNodeIds(match)
+  const effectiveById = indexRuleNodesById(applyParametersToMatch(match))
 
   const nodes: Node<GraphNodeData>[] = layout.nodes.map((box) => {
     const nested = Boolean(box.parentId)
@@ -76,13 +82,16 @@ export function flowGraphToRfNodes(
       groupId === selectedId ||
       (box.kind === 'condition' && box.id === selectedId)
 
+    const isParameters = box.rule?.type === 'parameters'
     const showPorts =
-      box.kind === 'start' ||
-      box.kind === 'end' ||
-      isTopLevel
+      !isParameters &&
+      (box.kind === 'start' || box.kind === 'end' || isTopLevel)
     const draggableFrame = box.kind === 'group-frame'
 
     const position = resolveNodePosition(match, box, positions)
+    const ruleId = box.rule?.id ?? box.id
+    const paramDriven =
+      Boolean(box.rule) && box.rule?.type !== 'parameters' && isTargetOfAnyParam(match, ruleId)
 
     const base = {
       id: box.id,
@@ -101,6 +110,9 @@ export function flowGraphToRfNodes(
         nested,
         topLevel: isTopLevel,
         draggableFrame,
+        paramDisabled: paramExcluded.has(box.id),
+        effectiveRule: box.rule ? effectiveById.get(box.rule.id) : undefined,
+        paramDriven,
       },
       draggable: true,
       connectable: showPorts,
@@ -319,6 +331,8 @@ export function updateRfNodeLabels(
 ): Node<GraphNodeData>[] {
   const expandedSet = new Set(expandedNodeIds)
   const lockedSet = new Set(lockedNodeIds)
+  const paramExcluded = collectExcludedNodeIds(match)
+  const effectiveById = indexRuleNodesById(applyParametersToMatch(match))
   return nodes.map((node) => {
     if (node.type === 'groupFrame') {
       const inMatch = findInMatch(match, node.id)
@@ -344,6 +358,7 @@ export function updateRfNodeLabels(
           logic: logic.toUpperCase(),
           isRoot: false,
           groupLogic: logic,
+          paramDisabled: paramExcluded.has(node.id),
           locked,
           hasExpandableContents: leafIds.length > 0,
           contentsExpanded: leafIds.some((id) => expandedSet.has(id)),
@@ -370,9 +385,12 @@ export function updateRfNodeLabels(
             customName: customName || undefined,
             ruleType: rule.type,
             rule,
+            effectiveRule: effectiveById.get(rule.id),
+            paramDriven: rule.type !== 'parameters' && isTargetOfAnyParam(match, rule.id),
             nodeProvenance: nodeSources[node.id] ?? defaultNodeProvenance(rule),
             expanded: expandedSet.has(node.id),
             locked,
+            paramDisabled: paramExcluded.has(node.id),
           },
         }
       }

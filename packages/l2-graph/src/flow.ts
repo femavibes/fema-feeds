@@ -174,6 +174,8 @@ export function conditionNodeTitle(node: L2RuleNode): string {
       return (node.title ?? node.grazeType ?? 'GRAZE').toUpperCase()
     case 'logic_block_ref':
       return 'LOGIC BLOCK'
+    case 'parameters':
+      return (node.title?.trim() || 'PARAMETERS').toUpperCase()
     case 'score':
       return `SCORE +${node.points}`
     case 'substitute':
@@ -240,6 +242,10 @@ export function summarizeRule(node: L2RuleNode): string {
       return node.title ?? node.grazeType
     case 'logic_block_ref':
       return node.label ?? `Logic block v${node.versionPin}`
+    case 'parameters': {
+      const n = node.controls?.length ?? 0
+      return n === 0 ? 'no controls' : `${n} control${n === 1 ? '' : 's'}`
+    }
     case 'score':
       return `score +${node.points}`
     case 'substitute':

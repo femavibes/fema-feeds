@@ -33,6 +33,7 @@ import { MentionAccountChips } from './MentionAccountChips'
 import { RegexPatternEditor } from './RegexPatternEditor'
 import { SearchFieldPicker } from './SearchFieldPicker'
 import { UrlSourcePicker } from './UrlSourcePicker'
+import { IngestDiscoverFilterField, withOpAndIngestRole } from './IngestDiscoverFilterField'
 import { useTermListScrollHeight } from './useTermListScrollHeight'
 import type { ListCacheEntry } from '../../api/client'
 
@@ -57,6 +58,18 @@ interface Props {
   /** Project prefilter editor — no per-node pool toggle. */
   prefilterMode?: boolean
   readOnly?: boolean
+  /**
+   * Embed on the canvas expand panel — same fields as Properties, denser chrome.
+   * Hides the redundant type title (node head already shows it).
+   */
+  canvasEmbed?: boolean
+  /**
+   * Properties owned by a Parameter control — shown with live (patched) values and
+   * locked for editing. Flip the Parameter to change them.
+   */
+  paramLockedProps?: ReadonlySet<string>
+  /** Short explanation of which Parameter owns locked fields. */
+  paramLockHint?: string
 }
 
 export function ConditionRow({
@@ -76,6 +89,9 @@ export function ConditionRow({
   onListsChanged,
   prefilterMode = false,
   readOnly = false,
+  canvasEmbed = false,
+  paramLockedProps,
+  paramLockHint,
 }: Props) {
   const termScroll = useTermListScrollHeight(
     fillHeight && node.type === 'keyword',
@@ -84,10 +100,17 @@ export function ConditionRow({
       : '',
   )
 
+  const locked = (prop: string) => readOnly || Boolean(paramLockedProps?.has(prop))
+
   return (
     <div
-      className={`l2-condition${fillHeight ? ' l2-condition-fill' : ''}${readOnly ? ' l2-condition--readonly' : ''}`}
+      className={`l2-condition${fillHeight ? ' l2-condition-fill' : ''}${readOnly ? ' l2-condition--readonly' : ''}${canvasEmbed ? ' l2-condition--canvas' : ''}`}
     >
+      {paramLockHint ? (
+        <p className="l2-param-lock-banner" title={paramLockHint}>
+          Showing live Parameter values — locked settings change when you flip the Parameter.
+        </p>
+      ) : null}
       <div className="l2-condition-body">
         {node.type === 'text' && (
           <div className="l2-condition-stack">
@@ -125,14 +148,23 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
-                  disabled={readOnly}
+                  disabled={locked('op')}
                   value={node.op}
-                  onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
+                  onChange={(e) =>
+                    onChange(
+                      withOpAndIngestRole(node, e.target.value as typeof node.op),
+                    )
+                  }
                 >
                   <option value="includes">includes</option>
                   <option value="excludes">excludes</option>
                 </select>
               }
+            />
+            <IngestDiscoverFilterField
+              node={node}
+              onChange={onChange}
+              readOnly={locked('runAtIngest')}
             />
             <div className="l2-condition-keyword-controls">
               <KeywordMatchToggles
@@ -141,12 +173,13 @@ export function ConditionRow({
                 onChange={({ caseSensitive, wholeWord }) =>
                   onChange({ ...node, caseSensitive, wholeWord })
                 }
-                readOnly={readOnly}
+                caseSensitiveReadOnly={locked('caseSensitive')}
+                wholeWordReadOnly={locked('wholeWord')}
               />
               <SearchFieldPicker
                 fields={node.fields}
                 onChange={(fields) => onChange({ ...node, fields })}
-                readOnly={readOnly}
+                readOnly={locked('fields')}
               />
             </div>
             <div ref={termScroll.scrollRef} className="term-list-scroll term-list-scroll--fill scrollbar-modern">
@@ -170,14 +203,23 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
-                  disabled={readOnly}
+                  disabled={locked('op')}
                   value={node.op}
-                  onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
+                  onChange={(e) =>
+                    onChange(
+                      withOpAndIngestRole(node, e.target.value as typeof node.op),
+                    )
+                  }
                 >
                   <option value="matches">matches</option>
                   <option value="not_matches">not matches</option>
                 </select>
               }
+            />
+            <IngestDiscoverFilterField
+              node={node}
+              onChange={onChange}
+              readOnly={locked('runAtIngest')}
             />
             <div className="option-toggle-list">
               <ToggleRow
@@ -185,13 +227,13 @@ export function ConditionRow({
                 checked={node.caseInsensitive !== false}
                 onChange={(checked) => onChange({ ...node, caseInsensitive: checked })}
                 ariaLabel="Case insensitive regex matching"
-                readOnly={readOnly}
+                readOnly={locked('caseInsensitive')}
               />
             </div>
             <SearchFieldPicker
               fields={node.fields}
               onChange={(fields) => onChange({ ...node, fields })}
-              readOnly={readOnly}
+              readOnly={locked('fields')}
             />
             <RegexPatternEditor
               pattern={node.pattern}
@@ -210,14 +252,23 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
-                  disabled={readOnly}
+                  disabled={locked('op')}
                   value={node.op}
-                  onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
+                  onChange={(e) =>
+                    onChange(
+                      withOpAndIngestRole(node, e.target.value as typeof node.op),
+                    )
+                  }
                 >
                   <option value="includes">includes</option>
                   <option value="excludes">excludes</option>
                 </select>
               }
+            />
+            <IngestDiscoverFilterField
+              node={node}
+              onChange={onChange}
+              readOnly={locked('runAtIngest')}
             />
             <p className="l2-condition-hint">Matches #hashtag facets only — not plain text in the body.</p>
             <div className="term-list-scroll scrollbar-modern l2-hashtag-terms-scroll">
@@ -242,14 +293,23 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
-                  disabled={readOnly}
+                  disabled={locked('op')}
                   value={node.op}
-                  onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
+                  onChange={(e) =>
+                    onChange(
+                      withOpAndIngestRole(node, e.target.value as typeof node.op),
+                    )
+                  }
                 >
                   <option value="includes">includes</option>
                   <option value="excludes">excludes</option>
                 </select>
               }
+            />
+            <IngestDiscoverFilterField
+              node={node}
+              onChange={onChange}
+              readOnly={locked('runAtIngest')}
             />
             <p className="l2-condition-hint">
               Substring match on URLs only — link card, body facets, or bridged source. Not post text.
@@ -258,11 +318,12 @@ export function ConditionRow({
               caseSensitive={node.caseSensitive}
               wholeWord={false}
               onChange={({ caseSensitive }) => onChange({ ...node, caseSensitive })}
-              readOnly={readOnly}
+              caseSensitiveReadOnly={locked('caseSensitive')}
             />
             <UrlSourcePicker
               sources={node.sources}
               onChange={(sources) => onChange({ ...node, sources })}
+              readOnly={locked('sources')}
             />
             <div className="term-list-scroll scrollbar-modern">
               <TermListEditor
@@ -286,19 +347,28 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
-                  disabled={readOnly}
+                  disabled={locked('op')}
                   value={node.op}
-                  onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
+                  onChange={(e) =>
+                    onChange(
+                      withOpAndIngestRole(node, e.target.value as typeof node.op),
+                    )
+                  }
                 >
                   <option value="is">is</option>
                   <option value="is_not">is not</option>
                 </select>
               }
             />
+            <IngestDiscoverFilterField
+              node={node}
+              onChange={onChange}
+              readOnly={locked('runAtIngest')}
+            />
             <p className="l2-condition-hint">
               Match if any selected kind is present (OR). Video excludes GIFs; Quote is plain quote only.
             </p>
-            <MediaKindPicker node={node} onChange={onChange} readOnly={readOnly} />
+            <MediaKindPicker node={node} onChange={onChange} readOnly={locked('kinds')} />
           </div>
         )}
 
@@ -310,7 +380,7 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
-                  disabled={readOnly}
+                  disabled={locked('unknown')}
                   value={node.unknown}
                   onChange={(e) =>
                     onChange({ ...node, unknown: e.target.value as 'include' | 'exclude' })
@@ -322,7 +392,16 @@ export function ConditionRow({
                 </select>
               }
             />
-            <LanguagePicker allow={node.allow} onChange={(allow) => onChange({ ...node, allow })} />
+            <IngestDiscoverFilterField
+              node={node}
+              onChange={onChange}
+              readOnly={locked('runAtIngest')}
+            />
+            <LanguagePicker
+              allow={node.allow}
+              onChange={(allow) => onChange({ ...node, allow })}
+              readOnly={locked('allow')}
+            />
           </div>
         )}
 
@@ -330,14 +409,23 @@ export function ConditionRow({
           <div className="l2-condition-stack">
             <ConditionHead title="Post type" onRemove={onRemove} showRemove={showRemove} />
             <select
-              disabled={readOnly}
+              disabled={locked('op')}
               value={node.op}
-              onChange={(e) => onChange({ ...node, op: e.target.value as L2PostKindCondition['op'] })}
+              onChange={(e) =>
+                onChange(
+                  withOpAndIngestRole(node, e.target.value as L2PostKindCondition['op']),
+                )
+              }
             >
               <option value="is">is</option>
               <option value="is_not">is not</option>
             </select>
-            <PostKindPicker node={node} onChange={onChange} readOnly={readOnly} />
+            <IngestDiscoverFilterField
+              node={node}
+              onChange={onChange}
+              readOnly={locked('runAtIngest')}
+            />
+            <PostKindPicker node={node} onChange={onChange} readOnly={locked('kinds')} />
           </div>
         )}
 
@@ -466,14 +554,23 @@ export function ConditionRow({
               showRemove={showRemove}
               trailing={
                 <select
-                  disabled={readOnly}
+                  disabled={locked('op')}
                   value={node.op}
-                  onChange={(e) => onChange({ ...node, op: e.target.value as 'includes' | 'excludes' })}
+                  onChange={(e) =>
+                    onChange(
+                      withOpAndIngestRole(node, e.target.value as 'includes' | 'excludes'),
+                    )
+                  }
                 >
                   <option value="includes">includes</option>
                   <option value="excludes">excludes</option>
                 </select>
               }
+            />
+            <IngestDiscoverFilterField
+              node={node}
+              onChange={onChange}
+              readOnly={locked('runAtIngest')}
             />
             <select
               disabled={readOnly}
@@ -597,7 +694,14 @@ export function ConditionRow({
                 <select
                   disabled={readOnly}
                   value={node.op}
-                  onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
+                  onChange={(e) => {
+                    const op = e.target.value as typeof node.op
+                    onChange({
+                      ...node,
+                      op,
+                      ...(op === 'excludes' ? { role: 'filter' as const } : {}),
+                    })
+                  }}
                 >
                   <option value="includes">includes</option>
                   <option value="excludes">excludes</option>
@@ -676,7 +780,14 @@ export function ConditionRow({
                 <select
                   disabled={readOnly}
                   value={node.op}
-                  onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
+                  onChange={(e) => {
+                    const op = e.target.value as typeof node.op
+                    onChange({
+                      ...node,
+                      op,
+                      ...(op === 'excludes' ? { role: 'filter' as const } : {}),
+                    })
+                  }}
                 >
                   <option value="includes">includes</option>
                   <option value="excludes">excludes</option>
@@ -690,8 +801,8 @@ export function ConditionRow({
             <label>
               Mode
               <select
-                disabled={readOnly}
-                value={node.role ?? 'filter'}
+                disabled={readOnly || node.op === 'excludes'}
+                value={node.op === 'excludes' ? 'filter' : (node.role ?? 'filter')}
                 onChange={(e) =>
                   onChange({
                     ...node,

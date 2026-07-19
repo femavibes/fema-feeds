@@ -333,6 +333,81 @@ export interface L2LogicBlockRefCondition {
   versionPin: string
   label?: string
   updatePolicy?: import('./logic-blocks.js').LogicBlockUpdatePolicy
+  /**
+   * Consumer overrides for Parameter Node controls inside the packaged root.
+   * Keyed by param `name`; missing keys use the control default.
+   */
+  paramValues?: Record<string, boolean | string>
+}
+
+/** One option on an enum Parameter control (mode → which nodes exist / property writes). */
+export interface L2ParamEnumOption {
+  value: string
+  label: string
+  /** Node ids that exist when this option is selected (presence; legacy + shorthand). */
+  targetNodeIds: string[]
+  /** Richer targets for this mode (presence and/or property). */
+  bindings?: L2ParamTargetBinding[]
+}
+
+/**
+ * How a control attaches to a concrete node.
+ * - presence: include/exclude the node (groups cascade)
+ * - property: patch a whitelisted field on the node
+ */
+export type L2ParamBindingKind = 'presence' | 'property'
+
+export interface L2ParamTargetBinding {
+  nodeId: string
+  kind: L2ParamBindingKind
+  /** Whitelisted property key when kind is `property` (e.g. caseSensitive, allow). */
+  property?: string
+  /**
+   * For array fields (language.allow, …): member token to add when active / remove when inactive.
+   */
+  member?: string
+  /**
+   * Desired property value when the Parameter control is active.
+   * - Boolean Parameter + boolean field: `true`/`false` (default true) — inactive gets the inverse.
+   * - Boolean Parameter + binary enum: which pole when active (default first/`includes`); inactive gets the other.
+   * - Boolean Parameter + member: omit/`true` = add when active; `false` = remove when active.
+   * - Dropdown Parameter option: absolute value written when that option is selected.
+   */
+  value?: boolean | string | number
+}
+
+/** A named control on a Parameter Node (toggle or dropdown). */
+export interface L2ParamControl {
+  name: string
+  label: string
+  description?: string
+  type: 'boolean' | 'enum'
+  /** boolean default or selected enum value */
+  default: boolean | string
+  /**
+   * Boolean controls: node ids that exist when the toggle is ON
+   * (excluded / treated as non-existent when OFF). Legacy shorthand for
+   * presence bindings — prefer `bindings`.
+   */
+  targetNodeIds?: string[]
+  /** Boolean (and shared) rich targets: presence and/or property. */
+  bindings?: L2ParamTargetBinding[]
+  /** Enum controls: each option lists presence targets / property writes. */
+  options?: L2ParamEnumOption[]
+}
+
+/**
+ * Eval-neutral control panel. Never Discover/Filter; stripped before L1/L2 match.
+ * Controls include/exclude other nodes by id (groups cascade).
+ */
+export interface L2ParametersCondition {
+  type: 'parameters'
+  id: string
+  /** Panel title on the canvas / inspector. */
+  title?: string
+  controls: L2ParamControl[]
+  /** Live values while editing this feed (overrides defaults). */
+  values?: Record<string, boolean | string>
 }
 
 /**
@@ -391,6 +466,7 @@ export type L2RuleNode =
   | L2ScoreCondition
   | L2GrazeStubCondition
   | L2LogicBlockRefCondition
+  | L2ParametersCondition
   | L2SubstituteCondition
   | L2ScoutCondition
 

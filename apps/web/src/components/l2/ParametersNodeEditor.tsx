@@ -1,0 +1,990 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import type {
+  L2ParamControl,
+  L2ParamEnumOption,
+  L2ParamTargetBinding,
+  L2ParametersCondition,
+  L2RuleGroup,
+} from '@cfb/core-types'
+import {
+  bindingFromBindableField,
+  bindingMatchesField,
+  binaryEnumPolarity,
+  discoverBindableFields,
+  indexRuleNodesById,
+  normalizeControlBindings,
+  normalizeOptionBindings,
+  unsupportedInputKeysForNode,
+} from '@cfb/l2-graph'
+
+import { newId } from '../../lib/l2-form'
+import { ToggleRow } from '../ToggleRow'
+import { ToggleSwitch } from '../ToggleSwitch'
+
+function newBooleanControl(): L2ParamControl {
+  const name = `toggle_${newId('p').slice(-4)}`
+  return {
+    name,
+    label: 'New toggle',
+    description: '',
+    type: 'boolean',
+    default: true,
+    bindings: [],
+  }
+}
+
+function newEnumControl(): L2ParamControl {
+  const name = `mode_${newId('p').slice(-4)}`
+  return {
+    name,
+    label: 'Mode',
+    description: '',
+    type: 'enum',
+    default: 'a',
+    options: [
+      { value: 'a', label: 'Option A', targetNodeIds: [], bindings: [] },
+      { value: 'b', label: 'Option B', targetNodeIds: [], bindings: [] },
+    ],
+  }
+}
+
+/** Text field that keeps focus while typing; commits on blur. */
+function BlurCommitInput({
+  value,
+  disabled,
+  className,
+  placeholder,
+  transform,
+  onCommit,
+}: {
+  value: string
+  disabled?: boolean
+  className?: string
+  placeholder?: string
+  transform?: (raw: string) => string
+  onCommit: (next: string) => void
+}) {
+  const [local, setLocal] = useState(value)
+  const focused = useRef(false)
+
+  useEffect(() => {
+    if (!focused.current) setLocal(value)
+  }, [value])
+
+  return (
+    <input
+      className={className}
+      disabled={disabled}
+      value={local}
+      placeholder={placeholder}
+      onFocus={() => {
+        focused.current = true
+      }}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => {
+        focused.current = false
+        const next = transform ? transform(local) : local
+        setLocal(next)
+        if (next !== value) onCommit(next)
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          ;(e.target as HTMLInputElement).blur()
+        }
+      }}
+    />
+  )
+}
+
+function nodeTypeLabel(type: string | undefined): string {
+  if (!type) return 'unknown id'
+  return type.replace(/_/g, ' ')
+}
+
+/** Canvas custom name (labels map) or group / logic-block label on the rule. */
+function resolveNodeCustomName(
+  target: { type: string; label?: string } | undefined,
+  nodeId: string,
+  nodeLabels: Record<string, string>,
+): string | undefined {
+  const fromMap = nodeLabels[nodeId]?.trim()
+  if (fromMap) return fromMap
+  if (!target) return undefined
+  if (target.type === 'group' || target.type === 'logic_block_ref') {
+    return target.label?.trim() || undefined
+  }
+  return undefined
+}
+
+/** Pick the property value when the Parameter control is ON (OFF gets the inverse). */
+function WhenControlOnSelect({
+  readOnly,
+  value,
+  onLabel,
+  offLabel,
+  onValue = 'on',
+  offValue = 'off',
+  onChange,
+}: {
+  readOnly?: boolean
+  value: string
+  onLabel: string
+  offLabel: string
+  onValue?: string
+  offValue?: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <label className="l2-param-when-on">
+      When control is on
+      <select
+        disabled={readOnly}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value={onValue}>{onLabel}</option>
+        <option value={offValue}>{offLabel}</option>
+      </select>
+    </label>
+  )
+}
+
+function TargetBindingsEditor({
+  bindings,
+  readOnly,
+  onChange,
+  hint,
+  match,
+  nodeLabels = {},
+  allowAbsoluteValue,
+}: {
+  bindings: L2ParamTargetBinding[]
+  readOnly: boolean
+  onChange: (next: L2ParamTargetBinding[]) => void
+  hint: string
+  match: L2RuleGroup
+  /** Visual custom names keyed by node id. */
+  nodeLabels?: Record<string, string>
+  /** Enum options can set absolute property values when selected. */
+  allowAbsoluteValue?: boolean
+}) {
+  const [draftId, setDraftId] = useState('')
+  const [collapsedTargets, setCollapsedTargets] = useState<Record<string, boolean>>({})
+  const byId = useMemo(() => indexRuleNodesById(match), [match])
+  const list = bindings ?? []
+
+  const nodeIds = useMemo(() => {
+    const order: string[] = []
+    const seen = new Set<string>()
+    for (const b of list) {
+      if (!b.nodeId || seen.has(b.nodeId)) continue
+      seen.add(b.nodeId)
+      order.push(b.nodeId)
+    }
+    return order
+  }, [list])
+
+  const bindingsFor = (nodeId: string) => list.filter((b) => b.nodeId === nodeId)
+
+  const setBindingsFor = (nodeId: string, nextForNode: L2ParamTargetBinding[]) => {
+    onChange([...list.filter((b) => b.nodeId !== nodeId), ...nextForNode])
+  }
+
+  const commitDraft = () => {
+    const nodeId = draftId.trim()
+    if (!nodeId) return
+    if (nodeIds.includes(nodeId)) {
+      setDraftId('')
+      return
+    }
+    onChange([...list, { nodeId, kind: 'presence' }])
+    setDraftId('')
+  }
+
+  const renameNodeId = (from: string, toRaw: string) => {
+    const to = toRaw.trim()
+    if (!to) {
+      onChange(list.filter((b) => b.nodeId !== from))
+      return
+    }
+    if (to !== from && nodeIds.includes(to)) return
+    onChange(list.map((b) => (b.nodeId === from ? { ...b, nodeId: to } : b)))
+  }
+
+  return (
+    <div className="l2-param-target-ids">
+      <span className="l2-param-target-ids-label">{hint}</span>
+      <p className="card-hint">
+        Paste a node id, choose Presence (show/hide), then optionally which node settings this
+        control owns. Text inputs (terms, patterns, …) are not bindable yet.
+      </p>
+      {nodeIds.map((nodeId) => {
+        const target = byId.get(nodeId)
+        const nodeBindings = bindingsFor(nodeId)
+        const hasPresence = nodeBindings.some((b) => b.kind === 'presence')
+        const fields = discoverBindableFields(target)
+        const unsupported = unsupportedInputKeysForNode(target)
+
+        const propCount = nodeBindings.filter((b) => b.kind === 'property').length
+        const expanded = !collapsedTargets[nodeId]
+        const typeLabel = target ? nodeTypeLabel(target.type) : 'unknown'
+        const customName = resolveNodeCustomName(target, nodeId, nodeLabels)
+        return (
+          <div
+            key={nodeId}
+            className={`l2-param-binding-card${expanded ? '' : ' is-collapsed'}`}
+          >
+            <div className="l2-param-binding-card-head">
+              <button
+                type="button"
+                className="l2-param-collapse-btn"
+                aria-expanded={expanded}
+                onClick={() =>
+                  setCollapsedTargets((prev) => ({ ...prev, [nodeId]: expanded }))
+                }
+              >
+                <span className="l2-param-collapse-chevron" aria-hidden>
+                  {expanded ? '▾' : '▸'}
+                </span>
+                <span className="l2-param-collapse-title">
+                  {customName ? (
+                    <>
+                      <span className="l2-param-node-name">{customName}</span>
+                      <code className="mono l2-param-node-id-sub">{nodeId}</code>
+                    </>
+                  ) : (
+                    <code className="mono">{nodeId}</code>
+                  )}
+                </span>
+                <span className="l2-param-collapse-meta">
+                  {typeLabel}
+                  {hasPresence ? ' · presence' : ''}
+                  {propCount > 0 ? ` · ${propCount} setting${propCount === 1 ? '' : 's'}` : ''}
+                </span>
+              </button>
+              {!readOnly ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  title="Remove target"
+                  onClick={() => onChange(list.filter((b) => b.nodeId !== nodeId))}
+                >
+                  ✕
+                </button>
+              ) : null}
+            </div>
+
+            {expanded ? (
+            <>
+            <div className="l2-param-binding-target">
+              <div className="l2-param-target-row">
+                <BlurCommitInput
+                  className="mono"
+                  disabled={readOnly}
+                  value={nodeId}
+                  placeholder="Paste node id"
+                  onCommit={(next) => renameNodeId(nodeId, next)}
+                />
+              </div>
+              <p className="l2-param-binding-type">
+                {target
+                  ? customName
+                    ? `Resolved: ${nodeTypeLabel(target.type)} · ${customName}`
+                    : `Resolved: ${nodeTypeLabel(target.type)}`
+                  : 'Not found in this graph — paste a live node id'}
+              </p>
+              <ToggleRow
+                label="Presence — node exists when control is on"
+                checked={hasPresence}
+                readOnly={readOnly}
+                ariaLabel={`Presence for ${nodeId}`}
+                onChange={(checked) => {
+                  const rest = nodeBindings.filter((b) => b.kind !== 'presence')
+                  setBindingsFor(
+                    nodeId,
+                    checked ? [{ nodeId, kind: 'presence' }, ...rest] : rest,
+                  )
+                }}
+              />
+            </div>
+
+            <div className="l2-param-bind-props">
+              <span className="l2-param-bind-props-label">Node settings to control</span>
+              <div className="l2-param-bind-toggles">
+                {fields.length === 0 && target ? (
+                  <p className="card-hint">No toggle properties available for this node type.</p>
+                ) : null}
+
+                {fields.map((field) => {
+                const active = nodeBindings.some(
+                  (b) => b.kind === 'property' && bindingMatchesField(b, field),
+                )
+                const existing = nodeBindings.find(
+                  (b) => b.kind === 'property' && bindingMatchesField(b, field),
+                )
+
+                if (field.valueKind === 'member' && !field.member) {
+                  return (
+                    <div key={field.key} className="l2-param-bind-member">
+                      <ToggleRow
+                        label={field.label}
+                        checked={active}
+                        readOnly={readOnly || !target}
+                        ariaLabel={field.label}
+                        onChange={(checked) => {
+                          const rest = nodeBindings.filter(
+                            (b) => !(b.kind === 'property' && bindingMatchesField(b, field)),
+                          )
+                          if (!checked) {
+                            setBindingsFor(nodeId, rest)
+                            return
+                          }
+                          setBindingsFor(nodeId, [
+                            ...rest,
+                            bindingFromBindableField(nodeId, field, { member: '', value: true }),
+                          ])
+                        }}
+                      />
+                      {active ? (
+                        <>
+                          <BlurCommitInput
+                            className="mono"
+                            disabled={readOnly}
+                            value={existing?.member ?? ''}
+                            placeholder={field.memberPlaceholder ?? 'token'}
+                            onCommit={(member) => {
+                              const rest = nodeBindings.filter(
+                                (b) => !(b.kind === 'property' && bindingMatchesField(b, field)),
+                              )
+                              setBindingsFor(nodeId, [
+                                ...rest,
+                                bindingFromBindableField(nodeId, field, {
+                                  member,
+                                  value: existing?.value === false ? false : true,
+                                }),
+                              ])
+                            }}
+                          />
+                          {!allowAbsoluteValue ? (
+                            <WhenControlOnSelect
+                              readOnly={readOnly}
+                              value={
+                                existing?.value === false || existing?.value === 'false'
+                                  ? 'off'
+                                  : 'on'
+                              }
+                              onLabel="Include in list"
+                              offLabel="Exclude from list"
+                              onChange={(whenOn) => {
+                                const rest = nodeBindings.filter(
+                                  (b) => !(b.kind === 'property' && bindingMatchesField(b, field)),
+                                )
+                                setBindingsFor(nodeId, [
+                                  ...rest,
+                                  bindingFromBindableField(nodeId, field, {
+                                    member: existing?.member ?? '',
+                                    value: whenOn === 'on',
+                                  }),
+                                ])
+                              }}
+                            />
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
+                  )
+                }
+
+                if (field.valueKind === 'enum') {
+                  const polarity = binaryEnumPolarity(field)
+                  return (
+                    <div key={field.key} className="l2-param-bind-member">
+                      <ToggleRow
+                        label={field.label}
+                        checked={active}
+                        readOnly={readOnly || !target}
+                        ariaLabel={field.label}
+                        onChange={(checked) => {
+                          const rest = nodeBindings.filter(
+                            (b) => !(b.kind === 'property' && bindingMatchesField(b, field)),
+                          )
+                          if (!checked) {
+                            setBindingsFor(nodeId, rest)
+                            return
+                          }
+                          const defaultVal = field.enumValues?.[0]?.value
+                          setBindingsFor(nodeId, [
+                            ...rest,
+                            bindingFromBindableField(nodeId, field, {
+                              value:
+                                allowAbsoluteValue && !polarity
+                                  ? defaultVal
+                                  : polarity
+                                    ? polarity.onValue
+                                    : undefined,
+                            }),
+                          ])
+                        }}
+                      />
+                      {active && allowAbsoluteValue && !polarity ? (
+                        <select
+                          disabled={readOnly}
+                          value={String(existing?.value ?? field.enumValues?.[0]?.value ?? '')}
+                          onChange={(e) => {
+                            const rest = nodeBindings.filter(
+                              (b) => !(b.kind === 'property' && bindingMatchesField(b, field)),
+                            )
+                            setBindingsFor(nodeId, [
+                              ...rest,
+                              bindingFromBindableField(nodeId, field, { value: e.target.value }),
+                            ])
+                          }}
+                        >
+                          {(field.enumValues ?? []).map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : null}
+                      {active && polarity && !allowAbsoluteValue ? (
+                        <WhenControlOnSelect
+                          readOnly={readOnly}
+                          value={String(existing?.value ?? polarity.onValue)}
+                          onLabel={polarity.onLabel}
+                          offLabel={polarity.offLabel}
+                          onValue={polarity.onValue}
+                          offValue={polarity.offValue}
+                          onChange={(v) => {
+                            const rest = nodeBindings.filter(
+                              (b) => !(b.kind === 'property' && bindingMatchesField(b, field)),
+                            )
+                            setBindingsFor(nodeId, [
+                              ...rest,
+                              bindingFromBindableField(nodeId, field, { value: v }),
+                            ])
+                          }}
+                        />
+                      ) : null}
+                      {active && !polarity && !allowAbsoluteValue ? (
+                        <span className="card-hint">
+                          Use a dropdown Parameter control to set enum values, or leave Presence-only.
+                        </span>
+                      ) : null}
+                    </div>
+                  )
+                }
+
+                // boolean (+ fixed member like fields:text)
+                const fixedMember = Boolean(field.member)
+                return (
+                  <div key={field.key} className="l2-param-bind-member">
+                    <ToggleRow
+                      label={field.label}
+                      checked={active}
+                      readOnly={readOnly || !target}
+                      ariaLabel={field.label}
+                      onChange={(checked) => {
+                        const rest = nodeBindings.filter(
+                          (b) => !(b.kind === 'property' && bindingMatchesField(b, field)),
+                        )
+                        if (!checked) {
+                          setBindingsFor(nodeId, rest)
+                          return
+                        }
+                        setBindingsFor(nodeId, [
+                          ...rest,
+                          bindingFromBindableField(nodeId, field, { value: true }),
+                        ])
+                      }}
+                    />
+                    {active && !allowAbsoluteValue ? (
+                      <WhenControlOnSelect
+                        readOnly={readOnly}
+                        value={
+                          existing?.value === false || existing?.value === 'false' ? 'off' : 'on'
+                        }
+                        onLabel={fixedMember ? 'Include' : 'On'}
+                        offLabel={fixedMember ? 'Exclude' : 'Off'}
+                        onChange={(whenOn) => {
+                          const rest = nodeBindings.filter(
+                            (b) => !(b.kind === 'property' && bindingMatchesField(b, field)),
+                          )
+                          setBindingsFor(nodeId, [
+                            ...rest,
+                            bindingFromBindableField(nodeId, field, {
+                              value: whenOn === 'on',
+                            }),
+                          ])
+                        }}
+                      />
+                    ) : null}
+                  </div>
+                )
+              })}
+              </div>
+
+              {unsupported.length > 0 ? (
+                <p className="card-hint">
+                  Not bindable yet (text/list inputs): {unsupported.join(', ')}
+                </p>
+              ) : null}
+            </div>
+            </>
+            ) : null}
+          </div>
+        )
+      })}
+      {!readOnly ? (
+        <div className="l2-param-target-row l2-param-target-add">
+          <input
+            className="mono"
+            value={draftId}
+            placeholder="Paste node id, then Enter"
+            onChange={(e) => setDraftId(e.target.value)}
+            onBlur={commitDraft}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                commitDraft()
+              }
+            }}
+          />
+          <button type="button" className="btn btn-secondary btn-sm" onClick={commitDraft}>
+            Add
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** Authoring UI for a Parameter Node (control panel). */
+export function ParametersNodeEditor({
+  node,
+  match,
+  nodeLabels = {},
+  onChange,
+  readOnly = false,
+}: {
+  node: L2ParametersCondition
+  match: L2RuleGroup
+  /** Visual custom names keyed by node id. */
+  nodeLabels?: Record<string, string>
+  onChange: (next: L2ParametersCondition) => void
+  readOnly?: boolean
+}) {
+  const controls = node.controls ?? []
+  const values = node.values ?? {}
+
+  const patch = (partial: Partial<L2ParametersCondition>) => {
+    onChange({ ...node, ...partial })
+  }
+
+  const updateControl = (index: number, next: L2ParamControl) => {
+    const list = controls.map((c, i) => (i === index ? next : c))
+    const nextValues = { ...values }
+    if (!(next.name in nextValues)) {
+      nextValues[next.name] = next.default
+    }
+    const names = new Set(list.map((c) => c.name))
+    for (const key of Object.keys(nextValues)) {
+      if (!names.has(key)) delete nextValues[key]
+    }
+    patch({ controls: list, values: nextValues })
+  }
+
+  const removeControl = (index: number) => {
+    const removed = controls[index]
+    const list = controls.filter((_, i) => i !== index)
+    const nextValues = { ...values }
+    if (removed) delete nextValues[removed.name]
+    patch({ controls: list, values: nextValues })
+  }
+
+  const addControl = (factory: () => L2ParamControl) => {
+    const c = factory()
+    patch({
+      controls: [...controls, c],
+      values: { ...values, [c.name]: c.default },
+    })
+  }
+
+  const setLiveValue = (name: string, value: boolean | string) => {
+    patch({ values: { ...values, [name]: value } })
+  }
+
+  return (
+    <div className="l2-parameters-editor">
+      <label className="l2-inspector-field">
+        Panel title
+        <BlurCommitInput
+          value={node.title ?? ''}
+          disabled={readOnly}
+          onCommit={(title) => patch({ title })}
+          placeholder="Parameters"
+        />
+      </label>
+
+      <p className="card-hint">
+        Paste a node id — we resolve its type and list its toggles. Turn on Presence and/or any
+        combination of properties on that target. Parameter panels are not valid targets. Text
+        lists (terms, patterns, …) are not bindable yet.
+      </p>
+
+      {controls.length === 0 ? (
+        <p className="l2-parameters-empty">No controls yet. Add a toggle or dropdown.</p>
+      ) : null}
+
+      {controls.map((control, index) => (
+        <ParamControlCard
+          key={control.name || `param-control-${index}`}
+          control={control}
+          liveValue={values[control.name] ?? control.default}
+          readOnly={readOnly}
+          match={match}
+          nodeLabels={nodeLabels}
+          onChange={(next) => updateControl(index, next)}
+          onRemove={() => removeControl(index)}
+          onLiveValue={(v) => setLiveValue(control.name, v)}
+        />
+      ))}
+
+      {!readOnly ? (
+        <div className="l2-parameters-add-row">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newBooleanControl)}>
+            Add toggle
+          </button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newEnumControl)}>
+            Add dropdown
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function ParamControlCard({
+  control,
+  liveValue,
+  readOnly,
+  match,
+  nodeLabels = {},
+  onChange,
+  onRemove,
+  onLiveValue,
+}: {
+  control: L2ParamControl
+  liveValue: boolean | string
+  readOnly: boolean
+  match: L2RuleGroup
+  nodeLabels?: Record<string, string>
+  onChange: (next: L2ParamControl) => void
+  onRemove: () => void
+  onLiveValue: (value: boolean | string) => void
+}) {
+  const [expanded, setExpanded] = useState(true)
+  const patch = (partial: Partial<L2ParamControl>) => onChange({ ...control, ...partial })
+  const bindings = normalizeControlBindings(control)
+  const targetCount = new Set(bindings.map((b) => b.nodeId).filter(Boolean)).size
+  const kindLabel = control.type === 'boolean' ? 'Toggle' : 'Dropdown'
+  const title = control.label?.trim() || control.name
+
+  return (
+    <div className={`l2-param-control-card${expanded ? '' : ' is-collapsed'}`}>
+      <div className="l2-param-control-card-head">
+        <button
+          type="button"
+          className="l2-param-collapse-btn"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          <span className="l2-param-collapse-chevron" aria-hidden>
+            {expanded ? '▾' : '▸'}
+          </span>
+          <strong>{kindLabel}</strong>
+          <span className="l2-param-collapse-title">{title}</span>
+          {!expanded ? (
+            <span className="l2-param-collapse-meta">
+              {targetCount === 0
+                ? 'no targets'
+                : `${targetCount} target${targetCount === 1 ? '' : 's'}`}
+            </span>
+          ) : null}
+        </button>
+        {!readOnly ? (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onRemove}>
+            Remove
+          </button>
+        ) : null}
+      </div>
+
+      {expanded ? (
+      <div className="l2-param-control-card-body">
+      <div className="l2-param-field-row">
+        <label className="l2-inspector-field">
+          Param ID
+          <BlurCommitInput
+            value={control.name}
+            disabled={readOnly}
+            className="mono"
+            transform={(raw) => raw.trim().replace(/\s+/g, '_')}
+            onCommit={(name) => {
+              if (name && name !== control.name) patch({ name })
+            }}
+          />
+        </label>
+        <label className="l2-inspector-field">
+          Label
+          <BlurCommitInput
+            value={control.label}
+            disabled={readOnly}
+            onCommit={(label) => patch({ label })}
+          />
+        </label>
+      </div>
+      <label className="l2-inspector-field">
+        Description
+        <BlurCommitInput
+          value={control.description ?? ''}
+          disabled={readOnly}
+          onCommit={(description) => patch({ description })}
+          placeholder="Shown to consumers"
+        />
+      </label>
+
+      {control.type === 'boolean' ? (
+        <>
+          <div className="l2-param-field-row">
+            <label className="l2-inspector-field">
+              Default
+              <div className="l2-param-toggle-wrap">
+                <ToggleSwitch
+                  checked={control.default === true || control.default === 'true'}
+                  readOnly={readOnly}
+                  ariaLabel={`${control.label || control.name} default`}
+                  onChange={(checked) => patch({ default: checked })}
+                />
+              </div>
+            </label>
+            <label className="l2-inspector-field">
+              Live value (this feed)
+              <div className="l2-param-toggle-wrap">
+                <ToggleSwitch
+                  checked={liveValue === true || liveValue === 'true'}
+                  readOnly={readOnly}
+                  ariaLabel={`${control.label || control.name} live value`}
+                  onChange={(checked) => onLiveValue(checked)}
+                />
+              </div>
+            </label>
+          </div>
+          <TargetBindingsEditor
+            bindings={bindings}
+            readOnly={readOnly}
+            match={match}
+            nodeLabels={nodeLabels}
+            hint="Targets (presence and/or property)"
+            onChange={(next) => patch({ bindings: next, targetNodeIds: undefined })}
+          />
+        </>
+      ) : (
+        <EnumOptionsEditor
+          control={control}
+          liveValue={String(liveValue)}
+          readOnly={readOnly}
+          match={match}
+          nodeLabels={nodeLabels}
+          onChange={onChange}
+          onLiveValue={onLiveValue}
+        />
+      )}
+      </div>
+      ) : null}
+    </div>
+  )
+}
+
+function EnumOptionsEditor({
+  control,
+  liveValue,
+  readOnly,
+  match,
+  nodeLabels = {},
+  onChange,
+  onLiveValue,
+}: {
+  control: L2ParamControl
+  liveValue: string
+  readOnly: boolean
+  match: L2RuleGroup
+  nodeLabels?: Record<string, string>
+  onChange: (next: L2ParamControl) => void
+  onLiveValue: (value: string) => void
+}) {
+  const options = control.options ?? []
+
+  const setOptions = (next: L2ParamEnumOption[]) => {
+    const defaultValue =
+      next.some((o) => o.value === control.default) ? control.default : (next[0]?.value ?? '')
+    onChange({ ...control, options: next, default: defaultValue })
+  }
+
+  const updateOption = (index: number, partial: Partial<L2ParamEnumOption>) => {
+    setOptions(options.map((o, i) => (i === index ? { ...o, ...partial } : o)))
+  }
+
+  return (
+    <>
+      <div className="l2-param-field-row">
+        <label className="l2-inspector-field">
+          Default option
+          <select
+            disabled={readOnly || options.length === 0}
+            value={String(control.default)}
+            onChange={(e) => onChange({ ...control, default: e.target.value })}
+          >
+            {options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label || o.value}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="l2-inspector-field">
+          Live value (this feed)
+          <select
+            disabled={readOnly || options.length === 0}
+            value={liveValue}
+            onChange={(e) => onLiveValue(e.target.value)}
+          >
+            {options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label || o.value}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {options.map((opt, index) => (
+        <div key={`enum-opt-${index}`} className="l2-param-enum-option">
+          <div className="l2-param-field-row">
+            <label className="l2-inspector-field">
+              Value
+              <BlurCommitInput
+                className="mono"
+                value={opt.value}
+                disabled={readOnly}
+                transform={(raw) => raw.trim().replace(/\s+/g, '_')}
+                onCommit={(value) => {
+                  if (value) updateOption(index, { value })
+                }}
+              />
+            </label>
+            <label className="l2-inspector-field">
+              Label
+              <BlurCommitInput
+                value={opt.label}
+                disabled={readOnly}
+                onCommit={(label) => updateOption(index, { label })}
+              />
+            </label>
+          </div>
+          <TargetBindingsEditor
+            bindings={normalizeOptionBindings(opt)}
+            readOnly={readOnly}
+            match={match}
+            nodeLabels={nodeLabels}
+            allowAbsoluteValue
+            hint="Targets for this mode (presence and/or property)"
+            onChange={(bindings) => updateOption(index, { bindings, targetNodeIds: [] })}
+          />
+          {!readOnly ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={options.length <= 1}
+              onClick={() => setOptions(options.filter((_, i) => i !== index))}
+            >
+              Remove option
+            </button>
+          ) : null}
+        </div>
+      ))}
+
+      {!readOnly ? (
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() =>
+            setOptions([
+              ...options,
+              {
+                value: `opt_${options.length + 1}`,
+                label: `Option ${options.length + 1}`,
+                targetNodeIds: [],
+                bindings: [],
+              },
+            ])
+          }
+        >
+          Add option
+        </button>
+      ) : null}
+    </>
+  )
+}
+
+/** Consumer-facing controls for a logic_block_ref (schema from packaged root). */
+export function LogicBlockParamValuesEditor({
+  controls,
+  values,
+  onChange,
+  readOnly = false,
+}: {
+  controls: L2ParamControl[]
+  values: Record<string, boolean | string>
+  onChange: (next: Record<string, boolean | string>) => void
+  readOnly?: boolean
+}) {
+  if (controls.length === 0) {
+    return <p className="card-hint">This logic block has no parameters.</p>
+  }
+
+  return (
+    <div className="l2-parameters-consumer">
+      {controls.map((control) => {
+        const value = values[control.name] ?? control.default
+        return (
+          <label key={control.name} className="l2-inspector-field">
+            <span>{control.label || control.name}</span>
+            {control.description ? <span className="card-hint">{control.description}</span> : null}
+            {control.type === 'boolean' ? (
+              <ToggleRow
+                label={value === true || value === 'true' ? 'On' : 'Off'}
+                checked={value === true || value === 'true'}
+                readOnly={readOnly}
+                ariaLabel={control.label || control.name}
+                onChange={(checked) => onChange({ ...values, [control.name]: checked })}
+              />
+            ) : (
+              <select
+                disabled={readOnly}
+                value={String(value)}
+                onChange={(e) => onChange({ ...values, [control.name]: e.target.value })}
+              >
+                {(control.options ?? []).map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label || o.value}
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
+        )
+      })}
+    </div>
+  )
+}

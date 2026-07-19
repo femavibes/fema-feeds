@@ -6,6 +6,7 @@ import type {
   L2RuleNode,
   NormalizedPost,
 } from '@cfb/core-types'
+import { applyParametersToMatch, resolveFeedMatch } from '@cfb/l2-graph'
 import { buildL2Runtime } from './context.js'
 import { evalExpr } from './expr.js'
 import { evalRuleNode } from './nodes.js'
@@ -22,7 +23,8 @@ export function evaluateFeedL2(
   const ctx = buildL2Runtime(post, input.metrics, input.nowMs)
   const trace: L2NodeTrace[] = []
   const scoreAcc = { value: 0 }
-  const matched = evalRuleNode(feed.match, ctx, input, trace, scoreAcc)
+  const match = applyParametersToMatch(resolveFeedMatch(feed))
+  const matched = evalRuleNode(match, ctx, input, trace, scoreAcc)
 
   // +1 cold-start floor for all matched posts
   const editorScore = matched ? scoreAcc.value + 1 : 0

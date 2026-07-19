@@ -58,6 +58,7 @@ function helpForNode(ctx: PropertiesHelpContext): {
         title: 'Keyword',
         body: [
           'Match post text against keywords or phrases. Combine with groups to build AND/OR logic.',
+          'Mode: Discover pulls matching posts into the project pool at ingest; Filter only gates posts already in play. Exclude-style match modes are Filter-only.',
         ],
       }
     case 'labels':
@@ -65,12 +66,56 @@ function helpForNode(ctx: PropertiesHelpContext): {
         title: 'Label',
         body: [
           'Match moderation or community labels on the post or author. Requires label enrichment where configured.',
+          'Mode: Discover vs Filter — excludes are Filter-only.',
         ],
       }
     case 'regex':
       return {
         title: 'Regex',
-        body: ['Match post text with a regular expression. Prefer keywords when a simple phrase works.'],
+        body: [
+          'Match post text with a regular expression. Prefer keywords when a simple phrase works.',
+          'Mode: Discover vs Filter — not_matches is Filter-only.',
+        ],
+      }
+    case 'hashtag':
+      return {
+        title: 'Hashtag',
+        body: [
+          'Match #hashtag facets only — not plain text in the body.',
+          'Mode: Discover vs Filter — excludes are Filter-only.',
+        ],
+      }
+    case 'url':
+      return {
+        title: 'URL',
+        body: [
+          'Substring match on URLs (link card, body facets, or bridged source) — not plain post text.',
+          'Mode: Discover vs Filter — excludes are Filter-only.',
+        ],
+      }
+    case 'media':
+      return {
+        title: 'Media',
+        body: [
+          'Match if any selected media kind is present (OR).',
+          'Mode: Discover vs Filter — “is not” is Filter-only.',
+        ],
+      }
+    case 'language':
+      return {
+        title: 'Language',
+        body: [
+          'Allow-list of language codes, plus policy for posts with no language tag.',
+          'Mode: Discover vs Filter.',
+        ],
+      }
+    case 'post_kind':
+      return {
+        title: 'Post type',
+        body: [
+          'Match root / reply / quote / repost shape.',
+          'Mode: Discover vs Filter — “is not” is Filter-only.',
+        ],
       }
     case 'group':
       return {
@@ -91,6 +136,25 @@ function helpForNode(ctx: PropertiesHelpContext): {
         title: 'Logic block',
         body: [
           'A reusable packaged subtree. Open the inner preview to inspect the published logic; pin versions when you need stability.',
+          'If the block defines Parameter controls, set their values in the Parameters section of this inspector.',
+        ],
+      }
+    case 'parameters':
+      return {
+        title: 'Parameters',
+        body: [
+          'A control panel that never matches posts by itself. Boolean and enum controls include or exclude other nodes by id before L1/L2 run.',
+          'Copy node ids from any selected node’s Properties panel (not from another Parameters panel), then add them as targets — one id per field.',
+          'Per target choose Presence (node exists when active) or Property (patch a whitelisted field such as keyword case-sensitive or a language code in allow).',
+          'Expand the Parameters node on the canvas to flip live toggles; authoring (Param ID, targets, defaults) lives in this Properties panel.',
+          'On a logic block used inside a feed, consumers set values on the logic-block ref — not by editing the published package.',
+        ],
+      }
+    case 'score':
+      return {
+        title: 'Score',
+        body: [
+          'Adds editorial points when a post passes through this node. Score sticks even if a later step on the path fails.',
         ],
       }
     default:

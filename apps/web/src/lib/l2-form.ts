@@ -305,6 +305,25 @@ export function newScoreNode(points = 1): L2RuleNode {
   return { type: 'score', id: newId('score'), points }
 }
 
+export function newParametersNode(): L2RuleNode {
+  return {
+    type: 'parameters',
+    id: newId('params'),
+    title: 'Parameters',
+    controls: [
+      {
+        name: 'enabled',
+        label: 'Enabled',
+        description: 'Turn off to disable the target nodes (paste node ids below).',
+        type: 'boolean',
+        default: true,
+        targetNodeIds: [],
+      },
+    ],
+    values: { enabled: true },
+  }
+}
+
 /** @deprecated Prefer newMediaCondition — migrated on load. */
 export function newMediaTypeCondition(): L2RuleNode {
   return newMediaCondition(['image'])

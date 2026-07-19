@@ -4,6 +4,36 @@ import {
   getLogicBlockPreviewBodyHeight,
   LOGIC_BLOCK_LOADING_BODY_H,
 } from './logic-block-preview-size.js'
+import {
+  getConditionExpandBodyHeight,
+  PROPERTIES_EXPAND_LOADING_BODY_H,
+  PROPERTIES_EXPAND_W,
+} from './condition-expand-measure.js'
+
+export {
+  clearConditionExpandBodyHeight,
+  getConditionExpandBodyHeight,
+  setConditionExpandBodyHeight,
+  PROPERTIES_EXPAND_LOADING_BODY_H,
+  PROPERTIES_EXPAND_W,
+} from './condition-expand-measure.js'
+
+/** Expanded canvas shows the Properties form (ConditionRow) for these types. */
+export function usesPropertiesStyleExpand(type: L2RuleNode['type'] | undefined): boolean {
+  if (!type) return false
+  switch (type) {
+    case 'author':
+    case 'mention':
+    case 'follow_ring':
+    case 'logic_block_ref':
+    case 'parameters':
+    case 'group':
+    case 'score':
+      return false
+    default:
+      return true
+  }
+}
 
 /** Line height for expanded body rows — keep in sync with `.l2-flow-condition-body-line`. */
 export const COND_BODY_LINE_H = 17
@@ -286,6 +316,14 @@ export function conditionExpandMetrics(rule: L2RuleNode): ConditionExpandMetrics
       // Version lives on the node head (collapsed + expanded).
       return { textLines: [], profileRows: 0 }
     }
+    case 'parameters': {
+      const controls = rule.controls ?? []
+      if (controls.length === 0) {
+        return { textLines: ['no controls'], profileRows: 0 }
+      }
+      // Interactive control rows on the canvas (taller than plain text lines).
+      return { textLines: [], profileRows: controls.length, profileMode: 'actors' }
+    }
     case 'graze_stub':
       return {
         textLines: [rule.title?.trim() || rule.grazeType || 'graze stub'],
@@ -459,6 +497,20 @@ export function conditionCollapseMetrics(rule: L2RuleNode): ConditionExpandMetri
     case 'logic_block_ref': {
       return { textLines: [], profileRows: 0 }
     }
+    case 'parameters': {
+      const controls = rule.controls ?? []
+      if (controls.length === 0) {
+        return { textLines: ['no controls'], profileRows: 0 }
+      }
+      const lines = controls.map((c) => {
+        const live = rule.values?.[c.name] ?? c.default
+        if (c.type === 'boolean') {
+          return `${c.label || c.name}: ${live ? 'on' : 'off'}`
+        }
+        return `${c.label || c.name}: ${String(live)}`
+      })
+      return { textLines: teaserFromList(lines), profileRows: 0 }
+    }
     case 'graze_stub':
       return {
         textLines: [rule.title?.trim() || rule.grazeType || 'graze stub'],
@@ -487,6 +539,11 @@ export function conditionNodeHeight(rule: L2RuleNode, expanded: boolean): number
       LOGIC_BLOCK_LOADING_BODY_H
     return COND_EXPAND_TITLE_H + COND_NAME_LINE_H + bodyH + COND_EXPAND_BOTTOM_H
   }
+  if (expanded && usesPropertiesStyleExpand(rule.type)) {
+    const bodyH =
+      getConditionExpandBodyHeight(rule.id) ?? PROPERTIES_EXPAND_LOADING_BODY_H
+    return COND_EXPAND_TITLE_H + COND_NAME_LINE_H + bodyH + COND_EXPAND_BOTTOM_H
+  }
   const metrics = expanded ? conditionExpandMetrics(rule) : conditionCollapseMetrics(rule)
   if (metrics.textLines.length === 0 && metrics.profileRows === 0) {
     return COND_COLLAPSED_H
@@ -500,5 +557,6 @@ export function conditionNodeHeight(rule: L2RuleNode, expanded: boolean): number
 
 export function conditionNodeWidth(rule: L2RuleNode, expanded: boolean, defaultWidth: number): number {
   if (rule.type === 'logic_block_ref' && expanded) return LOGIC_BLOCK_EXPANDED_W
+  if (expanded && usesPropertiesStyleExpand(rule.type)) return PROPERTIES_EXPAND_W
   return defaultWidth
 }

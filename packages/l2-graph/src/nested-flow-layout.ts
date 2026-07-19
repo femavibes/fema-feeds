@@ -288,6 +288,25 @@ export function layoutMatchFlow(
       pushEdge(ctx, child.id, 'end')
       contentRight = flowX + size.width
       flowX += size.width + H_GAP
+    } else if (child.type === 'parameters') {
+      // Eval-neutral panel: show on canvas, never wire into START/FEED.
+      const y = baseY + 24
+      const h = heightFor(child, opts)
+      const w = Math.max(widthFor(child, opts), 220)
+      ctx.nodes.push({
+        id: child.id,
+        kind: 'condition',
+        x: flowX,
+        y,
+        width: w,
+        height: h,
+        topLevel: true,
+        rule: child,
+        label: conditionNodeTitle(child),
+      })
+      maxHeight = Math.max(maxHeight, h + 48)
+      contentRight = flowX + w
+      flowX += w + H_GAP
     } else {
       const y = baseY + 24
       const h = heightFor(child, opts)

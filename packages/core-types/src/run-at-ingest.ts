@@ -56,6 +56,19 @@ export function nodeRunsAtIngest(node: L2RuleNode): boolean {
   if (!isIngestEligibleNodeType(node.type)) return false
   if (node.type === 'follow_ring' && isViewerFollowRing(node.hubSource)) return false
 
+  // Exclude-style ops never Discover, even if runAtIngest was left true.
+  if (
+    'op' in node &&
+    node.op != null &&
+    (node.op === 'excludes' ||
+      node.op === 'not_matches' ||
+      node.op === 'not_contains' ||
+      node.op === 'is_not' ||
+      node.op === 'not_in_list')
+  ) {
+    return false
+  }
+
   // Explicit Filter/Discover role wins over legacy runAtIngest.
   if (node.type === 'author' || node.type === 'follow_ring' || node.type === 'mention') {
     return nodeDiscoverRole(node) === 'discover'

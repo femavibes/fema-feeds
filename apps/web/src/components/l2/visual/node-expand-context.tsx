@@ -1,4 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react'
+import type { L2RuleGroup, L2RuleNode } from '@cfb/core-types'
 
 export type NodeExpandApi = {
   toggleExpanded: (nodeId: string) => void
@@ -9,6 +10,15 @@ export type NodeExpandApi = {
   openProperties?: (nodeId: string) => void
   /** Re-measure node heights after async expand content loads (logic blocks). */
   requestLayoutRefresh?: () => void
+  /** Patch a Parameter Node’s live values from the canvas controls. */
+  patchParameterValues?: (
+    nodeId: string,
+    values: Record<string, boolean | string>,
+  ) => void
+  /** Patch any condition node from the Properties-style expand form. */
+  patchRuleNode?: (nodeId: string, next: L2RuleNode) => void
+  /** Current authored match — used to preview Parameter bind effects on canvas. */
+  match?: L2RuleGroup
   readOnly?: boolean
 }
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import type { FeedConfig, L2GroupLogic, L2NodeProvenance, L2NodeTrace, L2RuleGroup, L2RuleNode, AuthorListConfig, FeedAuthorListConfig, L2AuthorCondition, LogicBlockPackage } from '@cfb/core-types'
 
 import type { ListCacheEntry } from '../../../api/client'
@@ -22,7 +23,25 @@ import {
   nodeRoleBadgeLabel,
   nodeRoleBadgeTitle,
 } from '../../../lib/l2-ingest-badge'
+import {
+  applyParametersToMatch,
+  collectExcludedNodeIds,
+  collectParamControls,
+  indexRuleNodesById,
+} from '@cfb/l2-graph'
+import {
+  collectParamPropertyLocks,
+  overlayParamLockedValues,
+  paramLockSummary,
+  paramLockedPropertySet,
+  restoreParamLockedValues,
+} from '../../../lib/param-bind-preview'
 import { ConditionRow } from '../ConditionRow'
+import {
+  LogicBlockParamValuesEditor,
+  ParametersNodeEditor,
+} from '../ParametersNodeEditor'
+import { api } from '../../../api/client'
 
 import { LogicBlockInsertPanel } from '../../logic-blocks/LogicBlockInsertPanel'
 
@@ -160,13 +179,54 @@ export function L2PropertiesInspector({
 
   const selected = selectedId ? findInMatch(match, selectedId) : null
 
+  const effectiveById = indexRuleNodesById(applyParametersToMatch(match))
+  const paramExcluded = collectExcludedNodeIds(match)
+  const effectiveSelected =
+    selected && selected.type !== 'group' ? effectiveById.get(selected.id) : undefined
+  const paramLocks =
+    selected && selected.type !== 'group' && selected.type !== 'parameters'
+      ? collectParamPropertyLocks(match, selected.id)
+      : []
+  const displaySelected =
+    selected && selected.type !== 'group' && selected.type !== 'parameters'
+      ? overlayParamLockedValues(selected, effectiveSelected, paramLocks)
+      : selected
+
   const conditionRoleBadges =
     selected &&
     selected.type !== 'group' &&
     selected.type !== 'logic_block_ref' &&
-    selected.type !== 'score'
-      ? ingestRoleBadgeFor(selected)
+    selected.type !== 'score' &&
+    selected.type !== 'parameters'
+      ? ingestRoleBadgeFor(effectiveSelected ?? selected)
       : []
+
+  const [blockParamControls, setBlockParamControls] = useState<
+    import('@cfb/core-types').L2ParamControl[]
+  >([])
+
+  useEffect(() => {
+    if (!selected || selected.type !== 'logic_block_ref') {
+      setBlockParamControls([])
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await api.getLogicBlock(selected.packageId, selected.versionPin)
+        if (cancelled) return
+        setBlockParamControls(collectParamControls(res.package.root))
+      } catch {
+        if (!cancelled) setBlockParamControls([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [
+    selected && selected.type === 'logic_block_ref' ? selected.packageId : null,
+    selected && selected.type === 'logic_block_ref' ? selected.versionPin : null,
+  ])
 
   const applyAuthorFeedUpdate =
     selected?.type === 'author' && onPatchDraft
@@ -349,6 +409,20 @@ export function L2PropertiesInspector({
                     </div>
 
                     <label className="l2-inspector-field">
+                      Node id
+                      <div className="l2-inspector-id-row">
+                        <code className="mono l2-inspector-node-id">{selected.id}</code>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => void navigator.clipboard.writeText(selected.id)}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </label>
+
+                    <label className="l2-inspector-field">
 
                       Logic
 
@@ -518,6 +592,20 @@ export function L2PropertiesInspector({
 
                 </p>
 
+                <label className="l2-inspector-field">
+                  Node id
+                  <div className="l2-inspector-id-row">
+                    <code className="mono l2-inspector-node-id">{selected.id}</code>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => void navigator.clipboard.writeText(selected.id)}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </label>
+
                 {!readOnly && onOpenInnerLogicPreview ? (
                 <button
                   type="button"
@@ -590,11 +678,58 @@ export function L2PropertiesInspector({
                 </label>
                 ) : null}
 
+                <div className="l2-inspector-section-head">
+                  <h4>Parameters</h4>
+                </div>
+                <LogicBlockParamValuesEditor
+                  controls={blockParamControls}
+                  values={selected.paramValues ?? {}}
+                  readOnly={readOnly}
+                  onChange={(paramValues) =>
+                    onChange(updateInMatch(match, selected.id, { ...selected, paramValues }))
+                  }
+                />
+
               </>
 
             )}
 
-
+            {selected?.type === 'parameters' && (
+              <>
+                <div className="l2-inspector-section-head">
+                  <h4>Parameters</h4>
+                  {!readOnly && onRenameNode && selectedId ? (
+                    <button
+                      type="button"
+                      className="l2-inspector-rename btn btn-secondary btn-sm"
+                      onClick={() => onRenameNode(selectedId)}
+                    >
+                      Rename
+                    </button>
+                  ) : null}
+                </div>
+                <label className="l2-inspector-field">
+                  Node id
+                  <div className="l2-inspector-id-row">
+                    <code className="mono l2-inspector-node-id">{selected.id}</code>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => void navigator.clipboard.writeText(selected.id)}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </label>
+                <ParametersNodeEditor
+                  node={selected}
+                  match={match}
+                  nodeLabels={nodeLabels}
+                  readOnly={readOnly}
+                  onChange={(next) => onChange(updateInMatch(match, selected.id, next))}
+                />
+              </>
+            )}
 
             {selected && selected.type === 'score' && (
               <>
@@ -630,10 +765,23 @@ export function L2PropertiesInspector({
                 <p className="l2-inspector-hint">
                   Posts passing through this node accumulate +{selected.points} editorial score. Score always sticks even if the path fails later.
                 </p>
+                <label className="l2-inspector-field">
+                  Node id
+                  <div className="l2-inspector-id-row">
+                    <code className="mono l2-inspector-node-id">{selected.id}</code>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => void navigator.clipboard.writeText(selected.id)}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </label>
               </>
             )}
 
-            {selected && selected.type !== 'group' && selected.type !== 'logic_block_ref' && selected.type !== 'score' && (
+            {selected && selected.type !== 'group' && selected.type !== 'logic_block_ref' && selected.type !== 'score' && selected.type !== 'parameters' && (
 
               <div className="l2-inspector-condition">
 
@@ -661,6 +809,20 @@ export function L2PropertiesInspector({
 
                 </div>
 
+                <label className="l2-inspector-field">
+                  Node id
+                  <div className="l2-inspector-id-row">
+                    <code className="mono l2-inspector-node-id">{selected.id}</code>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => void navigator.clipboard.writeText(selected.id)}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </label>
+
                 {conditionRoleBadges.length > 0 ? (
                   <div className="l2-inspector-role-badges" aria-label="Node roles">
                     {conditionRoleBadges.map((role) => (
@@ -675,13 +837,20 @@ export function L2PropertiesInspector({
                   </div>
                 ) : null}
 
+                {paramExcluded.has(selected.id) ? (
+                  <p className="l2-param-lock-banner">
+                    Removed by a Parameter Presence bind — greyed on the canvas until that control is on.
+                  </p>
+                ) : null}
+
                 <ConditionRow
 
-                  node={selected}
+                  node={displaySelected ?? selected}
 
                   onChange={(next: L2RuleNode) => {
-                    const nextMatch = updateInMatch(match, selected.id, next)
-                    if (next.type === 'author' && onPatchDraft) {
+                    const authored = restoreParamLockedValues(next, selected, paramLocks)
+                    const nextMatch = updateInMatch(match, selected.id, authored)
+                    if (authored.type === 'author' && onPatchDraft) {
                       const referenced = collectAuthorListIdsFromMatch(nextMatch)
                       const pruned = pruneFeedAuthorLists(draft.authorLists ?? [], referenced)
                       onPatchDraft({
@@ -698,6 +867,10 @@ export function L2PropertiesInspector({
                   showRemove={false}
 
                   fillHeight={!readOnly && selected.type === 'keyword'}
+
+                  paramLockedProps={paramLockedPropertySet(paramLocks)}
+
+                  paramLockHint={paramLocks.length ? paramLockSummary(paramLocks) : undefined}
 
                   projectAuthorLists={projectAuthorLists}
 

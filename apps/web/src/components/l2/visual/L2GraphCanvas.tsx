@@ -105,6 +105,13 @@ interface Props {
   onEdgeContextMenu: (edgeId: string, x: number, y: number) => void
   /** Double-click / double-tap on a node — open its properties panel. */
   onNodeOpenProperties?: (nodeId: string) => void
+  /** Persist Parameter Node live values from expanded canvas controls. */
+  onPatchParameterValues?: (
+    nodeId: string,
+    values: Record<string, boolean | string>,
+  ) => void
+  /** Persist condition edits from Properties-style expanded canvas forms. */
+  onPatchRuleNode?: (nodeId: string, next: import('@cfb/core-types').L2RuleNode) => void
   /** Persist node removals from React Flow delete / multi-select. */
   onDeleteNodes?: (nodeIds: string[]) => void
   canUndo?: boolean
@@ -157,6 +164,8 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     onNodeContextMenu,
     onEdgeContextMenu,
     onNodeOpenProperties,
+    onPatchParameterValues,
+    onPatchRuleNode,
     onDeleteNodes,
     canUndo = false,
     canRedo = false,
@@ -193,6 +202,9 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
       toggleLocked: (nodeId: string) => onToggleNodeLocked?.(nodeId),
       openProperties: (nodeId: string) => onNodeOpenProperties?.(nodeId),
       requestLayoutRefresh: () => setLayoutTick((n) => n + 1),
+      patchParameterValues: onPatchParameterValues,
+      patchRuleNode: onPatchRuleNode,
+      match,
       readOnly,
     }),
     [
@@ -201,6 +213,9 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
       onExpandAllInGroup,
       onToggleNodeLocked,
       onNodeOpenProperties,
+      onPatchParameterValues,
+      onPatchRuleNode,
+      match,
       readOnly,
     ],
   )

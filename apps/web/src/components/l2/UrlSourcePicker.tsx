@@ -5,12 +5,14 @@ import { ToggleRow } from '../ToggleRow'
 interface Props {
   sources: PostUrlSource[]
   onChange: (sources: PostUrlSource[]) => void
+  readOnly?: boolean
 }
 
-export function UrlSourcePicker({ sources, onChange }: Props) {
+export function UrlSourcePicker({ sources, onChange, readOnly = false }: Props) {
   const selected = new Set(sources.length > 0 ? sources : DEFAULT_URL_SOURCES)
 
   const toggle = (source: PostUrlSource) => {
+    if (readOnly) return
     const next = new Set(selected)
     if (next.has(source)) {
       if (next.size <= 1) return
@@ -30,6 +32,7 @@ export function UrlSourcePicker({ sources, onChange }: Props) {
           checked={selected.has(opt.source)}
           onChange={() => toggle(opt.source)}
           ariaLabel={`Match ${opt.label}`}
+          readOnly={readOnly}
           disabled={selected.has(opt.source) && selected.size <= 1}
           hint={opt.hint}
         />

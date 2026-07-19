@@ -5,15 +5,17 @@ import { ToggleRow } from '../ToggleRow'
 interface Props {
   allow: string[]
   onChange: (allow: string[]) => void
+  readOnly?: boolean
 }
 
-export function LanguagePicker({ allow: allowProp, onChange }: Props) {
+export function LanguagePicker({ allow: allowProp, onChange, readOnly = false }: Props) {
   const allow = allowProp ?? []
   const [customInput, setCustomInput] = useState('')
   const selected = new Set(allow.map((c) => c.toLowerCase()))
   const customCodes = allow.filter((c) => !isKnownLanguageCode(c))
 
   const toggle = (code: string) => {
+    if (readOnly) return
     const key = code.toLowerCase()
     if (selected.has(key)) {
       onChange(allow.filter((c) => c.toLowerCase() !== key))
@@ -23,6 +25,7 @@ export function LanguagePicker({ allow: allowProp, onChange }: Props) {
   }
 
   const addCustom = () => {
+    if (readOnly) return
     const code = customInput.trim().toLowerCase()
     if (!code || selected.has(code)) return
     onChange([...allow, code])
@@ -39,6 +42,7 @@ export function LanguagePicker({ allow: allowProp, onChange }: Props) {
             checked={selected.has(lang.code)}
             onChange={() => toggle(lang.code)}
             ariaLabel={`Allow ${lang.name}`}
+            readOnly={readOnly}
           />
         ))}
         {customCodes.map((code) => (
@@ -48,6 +52,7 @@ export function LanguagePicker({ allow: allowProp, onChange }: Props) {
             checked
             onChange={() => toggle(code)}
             ariaLabel={`Allow ${code}`}
+            readOnly={readOnly}
           />
         ))}
       </div>
@@ -57,6 +62,7 @@ export function LanguagePicker({ allow: allowProp, onChange }: Props) {
           onChange={(e) => setCustomInput(e.target.value)}
           placeholder="Other code (e.g. pt-BR)"
           className="mono"
+          disabled={readOnly}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
@@ -64,7 +70,7 @@ export function LanguagePicker({ allow: allowProp, onChange }: Props) {
             }
           }}
         />
-        <button type="button" className="btn btn-ghost btn-sm" onClick={addCustom}>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={addCustom} disabled={readOnly}>
           Add
         </button>
       </div>

@@ -18,6 +18,7 @@ import {
   newPostKindCondition,
   newRegexCondition,
   newScoreNode,
+  newParametersNode,
   newScoutCondition,
   newSubstituteCondition,
   newFollowRingCondition,
@@ -154,6 +155,14 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     category: 'structure',
     action: 'group',
     factory: () => newNOfGroup(2),
+  },
+  {
+    id: 'parameters',
+    label: 'Parameters',
+    description: 'Control panel — toggles/dropdowns that enable or disable other nodes by id',
+    category: 'structure',
+    action: 'condition',
+    factory: newParametersNode,
   },
   {
     id: 'keyword',

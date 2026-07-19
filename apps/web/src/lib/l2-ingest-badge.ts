@@ -33,7 +33,7 @@ export function isPersonalizeNode(node: L2RuleNode): boolean {
 
 /** Discover vs Filter only — never Personalization. */
 function ingestDiscoverOrFilter(node: L2RuleNode): 'discover' | 'filter' | null {
-  if (node.type === 'group' || node.type === 'graze_stub' || node.type === 'logic_block_ref') {
+  if (node.type === 'group' || node.type === 'graze_stub' || node.type === 'logic_block_ref' || node.type === 'parameters') {
     return null
   }
 
@@ -47,8 +47,15 @@ function ingestDiscoverOrFilter(node: L2RuleNode): 'discover' | 'filter' | null 
 
   if (!isIngestEligibleNodeType(node.type)) return null
 
-  // Explicit excludes never pull into the pool.
-  if ('op' in node && (node.op === 'excludes' || node.op === 'not_in_list')) {
+  // Explicit excludes / negate ops never pull into the pool.
+  if (
+    'op' in node &&
+    (node.op === 'excludes' ||
+      node.op === 'not_in_list' ||
+      node.op === 'not_matches' ||
+      node.op === 'not_contains' ||
+      node.op === 'is_not')
+  ) {
     return 'filter'
   }
 

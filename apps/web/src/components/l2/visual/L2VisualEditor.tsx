@@ -1063,6 +1063,14 @@ export function L2VisualEditor({
             onNodeContextMenu={openNodeContextMenu}
             onEdgeContextMenu={openEdgeContextMenu}
             onNodeOpenProperties={openPropertiesForNode}
+            onPatchParameterValues={(nodeId, values) => {
+              const rule = findInMatch(match, nodeId)
+              if (!rule || rule.type !== 'parameters') return
+              patchMatch(updateInMatch(match, nodeId, { ...rule, values }))
+            }}
+            onPatchRuleNode={(nodeId, next) => {
+              patchMatch(updateInMatch(match, nodeId, next))
+            }}
             onDeleteNodes={deleteNodes}
             onReparent={(nodeId, targetGroupId) => {
               if (lockedSet.has(nodeId)) {

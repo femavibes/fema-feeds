@@ -20,6 +20,10 @@ export {
   conditionNodeWidth,
   formatExpandExpr,
   languageExpandLabel,
+  usesPropertiesStyleExpand,
+  clearConditionExpandBodyHeight,
+  getConditionExpandBodyHeight,
+  setConditionExpandBodyHeight,
   COND_BODY_LINE_H,
   COND_PROFILE_ROW_H,
   COND_COLLAPSED_H,
@@ -27,6 +31,8 @@ export {
   COND_PROFILE_MAX,
   LOGIC_BLOCK_EXPANDED_BODY_H,
   LOGIC_BLOCK_EXPANDED_W,
+  PROPERTIES_EXPAND_LOADING_BODY_H,
+  PROPERTIES_EXPAND_W,
 } from './condition-expand.js'
 export {
   estimateLogicBlockPreviewBodyHeight,
@@ -77,6 +83,34 @@ export {
   peelLogicBlockEditorShell,
   wrapLogicBlockForCanvas,
 } from './logic-block-shell.js'
+export {
+  applyParametersToMatch,
+  collectExcludedNodeIds,
+  collectParamControls,
+  collectParameterNodes,
+  normalizeControlBindings,
+  normalizeOptionBindings,
+  stripParametersAndExcluded,
+  type ApplyParametersOptions,
+  type ParamValueMap,
+} from './apply-parameters.js'
+export {
+  PARAM_BINDABLE_FIELDS,
+  PARAM_UNSUPPORTED_INPUT_KEYS,
+  bindableFieldsForNodeType,
+  bindingFromBindableField,
+  bindingMatchesField,
+  binaryEnumPolarity,
+  discoverBindableFields,
+  findBindableField,
+  findDiscoveredField,
+  indexRuleNodesById,
+  isValidPropertyBinding,
+  resolveBindableField,
+  unsupportedInputKeysForNode,
+  type ParamBindValueKind,
+  type ParamBindableField,
+} from './param-bind-fields.js'
 export {
   exportFeedGraph,
   importFeedGraph,
