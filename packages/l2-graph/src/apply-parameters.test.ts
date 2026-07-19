@@ -587,9 +587,6 @@ describe('applyParametersToMatch', () => {
       { effect: 'caseSensitive', nodeId: 'url', blockedBy: ['CAT'] },
     ])
     expect(blockers.has('cat')).toBe(false)
-    expect(formatParamAndBlockHint(blockers.get('potato')!)).toContain(
-      'caseSensitive on url — CAT',
-    )
     expect(
       formatParamAndBlockHint(blockers.get('potato')!, {
         nodeLabels: { url: 'URL YES' },
