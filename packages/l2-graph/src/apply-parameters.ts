@@ -143,9 +143,8 @@ export function setParamValueAcrossMatch(
 }
 
 /**
- * After editing one panel, sync shared Param IDs across other panels:
- * live value + chrome (label / description / type / default).
- * Bindings stay per-face — apply unions them under the shared live value.
+ * After editing one panel, fully sync shared Param IDs onto every other panel
+ * that declares the same id: chrome, options, bindings, and live value.
  */
 export function syncSharedParamControlFromPanel(
   root: L2RuleGroup,
@@ -182,7 +181,9 @@ export function syncSharedParamControlFromPanel(
           description: src.description,
           type: src.type,
           default: src.default,
-          // Bindings / options stay local so faces can control different subsets.
+          options: src.options ? structuredClone(src.options) : undefined,
+          bindings: src.bindings ? structuredClone(src.bindings) : [],
+          targetNodeIds: undefined,
         }
       })
       if (!touched) return node
@@ -209,108 +210,6 @@ export function syncSharedParamValuesFromPanel(
   panelId: string,
 ): L2RuleGroup {
   return syncSharedParamControlFromPanel(root, panelId)
-}
-
-export type ParamBindClaim = {
-  paramName: string
-  paramLabel: string
-  panelId: string
-}
-
-/** Stable key for exclusive ownership of a presence or property bind. */
-export function paramOwnershipKey(binding: {
-  kind?: string
-  nodeId: string
-  property?: string
-  member?: string
-}): string {
-  const kind = binding.kind ?? 'presence'
-  if (kind === 'presence') return `${binding.nodeId}::presence`
-  return `${binding.nodeId}::property::${binding.property ?? ''}::${binding.member ?? ''}`
-}
-
-function claimsFromControl(
-  panelId: string,
-  control: L2ParamControl,
-  into: Map<string, ParamBindClaim[]>,
-): void {
-  if (!control.name) return
-  const claim: ParamBindClaim = {
-    paramName: control.name,
-    paramLabel: control.label?.trim() || control.name,
-    panelId,
-  }
-  const push = (binding: L2ParamTargetBinding) => {
-    if (!binding.nodeId?.trim()) return
-    const key = paramOwnershipKey(binding)
-    const list = into.get(key) ?? []
-    if (!list.some((c) => c.paramName === claim.paramName)) list.push(claim)
-    into.set(key, list)
-  }
-  for (const b of normalizeControlBindings(control)) push(b)
-  if (control.type === 'enum') {
-    for (const opt of control.options ?? []) {
-      for (const b of normalizeOptionBindings(opt)) push(b)
-    }
-  }
-}
-
-/** All presence/property claims in the graph, keyed by ownership key. */
-export function collectParamBindClaims(
-  root: L2RuleNode,
-): Map<string, ParamBindClaim[]> {
-  const into = new Map<string, ParamBindClaim[]>()
-  const walk = (node: L2RuleNode) => {
-    if (isParametersNode(node)) {
-      for (const control of node.controls ?? []) {
-        claimsFromControl(node.id, control, into)
-      }
-      return
-    }
-    if (node.type === 'group') {
-      for (const child of node.children ?? []) walk(child)
-    }
-  }
-  walk(root)
-  return into
-}
-
-/**
- * Exclusive owner of a bind key: lexicographically first Param ID among claimants.
- * Same Param ID on multiple panels shares ownership (union bindings at apply).
- */
-export function exclusiveOwnerOfKey(
-  root: L2RuleNode,
-  key: string,
-): ParamBindClaim | undefined {
-  const claims = collectParamBindClaims(root).get(key)
-  if (!claims || claims.length === 0) return undefined
-  const sorted = [...claims].sort((a, b) => a.paramName.localeCompare(b.paramName))
-  return sorted[0]
-}
-
-/** Another Param ID already owns this bind (shared same-id faces are fine). */
-export function findConflictingOwner(
-  root: L2RuleNode,
-  binding: L2ParamTargetBinding,
-  selfParamName: string,
-): ParamBindClaim | undefined {
-  const key = paramOwnershipKey(binding)
-  const claims = collectParamBindClaims(root).get(key) ?? []
-  const others = claims
-    .filter((c) => c.paramName !== selfParamName)
-    .sort((a, b) => a.paramName.localeCompare(b.paramName))
-  return others[0]
-}
-
-/** Map ownership key → winning Param ID (for apply-time exclusive enforcement). */
-export function buildExclusiveOwnerMap(root: L2RuleNode): Map<string, string> {
-  const out = new Map<string, string>()
-  for (const [key, claims] of collectParamBindClaims(root)) {
-    const sorted = [...claims].sort((a, b) => a.paramName.localeCompare(b.paramName))
-    if (sorted[0]) out.set(key, sorted[0].paramName)
-  }
-  return out
 }
 
 /** Expand legacy `targetNodeIds` into presence bindings (deduped). */
@@ -382,7 +281,6 @@ export function collectExcludedNodeIds(
 ): Set<string> {
   const excluded = new Set<string>()
   const valueMap = buildParamValueMap(root, overrides)
-  const owners = buildExclusiveOwnerMap(root)
 
   const walk = (node: L2RuleNode) => {
     if (isParametersNode(node)) {
@@ -394,25 +292,17 @@ export function collectExcludedNodeIds(
           const on = value === true || value === 'true'
           if (!on) {
             for (const id of presenceIdsFromBindings(normalizeControlBindings(control))) {
-              const owner = owners.get(paramOwnershipKey({ nodeId: id, kind: 'presence' }))
-              if (owner && owner !== control.name) continue
               excluded.add(id)
             }
           }
         } else if (control.type === 'enum') {
           const options = control.options ?? []
           const selected = options.find((o) => o.value === value)
-          // Only presence binds this Param ID owns participate.
-          const ownedPresence = (bindings: L2ParamTargetBinding[]) =>
-            presenceIdsFromBindings(bindings).filter((id) => {
-              const owner = owners.get(paramOwnershipKey({ nodeId: id, kind: 'presence' }))
-              return !owner || owner === control.name
-            })
           const keep = new Set(
-            ownedPresence(selected ? normalizeOptionBindings(selected) : []),
+            presenceIdsFromBindings(selected ? normalizeOptionBindings(selected) : []),
           )
           const all = new Set(
-            options.flatMap((o) => ownedPresence(normalizeOptionBindings(o))),
+            options.flatMap((o) => presenceIdsFromBindings(normalizeOptionBindings(o))),
           )
           for (const id of all) {
             if (!keep.has(id)) excluded.add(id)
@@ -528,14 +418,135 @@ function applyPropertyBinding(
   }
 }
 
+/** What a property binding would write for the given active state (booleans / binary enums / members). */
+function computePropertyWrite(
+  node: L2RuleNode,
+  binding: L2ParamTargetBinding,
+  active: boolean,
+):
+  | { kind: 'bool'; property: string; value: boolean }
+  | { kind: 'enum'; property: string; value: string; onValue: string; offValue: string }
+  | { kind: 'member'; property: string; member: string; include: boolean }
+  | { kind: 'raw'; property: string; value: unknown }
+  | null {
+  if (binding.kind !== 'property' || !binding.property) return null
+  if (!isValidPropertyBinding(node, binding)) return null
+  const field = resolveBindableField(node, binding)
+  if (!field) return null
+
+  if (field.valueKind === 'member' || field.member) {
+    const member = (binding.member ?? field.member)?.trim()
+    if (!member) return null
+    const includeWhenActive = !(binding.value === false || binding.value === 'false')
+    return {
+      kind: 'member',
+      property: binding.property,
+      member,
+      include: active ? includeWhenActive : !includeWhenActive,
+    }
+  }
+
+  if (field.valueKind === 'boolean') {
+    const whenOn = !(binding.value === false || binding.value === 'false')
+    return {
+      kind: 'bool',
+      property: binding.property,
+      value: active ? whenOn : !whenOn,
+    }
+  }
+
+  const polarity = binaryEnumPolarity(field)
+  if (polarity) {
+    const whenActive =
+      binding.value !== undefined && String(binding.value) === polarity.offValue
+        ? polarity.offValue
+        : polarity.onValue
+    const whenInactive =
+      whenActive === polarity.onValue ? polarity.offValue : polarity.onValue
+    return {
+      kind: 'enum',
+      property: binding.property,
+      value: active ? whenActive : whenInactive,
+      onValue: polarity.onValue,
+      offValue: polarity.offValue,
+    }
+  }
+
+  if (binding.value !== undefined && active) {
+    return { kind: 'raw', property: binding.property, value: binding.value }
+  }
+  return null
+}
+
+/**
+ * Apply property patches. Presence is already AND-style (any off strips).
+ * Overlapping boolean / binary-enum / member binds from *different* Param IDs
+ * AND together (all must agree for the “on/include” pole). Same Param ID on
+ * multiple panels is one vote. Absolute enum values: last walk wins.
+ */
 function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): void {
   const byId = indexRuleNodesById(root)
   const valueMap = buildParamValueMap(root, overrides)
-  const owners = buildExclusiveOwnerMap(root)
 
-  const owns = (controlName: string, binding: L2ParamTargetBinding) => {
-    const owner = owners.get(paramOwnershipKey(binding))
-    return !owner || owner === controlName
+  // key → paramName → write
+  const boolVotes = new Map<string, Map<string, boolean>>()
+  const enumVotes = new Map<
+    string,
+    Map<string, { value: string; onValue: string; offValue: string }>
+  >()
+  const memberVotes = new Map<string, Map<string, boolean>>()
+  const rawWrites: Array<{ nodeId: string; property: string; value: unknown }> = []
+
+  const noteBool = (nodeId: string, property: string, paramName: string, value: boolean) => {
+    const key = `${nodeId}::${property}`
+    const m = boolVotes.get(key) ?? new Map()
+    m.set(paramName, value)
+    boolVotes.set(key, m)
+  }
+  const noteEnum = (
+    nodeId: string,
+    property: string,
+    paramName: string,
+    value: string,
+    onValue: string,
+    offValue: string,
+  ) => {
+    const key = `${nodeId}::${property}`
+    const m = enumVotes.get(key) ?? new Map()
+    m.set(paramName, { value, onValue, offValue })
+    enumVotes.set(key, m)
+  }
+  const noteMember = (
+    nodeId: string,
+    property: string,
+    member: string,
+    paramName: string,
+    include: boolean,
+  ) => {
+    const key = `${nodeId}::${property}::${member}`
+    const m = memberVotes.get(key) ?? new Map()
+    m.set(paramName, include)
+    memberVotes.set(key, m)
+  }
+
+  const consider = (
+    nodeId: string,
+    paramName: string,
+    binding: L2ParamTargetBinding,
+    active: boolean,
+  ) => {
+    const target = byId.get(nodeId)
+    if (!target) return
+    const write = computePropertyWrite(target, binding, active)
+    if (!write) return
+    if (write.kind === 'bool') noteBool(nodeId, write.property, paramName, write.value)
+    else if (write.kind === 'enum') {
+      noteEnum(nodeId, write.property, paramName, write.value, write.onValue, write.offValue)
+    } else if (write.kind === 'member') {
+      noteMember(nodeId, write.property, write.member, paramName, write.include)
+    } else {
+      rawWrites.push({ nodeId, property: write.property, value: write.value })
+    }
   }
 
   const walk = (node: L2RuleNode) => {
@@ -547,37 +558,22 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
         if (control.type === 'boolean') {
           const on = value === true || value === 'true'
           for (const binding of propertyBindings(normalizeControlBindings(control))) {
-            if (!owns(control.name, binding)) continue
-            const target = byId.get(binding.nodeId)
-            if (target) applyPropertyBinding(target, binding, on)
+            consider(binding.nodeId, control.name, binding, on)
           }
         } else if (control.type === 'enum') {
           const options = control.options ?? []
           const selected = options.find((o) => o.value === value)
-
-          const memberMentions = new Map<string, { nodeId: string; property: string; member: string }>()
+          // Clear members mentioned by any option first (same as before).
           for (const opt of options) {
             for (const b of propertyBindings(normalizeOptionBindings(opt))) {
               if (!b.member?.trim() || !b.property) continue
-              if (!owns(control.name, b)) continue
-              const key = `${b.nodeId}::${b.property}::${b.member.trim()}`
-              memberMentions.set(key, {
-                nodeId: b.nodeId,
-                property: b.property,
-                member: b.member.trim(),
-              })
+              const target = byId.get(b.nodeId)
+              if (target) applyMember(target, b.property, b.member.trim(), false)
             }
           }
-          for (const m of memberMentions.values()) {
-            const target = byId.get(m.nodeId)
-            if (target) applyMember(target, m.property, m.member, false)
-          }
-
           if (selected) {
             for (const binding of propertyBindings(normalizeOptionBindings(selected))) {
-              if (!owns(control.name, binding)) continue
-              const target = byId.get(binding.nodeId)
-              if (target) applyPropertyBinding(target, binding, true)
+              consider(binding.nodeId, control.name, binding, true)
             }
           }
         }
@@ -590,6 +586,39 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
   }
 
   walk(root)
+
+  for (const [key, votes] of boolVotes) {
+    const [nodeId, property] = key.split('::')
+    const target = byId.get(nodeId!)
+    if (!target || !property) continue
+    const and = [...votes.values()].every(Boolean)
+    asRecord(target)[property] = and
+  }
+
+  for (const [key, votes] of enumVotes) {
+    const [nodeId, property] = key.split('::')
+    const target = byId.get(nodeId!)
+    if (!target || !property) continue
+    const list = [...votes.values()]
+    const onValue = list[0]!.onValue
+    const offValue = list[0]!.offValue
+    const allOn = list.every((v) => v.value === onValue)
+    asRecord(target)[property] = allOn ? onValue : offValue
+  }
+
+  for (const [key, votes] of memberVotes) {
+    const [nodeId, property, member] = key.split('::')
+    const target = byId.get(nodeId!)
+    if (!target || !property || !member) continue
+    const include = [...votes.values()].every(Boolean)
+    applyMember(target, property, member, include)
+  }
+
+  for (const w of rawWrites) {
+    const target = byId.get(w.nodeId)
+    if (!target) continue
+    asRecord(target)[w.property] = w.value
+  }
 }
 
 export type ApplyParametersOptions = {

@@ -454,7 +454,7 @@ describe('applyParametersToMatch', () => {
     expect(countParamControlPanels(tree, 'strict')).toBe(2)
   })
 
-  it('syncSharedParamControlFromPanel copies chrome and values but not bindings', () => {
+  it('syncSharedParamControlFromPanel fully clones chrome, bindings, and values', () => {
     const tree: L2RuleGroup = {
       type: 'group',
       id: 'root',
@@ -510,13 +510,15 @@ describe('applyParametersToMatch', () => {
       expect(c.label).toBe('Strict mode')
       expect(c.description).toBe('Case + presence')
       expect(c.default).toBe(true)
-      // Bindings stay per-face (union at apply) — do not force-clone.
-      expect(c.bindings).toEqual([])
+      expect(c.bindings).toEqual([
+        { nodeId: 'kw', kind: 'presence' },
+        { nodeId: 'kw', kind: 'property', property: 'caseSensitive', value: true },
+      ])
       expect(p2.values?.strict).toBe(false)
     }
   })
 
-  it('exclusive ownership: earlier Param ID wins overlapping property binds', () => {
+  it('overlapping different Param IDs AND boolean property writes', () => {
     const tree: L2RuleGroup = {
       type: 'group',
       id: 'root',
@@ -536,7 +538,7 @@ describe('applyParametersToMatch', () => {
               ],
             },
           ],
-          values: { potato: false },
+          values: { potato: true },
         },
         {
           type: 'parameters',
@@ -564,80 +566,16 @@ describe('applyParametersToMatch', () => {
         },
       ],
     }
-    // cat < potato alphabetically → cat owns caseSensitive; cat=true → case on
-    const out = applyParametersToMatch(tree)
-    const url = out.children.find((c) => c.id === 'url')
-    expect(url?.type).toBe('url')
-    if (url?.type === 'url') {
-      expect(url.caseSensitive).toBe(true)
-    }
-    // If cat were off, property would be false even though potato is irrelevant
-    const catOff = applyParametersToMatch(tree, { values: { cat: false, potato: true } })
-    const urlOff = catOff.children.find((c) => c.id === 'url')
-    if (urlOff?.type === 'url') {
-      expect(urlOff.caseSensitive).toBe(false)
-    }
-  })
+    const bothOn = applyParametersToMatch(tree)
+    const urlBoth = bothOn.children.find((c) => c.id === 'url')
+    if (urlBoth?.type === 'url') expect(urlBoth.caseSensitive).toBe(true)
 
-  it('shared Param ID unions bindings across faces', () => {
-    const tree: L2RuleGroup = {
-      type: 'group',
-      id: 'root',
-      logic: 'all',
-      children: [
-        {
-          type: 'parameters',
-          id: 'p1',
-          controls: [
-            {
-              name: 'potato',
-              label: 'POTATO',
-              type: 'boolean',
-              default: true,
-              bindings: [
-                { nodeId: 'url', kind: 'property', property: 'caseSensitive', value: true },
-              ],
-            },
-          ],
-          values: { potato: true },
-        },
-        {
-          type: 'parameters',
-          id: 'p2',
-          controls: [
-            {
-              name: 'potato',
-              label: 'POTATO',
-              type: 'boolean',
-              default: true,
-              bindings: [
-                { nodeId: 'url', kind: 'property', property: 'op', value: 'includes' },
-              ],
-            },
-          ],
-          values: { potato: true },
-        },
-        {
-          type: 'url',
-          id: 'url',
-          op: 'excludes',
-          patterns: [],
-          sources: ['link_card'],
-          caseSensitive: false,
-        },
-      ],
-    }
-    const on = applyParametersToMatch(tree)
-    const url = on.children.find((c) => c.id === 'url')
-    if (url?.type === 'url') {
-      expect(url.caseSensitive).toBe(true)
-      expect(url.op).toBe('includes')
-    }
-    const off = applyParametersToMatch(tree, { values: { potato: false } })
-    const urlOff = off.children.find((c) => c.id === 'url')
-    if (urlOff?.type === 'url') {
-      expect(urlOff.caseSensitive).toBe(false)
-      expect(urlOff.op).toBe('excludes')
-    }
+    const catOff = applyParametersToMatch(tree, { values: { cat: false, potato: true } })
+    const urlCatOff = catOff.children.find((c) => c.id === 'url')
+    if (urlCatOff?.type === 'url') expect(urlCatOff.caseSensitive).toBe(false)
+
+    const potatoOff = applyParametersToMatch(tree, { values: { cat: true, potato: false } })
+    const urlPotatoOff = potatoOff.children.find((c) => c.id === 'url')
+    if (urlPotatoOff?.type === 'url') expect(urlPotatoOff.caseSensitive).toBe(false)
   })
 })

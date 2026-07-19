@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type {
   L2ParamControl,
   L2ParamEnumOption,
@@ -14,15 +15,11 @@ import {
   collectParameterNodes,
   countParamControlPanels,
   discoverBindableFields,
-  exclusiveOwnerOfKey,
-  findConflictingOwner,
   findParamControlByName,
   indexRuleNodesById,
   normalizeControlBindings,
   normalizeOptionBindings,
-  paramOwnershipKey,
   unsupportedInputKeysForNode,
-  type ParamBindClaim,
 } from '@cfb/l2-graph'
 
 import { newId } from '../../lib/l2-form'
@@ -165,8 +162,6 @@ function TargetBindingsEditor({
   hint,
   match,
   nodeLabels = {},
-  controlName,
-  onLinkToParam,
   allowAbsoluteValue,
 }: {
   bindings: L2ParamTargetBinding[]
@@ -176,10 +171,6 @@ function TargetBindingsEditor({
   match: L2RuleGroup
   /** Visual custom names keyed by node id. */
   nodeLabels?: Record<string, string>
-  /** Param ID of the control these bindings belong to. */
-  controlName: string
-  /** Adopt another Param ID when the user chooses to resolve an ownership conflict. */
-  onLinkToParam?: (paramName: string) => void
   /** Enum options can set absolute property values when selected. */
   allowAbsoluteValue?: boolean
 }) {
@@ -205,47 +196,6 @@ function TargetBindingsEditor({
     onChange([...list.filter((b) => b.nodeId !== nodeId), ...nextForNode])
   }
 
-  const offerLinkOrSkip = (binding: L2ParamTargetBinding, onOk: () => void) => {
-    const conflict = findConflictingOwner(match, binding, controlName)
-    if (!conflict) {
-      onOk()
-      return
-    }
-    const link = onLinkToParam
-      ? window.confirm(
-          `“${conflict.paramLabel}” (${conflict.paramName}) already controls this on that node.\n\n` +
-            `OK = link this toggle to “${conflict.paramName}” (shared live value; bindings can differ per panel).\n` +
-            `Cancel = don’t add this bind.`,
-        )
-      : false
-    if (link && onLinkToParam) onLinkToParam(conflict.paramName)
-  }
-
-  const ownershipNote = (binding: L2ParamTargetBinding): ParamBindClaim | undefined => {
-    const owner = exclusiveOwnerOfKey(match, paramOwnershipKey(binding))
-    if (!owner || owner.paramName === controlName) return undefined
-    return owner
-  }
-
-  const OwnershipWarn = ({ binding }: { binding: L2ParamTargetBinding }) => {
-    const owner = ownershipNote(binding)
-    if (!owner) return null
-    return (
-      <p className="l2-param-own-warn">
-        Won&apos;t apply — owned by “{owner.paramLabel}” ({owner.paramName}).{' '}
-        {onLinkToParam ? (
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => onLinkToParam(owner.paramName)}
-          >
-            Link to {owner.paramName}
-          </button>
-        ) : null}
-      </p>
-    )
-  }
-
   const commitDraft = () => {
     const nodeId = draftId.trim()
     if (!nodeId) return
@@ -253,10 +203,8 @@ function TargetBindingsEditor({
       setDraftId('')
       return
     }
-    offerLinkOrSkip({ nodeId, kind: 'presence' }, () => {
-      onChange([...list, { nodeId, kind: 'presence' }])
-      setDraftId('')
-    })
+    onChange([...list, { nodeId, kind: 'presence' }])
+    setDraftId('')
   }
 
   const renameNodeId = (from: string, toRaw: string) => {
@@ -274,8 +222,8 @@ function TargetBindingsEditor({
       <span className="l2-param-target-ids-label">{hint}</span>
       <p className="card-hint">
         Paste a node id, choose Presence (show/hide), then optionally which node settings this
-        control owns. Each setting can only be owned by one Param ID — shared faces of the same id
-        union their targets. Text inputs are not bindable yet.
+        control owns. If several different Param IDs touch the same setting, they AND together
+        (like Presence). Text inputs are not bindable yet.
       </p>
       {nodeIds.map((nodeId) => {
         const target = byId.get(nodeId)
@@ -359,17 +307,13 @@ function TargetBindingsEditor({
                 ariaLabel={`Presence for ${nodeId}`}
                 onChange={(checked) => {
                   const rest = nodeBindings.filter((b) => b.kind !== 'presence')
-                  if (!checked) {
-                    setBindingsFor(nodeId, rest)
-                    return
-                  }
-                  offerLinkOrSkip({ nodeId, kind: 'presence' }, () => {
-                    setBindingsFor(nodeId, [{ nodeId, kind: 'presence' }, ...rest])
-                  })
+                  setBindingsFor(
+                    nodeId,
+                    checked ? [{ nodeId, kind: 'presence' }, ...rest] : rest,
+                  )
                 }}
               />
-              {hasPresence ? <OwnershipWarn binding={{ nodeId, kind: 'presence' }} /> : null}
-            </div>
+                          </div>
 
             <div className="l2-param-bind-props">
               <span className="l2-param-bind-props-label">Node settings to control</span>
@@ -402,15 +346,13 @@ function TargetBindingsEditor({
                             setBindingsFor(nodeId, rest)
                             return
                           }
-                          const next = bindingFromBindableField(nodeId, field, {
-                            member: '',
-                            value: true,
-                          })
-                          offerLinkOrSkip(next, () => setBindingsFor(nodeId, [...rest, next]))
+                          setBindingsFor(nodeId, [
+                            ...rest,
+                            bindingFromBindableField(nodeId, field, { member: '', value: true }),
+                          ])
                         }}
                       />
-                      {active && existing ? <OwnershipWarn binding={existing} /> : null}
-                      {active ? (
+                                            {active ? (
                         <>
                           <BlurCommitInput
                             className="mono"
@@ -478,19 +420,20 @@ function TargetBindingsEditor({
                             return
                           }
                           const defaultVal = field.enumValues?.[0]?.value
-                          const next = bindingFromBindableField(nodeId, field, {
-                            value:
-                              allowAbsoluteValue && !polarity
-                                ? defaultVal
-                                : polarity
-                                  ? polarity.onValue
-                                  : undefined,
-                          })
-                          offerLinkOrSkip(next, () => setBindingsFor(nodeId, [...rest, next]))
+                          setBindingsFor(nodeId, [
+                            ...rest,
+                            bindingFromBindableField(nodeId, field, {
+                              value:
+                                allowAbsoluteValue && !polarity
+                                  ? defaultVal
+                                  : polarity
+                                    ? polarity.onValue
+                                    : undefined,
+                            }),
+                          ])
                         }}
                       />
-                      {active && existing ? <OwnershipWarn binding={existing} /> : null}
-                      {active && allowAbsoluteValue && !polarity ? (
+                                            {active && allowAbsoluteValue && !polarity ? (
                         <select
                           disabled={readOnly}
                           value={String(existing?.value ?? field.enumValues?.[0]?.value ?? '')}
@@ -556,12 +499,13 @@ function TargetBindingsEditor({
                           setBindingsFor(nodeId, rest)
                           return
                         }
-                        const next = bindingFromBindableField(nodeId, field, { value: true })
-                        offerLinkOrSkip(next, () => setBindingsFor(nodeId, [...rest, next]))
+                        setBindingsFor(nodeId, [
+                          ...rest,
+                          bindingFromBindableField(nodeId, field, { value: true }),
+                        ])
                       }}
                     />
-                    {active && existing ? <OwnershipWarn binding={existing} /> : null}
-                    {active && !allowAbsoluteValue ? (
+                                        {active && !allowAbsoluteValue ? (
                       <WhenControlOnSelect
                         readOnly={readOnly}
                         value={
@@ -698,9 +642,9 @@ export function ParametersNodeEditor({
       </label>
 
       <p className="card-hint">
-        Paste a node id — we resolve its type and list its toggles. Each presence/setting bind is
-        owned by one Param ID (conflicts offer to link). Shared Param IDs sync the live value; each
-        panel can bind different targets and they union at apply.
+        Paste a node id — we resolve its type and list its toggles. Shared Param IDs stay fully in
+        sync. Different Param IDs can both touch the same setting — they AND together (like
+        Presence: all must be on for the setting to stay on).
       </p>
 
       {controls.length === 0 ? (
@@ -759,6 +703,7 @@ function ParamControlCard({
 }) {
   const [expanded, setExpanded] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [linkModalOpen, setLinkModalOpen] = useState(false)
   const patch = (partial: Partial<L2ParamControl>) => onChange({ ...control, ...partial })
   const bindings = normalizeControlBindings(control)
   const targetCount = new Set(bindings.map((b) => b.nodeId).filter(Boolean)).size
@@ -813,6 +758,7 @@ function ParamControlCard({
   const linkToParam = (name: string) => {
     const canonical = findParamControlByName(match, name, { excludePanelId: panelId })
     if (canonical) adoptFromCanonical(name, canonical)
+    setLinkModalOpen(false)
   }
 
   const copyParamId = async () => {
@@ -878,32 +824,21 @@ function ParamControlCard({
             </button>
           </div>
           {!readOnly && linkableIds.length > 0 ? (
-            <select
-              className="l2-param-link-existing"
-              defaultValue=""
-              aria-label="Link to existing Param ID"
-              onChange={(e) => {
-                const name = e.target.value
-                e.target.value = ''
-                if (name) linkToParam(name)
-              }}
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm l2-param-link-existing-btn"
+              onClick={() => setLinkModalOpen(true)}
             >
-              <option value="">Link existing Param ID…</option>
-              {linkableIds.map((item) => (
-                <option key={item.name} value={item.name}>
-                  {item.label} ({item.name}) — {item.panelTitle}
-                </option>
-              ))}
-            </select>
+              Link existing…
+            </button>
           ) : null}
           {isShared ? (
             <span className="l2-param-shared-hint">
-              Shared across {sharedPanels} panels — live value stays in sync; each panel can bind
-              different targets (union at apply)
+              Shared across {sharedPanels} panels — fully synced (value, label, targets)
             </span>
           ) : (
             <span className="l2-param-shared-hint muted">
-              Copy this id (or Link existing) on another panel to share the live value
+              Copy this id or Link existing to fully sync with another toggle
             </span>
           )}
         </label>
@@ -916,6 +851,58 @@ function ParamControlCard({
           />
         </label>
       </div>
+
+      {linkModalOpen
+        ? createPortal(
+            <div
+              className="l2-param-modal-backdrop"
+              role="presentation"
+              onClick={() => setLinkModalOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setLinkModalOpen(false)
+              }}
+            >
+              <div
+                className="l2-param-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={`param-link-title-${control.name}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 id={`param-link-title-${control.name}`}>Link to existing Param ID</h3>
+                <p>
+                  This toggle becomes a synced copy of the one you pick — same live value, label,
+                  description, default, and targets.
+                </p>
+                <ul className="l2-param-modal-list">
+                  {linkableIds.map((item) => (
+                    <li key={item.name}>
+                      <button
+                        type="button"
+                        className="l2-param-modal-choice"
+                        onClick={() => linkToParam(item.name)}
+                      >
+                        <strong>{item.label}</strong>
+                        <span className="mono">{item.name}</span>
+                        <span className="l2-param-modal-choice-meta">{item.panelTitle}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                <div className="l2-param-modal-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setLinkModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       <label className="l2-inspector-field">
         Description
         <BlurCommitInput
@@ -957,8 +944,6 @@ function ParamControlCard({
             readOnly={readOnly}
             match={match}
             nodeLabels={nodeLabels}
-            controlName={control.name}
-            onLinkToParam={linkToParam}
             hint="Targets (presence and/or property)"
             onChange={(next) => patch({ bindings: next, targetNodeIds: undefined })}
           />
@@ -970,7 +955,6 @@ function ParamControlCard({
           readOnly={readOnly}
           match={match}
           nodeLabels={nodeLabels}
-          onLinkToParam={linkToParam}
           onChange={onChange}
           onLiveValue={onLiveValue}
         />
@@ -987,7 +971,6 @@ function EnumOptionsEditor({
   readOnly,
   match,
   nodeLabels = {},
-  onLinkToParam,
   onChange,
   onLiveValue,
 }: {
@@ -996,7 +979,6 @@ function EnumOptionsEditor({
   readOnly: boolean
   match: L2RuleGroup
   nodeLabels?: Record<string, string>
-  onLinkToParam?: (paramName: string) => void
   onChange: (next: L2ParamControl) => void
   onLiveValue: (value: string) => void
 }) {
@@ -1074,8 +1056,6 @@ function EnumOptionsEditor({
             readOnly={readOnly}
             match={match}
             nodeLabels={nodeLabels}
-            controlName={control.name}
-            onLinkToParam={onLinkToParam}
             allowAbsoluteValue
             hint="Targets for this mode (presence and/or property)"
             onChange={(bindings) => updateOption(index, { bindings, targetNodeIds: [] })}
