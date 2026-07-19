@@ -95,6 +95,7 @@ export {
   normalizeOptionBindings,
   setParamValueAcrossMatch,
   stripParametersAndExcluded,
+  syncSharedParamControlFromPanel,
   syncSharedParamValuesFromPanel,
   type ApplyParametersOptions,
   type ParamValueMap,

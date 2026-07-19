@@ -143,10 +143,11 @@ export function setParamValueAcrossMatch(
 }
 
 /**
- * After editing one panel, copy that panel's resolved values for each of its
- * control names onto every other panel that shares those Param IDs.
+ * After editing one panel, copy shared controls (by Param ID) onto every other
+ * panel that declares the same id: label, description, type, default, options,
+ * bindings, and live value. Unique (unshared) controls are left alone.
  */
-export function syncSharedParamValuesFromPanel(
+export function syncSharedParamControlFromPanel(
   root: L2RuleGroup,
   panelId: string,
 ): L2RuleGroup {
@@ -154,14 +155,66 @@ export function syncSharedParamValuesFromPanel(
   const source = panels.find((p) => p.id === panelId)
   if (!source) return root
 
-  let next = root
-  for (const control of source.controls ?? []) {
-    if (!control.name) continue
-    if (countParamControlPanels(next, control.name) < 2) continue
-    const value = resolveControlValue(control, source.values, undefined)
-    next = setParamValueAcrossMatch(next, control.name, value)
+  const shared = (source.controls ?? []).filter(
+    (c) => c.name && countParamControlPanels(root, c.name) >= 2,
+  )
+  if (shared.length === 0) return root
+
+  const byName = new Map(shared.map((c) => [c.name, c]))
+
+  const walk = (node: L2RuleNode): L2RuleNode => {
+    if (isParametersNode(node)) {
+      if (node.id === panelId) {
+        // Ensure this panel's values are written for shared ids (source of truth).
+        const values = { ...(node.values ?? {}) }
+        for (const c of shared) {
+          values[c.name] = resolveControlValue(c, source.values, undefined)
+        }
+        return { ...node, values }
+      }
+      let touched = false
+      const controls = (node.controls ?? []).map((c) => {
+        const src = byName.get(c.name)
+        if (!src) return c
+        touched = true
+        return {
+          ...c,
+          label: src.label,
+          description: src.description,
+          type: src.type,
+          default: src.default,
+          options: src.options ? structuredClone(src.options) : undefined,
+          bindings: src.bindings ? structuredClone(src.bindings) : [],
+          targetNodeIds: undefined,
+        }
+      })
+      if (!touched) return node
+      const values = { ...(node.values ?? {}) }
+      for (const c of shared) {
+        if (!(c.name in values) && !(node.controls ?? []).some((x) => x.name === c.name)) {
+          continue
+        }
+        if ((node.controls ?? []).some((x) => x.name === c.name)) {
+          values[c.name] = resolveControlValue(c, source.values, undefined)
+        }
+      }
+      return { ...node, controls, values }
+    }
+    if (node.type === 'group') {
+      return { ...node, children: (node.children ?? []).map(walk) }
+    }
+    return node
   }
-  return next
+
+  return walk(root) as L2RuleGroup
+}
+
+/** @deprecated Prefer syncSharedParamControlFromPanel (values + definition). */
+export function syncSharedParamValuesFromPanel(
+  root: L2RuleGroup,
+  panelId: string,
+): L2RuleGroup {
+  return syncSharedParamControlFromPanel(root, panelId)
 }
 
 /** Expand legacy `targetNodeIds` into presence bindings (deduped). */

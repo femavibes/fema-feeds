@@ -11,6 +11,7 @@ import {
   bindingMatchesField,
   binaryEnumPolarity,
   buildParamValueMap,
+  collectParameterNodes,
   countParamControlPanels,
   discoverBindableFields,
   findParamControlByName,
@@ -640,9 +641,9 @@ export function ParametersNodeEditor({
 
       <p className="card-hint">
         Paste a node id — we resolve its type and list its toggles. Turn on Presence and/or any
-        combination of properties on that target. Parameter panels are not valid targets. Text
-        lists (terms, patterns, …) are not bindable yet. Reuse a Param ID on another panel to share
-        that toggle&apos;s live value (copy the id from the source control).
+        combination of properties on that target. To reuse a toggle on another Parameter panel: Copy
+        its Param ID (or Link existing) — that clones label, default, live value, and targets, and
+        keeps them in sync.
       </p>
 
       {controls.length === 0 ? (
@@ -709,26 +710,44 @@ function ParamControlCard({
   const sharedPanels = countParamControlPanels(match, control.name)
   const isShared = sharedPanels > 1
 
+  const linkableIds = useMemo(() => {
+    const out: { name: string; label: string; panelTitle: string }[] = []
+    const seen = new Set<string>()
+    for (const panel of collectParameterNodes(match)) {
+      if (panel.id === panelId) continue
+      for (const c of panel.controls ?? []) {
+        if (!c.name || c.name === control.name || seen.has(c.name)) continue
+        seen.add(c.name)
+        out.push({
+          name: c.name,
+          label: c.label?.trim() || c.name,
+          panelTitle: panel.title?.trim() || 'Parameters',
+        })
+      }
+    }
+    return out.sort((a, b) => a.label.localeCompare(b.label))
+  }, [match, panelId, control.name])
+
+  const adoptFromCanonical = (name: string, canonical: L2ParamControl) => {
+    onChange({
+      ...control,
+      name,
+      label: canonical.label,
+      description: canonical.description,
+      type: canonical.type,
+      default: canonical.default,
+      options: canonical.options ? structuredClone(canonical.options) : undefined,
+      bindings: canonical.bindings ? structuredClone(canonical.bindings) : [],
+      targetNodeIds: undefined,
+    })
+  }
+
   const commitParamId = (rawName: string) => {
     const name = rawName.trim().replace(/\s+/g, '_')
     if (!name || name === control.name) return
     const canonical = findParamControlByName(match, name, { excludePanelId: panelId })
     if (canonical) {
-      // Adopt shared toggle: same id + chrome; keep this panel's bindings.
-      onChange({
-        ...control,
-        name,
-        label: canonical.label,
-        description: canonical.description,
-        type: canonical.type,
-        default: canonical.default,
-        options:
-          canonical.type === 'enum'
-            ? control.type === 'enum' && (control.options?.length ?? 0) > 0
-              ? control.options
-              : canonical.options
-            : undefined,
-      })
+      adoptFromCanonical(name, canonical)
       return
     }
     patch({ name })
@@ -790,19 +809,44 @@ function ParamControlCard({
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              title="Copy Param ID — paste into another Parameter panel to share this toggle"
+              title="Copy Param ID"
               onClick={() => void copyParamId()}
             >
               {copied ? 'Copied' : 'Copy'}
             </button>
           </div>
+          {!readOnly && linkableIds.length > 0 ? (
+            <select
+              className="l2-param-link-existing"
+              defaultValue=""
+              aria-label="Link to existing Param ID"
+              onChange={(e) => {
+                const name = e.target.value
+                e.target.value = ''
+                if (!name) return
+                const canonical = findParamControlByName(match, name, {
+                  excludePanelId: panelId,
+                })
+                if (canonical) adoptFromCanonical(name, canonical)
+              }}
+            >
+              <option value="">Link existing Param ID…</option>
+              {linkableIds.map((item) => (
+                <option key={item.name} value={item.name}>
+                  {item.label} ({item.name}) — {item.panelTitle}
+                </option>
+              ))}
+            </select>
+          ) : null}
           {isShared ? (
             <span className="l2-param-shared-hint">
-              Shared across {sharedPanels} panels — live value stays in sync
+              Shared across {sharedPanels} panels — label, default, live value, and targets stay in
+              sync
             </span>
           ) : (
             <span className="l2-param-shared-hint muted">
-              Paste this id on another Parameter panel to share the toggle
+              Copy this id (or use Link existing) on another Parameter panel to share this whole
+              toggle
             </span>
           )}
         </label>

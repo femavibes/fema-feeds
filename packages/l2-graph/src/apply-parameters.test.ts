@@ -6,6 +6,7 @@ import {
   collectExcludedNodeIds,
   setParamValueAcrossMatch,
   countParamControlPanels,
+  syncSharedParamControlFromPanel,
 } from './apply-parameters.js'
 
 const andRoot: L2RuleGroup = {
@@ -451,5 +452,69 @@ describe('applyParametersToMatch', () => {
       expect(kwOn.caseSensitive).toBe(true)
     }
     expect(countParamControlPanels(tree, 'strict')).toBe(2)
+  })
+
+  it('syncSharedParamControlFromPanel copies chrome, bindings, and values', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'p1',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Strict mode',
+              description: 'Case + presence',
+              type: 'boolean',
+              default: true,
+              bindings: [
+                { nodeId: 'kw', kind: 'presence' },
+                { nodeId: 'kw', kind: 'property', property: 'caseSensitive', value: true },
+              ],
+            },
+          ],
+          values: { strict: false },
+        },
+        {
+          type: 'parameters',
+          id: 'p2',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Old label',
+              type: 'boolean',
+              default: false,
+              bindings: [],
+            },
+          ],
+          values: { strict: true },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['hi'],
+          fields: ['text'],
+        },
+      ],
+    }
+
+    const synced = syncSharedParamControlFromPanel(tree, 'p1')
+    const p2 = synced.children.find((c) => c.id === 'p2')
+    expect(p2?.type).toBe('parameters')
+    if (p2?.type === 'parameters') {
+      const c = p2.controls[0]!
+      expect(c.label).toBe('Strict mode')
+      expect(c.description).toBe('Case + presence')
+      expect(c.default).toBe(true)
+      expect(c.bindings).toEqual([
+        { nodeId: 'kw', kind: 'presence' },
+        { nodeId: 'kw', kind: 'property', property: 'caseSensitive', value: true },
+      ])
+      expect(p2.values?.strict).toBe(false)
+    }
   })
 })

@@ -8000,6 +8000,13 @@ body.l2-visual-open #root {
   font-weight: 400;
 }
 
+.l2-param-link-existing {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+}
+
 .l2-param-collapse-btn {
   display: flex;
   align-items: center;

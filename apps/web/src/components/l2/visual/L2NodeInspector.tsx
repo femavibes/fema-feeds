@@ -28,7 +28,7 @@ import {
   collectExcludedNodeIds,
   collectParamControls,
   indexRuleNodesById,
-  syncSharedParamValuesFromPanel,
+  syncSharedParamControlFromPanel,
 } from '@cfb/l2-graph'
 import {
   collectParamPropertyLocks,
@@ -729,7 +729,7 @@ export function L2PropertiesInspector({
                   readOnly={readOnly}
                   onChange={(next) => {
                     const updated = updateInMatch(match, selected.id, next)
-                    onChange(syncSharedParamValuesFromPanel(updated, selected.id))
+                    onChange(syncSharedParamControlFromPanel(updated, selected.id))
                   }}
                 />
               </>
