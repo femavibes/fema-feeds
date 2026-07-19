@@ -5,14 +5,13 @@ import type {
   PoolMatchSample,
 } from '../../api/client'
 import { normalizePoolMatchSample } from '../../lib/pool-match-sample'
+import { bskyWebHref } from '../../lib/bsky-web-url'
 import { useNsfwBlur, isNsfwPost } from '../../lib/nsfw-blur'
 import { formatTraceHighlight, L2TraceList } from './L2TraceList'
 import type { TraceSelectHandler } from './visual/L2PreviewRail'
 
 function postBskyUrl(uri: string): string {
-  const m = uri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/)
-  if (!m) return uri
-  return `https://bsky.app/profile/${m[1]}/post/${m[2]}`
+  return bskyWebHref(uri)
 }
 
 function profileUrl(author: PoolMatchSample['author']): string {
@@ -97,7 +96,8 @@ function MatchMediaGrid({ media, postUrl, nsfwBlur }: { media: PoolMatchMediaPre
         title={blurred ? 'Click to reveal' : undefined}
       >
       {media.map((item, i) => {
-        const target = item.kind === 'link' && item.href ? item.href : postUrl
+        const rawTarget = item.kind === 'link' && item.href ? item.href : postUrl
+        const target = bskyWebHref(rawTarget, postUrl)
         const label =
           item.kind === 'image'
             ? item.alt || 'Image'
@@ -134,7 +134,19 @@ function MatchMediaGrid({ media, postUrl, nsfwBlur }: { media: PoolMatchMediaPre
   )
 }
 
-function QuotePreview({ quote }: { quote: PoolMatchQuotePreview }) {
+function QuotePreview({
+  quote,
+  variant = 'quote',
+  media,
+  mediaPostUrl,
+  nsfwBlur,
+}: {
+  quote: PoolMatchQuotePreview
+  variant?: 'quote' | 'repost'
+  media?: PoolMatchMediaPreview[]
+  mediaPostUrl?: string
+  nsfwBlur?: boolean
+}) {
   const quoteUrl = postBskyUrl(quote.uri)
   const author = quote.author ?? {
     did: '',
@@ -142,15 +154,13 @@ function QuotePreview({ quote }: { quote: PoolMatchQuotePreview }) {
     displayName: null,
     avatarUrl: null,
   }
+  const title =
+    variant === 'repost' ? 'Open original post on Bluesky' : 'Open quoted post on Bluesky'
+  const showMedia = (media?.length ?? 0) > 0
+  const showThumb = !showMedia && Boolean(quote.thumbUrl)
 
-  return (
-    <a
-      className="l2-match-quote"
-      href={quoteUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      title="Open quoted post on Bluesky"
-    >
+  const body = (
+    <>
       <div className="l2-match-quote-author">
         {author.avatarUrl ? (
           <img
@@ -168,7 +178,7 @@ function QuotePreview({ quote }: { quote: PoolMatchQuotePreview }) {
         <span className="l2-match-quote-author-name">{authorPrimaryLabel(author)}</span>
       </div>
       <p className="l2-match-quote-text">{quote.text.trim() || '(no text)'}</p>
-      {quote.thumbUrl ? (
+      {showThumb ? (
         <img
           className="l2-match-quote-thumb"
           src={quote.thumbUrl}
@@ -177,6 +187,38 @@ function QuotePreview({ quote }: { quote: PoolMatchQuotePreview }) {
           referrerPolicy="no-referrer"
         />
       ) : null}
+    </>
+  )
+
+  // Reposts nest a media grid (links) — div shell so we don't nest <a>.
+  if (variant === 'repost') {
+    return (
+      <div className="l2-match-quote l2-match-quote-repost">
+        <a
+          className="l2-match-quote-body"
+          href={quoteUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={title}
+        >
+          {body}
+        </a>
+        {showMedia && mediaPostUrl ? (
+          <MatchMediaGrid media={media!} postUrl={mediaPostUrl} nsfwBlur={nsfwBlur} />
+        ) : null}
+      </div>
+    )
+  }
+
+  return (
+    <a
+      className="l2-match-quote"
+      href={quoteUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={title}
+    >
+      {body}
     </a>
   )
 }
@@ -214,8 +256,25 @@ export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey
     : undefined
   const [open, setOpen] = useState(false)
   const why = formatTraceHighlight(sample.trace, matched)
-  const postUrl = postBskyUrl(sample.uri)
+  // Reposts: open the reshared post, not the reposter profile / repost record.
+  const subjectUri = sample.repostSubject?.uri || sample.repostSubjectUri
+  const postUrl = postBskyUrl(subjectUri || sample.uri)
   const kindTitle = postKindTitle(sample.postKind)
+  const isRepost = sample.postKind === 'repost'
+  const nestedRepost =
+    sample.repostSubject ??
+    (isRepost && (subjectUri || sample.text.trim())
+      ? {
+          uri: subjectUri || sample.uri,
+          text: sample.text,
+          author: {
+            did: sample.repostSubjectAuthorDid ?? '',
+            handle: null,
+            displayName: null,
+            avatarUrl: null,
+          },
+        }
+      : undefined)
 
   return (
     <li className={`l2-match-pool-item${matched ? ' l2-match-pool-item-match' : ' l2-match-pool-item-reject'}`}>
@@ -226,7 +285,7 @@ export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey
             href={profileUrl(sample.author)}
             target="_blank"
             rel="noopener noreferrer"
-            title="Open author on Bluesky"
+            title={isRepost ? 'Open reposter on Bluesky' : 'Open author on Bluesky'}
           >
             {sample.author.avatarUrl ? (
               <img
@@ -257,18 +316,39 @@ export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey
           ) : null}
         </div>
 
-        <a
-          className="l2-match-pool-link"
-          href={postUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {sample.text.trim() || <span className="mono">(no text)</span>}
-        </a>
+        {isRepost ? (
+          nestedRepost ? (
+            <QuotePreview
+              quote={nestedRepost}
+              variant="repost"
+              media={sample.media}
+              mediaPostUrl={postUrl}
+              nsfwBlur={blurNsfw && isNsfwPost(sample.labelVals)}
+            />
+          ) : (
+            <p className="card-hint">Original post unavailable</p>
+          )
+        ) : (
+          <>
+            <a
+              className="l2-match-pool-link"
+              href={postUrl}
+              target="_blank"
+              rel="noreferrer"
+              title="Open post on Bluesky"
+            >
+              {sample.text.trim() || <span className="mono">(no text)</span>}
+            </a>
 
-        <MatchMediaGrid media={sample.media} postUrl={postUrl} nsfwBlur={blurNsfw && isNsfwPost(sample.labelVals)} />
+            <MatchMediaGrid
+              media={sample.media}
+              postUrl={postUrl}
+              nsfwBlur={blurNsfw && isNsfwPost(sample.labelVals)}
+            />
 
-        {sample.quote ? <QuotePreview quote={sample.quote} /> : null}
+            {sample.quote ? <QuotePreview quote={sample.quote} /> : null}
+          </>
+        )}
 
         {sample.facetTags.length > 0 ? (
           <div className="l2-match-tag-list">

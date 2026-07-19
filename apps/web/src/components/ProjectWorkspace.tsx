@@ -227,11 +227,12 @@ export function ProjectWorkspace({
     })()
   }
 
-  const handleUpdateLive = useCallback(async () => {
-    if (!feedDraft) return
+  const handleUpdateLive = useCallback(async (feed?: FeedConfig) => {
+    const source = feed ?? feedDraft
+    if (!source) return
     onNotify(null, null)
     try {
-      const res = await api.updateFeed(prepareFeedDraftPayload(feedDraft))
+      const res = await api.updateFeed(prepareFeedDraftPayload(source))
       setFeedDraft(structuredClone(res.feed))
       onLiveUpdated(res.live, res.hasUnpublishedDraft, res.project)
       onNotify('Live rules updated — rebuilding candidates…', null)
@@ -239,6 +240,17 @@ export function ProjectWorkspace({
       onNotify(null, e instanceof Error ? e.message : 'Update failed')
     }
   }, [feedDraft, onNotify, onLiveUpdated])
+
+  const livePayloadResolverRef = useRef<(() => Promise<FeedConfig>) | null>(null)
+  const registerLivePayloadResolver = useCallback((resolve: (() => Promise<FeedConfig>) | null) => {
+    livePayloadResolverRef.current = resolve
+  }, [])
+
+  const resolveFeedForSidebarLiveUpdate = useCallback(async () => {
+    if (livePayloadResolverRef.current) return livePayloadResolverRef.current()
+    if (!feedDraft) throw new Error('No feed draft loaded')
+    return feedDraft
+  }, [feedDraft])
 
   const confirmAndDeleteFeed = async () => {
     if (!feedDraft) return
@@ -346,6 +358,7 @@ export function ProjectWorkspace({
               onRefreshList={onRefreshList}
               onListsChanged={onListsChanged}
               onUpdateLive={handleUpdateLive}
+              onRegisterLivePayloadResolver={registerLivePayloadResolver}
               onCloneFeed={onCloneFeed && feedDraft ? () => onCloneFeed(feedDraft) : undefined}
             />
           ) : (
@@ -384,6 +397,7 @@ export function ProjectWorkspace({
             onSaveSettings={handleSaveSettings}
             onLiveUpdated={onLiveUpdated}
             onNotify={onNotify}
+            resolveFeedForLiveUpdate={resolveFeedForSidebarLiveUpdate}
             onOpenPublishingSettings={onOpenPublishingSettings}
             onPublishStateChange={(published) => {
               if (!liveFeed) return

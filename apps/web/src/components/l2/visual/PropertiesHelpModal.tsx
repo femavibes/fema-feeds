@@ -83,7 +83,7 @@ function helpForNode(ctx: PropertiesHelpContext): {
       return {
         title: 'Follow ring',
         body: [
-          'Expand from seed accounts through follows. Same direction as author lists: shared cache, periodic refresh — realtime follow sync is future work.',
+          'Match authors in a hub’s follows or followers. Account hub uses a shared cache at ingest (Discover or Filter). Viewer hub is Personalization — resolved per signed-in viewer when the feed is served.',
         ],
       }
     case 'logic_block_ref':

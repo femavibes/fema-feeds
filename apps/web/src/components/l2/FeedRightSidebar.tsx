@@ -27,6 +27,8 @@ interface Props {
   onSaveSettings: () => void
   onLiveUpdated: (live: FeedConfig, hasUnpublishedDraft: boolean, project?: ProjectL1Config) => void
   onNotify: (message: string | null, error: string | null) => void
+  /** Flush open visual/JSON editor before promoting — avoids stale parent draft. */
+  resolveFeedForLiveUpdate?: () => Promise<FeedConfig>
   onOpenPublishingSettings?: () => void
   onPublishStateChange?: (published: boolean) => void
   onDeleteFeed: () => void
@@ -56,6 +58,7 @@ export function FeedRightSidebar({
   onSaveSettings,
   onLiveUpdated,
   onNotify,
+  resolveFeedForLiveUpdate,
   onOpenPublishingSettings,
   onPublishStateChange,
   onDeleteFeed,
@@ -175,6 +178,7 @@ export function FeedRightSidebar({
               onFeedChange={onFeedChange}
               onLiveUpdated={onLiveUpdated}
               onNotify={onNotify}
+              resolveFeedForLiveUpdate={resolveFeedForLiveUpdate}
               layout="sidebar"
             />
             <FeedPublishPanel

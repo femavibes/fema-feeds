@@ -19,6 +19,12 @@ import { applyViewerFollowRingFilter } from './skeleton-viewer-ring.js'
 
 export interface SkeletonFeedItem {
   post: string
+  /** When the candidate was a reshare record, emit subject post + reasonRepost for clients. */
+  reason?: {
+    $type: 'app.bsky.feed.defs#reasonRepost'
+    by: string
+    indexedAt: string
+  }
   feedContext?: string
 }
 
@@ -93,6 +99,50 @@ function personalizationActive(config: NativePersonalizationConfig | undefined):
 function personalizationDepth(config: NativePersonalizationConfig, limit: number): number {
   const depth = config.depth ?? PERSONALIZATION_DEPTH_DEFAULT
   return Math.max(limit, Math.min(depth, PERSONALIZATION_DEPTH_MAX))
+}
+
+/** Map stored repost URIs → subject post + reasonRepost for AppView hydration. */
+async function expandRepostSkeletonItems(
+  pool: pg.Pool,
+  rows: { post: string }[],
+): Promise<SkeletonFeedItem[]> {
+  const repostUris = rows
+    .map((r) => r.post)
+    .filter((uri) => uri.includes('/app.bsky.feed.repost/'))
+  if (repostUris.length === 0) {
+    return rows.map((r) => ({ post: r.post }))
+  }
+
+  const res = await pool.query<{
+    post_uri: string
+    author_did: string
+    indexed_at: Date
+    summary_json: {
+      postKind?: string
+      repost?: { subjectUri?: string }
+    }
+  }>(
+    `SELECT post_uri, author_did, indexed_at, summary_json
+     FROM ingested_posts WHERE post_uri = ANY($1::text[])`,
+    [repostUris],
+  )
+  const byUri = new Map(res.rows.map((r) => [r.post_uri, r]))
+
+  return rows.map((row) => {
+    const meta = byUri.get(row.post)
+    const subject = meta?.summary_json?.repost?.subjectUri
+    if (meta?.summary_json?.postKind === 'repost' && subject) {
+      return {
+        post: subject,
+        reason: {
+          $type: 'app.bsky.feed.defs#reasonRepost' as const,
+          by: meta.author_did,
+          indexedAt: new Date(meta.indexed_at).toISOString(),
+        },
+      }
+    }
+    return { post: row.post }
+  })
 }
 
 async function loadViewerPersonalizationContext(
@@ -263,10 +313,12 @@ export async function handleGetFeedSkeleton(
 
   const feedRows = await applyFeedInjector(pool, config, ranked, limit, params.viewerDid)
 
+  const expanded = await expandRepostSkeletonItems(pool, feedRows)
+
   const reqId = params.viewerDid ? newSkeletonReqId() : undefined
 
-  const feed: SkeletonFeedItem[] = feedRows.map((row, index) => ({
-    post: row.post,
+  const feed: SkeletonFeedItem[] = expanded.map((row, index) => ({
+    ...row,
     ...(reqId
       ? { feedContext: encodeFeedContext(config.feedId, reqId, index) }
       : {}),

@@ -16,13 +16,17 @@ export async function loadPostMetrics(
   let audienceLikes = 0
   let audienceReposts = 0
   if (feedId) {
-    const res = await pool.query<{ audience_likes: string; audience_reposts: string }>(
-      `SELECT audience_likes, audience_reposts FROM feed_candidates WHERE feed_id = $1 AND post_uri = $2`,
-      [feedId, postUri],
-    )
-    if (res.rows[0]) {
-      audienceLikes = Number(res.rows[0].audience_likes)
-      audienceReposts = Number(res.rows[0].audience_reposts)
+    try {
+      const res = await pool.query<{ audience_likes: string; audience_reposts: string }>(
+        `SELECT audience_likes, audience_reposts FROM feed_candidates WHERE feed_id = $1 AND post_uri = $2`,
+        [feedId, postUri],
+      )
+      if (res.rows[0]) {
+        audienceLikes = Number(res.rows[0].audience_likes)
+        audienceReposts = Number(res.rows[0].audience_reposts)
+      }
+    } catch {
+      // Older DBs may lack audience_* columns — treat as zero (migration 040).
     }
   }
 

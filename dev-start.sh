@@ -3,6 +3,9 @@
 # Usage:
 #   ./dev-start.sh           # start only
 #   ./dev-start.sh --build   # pnpm build, then start
+#
+# Ingest is NOT started here — control it from the web UI (API-embedded runner).
+# Starting a standalone apps/ingest process duplicates Jetstream and ignores UI Stop.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -17,11 +20,24 @@ done
 
 stop_matching() {
   # Kill by cwd-specific command lines so we don't nuke unrelated node apps.
+  # Match both absolute and relative argv forms (older starts used `node apps/api/...`).
   pkill -f "$ROOT/apps/api/dist/main.js" 2>/dev/null || true
+  pkill -f "node apps/api/dist/main.js" 2>/dev/null || true
+  # Always kill stray standalone ingest (legacy / accidental) — UI owns ingest now.
   pkill -f "$ROOT/apps/ingest/dist/main.js" 2>/dev/null || true
+  pkill -f "node apps/ingest/dist/main.js" 2>/dev/null || true
   pkill -f "$ROOT/apps/worker/dist/main.js" 2>/dev/null || true
+  pkill -f "node apps/worker/dist/main.js" 2>/dev/null || true
   pkill -f "$ROOT/apps/web/node_modules/.bin/../vite/bin/vite.js" 2>/dev/null || true
   pkill -f "pnpm --filter @cfb/web dev" 2>/dev/null || true
+  # If a stale api still holds :3000, force it down so restart cannot EADDRINUSE.
+  if command -v ss >/dev/null 2>&1; then
+    local port_pids
+    port_pids=$(ss -tlnp "( sport = :3000 )" 2>/dev/null | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' | sort -u)
+    for pid in $port_pids; do
+      kill "$pid" 2>/dev/null || true
+    done
+  fi
   sleep 1
 }
 
@@ -46,15 +62,16 @@ start_one() {
 }
 
 # --- Always-on processes ---
+# Heap headroom for API-embedded ingest (UI start/stop).
 start_one api "$LOG_DIR/cfb-api.log" \
+  env NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1536}" \
   node "$ROOT/apps/api/dist/main.js"
 
 start_one web "$LOG_DIR/cfb-vite.log" \
   pnpm --filter @cfb/web dev
 
-start_one ingest "$LOG_DIR/cfb-ingest.log" \
-  env NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1536}" \
-  node "$ROOT/apps/ingest/dist/main.js" run-live
+# Ingest: UI only via POST /api/ingest/start|stop (lives inside the API process).
+# Do not start apps/ingest here.
 
 # Worker: poll author lists + follow rings.
 # --interval=300 = wake every 5m to check due rows.
@@ -79,7 +96,7 @@ echo
 echo "CFB processes:"
 printf '  %-16s %s\n' "api" "http://localhost:3000  (log: $LOG_DIR/cfb-api.log)"
 printf '  %-16s %s\n' "web" "http://localhost:5173  (log: $LOG_DIR/cfb-vite.log)"
-printf '  %-16s %s\n' "ingest" "Jetstream live        (log: $LOG_DIR/cfb-ingest.log)"
+printf '  %-16s %s\n' "ingest" "UI only (Start/Stop in web) — not auto-started"
 printf '  %-16s %s\n' "poll-lists" "list audit / rings    (log: $LOG_DIR/cfb-poll-lists.log)"
 printf '  %-16s %s\n' "listitem-stream" "live list members     (log: $LOG_DIR/cfb-listitem-stream.log)"
 printf '  %-16s %s\n' "refresh-labels" "label sweep           (log: $LOG_DIR/cfb-refresh-labels.log)"

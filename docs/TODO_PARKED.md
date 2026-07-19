@@ -17,8 +17,8 @@ Parked product / product-docs work from the 2026-07 Media consolidation session.
 ### Parked next
 - [ ] **MIME type** — decide: keep niche node / hide from palette / fold under Media advanced
 - [ ] Metadata audit follow-ups from the doc:
-  - [ ] Unknown embeds (e.g. `app.bsky.embed.gallery`) → fix Media flags *(Recommended next — real data bug)*
-  - [ ] `postKind` consistency (quote+media, real reposts)
+  - [x] Unknown embeds (e.g. `app.bsky.embed.gallery`) → fix Media flags
+  - [x] `postKind` consistency (quote+media → quote; real `app.bsky.feed.repost` ingest)
   - [ ] Reply / quote **target** filters (URI or author)
   - [ ] Author bio / display name as L2 match (enrichment section)
 - [ ] Optional: unified node chrome (one title/badge/teaser path for all condition types)

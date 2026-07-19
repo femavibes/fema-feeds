@@ -21,6 +21,8 @@ export interface PoolMatchQuotePreview {
 
 interface FeedPostView {
   uri?: string
+  author?: unknown
+  record?: { text?: unknown }
   embed?: unknown
 }
 
@@ -246,21 +248,61 @@ async function fetchPostViews(uris: string[]): Promise<Map<string, FeedPostView>
   return map
 }
 
-/** Fetch Bluesky post views and attach media thumbnails + quoted post previews. */
+/** Fetch Bluesky post views and attach media thumbnails + quoted/repost subject previews. */
 export async function enrichPoolMatchPreviews(samples: PoolMatchSample[]): Promise<void> {
   if (samples.length === 0) return
 
-  const uris = [...new Set(samples.map((s) => s.uri))]
+  // Repost records aren't getPosts-able — fetch the reshared subject URI instead.
+  const uris = [
+    ...new Set(
+      samples.map((s) =>
+        s.postKind === 'repost'
+          ? s.repostSubject?.uri || s.repostSubjectUri || s.uri
+          : s.uri,
+      ),
+    ),
+  ]
   const views = await fetchPostViews(uris)
 
   for (const sample of samples) {
-    const view = views.get(sample.uri)
+    const lookupUri =
+      sample.postKind === 'repost'
+        ? sample.repostSubject?.uri || sample.repostSubjectUri || sample.uri
+        : sample.uri
+    const view = views.get(lookupUri)
     if (!view) {
-      sample.media = []
+      if (sample.postKind !== 'repost') sample.media = []
       continue
     }
     const { media, quote } = extractPreviewsFromPostView(view)
     sample.media = media
+
+    if (sample.postKind === 'repost') {
+      const recordText =
+        view.record && typeof view.record.text === 'string' ? view.record.text : ''
+      const text = (recordText || sample.repostSubject?.text || sample.text).slice(0, 280)
+      const author = authorFromProfileView(view.author)
+      const thumbUrl = media.find((m) => m.thumbUrl)?.thumbUrl
+      sample.repostSubject = {
+        uri: str(view.uri) || lookupUri,
+        text,
+        author: author.did ? author : sample.repostSubject?.author ?? {
+          did: sample.repostSubjectAuthorDid ?? '',
+          handle: null,
+          displayName: null,
+          avatarUrl: null,
+        },
+        thumbUrl,
+      }
+      sample.repostSubjectUri = sample.repostSubject.uri
+      if (sample.repostSubject.author.did) {
+        sample.repostSubjectAuthorDid = sample.repostSubject.author.did
+      }
+      // Keep sample.text aligned with subject for callers that still read it.
+      if (text) sample.text = text
+      continue
+    }
+
     if (quote) sample.quote = quote
   }
 }

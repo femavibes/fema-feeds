@@ -126,7 +126,9 @@ export async function applyViewerFollowRingFilter(
 
   return posts.filter((row) => {
     const candidate = postByUri.get(row.post)
-    if (!candidate) return true
+    // Missing enrichment must not fail-open — that would leak non-ring posts
+    // (e.g. racey deletes) past viewer-hub constraints.
+    if (!candidate) return false
     const post = postStub(candidate.uri, candidate.authorDid)
     if (l1Node && !evaluateViewerFollowRingNode(post, l1Node, followRings)) return false
     if (collectViewerFollowRingNodes(feed).length === 0) return true

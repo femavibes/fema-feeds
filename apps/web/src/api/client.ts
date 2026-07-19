@@ -234,8 +234,13 @@ export interface PoolMatchSample {
   facetTags: string[]
   media: PoolMatchMediaPreview[]
   quote?: PoolMatchQuotePreview
+  /** Nested reshared post (original author + text), same shape as quote. */
+  repostSubject?: PoolMatchQuotePreview
   trace: L2NodeTrace[]
   labelVals?: string[]
+  /** When postKind=repost, URI of the reshared post (open this, not the repost record). */
+  repostSubjectUri?: string
+  repostSubjectAuthorDid?: string
 }
 
 export interface SortTestResult {

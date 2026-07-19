@@ -72,37 +72,79 @@ describe('evaluateViewerFollowRingOverlay', () => {
     ).toBe(false)
   })
 
-  it('respects group logic for viewer rings', () => {
-    const feed: FeedConfig = {
-      feedId: 'f1',
-      projectId: 'p1',
-      name: 'test',
-      enabled: true,
-      poolScope: 'project_only',
-      match: {
-        type: 'group',
-        id: 'root',
-        logic: 'all',
-        children: [
-          {
-            type: 'follow_ring',
-            id: 'v1',
-            op: 'includes',
-            hubSource: 'viewer',
-            direction: 'follows',
-          },
-        ],
-      },
+  it('does not let account-hub siblings auto-pass an any-group over a failing viewer ring', () => {
+    // Canvas often stores account+viewer as flat `any` children until resolveFeedMatch.
+    const match: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'any',
+      children: [
+        {
+          type: 'follow_ring',
+          id: 'account',
+          op: 'includes',
+          hubSource: 'account',
+          hub: 'fema.monster',
+          direction: 'followers',
+        },
+        {
+          type: 'follow_ring',
+          id: 'viewer',
+          op: 'includes',
+          hubSource: 'viewer',
+          direction: 'followers',
+        },
+      ],
     }
     expect(
-      evaluateViewerFollowRingOverlay(post, feed.match, {
-        v1: ['did:plc:author1'],
+      evaluateViewerFollowRingOverlay(post, match, {
+        account: [],
+        viewer: ['did:plc:other'],
+      }),
+    ).toBe(false)
+    expect(
+      evaluateViewerFollowRingOverlay(post, match, {
+        account: [],
+        viewer: ['did:plc:author1'],
       }),
     ).toBe(true)
+  })
+
+  it('AND path: account pass-through + viewer filter', () => {
+    const match: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'any',
+      children: [
+        {
+          type: 'group',
+          id: 'path',
+          logic: 'all',
+          children: [
+            {
+              type: 'follow_ring',
+              id: 'account',
+              op: 'includes',
+              hubSource: 'account',
+              hub: 'fema.monster',
+              direction: 'followers',
+            },
+            {
+              type: 'follow_ring',
+              id: 'viewer',
+              op: 'includes',
+              hubSource: 'viewer',
+              direction: 'followers',
+            },
+          ],
+        },
+      ],
+    }
     expect(
-      evaluateViewerFollowRingOverlay(post, feed.match, {
-        v1: [],
-      }),
+      evaluateViewerFollowRingOverlay(post, match, { viewer: ['did:plc:author1'] }),
+    ).toBe(true)
+    expect(
+      evaluateViewerFollowRingOverlay(post, match, { viewer: [] }),
     ).toBe(false)
   })
 })

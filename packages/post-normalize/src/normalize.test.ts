@@ -192,9 +192,123 @@ describe('normalizeJetstreamPost', () => {
       },
     }
     const m = normalizeJetstreamPost(withMedia)
+    expect(m.postKind).toBe('quote')
     expect(m.embed.hasQuoteWithMedia).toBe(true)
     expect(m.embed.hasRecord).toBe(true)
     expect(m.embed.hasQuote).toBe(false)
     expect(m.embed.hasImage).toBe(true)
+  })
+
+  it('maps app.bsky.embed.gallery items to hasImage (not text-only)', () => {
+    const event: JetstreamPostEvent = {
+      uri: 'at://did:plc:x/app.bsky.feed.post/gal1',
+      cid: 'bafygal',
+      author: 'did:plc:x',
+      record: {
+        text: 'five pics',
+        embed: {
+          $type: 'app.bsky.embed.gallery',
+          items: [
+            {
+              $type: 'app.bsky.embed.gallery#image',
+              alt: 'one',
+              image: { $type: 'blob', mimeType: 'image/jpeg', size: 100 },
+              aspectRatio: { width: 1, height: 1 },
+            },
+            {
+              $type: 'app.bsky.embed.gallery#image',
+              alt: 'two',
+              image: { $type: 'blob', mimeType: 'image/png', size: 200 },
+            },
+          ],
+        },
+      },
+    }
+    const post = normalizeJetstreamPost(event)
+    expect(post.embed.hasImage).toBe(true)
+    expect(post.embed.hasTextOnly).toBe(false)
+    expect(post.embedDetail?.$type).toBe('app.bsky.embed.gallery')
+    expect(post.embedDetail?.images).toHaveLength(2)
+    expect(post.embedDetail?.images?.[0]?.alt).toBe('one')
+    expect(post.embedDetail?.images?.[0]?.mimeType).toBe('image/jpeg')
+  })
+
+  it('treats bare gallery $type as image embed even without parsed items', () => {
+    const event: JetstreamPostEvent = {
+      uri: 'at://did:plc:x/app.bsky.feed.post/gal2',
+      cid: 'bafygal2',
+      author: 'did:plc:x',
+      record: {
+        text: 'gallery stub',
+        embed: { $type: 'app.bsky.embed.gallery' },
+      },
+    }
+    const post = normalizeJetstreamPost(event)
+    expect(post.embed.hasImage).toBe(true)
+    expect(post.embed.hasTextOnly).toBe(false)
+  })
+})
+
+describe('normalizeJetstreamRepost', () => {
+  it('normalizes reshare records as postKind=repost with subject refs', async () => {
+    const { normalizeJetstreamRepost } = await import('./normalize.js')
+    const post = normalizeJetstreamRepost({
+      uri: 'at://did:plc:alice/app.bsky.feed.repost/3mrepost',
+      cid: 'bafyrepost',
+      author: 'did:plc:alice',
+      time: '2026-07-18T12:00:00.000Z',
+      record: {
+        $type: 'app.bsky.feed.repost',
+        createdAt: '2026-07-18T12:00:00.000Z',
+        subject: {
+          uri: 'at://did:plc:bob/app.bsky.feed.post/3morig',
+          cid: 'bafyorig',
+        },
+      },
+    })
+    expect(post.postKind).toBe('repost')
+    expect(post.recordType).toBe('app.bsky.feed.repost')
+    expect(post.authorDid).toBe('did:plc:alice')
+    expect(post.repost).toEqual({
+      subjectUri: 'at://did:plc:bob/app.bsky.feed.post/3morig',
+      subjectCid: 'bafyorig',
+    })
+    expect(post.embed.hasTextOnly).toBe(false)
+    expect(post.text).toBe('')
+  })
+
+  it('overlays subject content onto a repost shell for matching/UI', async () => {
+    const { normalizeJetstreamRepost, normalizeJetstreamPost, applyRepostSubject } =
+      await import('./normalize.js')
+    const shell = normalizeJetstreamRepost({
+      uri: 'at://did:plc:alice/app.bsky.feed.repost/3mrepost',
+      cid: 'bafyrepost',
+      author: 'did:plc:alice',
+      record: {
+        $type: 'app.bsky.feed.repost',
+        subject: { uri: 'at://did:plc:bob/app.bsky.feed.post/3morig', cid: 'bafyorig' },
+      },
+    })
+    const subject = normalizeJetstreamPost({
+      uri: 'at://did:plc:bob/app.bsky.feed.post/3morig',
+      cid: 'bafyorig',
+      author: 'did:plc:bob',
+      record: {
+        text: 'hello transit',
+        langs: ['en'],
+        embed: {
+          $type: 'app.bsky.embed.images',
+          images: [{ alt: 'x', image: { $type: 'blob', mimeType: 'image/jpeg', size: 10 } }],
+        },
+      },
+    })
+    const merged = applyRepostSubject(shell, subject)
+    expect(merged.postKind).toBe('repost')
+    expect(merged.authorDid).toBe('did:plc:alice')
+    expect(merged.uri).toContain('/app.bsky.feed.repost/')
+    expect(merged.text).toBe('hello transit')
+    expect(merged.embed.hasImage).toBe(true)
+    expect(merged.repost?.subjectUri).toBe(subject.uri)
+    expect(merged.repost?.subjectAuthorDid).toBe('did:plc:bob')
   })
 })

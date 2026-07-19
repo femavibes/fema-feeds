@@ -40,6 +40,14 @@ function emptyGroupOutcome(logic: L2RuleGroup['logic']): boolean {
   }
 }
 
+/** True if this subtree constrains serve via a viewer-hub follow_ring. */
+function subtreeHasViewerFollowRing(node: L2RuleNode): boolean {
+  if (node.type === 'follow_ring') return isViewerFollowRing(node.hubSource)
+  if (node.type === 'group') return node.children.some(subtreeHasViewerFollowRing)
+  if (node.type === 'logic_block_ref') return true // resolve later; treat as relevant
+  return false
+}
+
 function evalViewerOverlayNode(
   node: L2RuleNode,
   ctx: L2RuntimeContext,
@@ -48,7 +56,21 @@ function evalViewerOverlayNode(
 ): boolean {
   if (node.type === 'group') {
     if (node.children.length === 0) return emptyGroupOutcome(node.logic)
-    const results = node.children.map((child) =>
+
+    // Non-viewer leaves return true (pass-through). Under `any` that would make the
+    // whole OR succeed even when a sibling viewer ring fails — e.g. canvas stores
+    // account+viewer as flat `any` children. Only OR/n_of among viewer-relevant kids.
+    const relevant =
+      node.logic === 'any' || node.logic === 'n_of'
+        ? node.children.filter(subtreeHasViewerFollowRing)
+        : node.children
+
+    if (relevant.length === 0) {
+      // No viewer constraint in this group → overlay does not filter.
+      return true
+    }
+
+    const results = relevant.map((child) =>
       evalViewerOverlayNode(child, ctx, followRings, input),
     )
     switch (node.logic) {

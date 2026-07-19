@@ -124,7 +124,10 @@ Pulled from `ingested_posts` on CT 180 (2026-07-18). Trimmed for readability; re
 
 ### Quirk: unknown embed `$type`
 
-We also saw a post with `embed.hasTextOnly: true` but `embedDetail.$type: "app.bsky.embed.gallery"` — gallery is **not** mapped into image/video flags yet. That is a coverage gap (see §5).
+~~Previously~~ gallery posts could land as `embed.hasTextOnly: true` with
+`embedDetail.$type: "app.bsky.embed.gallery"`. **Fixed (2026-07-18):**
+`app.bsky.embed.gallery` maps to `hasImage` (items → `embedDetail.images`);
+any other typed embed we don’t fully map yet is also **not** treated as text-only.
 
 ---
 
@@ -139,7 +142,7 @@ We also saw a post with `embed.hasTextOnly: true` but `embedDetail.$type: "app.b
 | `text` | summary | Keyword, Regex (and legacy `text` leaf, off palette) |
 | `langs` | summary | Language |
 | `recordType` | summary | none (always `app.bsky.feed.post` for us) |
-| `postKind` | summary | Post type — note: **`repost` never emitted** (we don’t ingest repost records as posts); **quote+media stays `root`/`reply`**, not `quote` |
+| `postKind` | summary | Post type — **quote** = plain/quote+media (full record in Jetstream); **repost** = URI-only shell → L1 matches **reposter** (author/postKind/ring) first, then we hydrate subject for Matches/L2 |
 | `reply.rootUri` / `parentUri` | summary | stored only; no dedicated “replying to X” node |
 | `selfLabels` / `labelerLabels` | summary | Labels (scope self / labeler / all) |
 | `bridgyOriginalText` / `Url` | summary | Keyword / Regex / URL field toggles only |
@@ -169,7 +172,7 @@ We also saw a post with `embed.hasTextOnly: true` but `embedDetail.$type: "app.b
 | Quote / quoted URI | stored; no “quotes this post/author” leaf (Substitute is related but different) |
 | Blob CIDs / CDN URLs | **not stored** — cannot match |
 | Video playlist / captions / transcripts | **not stored** |
-| Unknown `$type` (e.g. `gallery`) | `$type` may appear in detail; flags often wrong (`hasTextOnly`) |
+| Unknown `$type` (e.g. `gallery`) | **Gallery fixed** → `hasImage` + images in detail; other unknown `$type`s → not text-only |
 
 ### 3.4 Rank snapshot (still “core”, derived at normalize/persist)
 
@@ -224,9 +227,9 @@ Break these out so we do not confuse them with Jetstream post records.
 
 - Reply/quote **target** filters (URI or author of parent / quoted post)
 - Author **profile text** (bio / display name) as first-class match
-- Unknown / new embed types (e.g. `gallery`) → correct Media flags
+- ~~Unknown / new embed types (e.g. `gallery`) → correct Media flags~~
 - ~~Mention **Discover → actual L1 ingest**~~ (wired: role discover compiles into ingest gate)
-- `postKind` consistency for quote+media and real reposts
+- ~~`postKind` consistency for quote+media and real reposts~~
 
 **Niche / maybe fold elsewhere**
 

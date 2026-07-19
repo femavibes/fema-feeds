@@ -48,6 +48,7 @@ function mergeSummary(summary: PostSummary, indexedAt: string): StoredPostFields
     outlineTags: summary.outlineTags ?? [],
     bridgyOriginalText: summary.bridgyOriginalText,
     bridgyOriginalUrl: summary.bridgyOriginalUrl,
+    repost: summary.repost,
   }
 }
 

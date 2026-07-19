@@ -57,7 +57,10 @@ interface Props {
   }) => void
   onRefreshList?: (listId: string) => Promise<void>
   onListsChanged?: () => void | Promise<void>
-  onUpdateLive?: () => Promise<void>
+  /** Promote draft → live. May receive a freshly flushed editor feed (preferred over parent state). */
+  onUpdateLive?: (feed?: FeedConfig) => Promise<void>
+  /** So Deploy sidebar can flush the open visual/JSON editor before Update Live. */
+  onRegisterLivePayloadResolver?: (resolve: (() => Promise<FeedConfig>) | null) => void
   onCloneFeed?: () => void
 }
 
@@ -82,6 +85,7 @@ export function FeedL2Workspace({
   onRefreshList,
   onListsChanged,
   onUpdateLive,
+  onRegisterLivePayloadResolver,
   onCloneFeed,
 }: Props) {
   const [editorDraft, setEditorDraft] = useState<FeedConfig | null>(null)
@@ -94,8 +98,13 @@ export function FeedL2Workspace({
   const jsonFlushRef = useRef<(() => Promise<boolean>) | null>(null)
   const savingRef = useRef(false)
   const viewRef = useRef(view)
+  const editorDraftRef = useRef(editorDraft)
+  const editorDirtyRef = useRef(editorDirty)
+  const lastCommittedRef = useRef<FeedConfig>(draft)
 
   viewRef.current = view
+  editorDraftRef.current = editorDraft
+  editorDirtyRef.current = editorDirty
 
   const isEditorView = view === 'visual' || view === 'json'
 
@@ -114,6 +123,7 @@ export function FeedL2Workspace({
       if (options?.silent) setAutosaveState('saving')
       try {
         const saved = await onSaveDraft(next)
+        lastCommittedRef.current = saved
         if (!options?.silent) setEditorDraft(structuredClone(saved))
         onChange(saved)
         setEditorDirty(false)
@@ -178,13 +188,39 @@ export function FeedL2Workspace({
     return true
   }, [commitSaveDraft, editorDirty, editorDraft])
 
+  /** Latest draft for Update Live — flushes visual/JSON editor so we never promote a stale parent copy. */
+  const resolveFeedForLiveUpdate = useCallback(async (): Promise<FeedConfig> => {
+    clearAutosaveTimer()
+    if (viewRef.current === 'json' && jsonFlushRef.current) {
+      const ok = await jsonFlushRef.current()
+      if (!ok) throw new Error('Could not save draft before updating live')
+      return lastCommittedRef.current
+    }
+    if (editorDirtyRef.current && editorDraftRef.current) {
+      return commitSaveDraft(editorDraftRef.current, { silent: true })
+    }
+    return editorDraftRef.current ?? lastCommittedRef.current
+  }, [commitSaveDraft])
+
+  const handleUpdateLive = useCallback(async () => {
+    if (!onUpdateLive) return
+    const feed = await resolveFeedForLiveUpdate()
+    await onUpdateLive(feed)
+  }, [onUpdateLive, resolveFeedForLiveUpdate])
+
+  useEffect(() => {
+    if (!onRegisterLivePayloadResolver) return
+    onRegisterLivePayloadResolver(() => resolveFeedForLiveUpdate())
+    return () => onRegisterLivePayloadResolver(null)
+  }, [onRegisterLivePayloadResolver, resolveFeedForLiveUpdate])
+
   const prepareEditor = useCallback(() => {
-    setEditorDraft(
-      structuredClone({
-        ...draft,
-        match: normalizeRuleGroup(draft.match),
-      }),
-    )
+    const next = structuredClone({
+      ...draft,
+      match: normalizeRuleGroup(draft.match),
+    })
+    setEditorDraft(next)
+    lastCommittedRef.current = next
     setEditorDirty(false)
     setJsonUnsaved(false)
     setAutosaveState('idle')
@@ -391,7 +427,7 @@ export function FeedL2Workspace({
           autosaveState={autosaveState}
           hideSaveDraft
           revertToLive={revertToLive}
-          onUpdateLive={onUpdateLive}
+          onUpdateLive={onUpdateLive ? handleUpdateLive : undefined}
           onDraftChange={handleEditorDraftChange}
           onSaveDraft={handleSaveDraft}
           onReset={handleReset}

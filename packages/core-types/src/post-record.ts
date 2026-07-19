@@ -60,6 +60,14 @@ export interface PostReplyRefs {
   parentUri?: string
 }
 
+/** Subject of an app.bsky.feed.repost record. */
+export interface PostRepostRefs {
+  subjectUri: string
+  subjectCid?: string
+  /** Author of the reshared post (filled when subject is hydrated). */
+  subjectAuthorDid?: string
+}
+
 export type PostSearchField =
   | 'text'
   | 'bridgy_original_text'

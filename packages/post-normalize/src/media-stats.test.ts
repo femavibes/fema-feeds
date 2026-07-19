@@ -37,4 +37,15 @@ describe('buildPostMediaStats', () => {
     expect(stats.facetLinkCount).toBe(1)
     expect(stats.facetMentionCount).toBe(2)
   })
+
+  it('counts gallery images via embedDetail.images', () => {
+    const stats = buildPostMediaStats({
+      embedDetail: {
+        $type: 'app.bsky.embed.gallery',
+        images: [{ size: 100 }, { size: 200 }, { size: 300 }],
+      },
+    })
+    expect(stats.imageCount).toBe(3)
+    expect(stats.imageTotalSizeBytes).toBe(600)
+  })
 })

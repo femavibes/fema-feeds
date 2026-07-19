@@ -1,4 +1,6 @@
 export { loadPostMetrics } from './metrics.js'
+export { hydrateRepostSubject } from './hydrate-repost.js'
+
 export { collectAuthorListIds, loadAuthorListsForFeeds, loadAuthorListSetsForFeeds } from './author-lists.js'
 export { loadMentionDidsForFeed } from './mention-accounts.js'
 export {

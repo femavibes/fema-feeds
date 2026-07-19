@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ListCacheEntry, ListMemberEntry } from '../../api/client'
+import { bskyWebHref, atProtoUriToBskyWebUrl } from '../../lib/bsky-web-url'
 import {
   invalidateListMembersCache,
   LIST_MEMBERS_PREVIEW_LIMIT,
@@ -138,8 +139,10 @@ export function AuthorListMembersPanel({ listId, uri, cache, onRefreshList }: Pr
 
   const copyUri = async () => {
     if (!uri) return
+    // Copy a browser-openable URL when we can; keep at:// only if conversion fails.
+    const text = atProtoUriToBskyWebUrl(uri) ?? uri
     try {
-      await navigator.clipboard.writeText(uri)
+      await navigator.clipboard.writeText(text)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
@@ -181,7 +184,7 @@ export function AuthorListMembersPanel({ listId, uri, cache, onRefreshList }: Pr
               </button>
               <a
                 className="l2-author-list-icon-btn"
-                href={uri}
+                href={bskyWebHref(uri)}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Open list on Bluesky"

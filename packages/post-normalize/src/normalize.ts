@@ -91,6 +91,32 @@ function parseImageItem(raw: unknown): PostImageItem | null {
   }
 }
 
+/** app.bsky.embed.gallery items — currently #image; leave room for future video items. */
+function parseGalleryItems(raw: unknown): PostImageItem[] {
+  if (!Array.isArray(raw)) return []
+  const out: PostImageItem[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue
+    const o = item as { $type?: unknown }
+    const t = str(o.$type) ?? ''
+    // Record shape: gallery#image. View shape (rare at ingest): gallery#viewImage.
+    if (
+      t === 'app.bsky.embed.gallery#image' ||
+      t === 'app.bsky.embed.gallery#viewImage' ||
+      // Untyped / older drafts: treat blob-bearing items as images.
+      (!t && 'image' in (item as object))
+    ) {
+      const parsed = parseImageItem(item)
+      if (parsed) out.push(parsed)
+    }
+  }
+  return out
+}
+
+function isGalleryEmbedType($type: string | undefined): boolean {
+  return $type === 'app.bsky.embed.gallery'
+}
+
 function parseVideoEmbed(
   embed: Record<string, unknown>,
   media?: Record<string, unknown>,
@@ -145,14 +171,18 @@ function parseQuoteRef(raw: unknown): PostQuoteRef | undefined {
 function parseEmbedMedia(raw: unknown): PostEmbedMedia | undefined {
   if (!raw || typeof raw !== 'object') return undefined
   const o = raw as Record<string, unknown>
+  const $type = str(o.$type)
+  const galleryImages = isGalleryEmbedType($type) ? parseGalleryItems(o.items) : []
   const images = Array.isArray(o.images)
     ? o.images.map(parseImageItem).filter((i): i is PostImageItem => i !== null)
-    : undefined
+    : galleryImages.length
+      ? galleryImages
+      : undefined
   const video = parseVideoEmbed(o)
   const external = parseExternalEmbed(o.external)
-  if (!images?.length && !video && !external && !str(o.$type)) return undefined
+  if (!images?.length && !video && !external && !$type) return undefined
   return {
-    $type: str(o.$type),
+    $type,
     images: images?.length ? images : undefined,
     video,
     external,
@@ -170,6 +200,14 @@ export function extractEmbedDetail(record: JetstreamPostEvent['record']): PostEm
     const quotedRecord = parseQuoteRef(e.record)
     if (!media && !quotedRecord) return { $type }
     return { $type, media, quotedRecord }
+  }
+
+  if (isGalleryEmbedType($type)) {
+    const images = parseGalleryItems(e.items)
+    return {
+      $type,
+      images: images.length ? images : undefined,
+    }
   }
 
   const images = Array.isArray(e.images)
@@ -196,6 +234,7 @@ export function extractEmbedFlags(
   const embed = record.embed as Record<string, unknown> | undefined
   const media = embed?.media as Record<string, unknown> | undefined
   const d = detail ?? extractEmbedDetail(record)
+  const embedType = str(embed?.$type)
 
   const video = d?.video ?? d?.media?.video
   const rawHasVideoBlob = Boolean(video ?? embed?.video ?? media?.video)
@@ -208,21 +247,35 @@ export function extractEmbedFlags(
   const hasGif = rawHasVideoBlob && presentation === 'gif'
   const hasVideo = rawHasVideoBlob && !hasGif
 
+  const galleryImages =
+    isGalleryEmbedType(embedType) || isGalleryEmbedType(str(media?.$type))
+      ? [
+          ...parseGalleryItems(embed?.items),
+          ...parseGalleryItems(media?.items),
+        ]
+      : []
+
   const hasImage = Boolean(
     (d?.images && d.images.length > 0) ||
       (d?.media?.images && d.media.images.length > 0) ||
       (Array.isArray(embed?.images) && embed.images.length > 0) ||
-      (Array.isArray(media?.images) && media.images.length > 0),
+      (Array.isArray(media?.images) && media.images.length > 0) ||
+      galleryImages.length > 0 ||
+      // Gallery with unparsed/empty items is still an image embed, not text-only.
+      isGalleryEmbedType(embedType) ||
+      isGalleryEmbedType(str(media?.$type)),
   )
   const hasLinkCard = Boolean(d?.external ?? d?.media?.external ?? embed?.external ?? media?.external)
 
   // Keep quote vs quote+media mutually exclusive.
-  const hasQuote = embed?.$type === 'app.bsky.embed.record'
-  const hasQuoteWithMedia = embed?.$type === 'app.bsky.embed.recordWithMedia'
+  const hasQuote = embedType === 'app.bsky.embed.record'
+  const hasQuoteWithMedia = embedType === 'app.bsky.embed.recordWithMedia'
   const hasRecord = hasQuoteWithMedia
 
-  const hasTextOnly =
-    !hasVideo && !hasGif && !hasImage && !hasLinkCard && !hasQuote && !hasQuoteWithMedia
+  const knownMedia =
+    hasVideo || hasGif || hasImage || hasLinkCard || hasQuote || hasQuoteWithMedia
+  // Any typed embed we don't fully map yet must not look like plain text.
+  const hasTextOnly = !knownMedia && !embedType
 
   return {
     hasVideo,
@@ -238,9 +291,95 @@ export function extractEmbedFlags(
 
 export function inferPostKind(record: JetstreamPostEvent['record']): PostKind {
   const embedType = str((record.embed as Record<string, unknown> | undefined)?.$type)
-  if (embedType === 'app.bsky.embed.record') return 'quote'
+  // Any quote embed counts as quote — Media node distinguishes plain vs quote+media.
+  if (
+    embedType === 'app.bsky.embed.record' ||
+    embedType === 'app.bsky.embed.recordWithMedia'
+  ) {
+    return 'quote'
+  }
   if (record.reply) return 'reply'
   return 'root'
+}
+
+/** Jetstream create for app.bsky.feed.repost (not a post record). */
+export interface JetstreamRepostEvent {
+  uri: string
+  cid: string
+  author: string
+  record: {
+    $type?: string
+    createdAt?: string
+    subject?: { uri?: string; cid?: string }
+  }
+  time?: string
+}
+
+const EMPTY_REPOST_EMBED: EmbedFlags = {
+  hasVideo: false,
+  hasGif: false,
+  hasImage: false,
+  hasLinkCard: false,
+  hasQuote: false,
+  hasQuoteWithMedia: false,
+  hasRecord: false,
+  // Not a text post — Media "Text" should not match reshare records.
+  hasTextOnly: false,
+}
+
+export function normalizeJetstreamRepost(event: JetstreamRepostEvent): NormalizedPost {
+  const record = event.record ?? {}
+  const subjectUri = str(record.subject?.uri)
+  const indexedAt = event.time ?? new Date().toISOString()
+  const createdAt = str(record.createdAt) ?? indexedAt
+
+  return {
+    uri: event.uri,
+    cid: event.cid,
+    authorDid: event.author,
+    recordType: str(record.$type) ?? 'app.bsky.feed.repost',
+    text: '',
+    createdAt,
+    langs: [],
+    selfLabels: [],
+    labelerLabels: [],
+    postKind: 'repost',
+    embed: { ...EMPTY_REPOST_EMBED },
+    ...(subjectUri
+      ? { repost: { subjectUri, subjectCid: str(record.subject?.cid) } }
+      : {}),
+    facetTags: [],
+    hiddenFacetTags: [],
+    facetLinks: [],
+    facetMentions: [],
+    outlineTags: [],
+    indexedAt,
+  }
+}
+
+/**
+ * Overlay subject-post content onto a repost shell for L1/L2 matching + Matches UI.
+ * Keeps repost identity (uri, reposter, postKind, timestamps).
+ */
+export function applyRepostSubject(
+  repost: NormalizedPost,
+  subject: NormalizedPost,
+): NormalizedPost {
+  return {
+    ...subject,
+    uri: repost.uri,
+    cid: repost.cid,
+    authorDid: repost.authorDid,
+    recordType: repost.recordType || 'app.bsky.feed.repost',
+    postKind: 'repost',
+    createdAt: repost.createdAt,
+    indexedAt: repost.indexedAt,
+    repost: {
+      subjectUri: subject.uri,
+      subjectCid: subject.cid,
+      subjectAuthorDid: subject.authorDid,
+    },
+  }
 }
 
 export interface FacetExtract {

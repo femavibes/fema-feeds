@@ -17,7 +17,11 @@ import {
 } from '../../../lib/l2-form'
 
 import { pruneFeedAuthorLists } from '../../../lib/author-lists'
-
+import {
+  ingestRoleBadgeFor,
+  nodeRoleBadgeLabel,
+  nodeRoleBadgeTitle,
+} from '../../../lib/l2-ingest-badge'
 import { ConditionRow } from '../ConditionRow'
 
 import { LogicBlockInsertPanel } from '../../logic-blocks/LogicBlockInsertPanel'
@@ -136,6 +140,14 @@ export function L2PropertiesInspector({
 }: Props) {
 
   const selected = selectedId ? findInMatch(match, selectedId) : null
+
+  const conditionRoleBadges =
+    selected &&
+    selected.type !== 'group' &&
+    selected.type !== 'logic_block_ref' &&
+    selected.type !== 'score'
+      ? ingestRoleBadgeFor(selected)
+      : []
 
   const applyAuthorFeedUpdate =
     selected?.type === 'author' && onPatchDraft
@@ -607,6 +619,20 @@ export function L2PropertiesInspector({
                   ) : null}
 
                 </div>
+
+                {conditionRoleBadges.length > 0 ? (
+                  <div className="l2-inspector-role-badges" aria-label="Node roles">
+                    {conditionRoleBadges.map((role) => (
+                      <span
+                        key={role}
+                        className={`l2-ingest-role-badge l2-ingest-role-badge--${role}`}
+                        title={nodeRoleBadgeTitle(role)}
+                      >
+                        {nodeRoleBadgeLabel(role)}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
 
                 <ConditionRow
 

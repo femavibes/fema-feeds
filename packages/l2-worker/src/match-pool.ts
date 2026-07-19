@@ -22,6 +22,7 @@ import { loadFollowRingsForFeed } from './follow-ring-cache.js'
 import { loadMentionDidsForFeed } from './mention-accounts.js'
 import { buildLogicBlockEvalInput } from './logic-block-eval.js'
 import { enrichPoolMatchPreviews } from './pool-match-enrich.js'
+import { hydrateRepostSubject } from './hydrate-repost.js'
 import {
   buildPoolMatchSample,
   enrichPoolMatchAuthors,
@@ -60,6 +61,64 @@ function compareFeedOrder(a: PoolMatchItem, b: PoolMatchItem): number {
 function postInFeedScope(feed: FeedConfig, projectIds: string[]): boolean {
   if (feed.poolScope === 'global') return true
   return projectIds.includes(feed.projectId)
+}
+
+async function fetchSubjectPostFromApi(uri: string): Promise<import('@cfb/core-types').NormalizedPost | null> {
+  const ac = new AbortController()
+  const timer = setTimeout(() => ac.abort(), 4_000)
+  try {
+    const res = await fetch(
+      `https://public.api.bsky.app/xrpc/app.bsky.feed.getPostThread?uri=${encodeURIComponent(uri)}&depth=0&parentHeight=0`,
+      { signal: ac.signal },
+    )
+    if (!res.ok) return null
+    const data = (await res.json()) as {
+      thread?: {
+        post?: {
+          uri: string
+          cid: string
+          author?: { did: string }
+          record?: Record<string, unknown>
+          indexedAt?: string
+        }
+      }
+    }
+    const post = data.thread?.post
+    if (!post?.record) return null
+    const { normalizeJetstreamPost } = await import('@cfb/post-normalize')
+    return normalizeJetstreamPost({
+      uri: post.uri,
+      cid: post.cid,
+      author: post.author?.did ?? '',
+      record: post.record as import('@cfb/post-normalize').JetstreamPostEvent['record'],
+      time: post.indexedAt,
+    })
+  } catch {
+    return null
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Fill subject text for a kept Matches row only (never in the hot scan path).
+ * Prefer pool DB; remote API is budgeted so Matches can't hang.
+ */
+async function hydrateKeptRepost(
+  pool: pg.Pool,
+  post: import('@cfb/core-types').NormalizedPost,
+  remoteBudget: { left: number },
+): Promise<import('@cfb/core-types').NormalizedPost> {
+  if (post.postKind !== 'repost') return post
+  const local = await hydrateRepostSubject(pool, post, async () => null, {
+    allowRemoteFetch: false,
+  })
+  if (local.text.trim() || local.embedDetail) return local
+  if (remoteBudget.left <= 0) return local
+  remoteBudget.left--
+  return hydrateRepostSubject(pool, local, fetchSubjectPostFromApi, {
+    allowRemoteFetch: true,
+  })
 }
 
 /** Evaluate draft feed rules against recent pool posts (read-only; does not write candidates). */
@@ -128,6 +187,9 @@ export async function previewFeedPoolMatches(
   let rejectCount = 0
   let cursor: string | undefined
   const batchSize = 200
+  // Never HTTP-hydrate every scanned repost — that froze Matches on "Scanning…".
+  // Only fill subject text for rows we actually return (budgeted remote).
+  const remoteBudget = { left: 12 }
 
   while (scanned < scanLimit) {
     // Early termination only for feeds without a sort formula: scan order is
@@ -188,6 +250,7 @@ export async function previewFeedPoolMatches(
         authorPostsCount: profile?.postsCount ?? 0,
       }
 
+      // Eval against stored row (ingest already hydrates matched reposts before persist).
       const result = evaluateFeedL2(
         post,
         { ...feed, match: resolvedMatch },
@@ -197,15 +260,17 @@ export async function previewFeedPoolMatches(
       if (!result.matched) {
         rejectCount++
         if (rejects.length < rejectLimit) {
-          rejects.push(buildPoolMatchSample(post, result.trace))
+          const display = await hydrateKeptRepost(pool, post, remoteBudget)
+          rejects.push(buildPoolMatchSample(display, result.trace))
         }
         continue
       }
 
       matchCount++
       allMatchedUris.add(post.uri)
+      const display = await hydrateKeptRepost(pool, post, remoteBudget)
       pushMatch({
-        ...buildPoolMatchSample(post, result.trace),
+        ...buildPoolMatchSample(display, result.trace),
         sortKey: result.sortKey ?? null,
         editorScore: result.editorScore,
       })

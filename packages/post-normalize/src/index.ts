@@ -1,6 +1,8 @@
-export type { JetstreamPostEvent } from './normalize.js'
+export type { JetstreamPostEvent, JetstreamRepostEvent } from './normalize.js'
 export {
   normalizeJetstreamPost,
+  normalizeJetstreamRepost,
+  applyRepostSubject,
   normalizeLangs,
   extractEmbedFlags,
   extractEmbedDetail,

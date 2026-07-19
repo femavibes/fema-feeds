@@ -68,8 +68,36 @@ export function buildOptimizedStrictGate(gate: CompiledIngestGate): OptimizedStr
     // Union of all allowed languages across paths
     requiredLanguages = new Set<string>()
     for (const s of languageSets) {
-      for (const l of s) requiredLanguages.add(l)
+      for (const l of s) requiredLanguages.add(l.toLowerCase())
     }
+  }
+
+  // Canvas AND (keyword → language) compiles language into restrictBranches, not
+  // into include paths — hoist those too so unknown/non-en posts die before keywords.
+  const restrictLangs = (gate.restrictBranches ?? []).filter(
+    (b): b is Extract<IngestGateBranch, { type: 'language' }> => b.type === 'language',
+  )
+  if (restrictLangs.length > 0) {
+    let intersection: Set<string> | null = null
+    let restrictAllowsUnknown = true
+    for (const b of restrictLangs) {
+      if (b.unknown !== 'include') restrictAllowsUnknown = false
+      const set = new Set(b.allow.map((l) => l.toLowerCase()))
+      if (intersection === null) {
+        intersection = set
+      } else {
+        const next = new Set<string>()
+        for (const l of intersection) {
+          if (set.has(l)) next.add(l)
+        }
+        intersection = next
+      }
+    }
+    requiredLanguages = intersection
+    anyAllowUnknown =
+      languageSets.length === 0
+        ? restrictAllowsUnknown
+        : restrictAllowsUnknown && anyAllowUnknown
   }
 
   // Collect all keyword terms for Aho-Corasick
@@ -116,6 +144,7 @@ export type StrictGateExtras = {
 /**
  * Evaluate a post against an optimized strict gate.
  * Returns true if the post should be kept.
+ * Mirrors {@link evaluateIngestGate}: restrict → exclude → discovery OR.
  */
 export function evalOptimizedStrictGate(
   opt: OptimizedStrictGate,
@@ -129,21 +158,48 @@ export function evalOptimizedStrictGate(
     if (post.langs.length === 0) {
       if (!opt.allowUnknownLanguage) return false
     } else {
-      const hasAllowed = post.langs.some((l) => opt.requiredLanguages!.has(l))
+      const hasAllowed = post.langs.some((l) => opt.requiredLanguages!.has(l.toLowerCase()))
       if (!hasAllowed) return false
     }
   }
 
-  // 2. Quick Aho-Corasick keyword check (if automaton exists)
-  //    This doesn't confirm a full path match, but if NO keywords match and
-  //    all paths require keywords, we can reject early.
-  // For now, fall through to full evaluation (Aho-Corasick benefit is in the
-  // single-pass scan vs multiple String.includes calls — already faster)
+  // 2. Project-wide requirements / blocks (language, post_kind, …) — must not skip these.
+  //    Prior bug: only includeBranches ran, so canvas AND language never filtered the pool.
+  for (const branch of opt.gate.restrictBranches ?? []) {
+    if (!evalBranch(branch, post, extras)) return false
+  }
+  for (const branch of opt.gate.excludeBranches) {
+    // Exclude branches store the matching condition; a hit means reject.
+    if (evalExcludeBranch(branch, post, extras)) return false
+  }
 
-  // 3. Full path evaluation using the standard gate evaluator
-  //    The gate.includeBranches are already ordered by the compiler.
-  //    We use evaluateIngestGate logic inline for maximum control.
+  // 3. Discovery OR across include paths
   return evalGateIncludes(opt, post, extras)
+}
+
+/** True when an exclude-branch condition matches (post should be rejected). */
+function evalExcludeBranch(
+  branch: IngestGateBranch,
+  post: NormalizedPost,
+  extras: StrictGateExtras,
+): boolean {
+  if (branch.type === 'follow_ring' || branch.type === 'author') {
+    return evalBranch(branch, post, extras)
+  }
+  if (
+    branch.type === 'keyword' ||
+    branch.type === 'regex' ||
+    branch.type === 'hashtag' ||
+    branch.type === 'url' ||
+    branch.type === 'mention'
+  ) {
+    // Pattern match with include semantics — if it hits, the exclude fires.
+    return evalBranch({ ...branch, op: 'includes' } as IngestGateBranch, post, extras)
+  }
+  if (branch.type === 'labels') {
+    return evalBranch({ ...branch, op: 'includes' }, post, extras)
+  }
+  return false
 }
 
 function evalGateIncludes(

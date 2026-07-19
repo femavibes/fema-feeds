@@ -4989,6 +4989,12 @@ input.readonly {
   background: color-mix(in srgb, var(--text-muted) 8%, transparent);
 }
 
+.l2-ingest-role-badge--personalize {
+  color: color-mix(in srgb, var(--ok, #2f9e44) 80%, var(--text));
+  background: color-mix(in srgb, var(--ok, #2f9e44) 12%, transparent);
+  border-color: color-mix(in srgb, var(--ok, #2f9e44) 35%, var(--border));
+}
+
 .l2-condition-remove {
   min-width: 1.5rem;
   padding: 0.1rem 0.35rem;
@@ -5448,6 +5454,12 @@ input.readonly {
   color: var(--text-muted);
   background: color-mix(in srgb, var(--text-muted) 10%, transparent);
   border-color: var(--border);
+}
+
+.l2-flow-condition-ingest-icon-btn--personalize {
+  color: color-mix(in srgb, var(--ok, #2f9e44) 85%, var(--text));
+  background: color-mix(in srgb, var(--ok, #2f9e44) 14%, transparent);
+  border-color: color-mix(in srgb, var(--ok, #2f9e44) 32%, var(--border));
 }
 
 .l2-flow-condition-teaser {
@@ -7404,6 +7416,23 @@ body.l2-visual-open #root {
   flex-shrink: 0;
 }
 
+.l2-inspector-section-head:has(+ .l2-inspector-role-badges) {
+  margin-bottom: 0.35rem;
+}
+
+.l2-inspector-role-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.55rem;
+  flex-shrink: 0;
+}
+
+.l2-inspector-role-badges .l2-ingest-role-badge {
+  margin-left: 0;
+}
+
 .l2-inspector-section-head h4 {
   margin: 0;
 }
@@ -9022,14 +9051,33 @@ body.l2-visual-open #root {
   gap: 0.35rem;
   padding: 0.45rem 0.55rem;
   border-radius: 0.4rem;
-  border: 1px solid color-mix(in srgb, #f97316 35%, var(--border));
-  background: color-mix(in srgb, #f97316 6%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, #0d9488 42%, var(--border));
+  background: color-mix(in srgb, #0d9488 9%, var(--bg-card));
   text-decoration: none;
   color: inherit;
 }
 
 .l2-match-quote:hover {
+  border-color: color-mix(in srgb, #0d9488 62%, var(--border));
+}
+
+/* Repost subject card — orange (quotes use teal above) */
+.l2-match-quote-repost {
+  border-color: color-mix(in srgb, #f97316 35%, var(--border));
+  background: color-mix(in srgb, #f97316 6%, var(--bg-card));
+}
+
+.l2-match-quote-repost:hover {
   border-color: color-mix(in srgb, #f97316 55%, var(--border));
+}
+
+.l2-match-quote-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
 }
 
 .l2-match-quote-author {

@@ -24,7 +24,7 @@ import {
 } from './enrich.js'
 import { backfillPostEngagement, startEngagementRefresh, type EngagementRefreshStats } from './engagement-backfill.js'
 import type { EnrichmentSettings, FeedConfig } from '@cfb/core-types'
-import { matchedProjectIdsFromL1, processPostForFeeds, processSubstitution, resolveTargetPost, reevalPostInPool, seedFollowRingsFromFeeds, seedFollowRingsFromProjects, loadL1FollowRingsForProjects, loadIngestGateExtrasForProjects } from '@cfb/l2-worker'
+import { matchedProjectIdsFromL1, processPostForFeeds, processSubstitution, resolveTargetPost, reevalPostInPool, seedFollowRingsFromFeeds, seedFollowRingsFromProjects, loadL1FollowRingsForProjects, loadIngestGateExtrasForProjects, hydrateRepostSubject } from '@cfb/l2-worker'
 import { createScoutHandler, type ScoutHandler, type ScoutHandlerStats } from './scout-handler.js'
 import { startFollowRingDiscoverPoll, type DiscoverPollStats } from './discover-poll.js'
 import { FeedIntelligence } from '@cfb/feed-intelligence'
@@ -328,7 +328,6 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       seen++
       // Feed intelligence: sample firehose (in-memory, non-blocking)
       feedIntelligence?.maybeSampleFirehose(post)
-      // Cheap L1 first (flags/text) — defer labeler HTTP until a project actually matches.
       // Global prefilter — reject before any per-project evaluation
       if (globalPrefilterGate && !evaluateIngestGate(globalPrefilterGate, post)) {
         globalPrefilterReject++
@@ -339,6 +338,8 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       const strictConfigs = configs.filter((c) => c.prefilterMode === 'strict')
 
       // Manual mode projects: standard L1 evaluation
+      // Reposts arrive URI-only from Jetstream — eval the bare shell first (author / postKind /
+      // follow_ring). Do NOT hydrate every firehose repost for keyword matching.
       const result = evaluateMergedL1(post, manualConfigs, {
         accountFollowRings,
         ingestGateExtrasByProject,
@@ -361,8 +362,12 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       const matched = [...manualMatched, ...strictMatched]
       if (matched.length > 0) {
         l1Pass++
+        // Only after a cheap L1 hit: fetch subject so Matches/L2 see the reshared post body.
+        if (post.postKind === 'repost') {
+          post = await hydrateRepostSubject(pool, post, fetchPostFromApi)
+        }
         let resolved = post
-        if (pool && enrichmentSettings) {
+        if (pool && enrichmentSettings && post.postKind !== 'repost') {
           resolved = await maybeResolveLabelerLabels(pool, post, enrichmentSettings).then(
             (p) => {
               if (p.labelerLabels.length > post.labelerLabels.length) labelResolves++

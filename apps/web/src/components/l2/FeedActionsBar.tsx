@@ -26,6 +26,8 @@ interface Props {
   onFeedChange: (next: FeedConfig) => void
   onLiveUpdated: (live: FeedConfig, hasUnpublishedDraft: boolean, project?: ProjectL1Config) => void
   onNotify: (message: string | null, error: string | null) => void
+  /** When set, flush editor draft before Update Live (visual/JSON may be ahead of feedDraft). */
+  resolveFeedForLiveUpdate?: () => Promise<FeedConfig>
   layout?: 'bar' | 'sidebar'
 }
 
@@ -38,6 +40,7 @@ export function FeedActionsBar({
   onFeedChange,
   onLiveUpdated,
   onNotify,
+  resolveFeedForLiveUpdate,
   layout = 'bar',
 }: Props) {
   const [versionBusy, setVersionBusy] = useState(false)
@@ -76,7 +79,13 @@ export function FeedActionsBar({
     setLocalBusy(true)
     onBusyChange(true)
     onNotify(null, null)
-    api.updateFeed(prepareFeedDraftPayload(feedDraft)).then(
+    const run = async () => {
+      const payload = resolveFeedForLiveUpdate
+        ? await resolveFeedForLiveUpdate()
+        : feedDraft
+      return api.updateFeed(prepareFeedDraftPayload(payload))
+    }
+    run().then(
       async (res) => {
         onFeedChange(structuredClone(res.feed))
         onLiveUpdated(res.live, res.hasUnpublishedDraft, res.project)

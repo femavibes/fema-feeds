@@ -50,8 +50,17 @@ export function normalizePoolMatchSample(raw: unknown): PoolMatchSample {
     facetTags: Array.isArray(s.facetTags) ? s.facetTags.map(String) : [],
     media: Array.isArray(s.media) ? s.media : [],
     quote: normalizeQuote(s.quote),
+    repostSubject: normalizeQuote(s.repostSubject),
     trace: Array.isArray(s.trace) ? s.trace : [],
     labelVals: Array.isArray(s.labelVals) ? s.labelVals : undefined,
+    repostSubjectUri:
+      typeof s.repostSubjectUri === 'string' && s.repostSubjectUri.trim()
+        ? s.repostSubjectUri.trim()
+        : undefined,
+    repostSubjectAuthorDid:
+      typeof s.repostSubjectAuthorDid === 'string' && s.repostSubjectAuthorDid.trim()
+        ? s.repostSubjectAuthorDid.trim()
+        : undefined,
   }
 }
 

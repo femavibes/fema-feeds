@@ -24,7 +24,7 @@ export type L1StepId =
   | 'follow_ring'
   | 'ingest_gate'
 
-import type { PostEmbedDetail, PostReplyRefs } from './post-record.js'
+import type { PostEmbedDetail, PostReplyRefs, PostRepostRefs } from './post-record.js'
 import type { LabelerLabel } from './labels.js'
 import type { FollowRingFilterConfig } from './follow-ring.js'
 import type { CompiledIngestGate, CompiledL1Meta } from './ingest-gate.js'
@@ -78,6 +78,8 @@ export interface NormalizedPost {
   embed: EmbedFlags
   embedDetail?: PostEmbedDetail
   reply?: PostReplyRefs
+  /** Present when recordType is app.bsky.feed.repost — subject post being reshared. */
+  repost?: PostRepostRefs
   /** Visible hashtag facets (byte range within text). */
   facetTags: string[]
   /** Hashtag facets whose byteEnd exceeds text length (hidden tags). */
