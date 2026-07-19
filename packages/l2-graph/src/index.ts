@@ -101,6 +101,7 @@ export {
   syncSharedParamValuesFromPanel,
   type ApplyParametersOptions,
   type ParamAndBlockInfo,
+  type ParamAndBlockedTarget,
   type ParamValueMap,
 } from './apply-parameters.js'
 export {

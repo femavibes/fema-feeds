@@ -22,6 +22,7 @@ import {
   normalizeControlBindings,
   normalizeOptionBindings,
   unsupportedInputKeysForNode,
+  type ParamAndBlockInfo,
 } from '@cfb/l2-graph'
 
 import { newId } from '../../lib/l2-form'
@@ -702,7 +703,7 @@ function ParamControlCard({
   match: L2RuleGroup
   panelId: string
   nodeLabels?: Record<string, string>
-  andBlockInfo?: { blockedBy: string[]; blockedEffectCount: number; totalEffectCount: number }
+  andBlockInfo?: ParamAndBlockInfo
   onChange: (next: L2ParamControl) => void
   onRemove: () => void
   onLiveValue: (value: boolean | string) => void
@@ -947,9 +948,7 @@ function ParamControlCard({
                 />
               </div>
               {andBlocked && andBlockInfo ? (
-                <span className="l2-param-and-block-hint">
-                  {formatParamAndBlockHint(andBlockInfo)}
-                </span>
+                <pre className="l2-param-and-block-hint">{formatParamAndBlockHint(andBlockInfo)}</pre>
               ) : null}
             </label>
           </div>

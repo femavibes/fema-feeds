@@ -583,7 +583,12 @@ describe('applyParametersToMatch', () => {
     const blockers = collectParamAndBlockers(tree, { cat: false, potato: true })
     expect(blockers.get('potato')?.blockedBy).toEqual(['CAT'])
     expect(blockers.get('potato')?.blockedEffectCount).toBe(1)
+    expect(blockers.get('potato')?.blockedTargets).toEqual([
+      { effect: 'caseSensitive', nodeId: 'url', blockedBy: ['CAT'] },
+    ])
     expect(blockers.has('cat')).toBe(false)
-    expect(formatParamAndBlockHint(blockers.get('potato')!)).toContain('targets blocked by CAT')
+    expect(formatParamAndBlockHint(blockers.get('potato')!)).toContain(
+      'caseSensitive on url — CAT',
+    )
   })
 })

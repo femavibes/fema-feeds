@@ -271,7 +271,6 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
                 checked={on}
                 readOnly={readOnly}
                 andBlocked={Boolean(blockInfo)}
-                andBlockInfo={blockInfo}
                 ariaLabel={`${control.label || control.name} parameter`}
                 onChange={(checked) => setValue(control.name, checked)}
               />

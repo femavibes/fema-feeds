@@ -672,9 +672,19 @@ export function collectParamControls(root: L2RuleNode): L2ParamControl[] {
   return controls
 }
 
+export type ParamAndBlockedTarget = {
+  /** Short description, e.g. "presence" or "caseSensitive". */
+  effect: string
+  nodeId: string
+  /** Other Param labels blocking this effect. */
+  blockedBy: string[]
+}
+
 export type ParamAndBlockInfo = {
   /** Other Param labels whose off/disagree vote is preventing some of this control’s effects. */
   blockedBy: string[]
+  /** Per-target detail for inspector copy. */
+  blockedTargets: ParamAndBlockedTarget[]
   /** How many of this control’s binds are currently AND-blocked. */
   blockedEffectCount: number
   /** Total presence/property binds on this control. */
@@ -789,6 +799,7 @@ export function collectParamAndBlockers(
     if (!on) continue
 
     const blockedBy = new Set<string>()
+    const blockedTargets: ParamAndBlockedTarget[] = []
     let blockedEffectCount = 0
     const totalEffectCount =
       (presenceKeysByParam.get(control.name)?.size ?? 0) +
@@ -796,15 +807,22 @@ export function collectParamAndBlockers(
       (enumKeysByParam.get(control.name)?.size ?? 0) +
       (memberKeysByParam.get(control.name)?.size ?? 0)
 
-    const noteBlocked = (votes: Map<string, boolean>) => {
+    const noteBlocked = (
+      votes: Map<string, boolean>,
+      effect: string,
+      nodeId: string,
+    ) => {
+      const who = blockersForKey(votes, control.name)
+      if (who.length === 0) return
       blockedEffectCount += 1
-      for (const label of blockersForKey(votes, control.name)) blockedBy.add(label)
+      for (const label of who) blockedBy.add(label)
+      blockedTargets.push({ effect, nodeId, blockedBy: who })
     }
 
     for (const nodeId of presenceKeysByParam.get(control.name) ?? []) {
       const votes = presenceVotes.get(nodeId)
       if (!votes || votes.size < 2) continue
-      if (blockersForKey(votes, control.name).length > 0) noteBlocked(votes)
+      noteBlocked(votes, 'presence', nodeId)
     }
 
     for (const key of boolKeysByParam.get(control.name) ?? []) {
@@ -812,26 +830,37 @@ export function collectParamAndBlockers(
       if (!votes || votes.size < 2) continue
       const selfVote = votes.get(control.name)
       if (selfVote !== true) continue
-      if (![...votes.values()].every(Boolean)) noteBlocked(votes)
+      if (![...votes.values()].every(Boolean)) {
+        const [nodeId, property] = key.split('::')
+        noteBlocked(votes, property || 'setting', nodeId || key)
+      }
     }
 
     for (const key of enumKeysByParam.get(control.name) ?? []) {
       const votes = enumOnVotes.get(key)
       if (!votes || votes.size < 2) continue
       if (votes.get(control.name) !== true) continue
-      if (![...votes.values()].every(Boolean)) noteBlocked(votes)
+      if (![...votes.values()].every(Boolean)) {
+        const [nodeId, property] = key.split('::')
+        noteBlocked(votes, property || 'setting', nodeId || key)
+      }
     }
 
     for (const key of memberKeysByParam.get(control.name) ?? []) {
       const votes = memberVotes.get(key)
       if (!votes || votes.size < 2) continue
       if (votes.get(control.name) !== true) continue
-      if (![...votes.values()].every(Boolean)) noteBlocked(votes)
+      if (![...votes.values()].every(Boolean)) {
+        const [nodeId, property, member] = key.split('::')
+        const effect = member ? `${property}:${member}` : property || 'setting'
+        noteBlocked(votes, effect, nodeId || key)
+      }
     }
 
     if (blockedBy.size > 0) {
       result.set(control.name, {
         blockedBy: [...blockedBy].sort(),
+        blockedTargets,
         blockedEffectCount,
         totalEffectCount,
       })
@@ -841,13 +870,16 @@ export function collectParamAndBlockers(
   return result
 }
 
-/** Short UI copy for an AND-blocked boolean Param that is currently on. */
+/** Inspector copy listing which targets are blocked by which Param. */
 export function formatParamAndBlockHint(info: ParamAndBlockInfo): string {
-  const who = info.blockedBy.join(', ')
   const partial =
     info.totalEffectCount > 0 && info.blockedEffectCount < info.totalEffectCount
-  if (partial) {
-    return `On — some targets blocked by ${who} (AND); others still apply`
-  }
-  return `On — targets blocked by ${who} (AND)`
+  const lines = info.blockedTargets.map((t) => {
+    const who = t.blockedBy.join(', ')
+    return `${t.effect} on ${t.nodeId} — ${who}`
+  })
+  const head = partial
+    ? 'Some targets blocked (others still apply):'
+    : 'Targets blocked:'
+  return [head, ...lines.map((l) => `• ${l}`)].join('\n')
 }
