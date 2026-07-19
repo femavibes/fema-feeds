@@ -593,7 +593,8 @@ describe('applyParametersToMatch', () => {
     expect(
       formatParamAndBlockHint(blockers.get('potato')!, {
         nodeLabels: { url: 'URL YES' },
+        match: tree,
       }),
-    ).toContain('caseSensitive on URL YES (url) — CAT')
+    ).toContain('Case sensitive on URL YES (url) — CAT')
   })
 })

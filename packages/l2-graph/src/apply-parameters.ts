@@ -13,6 +13,7 @@ import {
   indexRuleNodesById,
   isValidPropertyBinding,
   resolveBindableField,
+  findDiscoveredField,
 } from './param-bind-fields.js'
 
 export type ParamValueMap = Record<string, boolean | string>
@@ -892,11 +893,30 @@ export function formatParamAndBlockHint(
     return nodeId
   }
 
+  const formatEffect = (nodeId: string, effect: string): string => {
+    if (effect === 'presence') return 'Presence'
+    const node = byId?.get(nodeId)
+    if (node) {
+      const byKey = findDiscoveredField(node, effect)
+      if (byKey?.label) return byKey.label
+      const colon = effect.indexOf(':')
+      const property = colon >= 0 ? effect.slice(0, colon) : effect
+      const member = colon >= 0 ? effect.slice(colon + 1) : undefined
+      const field = resolveBindableField(node, { property, member })
+      if (field?.label) return field.label
+    }
+    // Fallback: humanize camelCase / snake_case keys
+    return effect
+      .replace(/_/g, ' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/^./, (c) => c.toUpperCase())
+  }
+
   const partial =
     info.totalEffectCount > 0 && info.blockedEffectCount < info.totalEffectCount
   const lines = info.blockedTargets.map((t) => {
     const who = t.blockedBy.join(', ')
-    return `${t.effect} on ${formatNode(t.nodeId)} — ${who}`
+    return `${formatEffect(t.nodeId, t.effect)} on ${formatNode(t.nodeId)} — ${who}`
   })
   const head = partial
     ? 'Some targets blocked (others still apply):'
