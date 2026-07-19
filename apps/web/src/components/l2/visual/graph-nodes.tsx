@@ -1,11 +1,14 @@
-import { type SyntheticEvent, useLayoutEffect, useRef } from 'react'
+import { type SyntheticEvent, useLayoutEffect, useMemo, useRef } from 'react'
 import { type Node, type NodeProps, Handle, Position } from '@xyflow/react'
 import type { L2NodeProvenance, L2ParametersCondition, L2RuleNode } from '@cfb/core-types'
 import {
   COND_TEASER_MAX,
+  applyParametersToMatch,
+  buildParamValueMap,
   conditionCollapseMetrics,
   conditionExpandMetrics,
   getConditionExpandBodyHeight,
+  indexRuleNodesById,
   setConditionExpandBodyHeight,
   usesPropertiesStyleExpand,
 } from '@cfb/l2-graph'
@@ -23,7 +26,6 @@ import { ConditionRow } from '../ConditionRow'
 import { useNodeExpand } from './node-expand-context'
 import { ConditionExpandProfiles } from './ConditionExpandProfiles'
 import { LogicBlockExpandOutline } from './LogicBlockExpandOutline'
-import { applyParametersToMatch, indexRuleNodesById } from '@cfb/l2-graph'
 
 export type GraphNodeData = {
   label: string
@@ -232,6 +234,10 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
   const expandApi = useNodeExpand()
   const controls = rule.controls ?? []
   const values = rule.values ?? {}
+  const sharedValues = useMemo(
+    () => (expandApi?.match ? buildParamValueMap(expandApi.match) : values),
+    [expandApi?.match, values],
+  )
   const readOnly = Boolean(expandApi?.readOnly) || !expandApi?.patchParameterValues
 
   if (controls.length === 0) {
@@ -248,7 +254,7 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
       onMouseDown={stopNodeGesture}
     >
       {controls.map((control) => {
-        const live = values[control.name] ?? control.default
+        const live = sharedValues[control.name] ?? values[control.name] ?? control.default
         if (control.type === 'boolean') {
           const on = live === true || live === 'true'
           return (

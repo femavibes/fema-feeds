@@ -24,7 +24,7 @@ import {
   updateInMatch,
   newId,
 } from '../../../lib/l2-form'
-import { flattenTopLevelMatch, normalizeCanvasFeedStorage, normalizeRuleGroup, sanitizeCanvasEdges } from '@cfb/l2-graph'
+import { flattenTopLevelMatch, normalizeCanvasFeedStorage, normalizeRuleGroup, sanitizeCanvasEdges, syncSharedParamControlFromPanel } from '@cfb/l2-graph'
 import { L2CanvasContextMenu, type CanvasContextMenuState } from './L2CanvasContextMenu'
 import { L2GraphCanvas } from './L2GraphCanvas'
 import { L2PropertiesInspector } from './L2NodeInspector'
@@ -1066,7 +1066,8 @@ export function L2VisualEditor({
             onPatchParameterValues={(nodeId, values) => {
               const rule = findInMatch(match, nodeId)
               if (!rule || rule.type !== 'parameters') return
-              patchMatch(updateInMatch(match, nodeId, { ...rule, values }))
+              const updated = updateInMatch(match, nodeId, { ...rule, values })
+              patchMatch(syncSharedParamControlFromPanel(updated, nodeId))
             }}
             onPatchRuleNode={(nodeId, next) => {
               patchMatch(updateInMatch(match, nodeId, next))
