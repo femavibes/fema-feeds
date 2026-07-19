@@ -24,7 +24,9 @@ interface Props {
 const COLLAPSED_PROPS_W = '40px'
 
 const CANVAS_HINT =
-  "Read-only preview of this block's inner logic. Separate paths from START are OR; nodes chained on one path are AND."
+  "Read-only preview of this block's inner logic. The packaged root is shown as a group frame so AND/OR nesting is visible."
+
+type PreviewView = 'visual' | 'json'
 
 export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }: Props) {
   // Own open state — do not share the main editor's session-backed rails, or
@@ -35,6 +37,8 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
+  const [view, setView] = useState<PreviewView>('visual')
+  const [copyFlash, setCopyFlash] = useState<string | null>(null)
 
   const toggleProps = useCallback(() => setPropsOpen((open) => !open), [])
 
@@ -43,6 +47,7 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
     setError(null)
     setSelectedId(null)
     setSelectedEdgeId(null)
+    setView('visual')
     void api
       .getLogicBlock(packageId, versionPin)
       .then((res) => setPkg(res.package))
@@ -67,6 +72,21 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
   const nodeLabels = draft?.visualLayout?.labels ?? {}
   const nodeSources = draft?.visualLayout?.nodeSources ?? {}
 
+  /** Packaged logic JSON (not the preview wrapper used for the canvas). */
+  const logicJson = useMemo(() => {
+    if (!pkg) return ''
+    return JSON.stringify(
+      {
+        id: pkg.id,
+        name: pkg.name,
+        version: pkg.version,
+        root: pkg.root,
+      },
+      null,
+      2,
+    )
+  }, [pkg])
+
   const noop = useCallback(() => {}, [])
 
   const openPropertiesForNode = useCallback((nodeId: string) => {
@@ -74,12 +94,39 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
     setPropsOpen(true)
   }, [])
 
+  const flash = useCallback((msg: string) => {
+    setCopyFlash(msg)
+    window.setTimeout(() => setCopyFlash((cur) => (cur === msg ? null : cur)), 1600)
+  }, [])
+
+  const copyJson = useCallback(async () => {
+    if (!logicJson) return
+    try {
+      await navigator.clipboard.writeText(logicJson)
+      flash('Copied')
+    } catch {
+      flash('Copy failed')
+    }
+  }, [flash, logicJson])
+
+  const downloadJson = useCallback(() => {
+    if (!logicJson || !pkg) return
+    const blob = new Blob([logicJson], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${pkg.slug || pkg.name || 'logic-block'}-v${pkg.version}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }, [logicJson, pkg])
+
   const gridStyle = useMemo(
     () =>
       ({
-        '--l2-props-w': propsOpen ? `${DEFAULT_RAIL_WIDTHS.props}px` : COLLAPSED_PROPS_W,
+        '--l2-props-w':
+          view === 'visual' && propsOpen ? `${DEFAULT_RAIL_WIDTHS.props}px` : COLLAPSED_PROPS_W,
       }) as CSSProperties,
-    [propsOpen],
+    [propsOpen, view],
   )
 
   const label = title ?? pkg?.name ?? 'Logic block preview'
@@ -98,8 +145,42 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
           <span className="l2-visual-toolbar-sub">
             {pkg ? `Logic block · v${pkg.version} · read-only` : 'Loading…'}
           </span>
+          <div className="l2-logic-block-preview-view-toggle" role="tablist" aria-label="Preview view">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'visual'}
+              className={`l2-logic-block-preview-view-btn${view === 'visual' ? ' is-active' : ''}`}
+              onClick={() => setView('visual')}
+            >
+              Visual
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === 'json'}
+              className={`l2-logic-block-preview-view-btn${view === 'json' ? ' is-active' : ''}`}
+              onClick={() => setView('json')}
+            >
+              JSON
+            </button>
+          </div>
         </div>
         <div className="l2-visual-toolbar-actions">
+          {view === 'json' && pkg ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => void copyJson()}
+              >
+                {copyFlash === 'Copied' ? 'Copied' : 'Copy JSON'}
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={downloadJson}>
+                Download
+              </button>
+            </>
+          ) : null}
           <span className="l2-visual-hint" title="Keyboard shortcuts">
             Esc
           </span>
@@ -110,16 +191,41 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
       </header>
 
       <p className="l2-visual-canvas-hint" aria-hidden="true">
-        {CANVAS_HINT}
+        {view === 'visual'
+          ? CANVAS_HINT
+          : 'Read-only packaged logic JSON (includes package id). Copy or download as needed.'}
       </p>
 
-      <main className="l2-visual-main">
+      <main className={`l2-visual-main${view === 'json' ? ' l2-logic-block-preview-json-main' : ''}`}>
         {error ? (
           <p className="field-error l2-logic-block-inner-preview-status">{error}</p>
-        ) : !draft || !match ? (
+        ) : !draft || !match || !pkg ? (
           <p className="logic-block-inner-preview-loading l2-logic-block-inner-preview-status">
             Loading logic block…
           </p>
+        ) : view === 'json' ? (
+          <div className="l2-logic-block-preview-json">
+            <div className="l2-logic-block-preview-json-toolbar">
+              <span className="l2-logic-block-preview-json-meta mono">
+                {pkg.id} · v{pkg.version}
+              </span>
+              <div className="l2-logic-block-preview-json-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => void copyJson()}
+                >
+                  {copyFlash === 'Copied' ? 'Copied' : 'Copy'}
+                </button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={downloadJson}>
+                  Download
+                </button>
+              </div>
+            </div>
+            <pre className="l2-logic-block-preview-json-pre mono" tabIndex={0}>
+              {logicJson}
+            </pre>
+          </div>
         ) : (
           <ReactFlowProvider>
             <L2GraphCanvas
@@ -148,41 +254,43 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
         )}
       </main>
 
-      <aside className={`l2-visual-rail l2-visual-rail-props${propsOpen ? ' is-open' : ''}`}>
-        {propsOpen ? (
-          <>
-            <MobileSheetHandle onClose={toggleProps} />
-            <RailPanelHead
-              title="Properties"
-              onCollapse={toggleProps}
-              collapseLabel="Collapse properties"
-              onHelp={() => setPropertiesHelpOpen(true)}
-              helpLabel="About this node"
-            />
-            {draft && match ? (
-              <L2PropertiesInspector
-                match={match}
-                draft={draft}
-                nodeLabels={nodeLabels}
-                selectedId={selectedId}
-                selectedEdgeId={selectedEdgeId}
-                canvasEdges={canvasEdges}
-                onChange={noop}
-                onDeleteSelected={noop}
-                readOnly
+      {view === 'visual' ? (
+        <aside className={`l2-visual-rail l2-visual-rail-props${propsOpen ? ' is-open' : ''}`}>
+          {propsOpen ? (
+            <>
+              <MobileSheetHandle onClose={toggleProps} />
+              <RailPanelHead
+                title="Properties"
+                onCollapse={toggleProps}
+                collapseLabel="Collapse properties"
+                onHelp={() => setPropertiesHelpOpen(true)}
+                helpLabel="About this node"
               />
-            ) : (
-              <p className="card-hint l2-logic-block-inner-preview-props-hint">Loading…</p>
-            )}
-          </>
-        ) : (
-          <RailCollapseStrip
-            label="Props"
-            expandLabel="Show properties"
-            onExpand={toggleProps}
-          />
-        )}
-      </aside>
+              {draft && match ? (
+                <L2PropertiesInspector
+                  match={match}
+                  draft={draft}
+                  nodeLabels={nodeLabels}
+                  selectedId={selectedId}
+                  selectedEdgeId={selectedEdgeId}
+                  canvasEdges={canvasEdges}
+                  onChange={noop}
+                  onDeleteSelected={noop}
+                  readOnly
+                />
+              ) : (
+                <p className="card-hint l2-logic-block-inner-preview-props-hint">Loading…</p>
+              )}
+            </>
+          ) : (
+            <RailCollapseStrip
+              label="Props"
+              expandLabel="Show properties"
+              onExpand={toggleProps}
+            />
+          )}
+        </aside>
+      ) : null}
 
       <PropertiesHelpModal
         open={propertiesHelpOpen}
@@ -196,11 +304,31 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
       <div className="l2-visual-mobile-bar">
         <button
           type="button"
-          className={propsOpen ? 'active' : undefined}
-          onClick={toggleProps}
+          className={view === 'visual' ? 'active' : undefined}
+          onClick={() => setView('visual')}
         >
-          Properties
+          Visual
         </button>
+        <button
+          type="button"
+          className={view === 'json' ? 'active' : undefined}
+          onClick={() => setView('json')}
+        >
+          JSON
+        </button>
+        {view === 'visual' ? (
+          <button
+            type="button"
+            className={propsOpen ? 'active' : undefined}
+            onClick={toggleProps}
+          >
+            Properties
+          </button>
+        ) : (
+          <button type="button" onClick={() => void copyJson()}>
+            {copyFlash === 'Copied' ? 'Copied' : 'Copy'}
+          </button>
+        )}
       </div>
     </div>
   )

@@ -1,10 +1,10 @@
 import type { L2GroupLogic, L2RuleGroup, L2RuleNode } from '@cfb/core-types'
 
-import { conditionNodeHeight } from './condition-expand.js'
+import { conditionNodeHeight, conditionNodeWidth } from './condition-expand.js'
 import { groupNodeTitle, conditionNodeTitle } from './flow.js'
 import { normalizeRuleGroup } from './normalize-match.js'
 
-export { conditionNodeHeight } from './condition-expand.js'
+export { conditionNodeHeight, conditionNodeWidth } from './condition-expand.js'
 
 export type FlowLayoutKind = 'start' | 'end' | 'condition' | 'group-frame'
 
@@ -63,6 +63,10 @@ function isExpandedId(id: string, opts?: LayoutMatchFlowOptions): boolean {
 
 function heightFor(rule: L2RuleNode, opts?: LayoutMatchFlowOptions): number {
   return conditionNodeHeight(rule, isExpandedId(rule.id, opts))
+}
+
+function widthFor(rule: L2RuleNode, opts?: LayoutMatchFlowOptions): number {
+  return conditionNodeWidth(rule, isExpandedId(rule.id, opts), COND_W)
 }
 
 /** Y position for the nth stacked condition inside a logic group frame. */
@@ -139,7 +143,7 @@ function measureGroup(group: L2RuleGroup, parentSlotW = 0, opts?: LayoutMatchFlo
         innerW = Math.max(innerW, m.width)
         innerH += m.height
       } else {
-        innerW = Math.max(innerW, COND_W)
+        innerW = Math.max(innerW, widthFor(child, opts))
         innerH += heightFor(child, opts)
       }
       if (i < children.length - 1) innerH += V_GAP
@@ -283,12 +287,13 @@ export function layoutMatchFlow(
     } else {
       const y = baseY + 24
       const h = heightFor(child, opts)
+      const w = widthFor(child, opts)
       ctx.nodes.push({
         id: child.id,
         kind: 'condition',
         x: flowX,
         y,
-        width: COND_W,
+        width: w,
         height: h,
         topLevel: true,
         rule: child,
@@ -297,7 +302,7 @@ export function layoutMatchFlow(
       maxHeight = Math.max(maxHeight, h + 48)
       pushEdge(ctx, 'start', child.id)
       pushEdge(ctx, child.id, 'end')
-      flowX += COND_W + H_GAP
+      flowX += w + H_GAP
     }
   }
 

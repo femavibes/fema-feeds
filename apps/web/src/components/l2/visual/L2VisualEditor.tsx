@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { createPortal } from 'react-dom'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import type { FeedConfig, L2NodeTrace, L2RuleGroup, AuthorListConfig } from '@cfb/core-types'
+import type { FeedConfig, L2NodeProvenance, L2NodeTrace, L2RuleGroup, AuthorListConfig, LogicBlockPackage } from '@cfb/core-types'
 import type { ListCacheEntry } from '../../../api/client'
 import { useVisualEditorHistory, type VisualEditorSnapshot } from '../../../hooks/useVisualEditorHistory'
 import { useVisualEditorRails } from '../../../hooks/useVisualEditorRails'
@@ -21,6 +21,8 @@ import {
   reparentNode,
   resolveAddTargetGroupId,
   updateGroup,
+  updateInMatch,
+  newId,
 } from '../../../lib/l2-form'
 import { flattenTopLevelMatch, normalizeCanvasFeedStorage, normalizeRuleGroup, sanitizeCanvasEdges } from '@cfb/l2-graph'
 import { L2CanvasContextMenu, type CanvasContextMenuState } from './L2CanvasContextMenu'
@@ -733,12 +735,65 @@ export function L2VisualEditor({
         visualLayout: visualLayout({
           positions: nextPositions,
           nodeSources: { ...nodeSources, [ref.id]: entry.provenance },
+          expandedNodeIds: [...new Set([...expandedNodeIds, ref.id])],
         }),
       })
       setSelectedId(ref.id)
       return ref.id
     },
-    [match, selectedId, positions, nodeSources, patchDraft, visualLayout],
+    [match, selectedId, positions, nodeSources, expandedNodeIds, patchDraft, visualLayout],
+  )
+
+  const insertLogicBlockIntoGroup = useCallback(
+    (
+      targetGroupId: string,
+      pkg: LogicBlockPackage,
+      versionPin: string,
+      provenance: L2NodeProvenance,
+    ) => {
+      const ref = newLogicBlockRef({ id: pkg.id, version: versionPin, name: pkg.name })
+      const nextMatch = addToGroup(match, targetGroupId, ref)
+      setTestTrace(null)
+      patchDraft({
+        match: nextMatch,
+        visualLayout: visualLayout({
+          edges: resolveCanvasEdges(nextMatch, savedCanvasEdges),
+          nodeSources: { ...nodeSources, [ref.id]: provenance },
+          expandedNodeIds: [...new Set([...expandedNodeIds, ref.id])],
+        }),
+      })
+      setSelectedId(ref.id)
+    },
+    [match, nodeSources, expandedNodeIds, patchDraft, visualLayout, savedCanvasEdges],
+  )
+
+  const useLogicBlockHere = useCallback(
+    (groupId: string, pkg: LogicBlockPackage) => {
+      const isRoot = match.id === groupId
+      const refId = isRoot ? newId('logic') : groupId
+      const ref = {
+        type: 'logic_block_ref' as const,
+        id: refId,
+        packageId: pkg.id,
+        versionPin: pkg.version,
+        label: pkg.name,
+        updatePolicy: 'auto_minor' as const,
+      }
+      const nextMatch: L2RuleGroup = isRoot
+        ? { ...match, logic: 'any', minPass: undefined, children: [ref] }
+        : updateInMatch(match, groupId, ref)
+      setTestTrace(null)
+      patchDraft({
+        match: nextMatch,
+        visualLayout: visualLayout({
+          edges: resolveCanvasEdges(nextMatch, savedCanvasEdges),
+          nodeSources: { ...nodeSources, [refId]: 'collection' },
+          expandedNodeIds: [...new Set([...expandedNodeIds, refId])],
+        }),
+      })
+      setSelectedId(refId)
+    },
+    [match, nodeSources, expandedNodeIds, patchDraft, visualLayout, savedCanvasEdges],
   )
 
   const addSourceNode = useCallback(
@@ -1095,6 +1150,8 @@ export function L2VisualEditor({
               prefilterMode={prefilterMode}
               readOnly={readOnly}
               onOpenInnerLogicPreview={setInnerLogicPreview}
+              onUseLogicBlockHere={useLogicBlockHere}
+              onInsertLogicBlock={insertLogicBlockIntoGroup}
             />
           </>
         ) : (

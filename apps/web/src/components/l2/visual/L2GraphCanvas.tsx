@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, forwardRef } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef } from 'react'
 import {
   Background,
   Controls,
@@ -158,6 +158,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
   edgesRef.current = canvasEdges
   const expandedKey = expandedNodeIds.join('\0')
   const lockedKey = lockedNodeIds.join('\0')
+  const [layoutTick, setLayoutTick] = useState(0)
 
   const expandApi = useMemo(
     () => ({
@@ -166,6 +167,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
       expandAllInGroup: (groupId: string) => onExpandAllInGroup?.(groupId),
       toggleLocked: (nodeId: string) => onToggleNodeLocked?.(nodeId),
       openProperties: (nodeId: string) => onNodeOpenProperties?.(nodeId),
+      requestLayoutRefresh: () => setLayoutTick((n) => n + 1),
       readOnly,
     }),
     [
@@ -209,7 +211,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
       ),
     )
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))
-  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, lockedKey, feedSources, setNodes, setEdges])
+  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, lockedKey, feedSources, layoutTick, setNodes, setEdges])
 
   useEffect(() => {
     setNodes((nds) =>
@@ -226,7 +228,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
         testTrace,
       ),
     )
-  }, [match, selectedId, testTrace, nodeLabels, nodeSources, expandedKey, lockedKey, setNodes])
+  }, [match, selectedId, testTrace, nodeLabels, nodeSources, expandedKey, lockedKey, layoutTick, setNodes])
 
   useEffect(() => {
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))

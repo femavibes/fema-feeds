@@ -1,5 +1,9 @@
 import type { L2Expr, L2RuleNode } from '@cfb/core-types'
 import { formatFollowRingDirection } from '@cfb/core-types'
+import {
+  getLogicBlockPreviewBodyHeight,
+  LOGIC_BLOCK_LOADING_BODY_H,
+} from './logic-block-preview-size.js'
 
 /** Line height for expanded body rows — keep in sync with `.l2-flow-condition-body-line`. */
 export const COND_BODY_LINE_H = 17
@@ -14,6 +18,10 @@ export const COND_COLLAPSED_H = 56
 export const COND_EXPAND_BOTTOM_H = 14
 /** Collapsed teaser: show up to N list items / profiles, then “+N more”. */
 export const COND_TEASER_MAX = 3
+/** Expanded logic-block node width (mini frames need room). */
+export const LOGIC_BLOCK_EXPANDED_W = 320
+/** @deprecated Prefer cached estimate via getLogicBlockPreviewBodyHeight. */
+export const LOGIC_BLOCK_EXPANDED_BODY_H = 280
 
 /** ISO codes we show as "english (en)" on the canvas (mirrors web COMMON_LANGUAGES). */
 const LANGUAGE_NAMES: Record<string, string> = {
@@ -275,10 +283,8 @@ export function conditionExpandMetrics(rule: L2RuleNode): ConditionExpandMetrics
         profileRows: 0,
       }
     case 'logic_block_ref': {
-      const textLines: string[] = []
-      if (rule.label?.trim()) textLines.push(rule.label.trim())
-      textLines.push(`${rule.packageId}@${rule.versionPin}`)
-      return { textLines, profileRows: 0 }
+      // Package id is JSON-only; canvas shows version when collapsed.
+      return { textLines: [`v${rule.versionPin}`], profileRows: 0 }
     }
     case 'graze_stub':
       return {
@@ -451,10 +457,7 @@ export function conditionCollapseMetrics(rule: L2RuleNode): ConditionExpandMetri
         profileRows: 0,
       }
     case 'logic_block_ref': {
-      const textLines: string[] = []
-      if (rule.label?.trim()) textLines.push(rule.label.trim())
-      textLines.push(`${rule.packageId}@${rule.versionPin}`)
-      return { textLines: textLines.slice(0, COND_TEASER_MAX), profileRows: 0 }
+      return { textLines: [`v${rule.versionPin}`], profileRows: 0 }
     }
     case 'graze_stub':
       return {
@@ -478,6 +481,12 @@ function bodyHeight(metrics: ConditionExpandMetrics): number {
 }
 
 export function conditionNodeHeight(rule: L2RuleNode, expanded: boolean): number {
+  if (rule.type === 'logic_block_ref' && expanded) {
+    const bodyH =
+      getLogicBlockPreviewBodyHeight(rule.packageId, rule.versionPin) ??
+      LOGIC_BLOCK_LOADING_BODY_H
+    return COND_EXPAND_TITLE_H + COND_NAME_LINE_H + bodyH + COND_EXPAND_BOTTOM_H
+  }
   const metrics = expanded ? conditionExpandMetrics(rule) : conditionCollapseMetrics(rule)
   if (metrics.textLines.length === 0 && metrics.profileRows === 0) {
     return COND_COLLAPSED_H
@@ -487,4 +496,9 @@ export function conditionNodeHeight(rule: L2RuleNode, expanded: boolean): number
     COND_COLLAPSED_H,
     COND_EXPAND_TITLE_H + COND_NAME_LINE_H + bodyHeight(metrics) + COND_EXPAND_BOTTOM_H,
   )
+}
+
+export function conditionNodeWidth(rule: L2RuleNode, expanded: boolean, defaultWidth: number): number {
+  if (rule.type === 'logic_block_ref' && expanded) return LOGIC_BLOCK_EXPANDED_W
+  return defaultWidth
 }

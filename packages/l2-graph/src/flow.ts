@@ -239,7 +239,7 @@ export function summarizeRule(node: L2RuleNode): string {
     case 'graze_stub':
       return node.title ?? node.grazeType
     case 'logic_block_ref':
-      return node.label ?? `Logic block ${node.versionPin}`
+      return node.label ?? `Logic block v${node.versionPin}`
     case 'score':
       return `score +${node.points}`
     case 'substitute':

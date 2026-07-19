@@ -257,7 +257,9 @@ export function resolveCanvasEdges(
 }
 
 export function defaultNodeProvenance(rule?: L2RuleNode): L2NodeProvenance {
-  if (rule?.type === 'logic_block_ref') return 'subscription'
+  // Untagged refs: treat as collection (★ teal). Insert/convert paths set this
+  // explicitly; marketplace palette sets 'subscription'.
+  if (rule?.type === 'logic_block_ref') return 'collection'
   return 'native'
 }
 

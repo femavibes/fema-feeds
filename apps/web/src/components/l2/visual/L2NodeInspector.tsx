@@ -1,4 +1,4 @@
-import type { FeedConfig, L2GroupLogic, L2NodeTrace, L2RuleGroup, L2RuleNode, AuthorListConfig, FeedAuthorListConfig, L2AuthorCondition } from '@cfb/core-types'
+import type { FeedConfig, L2GroupLogic, L2NodeProvenance, L2NodeTrace, L2RuleGroup, L2RuleNode, AuthorListConfig, FeedAuthorListConfig, L2AuthorCondition, LogicBlockPackage } from '@cfb/core-types'
 
 import type { ListCacheEntry } from '../../../api/client'
 
@@ -98,6 +98,15 @@ interface Props {
     versionPin: string
     title?: string
   }) => void
+  /** Replace a selected group with a logic_block_ref after Save → Use here. */
+  onUseLogicBlockHere?: (groupId: string, pkg: LogicBlockPackage) => void
+  /** Insert a subscribed/collection logic block into the selected group. */
+  onInsertLogicBlock?: (
+    targetGroupId: string,
+    pkg: LogicBlockPackage,
+    versionPin: string,
+    provenance: L2NodeProvenance,
+  ) => void
 }
 
 
@@ -137,6 +146,8 @@ export function L2PropertiesInspector({
   prefilterMode = false,
   readOnly = false,
   onOpenInnerLogicPreview,
+  onUseLogicBlockHere,
+  onInsertLogicBlock,
 }: Props) {
 
   const selected = selectedId ? findInMatch(match, selectedId) : null
@@ -439,17 +450,20 @@ export function L2PropertiesInspector({
 
                 {!readOnly ? (
                   <>
-                <SaveLogicBlockPanel group={selected} />
+                {onUseLogicBlockHere ? (
+                  <SaveLogicBlockPanel
+                    group={selected}
+                    onUseHere={(pkg) => onUseLogicBlockHere(selected.id, pkg)}
+                  />
+                ) : null}
 
-                <LogicBlockInsertPanel
-
-                  targetGroupId={selected.id}
-
-                  match={match}
-
-                  onInsert={onChange}
-
-                />
+                {onInsertLogicBlock ? (
+                  <LogicBlockInsertPanel
+                    onInsert={(pkg, versionPin, provenance) =>
+                      onInsertLogicBlock(selected.id, pkg, versionPin, provenance)
+                    }
+                  />
+                ) : null}
                   </>
                 ) : null}
 
@@ -492,8 +506,6 @@ export function L2PropertiesInspector({
                   <strong>{nodeLabels[selected.id]?.trim() || (selected.label ?? 'Custom logic')}</strong> — pinned at v{selected.versionPin}.
 
                 </p>
-
-                <code className="mono logic-block-ref-id">{selected.packageId}</code>
 
                 {!readOnly && onOpenInnerLogicPreview ? (
                 <button
