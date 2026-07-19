@@ -13,6 +13,7 @@ import {
   binaryEnumPolarity,
   buildParamValueMap,
   collectParameterNodes,
+  collectParamAndBlockers,
   countParamControlPanels,
   discoverBindableFields,
   findParamControlByName,
@@ -584,6 +585,7 @@ export function ParametersNodeEditor({
   const controls = node.controls ?? []
   const values = node.values ?? {}
   const sharedValues = useMemo(() => buildParamValueMap(match), [match])
+  const andBlockers = useMemo(() => collectParamAndBlockers(match), [match])
 
   const patch = (partial: Partial<L2ParametersCondition>) => {
     onChange({ ...node, ...partial })
@@ -656,6 +658,7 @@ export function ParametersNodeEditor({
           key={control.name || `param-control-${index}`}
           control={control}
           liveValue={sharedValues[control.name] ?? values[control.name] ?? control.default}
+          andBlockedBy={andBlockers.get(control.name)?.blockedBy}
           readOnly={readOnly}
           match={match}
           panelId={node.id}
@@ -687,6 +690,7 @@ function ParamControlCard({
   match,
   panelId,
   nodeLabels = {},
+  andBlockedBy,
   onChange,
   onRemove,
   onLiveValue,
@@ -697,6 +701,7 @@ function ParamControlCard({
   match: L2RuleGroup
   panelId: string
   nodeLabels?: Record<string, string>
+  andBlockedBy?: string[]
   onChange: (next: L2ParamControl) => void
   onRemove: () => void
   onLiveValue: (value: boolean | string) => void
@@ -711,6 +716,8 @@ function ParamControlCard({
   const title = control.label?.trim() || control.name
   const sharedPanels = countParamControlPanels(match, control.name)
   const isShared = sharedPanels > 1
+  const liveOn = liveValue === true || liveValue === 'true'
+  const andBlocked = Boolean(andBlockedBy && andBlockedBy.length > 0 && liveOn)
 
   const linkableIds = useMemo(() => {
     const out: { name: string; label: string; panelTitle: string }[] = []
@@ -931,12 +938,18 @@ function ParamControlCard({
               Live value (this feed)
               <div className="l2-param-toggle-wrap">
                 <ToggleSwitch
-                  checked={liveValue === true || liveValue === 'true'}
+                  checked={liveOn}
                   readOnly={readOnly}
+                  andBlocked={andBlocked}
                   ariaLabel={`${control.label || control.name} live value`}
                   onChange={(checked) => onLiveValue(checked)}
                 />
               </div>
+              {andBlocked ? (
+                <span className="l2-param-and-block-hint">
+                  On, but blocked by {andBlockedBy!.join(', ')} (AND)
+                </span>
+              ) : null}
             </label>
           </div>
           <TargetBindingsEditor

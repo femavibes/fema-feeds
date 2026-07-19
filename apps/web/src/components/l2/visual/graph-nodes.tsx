@@ -5,6 +5,7 @@ import {
   COND_TEASER_MAX,
   applyParametersToMatch,
   buildParamValueMap,
+  collectParamAndBlockers,
   conditionCollapseMetrics,
   conditionExpandMetrics,
   getConditionExpandBodyHeight,
@@ -238,6 +239,10 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
     () => (expandApi?.match ? buildParamValueMap(expandApi.match) : values),
     [expandApi?.match, values],
   )
+  const andBlockers = useMemo(
+    () => (expandApi?.match ? collectParamAndBlockers(expandApi.match) : new Map()),
+    [expandApi?.match],
+  )
   const readOnly = Boolean(expandApi?.readOnly) || !expandApi?.patchParameterValues
 
   if (controls.length === 0) {
@@ -257,6 +262,7 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
         const live = sharedValues[control.name] ?? values[control.name] ?? control.default
         if (control.type === 'boolean') {
           const on = live === true || live === 'true'
+          const blockedBy = andBlockers.get(control.name)?.blockedBy
           return (
             <div key={control.name} className="l2-flow-parameters-control-row">
               <ToggleRow
@@ -264,6 +270,8 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
                 hint={control.description || undefined}
                 checked={on}
                 readOnly={readOnly}
+                andBlocked={Boolean(blockedBy?.length)}
+                andBlockedBy={blockedBy}
                 ariaLabel={`${control.label || control.name} parameter`}
                 onChange={(checked) => setValue(control.name, checked)}
               />

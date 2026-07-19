@@ -5,6 +5,8 @@ interface Props {
   disabled?: boolean
   readOnly?: boolean
   compact?: boolean
+  /** On, but another Param AND-blocks the effect. */
+  andBlocked?: boolean
 }
 
 export function ToggleSwitch({
@@ -14,6 +16,7 @@ export function ToggleSwitch({
   disabled,
   readOnly = false,
   compact = true,
+  andBlocked = false,
 }: Props) {
   return (
     <button
@@ -23,8 +26,8 @@ export function ToggleSwitch({
       aria-label={ariaLabel}
       aria-readonly={readOnly || undefined}
       className={`toggle-switch ${compact ? 'toggle-switch-compact' : ''} ${checked ? 'on' : ''}${
-        readOnly ? ' toggle-switch-readonly' : ''
-      }`}
+        andBlocked && checked ? ' is-and-blocked' : ''
+      }${readOnly ? ' toggle-switch-readonly' : ''}`}
       disabled={disabled && !readOnly}
       onClick={() => {
         if (readOnly || disabled) return

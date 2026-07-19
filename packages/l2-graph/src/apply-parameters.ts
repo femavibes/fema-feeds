@@ -671,3 +671,160 @@ export function collectParamControls(root: L2RuleNode): L2ParamControl[] {
   }
   return controls
 }
+
+export type ParamAndBlockInfo = {
+  /** Other Param IDs (labels) whose off/disagree vote is preventing this control’s effects. */
+  blockedBy: string[]
+}
+
+/**
+ * For boolean controls that are currently ON: which other Param IDs are AND-blocking
+ * at least one of this control’s presence/property effects.
+ */
+export function collectParamAndBlockers(
+  root: L2RuleNode,
+  overrides?: ParamValueMap,
+): Map<string, ParamAndBlockInfo> {
+  const valueMap = buildParamValueMap(root, overrides)
+  const byId = indexRuleNodesById(root)
+  const labelByName = new Map<string, string>()
+  for (const c of collectParamControls(root)) {
+    labelByName.set(c.name, c.label?.trim() || c.name)
+  }
+
+  // presence: nodeId → paramName → on?
+  const presenceVotes = new Map<string, Map<string, boolean>>()
+  // bool property: nodeId::property → paramName → desired bool
+  const boolVotes = new Map<string, Map<string, boolean>>()
+  // binary enum: nodeId::property → paramName → isOnPole
+  const enumOnVotes = new Map<string, Map<string, boolean>>()
+  // member: nodeId::property::member → paramName → include
+  const memberVotes = new Map<string, Map<string, boolean>>()
+
+  // Which keys each param binds (for attributing blocks back to an ON control)
+  const presenceKeysByParam = new Map<string, Set<string>>()
+  const boolKeysByParam = new Map<string, Set<string>>()
+  const enumKeysByParam = new Map<string, Set<string>>()
+  const memberKeysByParam = new Map<string, Set<string>>()
+
+  const addVote = (
+    map: Map<string, Map<string, boolean>>,
+    key: string,
+    paramName: string,
+    value: boolean,
+  ) => {
+    const m = map.get(key) ?? new Map()
+    m.set(paramName, value)
+    map.set(key, m)
+  }
+  const trackKey = (byParam: Map<string, Set<string>>, paramName: string, key: string) => {
+    const s = byParam.get(paramName) ?? new Set()
+    s.add(key)
+    byParam.set(paramName, s)
+  }
+
+  const walk = (node: L2RuleNode) => {
+    if (isParametersNode(node)) {
+      for (const control of node.controls ?? []) {
+        if (control.type !== 'boolean') continue
+        const value = Object.prototype.hasOwnProperty.call(valueMap, control.name)
+          ? valueMap[control.name]!
+          : control.default
+        const on = value === true || value === 'true'
+        for (const binding of normalizeControlBindings(control)) {
+          if (binding.kind === 'presence') {
+            addVote(presenceVotes, binding.nodeId, control.name, on)
+            trackKey(presenceKeysByParam, control.name, binding.nodeId)
+            continue
+          }
+          if (binding.kind !== 'property') continue
+          const target = byId.get(binding.nodeId)
+          if (!target) continue
+          const write = computePropertyWrite(target, binding, on)
+          if (!write) continue
+          if (write.kind === 'bool') {
+            const key = `${binding.nodeId}::${write.property}`
+            addVote(boolVotes, key, control.name, write.value)
+            trackKey(boolKeysByParam, control.name, key)
+          } else if (write.kind === 'enum') {
+            const key = `${binding.nodeId}::${write.property}`
+            addVote(enumOnVotes, key, control.name, write.value === write.onValue)
+            trackKey(enumKeysByParam, control.name, key)
+          } else if (write.kind === 'member') {
+            const key = `${binding.nodeId}::${write.property}::${write.member}`
+            addVote(memberVotes, key, control.name, write.include)
+            trackKey(memberKeysByParam, control.name, key)
+          }
+        }
+      }
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+
+  const blockersForKey = (votes: Map<string, boolean>, selfName: string): string[] => {
+    const out: string[] = []
+    for (const [name, v] of votes) {
+      if (name === selfName) continue
+      if (!v) out.push(labelByName.get(name) || name)
+    }
+    return out
+  }
+
+  const result = new Map<string, ParamAndBlockInfo>()
+
+  for (const control of collectParamControls(root)) {
+    if (control.type !== 'boolean') continue
+    const value = Object.prototype.hasOwnProperty.call(valueMap, control.name)
+      ? valueMap[control.name]!
+      : control.default
+    const on = value === true || value === 'true'
+    if (!on) continue
+
+    const blockedBy = new Set<string>()
+
+    for (const nodeId of presenceKeysByParam.get(control.name) ?? []) {
+      const votes = presenceVotes.get(nodeId)
+      if (!votes || votes.size < 2) continue
+      // Presence AND: excluded if any off. Self is on → blocked if any other off.
+      for (const label of blockersForKey(votes, control.name)) blockedBy.add(label)
+    }
+
+    for (const key of boolKeysByParam.get(control.name) ?? []) {
+      const votes = boolVotes.get(key)
+      if (!votes || votes.size < 2) continue
+      const selfVote = votes.get(control.name)
+      if (selfVote !== true) continue // only show when this control wants the "on" pole
+      if (![...votes.values()].every(Boolean)) {
+        for (const label of blockersForKey(votes, control.name)) blockedBy.add(label)
+      }
+    }
+
+    for (const key of enumKeysByParam.get(control.name) ?? []) {
+      const votes = enumOnVotes.get(key)
+      if (!votes || votes.size < 2) continue
+      if (votes.get(control.name) !== true) continue
+      if (![...votes.values()].every(Boolean)) {
+        for (const label of blockersForKey(votes, control.name)) blockedBy.add(label)
+      }
+    }
+
+    for (const key of memberKeysByParam.get(control.name) ?? []) {
+      const votes = memberVotes.get(key)
+      if (!votes || votes.size < 2) continue
+      if (votes.get(control.name) !== true) continue
+      if (![...votes.values()].every(Boolean)) {
+        for (const label of blockersForKey(votes, control.name)) blockedBy.add(label)
+      }
+    }
+
+    if (blockedBy.size > 0) {
+      result.set(control.name, { blockedBy: [...blockedBy].sort() })
+    }
+  }
+
+  return result
+}

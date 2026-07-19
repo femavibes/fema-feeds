@@ -7,6 +7,7 @@ import {
   setParamValueAcrossMatch,
   countParamControlPanels,
   syncSharedParamControlFromPanel,
+  collectParamAndBlockers,
 } from './apply-parameters.js'
 
 const andRoot: L2RuleGroup = {
@@ -577,5 +578,9 @@ describe('applyParametersToMatch', () => {
     const potatoOff = applyParametersToMatch(tree, { values: { cat: true, potato: false } })
     const urlPotatoOff = potatoOff.children.find((c) => c.id === 'url')
     if (urlPotatoOff?.type === 'url') expect(urlPotatoOff.caseSensitive).toBe(false)
+
+    const blockers = collectParamAndBlockers(tree, { cat: false, potato: true })
+    expect(blockers.get('potato')?.blockedBy).toEqual(['CAT'])
+    expect(blockers.has('cat')).toBe(false)
   })
 })

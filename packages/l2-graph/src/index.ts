@@ -87,6 +87,7 @@ export {
   applyParametersToMatch,
   buildParamValueMap,
   collectExcludedNodeIds,
+  collectParamAndBlockers,
   collectParamControls,
   collectParameterNodes,
   countParamControlPanels,
@@ -98,6 +99,7 @@ export {
   syncSharedParamControlFromPanel,
   syncSharedParamValuesFromPanel,
   type ApplyParametersOptions,
+  type ParamAndBlockInfo,
   type ParamValueMap,
 } from './apply-parameters.js'
 export {
