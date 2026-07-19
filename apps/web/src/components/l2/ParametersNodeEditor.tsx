@@ -10,7 +10,10 @@ import {
   bindingFromBindableField,
   bindingMatchesField,
   binaryEnumPolarity,
+  buildParamValueMap,
+  countParamControlPanels,
   discoverBindableFields,
+  findParamControlByName,
   indexRuleNodesById,
   normalizeControlBindings,
   normalizeOptionBindings,
@@ -577,15 +580,23 @@ export function ParametersNodeEditor({
 }) {
   const controls = node.controls ?? []
   const values = node.values ?? {}
+  const sharedValues = useMemo(() => buildParamValueMap(match), [match])
 
   const patch = (partial: Partial<L2ParametersCondition>) => {
     onChange({ ...node, ...partial })
   }
 
   const updateControl = (index: number, next: L2ParamControl) => {
+    const prev = controls[index]
     const list = controls.map((c, i) => (i === index ? next : c))
     const nextValues = { ...values }
-    if (!(next.name in nextValues)) {
+    if (prev && prev.name !== next.name) {
+      delete nextValues[prev.name]
+    }
+    // Adopting a shared Param ID: take live value from the graph channel.
+    if (Object.prototype.hasOwnProperty.call(sharedValues, next.name)) {
+      nextValues[next.name] = sharedValues[next.name]!
+    } else if (!(next.name in nextValues)) {
       nextValues[next.name] = next.default
     }
     const names = new Set(list.map((c) => c.name))
@@ -630,7 +641,8 @@ export function ParametersNodeEditor({
       <p className="card-hint">
         Paste a node id — we resolve its type and list its toggles. Turn on Presence and/or any
         combination of properties on that target. Parameter panels are not valid targets. Text
-        lists (terms, patterns, …) are not bindable yet.
+        lists (terms, patterns, …) are not bindable yet. Reuse a Param ID on another panel to share
+        that toggle&apos;s live value (copy the id from the source control).
       </p>
 
       {controls.length === 0 ? (
@@ -641,9 +653,10 @@ export function ParametersNodeEditor({
         <ParamControlCard
           key={control.name || `param-control-${index}`}
           control={control}
-          liveValue={values[control.name] ?? control.default}
+          liveValue={sharedValues[control.name] ?? values[control.name] ?? control.default}
           readOnly={readOnly}
           match={match}
+          panelId={node.id}
           nodeLabels={nodeLabels}
           onChange={(next) => updateControl(index, next)}
           onRemove={() => removeControl(index)}
@@ -670,6 +683,7 @@ function ParamControlCard({
   liveValue,
   readOnly,
   match,
+  panelId,
   nodeLabels = {},
   onChange,
   onRemove,
@@ -679,17 +693,56 @@ function ParamControlCard({
   liveValue: boolean | string
   readOnly: boolean
   match: L2RuleGroup
+  panelId: string
   nodeLabels?: Record<string, string>
   onChange: (next: L2ParamControl) => void
   onRemove: () => void
   onLiveValue: (value: boolean | string) => void
 }) {
   const [expanded, setExpanded] = useState(true)
+  const [copied, setCopied] = useState(false)
   const patch = (partial: Partial<L2ParamControl>) => onChange({ ...control, ...partial })
   const bindings = normalizeControlBindings(control)
   const targetCount = new Set(bindings.map((b) => b.nodeId).filter(Boolean)).size
   const kindLabel = control.type === 'boolean' ? 'Toggle' : 'Dropdown'
   const title = control.label?.trim() || control.name
+  const sharedPanels = countParamControlPanels(match, control.name)
+  const isShared = sharedPanels > 1
+
+  const commitParamId = (rawName: string) => {
+    const name = rawName.trim().replace(/\s+/g, '_')
+    if (!name || name === control.name) return
+    const canonical = findParamControlByName(match, name, { excludePanelId: panelId })
+    if (canonical) {
+      // Adopt shared toggle: same id + chrome; keep this panel's bindings.
+      onChange({
+        ...control,
+        name,
+        label: canonical.label,
+        description: canonical.description,
+        type: canonical.type,
+        default: canonical.default,
+        options:
+          canonical.type === 'enum'
+            ? control.type === 'enum' && (control.options?.length ?? 0) > 0
+              ? control.options
+              : canonical.options
+            : undefined,
+      })
+      return
+    }
+    patch({ name })
+  }
+
+  const copyParamId = async () => {
+    try {
+      await navigator.clipboard.writeText(control.name)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1200)
+    } catch {
+      /* ignore */
+    }
+  }
 
   return (
     <div className={`l2-param-control-card${expanded ? '' : ' is-collapsed'}`}>
@@ -707,6 +760,7 @@ function ParamControlCard({
           <span className="l2-param-collapse-title">{title}</span>
           {!expanded ? (
             <span className="l2-param-collapse-meta">
+              {isShared ? `shared · ${sharedPanels} panels · ` : ''}
               {targetCount === 0
                 ? 'no targets'
                 : `${targetCount} target${targetCount === 1 ? '' : 's'}`}
@@ -725,15 +779,32 @@ function ParamControlCard({
       <div className="l2-param-field-row">
         <label className="l2-inspector-field">
           Param ID
-          <BlurCommitInput
-            value={control.name}
-            disabled={readOnly}
-            className="mono"
-            transform={(raw) => raw.trim().replace(/\s+/g, '_')}
-            onCommit={(name) => {
-              if (name && name !== control.name) patch({ name })
-            }}
-          />
+          <div className="l2-param-id-row">
+            <BlurCommitInput
+              value={control.name}
+              disabled={readOnly}
+              className="mono"
+              transform={(raw) => raw.trim().replace(/\s+/g, '_')}
+              onCommit={commitParamId}
+            />
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              title="Copy Param ID — paste into another Parameter panel to share this toggle"
+              onClick={() => void copyParamId()}
+            >
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          {isShared ? (
+            <span className="l2-param-shared-hint">
+              Shared across {sharedPanels} panels — live value stays in sync
+            </span>
+          ) : (
+            <span className="l2-param-shared-hint muted">
+              Paste this id on another Parameter panel to share the toggle
+            </span>
+          )}
         </label>
         <label className="l2-inspector-field">
           Label

@@ -85,12 +85,17 @@ export {
 } from './logic-block-shell.js'
 export {
   applyParametersToMatch,
+  buildParamValueMap,
   collectExcludedNodeIds,
   collectParamControls,
   collectParameterNodes,
+  countParamControlPanels,
+  findParamControlByName,
   normalizeControlBindings,
   normalizeOptionBindings,
+  setParamValueAcrossMatch,
   stripParametersAndExcluded,
+  syncSharedParamValuesFromPanel,
   type ApplyParametersOptions,
   type ParamValueMap,
 } from './apply-parameters.js'

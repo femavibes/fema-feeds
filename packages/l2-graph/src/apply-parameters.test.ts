@@ -4,6 +4,8 @@ import type { L2RuleGroup } from '@cfb/core-types'
 import {
   applyParametersToMatch,
   collectExcludedNodeIds,
+  setParamValueAcrossMatch,
+  countParamControlPanels,
 } from './apply-parameters.js'
 
 const andRoot: L2RuleGroup = {
@@ -383,5 +385,71 @@ describe('applyParametersToMatch', () => {
     if (kwOff?.type === 'keyword') {
       expect(kwOff.fields).toEqual(['text'])
     }
+  })
+
+  it('shares live values across Parameter panels with the same Param ID', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'p1',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Strict',
+              type: 'boolean',
+              default: false,
+              bindings: [
+                { nodeId: 'kw', kind: 'property', property: 'caseSensitive', value: true },
+              ],
+            },
+          ],
+          values: { strict: true },
+        },
+        {
+          type: 'parameters',
+          id: 'p2',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Strict',
+              type: 'boolean',
+              default: false,
+              bindings: [
+                { nodeId: 'kw', kind: 'property', property: 'caseSensitive', value: true },
+              ],
+            },
+          ],
+          // Drifted / stale local value — graph channel should follow last walk (p2) unless synced.
+          values: { strict: false },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['hi'],
+          fields: ['text'],
+          caseSensitive: false,
+        },
+      ],
+    }
+
+    // Without overrides, buildParamValueMap last-write is p2=false → caseSensitive off.
+    const drifted = applyParametersToMatch(tree)
+    const kwDrift = drifted.children.find((c) => c.id === 'kw')
+    if (kwDrift?.type === 'keyword') {
+      expect(kwDrift.caseSensitive).toBe(false)
+    }
+
+    const synced = setParamValueAcrossMatch(tree, 'strict', true)
+    const on = applyParametersToMatch(synced)
+    const kwOn = on.children.find((c) => c.id === 'kw')
+    if (kwOn?.type === 'keyword') {
+      expect(kwOn.caseSensitive).toBe(true)
+    }
+    expect(countParamControlPanels(tree, 'strict')).toBe(2)
   })
 })

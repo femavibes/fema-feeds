@@ -35,6 +35,135 @@ function resolveControlValue(
   return control.default
 }
 
+/**
+ * Graph-wide live values keyed by Param ID (`control.name`).
+ * Same id on multiple Parameter panels shares one value (last panel in walk
+ * order wins if stored values drifted). Explicit overrides win last.
+ */
+export function buildParamValueMap(
+  root: L2RuleNode,
+  overrides?: ParamValueMap,
+): ParamValueMap {
+  const map: ParamValueMap = {}
+  const walk = (node: L2RuleNode) => {
+    if (isParametersNode(node)) {
+      for (const control of node.controls ?? []) {
+        if (!control.name) continue
+        map[control.name] = resolveControlValue(control, node.values, undefined)
+      }
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  if (overrides) {
+    for (const [k, v] of Object.entries(overrides)) {
+      map[k] = v
+    }
+  }
+  return map
+}
+
+/** How many Parameter panels declare a control with this Param ID. */
+export function countParamControlPanels(root: L2RuleNode, name: string): number {
+  const id = name.trim()
+  if (!id) return 0
+  let n = 0
+  const walk = (node: L2RuleNode) => {
+    if (isParametersNode(node)) {
+      if ((node.controls ?? []).some((c) => c.name === id)) n += 1
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  return n
+}
+
+/** First control definition with this Param ID (canonical chrome for shared ids). */
+export function findParamControlByName(
+  root: L2RuleNode,
+  name: string,
+  opts?: { excludePanelId?: string },
+): L2ParamControl | undefined {
+  const id = name.trim()
+  if (!id) return undefined
+  let found: L2ParamControl | undefined
+  const walk = (node: L2RuleNode) => {
+    if (found) return
+    if (isParametersNode(node)) {
+      if (opts?.excludePanelId && node.id === opts.excludePanelId) return
+      const hit = (node.controls ?? []).find((c) => c.name === id)
+      if (hit) found = hit
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  return found
+}
+
+/**
+ * Write a live value onto every Parameter panel that declares this Param ID.
+ * Bindings stay per-panel; only the knob value is shared.
+ */
+export function setParamValueAcrossMatch(
+  root: L2RuleGroup,
+  name: string,
+  value: boolean | string,
+): L2RuleGroup {
+  const id = name.trim()
+  if (!id) return root
+
+  const walk = (node: L2RuleNode): L2RuleNode => {
+    if (isParametersNode(node)) {
+      const has = (node.controls ?? []).some((c) => c.name === id)
+      if (!has) return node
+      return {
+        ...node,
+        values: { ...(node.values ?? {}), [id]: value },
+      }
+    }
+    if (node.type === 'group') {
+      return {
+        ...node,
+        children: (node.children ?? []).map(walk),
+      }
+    }
+    return node
+  }
+
+  return walk(root) as L2RuleGroup
+}
+
+/**
+ * After editing one panel, copy that panel's resolved values for each of its
+ * control names onto every other panel that shares those Param IDs.
+ */
+export function syncSharedParamValuesFromPanel(
+  root: L2RuleGroup,
+  panelId: string,
+): L2RuleGroup {
+  const panels = collectParameterNodes(root)
+  const source = panels.find((p) => p.id === panelId)
+  if (!source) return root
+
+  let next = root
+  for (const control of source.controls ?? []) {
+    if (!control.name) continue
+    if (countParamControlPanels(next, control.name) < 2) continue
+    const value = resolveControlValue(control, source.values, undefined)
+    next = setParamValueAcrossMatch(next, control.name, value)
+  }
+  return next
+}
+
 /** Expand legacy `targetNodeIds` into presence bindings (deduped). */
 export function normalizeControlBindings(control: L2ParamControl): L2ParamTargetBinding[] {
   const out: L2ParamTargetBinding[] = []
@@ -103,11 +232,14 @@ export function collectExcludedNodeIds(
   overrides?: ParamValueMap,
 ): Set<string> {
   const excluded = new Set<string>()
+  const valueMap = buildParamValueMap(root, overrides)
 
   const walk = (node: L2RuleNode) => {
     if (isParametersNode(node)) {
       for (const control of node.controls ?? []) {
-        const value = resolveControlValue(control, node.values, overrides)
+        const value = Object.prototype.hasOwnProperty.call(valueMap, control.name)
+          ? valueMap[control.name]!
+          : control.default
         if (control.type === 'boolean') {
           const on = value === true || value === 'true'
           if (!on) {
@@ -240,11 +372,14 @@ function applyPropertyBinding(
 
 function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): void {
   const byId = indexRuleNodesById(root)
+  const valueMap = buildParamValueMap(root, overrides)
 
   const walk = (node: L2RuleNode) => {
     if (isParametersNode(node)) {
       for (const control of node.controls ?? []) {
-        const value = resolveControlValue(control, node.values, overrides)
+        const value = Object.prototype.hasOwnProperty.call(valueMap, control.name)
+          ? valueMap[control.name]!
+          : control.default
         if (control.type === 'boolean') {
           const on = value === true || value === 'true'
           for (const binding of propertyBindings(normalizeControlBindings(control))) {

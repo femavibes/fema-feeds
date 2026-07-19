@@ -7974,11 +7974,30 @@ body.l2-visual-open #root {
   border-bottom: none;
 }
 
-.l2-param-control-card-body {
+.l2-param-id-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding-top: 0.45rem;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.l2-param-id-row .l2-blur-commit-input,
+.l2-param-id-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.l2-param-shared-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.68rem;
+  line-height: 1.3;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.l2-param-shared-hint.muted {
+  color: var(--text-muted);
+  font-weight: 400;
 }
 
 .l2-param-collapse-btn {
