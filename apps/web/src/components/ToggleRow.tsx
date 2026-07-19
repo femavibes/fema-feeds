@@ -1,4 +1,6 @@
 import { ToggleSwitch } from './ToggleSwitch'
+import type { ParamAndBlockInfo } from '@cfb/l2-graph'
+import { formatParamAndBlockHint } from '@cfb/l2-graph'
 
 interface Props {
   label: string
@@ -8,9 +10,9 @@ interface Props {
   hint?: string
   disabled?: boolean
   readOnly?: boolean
-  /** On, but another Param AND-blocks the effect. */
+  /** On, but another Param AND-blocks some/all overlapping effects. */
   andBlocked?: boolean
-  andBlockedBy?: string[]
+  andBlockInfo?: ParamAndBlockInfo
 }
 
 export function ToggleRow({
@@ -22,13 +24,13 @@ export function ToggleRow({
   disabled,
   readOnly,
   andBlocked,
-  andBlockedBy,
+  andBlockInfo,
 }: Props) {
   const blockHint =
-    andBlocked && checked && andBlockedBy && andBlockedBy.length > 0
-      ? `On, but blocked by ${andBlockedBy.join(', ')} (AND)`
+    andBlocked && checked && andBlockInfo
+      ? formatParamAndBlockHint(andBlockInfo)
       : andBlocked && checked
-        ? 'On, but blocked by another Param (AND)'
+        ? 'On — some targets blocked by another Param (AND); others may still apply'
         : undefined
   return (
     <div className={`toggle-row${andBlocked && checked ? ' is-and-blocked' : ''}`}>

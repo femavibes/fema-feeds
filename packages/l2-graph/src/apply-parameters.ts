@@ -673,8 +673,12 @@ export function collectParamControls(root: L2RuleNode): L2ParamControl[] {
 }
 
 export type ParamAndBlockInfo = {
-  /** Other Param IDs (labels) whose off/disagree vote is preventing this control’s effects. */
+  /** Other Param labels whose off/disagree vote is preventing some of this control’s effects. */
   blockedBy: string[]
+  /** How many of this control’s binds are currently AND-blocked. */
+  blockedEffectCount: number
+  /** Total presence/property binds on this control. */
+  totalEffectCount: number
 }
 
 /**
@@ -785,46 +789,65 @@ export function collectParamAndBlockers(
     if (!on) continue
 
     const blockedBy = new Set<string>()
+    let blockedEffectCount = 0
+    const totalEffectCount =
+      (presenceKeysByParam.get(control.name)?.size ?? 0) +
+      (boolKeysByParam.get(control.name)?.size ?? 0) +
+      (enumKeysByParam.get(control.name)?.size ?? 0) +
+      (memberKeysByParam.get(control.name)?.size ?? 0)
+
+    const noteBlocked = (votes: Map<string, boolean>) => {
+      blockedEffectCount += 1
+      for (const label of blockersForKey(votes, control.name)) blockedBy.add(label)
+    }
 
     for (const nodeId of presenceKeysByParam.get(control.name) ?? []) {
       const votes = presenceVotes.get(nodeId)
       if (!votes || votes.size < 2) continue
-      // Presence AND: excluded if any off. Self is on → blocked if any other off.
-      for (const label of blockersForKey(votes, control.name)) blockedBy.add(label)
+      if (blockersForKey(votes, control.name).length > 0) noteBlocked(votes)
     }
 
     for (const key of boolKeysByParam.get(control.name) ?? []) {
       const votes = boolVotes.get(key)
       if (!votes || votes.size < 2) continue
       const selfVote = votes.get(control.name)
-      if (selfVote !== true) continue // only show when this control wants the "on" pole
-      if (![...votes.values()].every(Boolean)) {
-        for (const label of blockersForKey(votes, control.name)) blockedBy.add(label)
-      }
+      if (selfVote !== true) continue
+      if (![...votes.values()].every(Boolean)) noteBlocked(votes)
     }
 
     for (const key of enumKeysByParam.get(control.name) ?? []) {
       const votes = enumOnVotes.get(key)
       if (!votes || votes.size < 2) continue
       if (votes.get(control.name) !== true) continue
-      if (![...votes.values()].every(Boolean)) {
-        for (const label of blockersForKey(votes, control.name)) blockedBy.add(label)
-      }
+      if (![...votes.values()].every(Boolean)) noteBlocked(votes)
     }
 
     for (const key of memberKeysByParam.get(control.name) ?? []) {
       const votes = memberVotes.get(key)
       if (!votes || votes.size < 2) continue
       if (votes.get(control.name) !== true) continue
-      if (![...votes.values()].every(Boolean)) {
-        for (const label of blockersForKey(votes, control.name)) blockedBy.add(label)
-      }
+      if (![...votes.values()].every(Boolean)) noteBlocked(votes)
     }
 
     if (blockedBy.size > 0) {
-      result.set(control.name, { blockedBy: [...blockedBy].sort() })
+      result.set(control.name, {
+        blockedBy: [...blockedBy].sort(),
+        blockedEffectCount,
+        totalEffectCount,
+      })
     }
   }
 
   return result
+}
+
+/** Short UI copy for an AND-blocked boolean Param that is currently on. */
+export function formatParamAndBlockHint(info: ParamAndBlockInfo): string {
+  const who = info.blockedBy.join(', ')
+  const partial =
+    info.totalEffectCount > 0 && info.blockedEffectCount < info.totalEffectCount
+  if (partial) {
+    return `On — some targets blocked by ${who} (AND); others still apply`
+  }
+  return `On — targets blocked by ${who} (AND)`
 }

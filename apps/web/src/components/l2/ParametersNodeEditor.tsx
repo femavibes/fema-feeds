@@ -17,6 +17,7 @@ import {
   countParamControlPanels,
   discoverBindableFields,
   findParamControlByName,
+  formatParamAndBlockHint,
   indexRuleNodesById,
   normalizeControlBindings,
   normalizeOptionBindings,
@@ -658,7 +659,7 @@ export function ParametersNodeEditor({
           key={control.name || `param-control-${index}`}
           control={control}
           liveValue={sharedValues[control.name] ?? values[control.name] ?? control.default}
-          andBlockedBy={andBlockers.get(control.name)?.blockedBy}
+          andBlockInfo={andBlockers.get(control.name)}
           readOnly={readOnly}
           match={match}
           panelId={node.id}
@@ -690,7 +691,7 @@ function ParamControlCard({
   match,
   panelId,
   nodeLabels = {},
-  andBlockedBy,
+  andBlockInfo,
   onChange,
   onRemove,
   onLiveValue,
@@ -701,7 +702,7 @@ function ParamControlCard({
   match: L2RuleGroup
   panelId: string
   nodeLabels?: Record<string, string>
-  andBlockedBy?: string[]
+  andBlockInfo?: { blockedBy: string[]; blockedEffectCount: number; totalEffectCount: number }
   onChange: (next: L2ParamControl) => void
   onRemove: () => void
   onLiveValue: (value: boolean | string) => void
@@ -717,7 +718,7 @@ function ParamControlCard({
   const sharedPanels = countParamControlPanels(match, control.name)
   const isShared = sharedPanels > 1
   const liveOn = liveValue === true || liveValue === 'true'
-  const andBlocked = Boolean(andBlockedBy && andBlockedBy.length > 0 && liveOn)
+  const andBlocked = Boolean(andBlockInfo && liveOn)
 
   const linkableIds = useMemo(() => {
     const out: { name: string; label: string; panelTitle: string }[] = []
@@ -945,9 +946,9 @@ function ParamControlCard({
                   onChange={(checked) => onLiveValue(checked)}
                 />
               </div>
-              {andBlocked ? (
+              {andBlocked && andBlockInfo ? (
                 <span className="l2-param-and-block-hint">
-                  On, but blocked by {andBlockedBy!.join(', ')} (AND)
+                  {formatParamAndBlockHint(andBlockInfo)}
                 </span>
               ) : null}
             </label>

@@ -8,6 +8,7 @@ import {
   countParamControlPanels,
   syncSharedParamControlFromPanel,
   collectParamAndBlockers,
+  formatParamAndBlockHint,
 } from './apply-parameters.js'
 
 const andRoot: L2RuleGroup = {
@@ -581,6 +582,8 @@ describe('applyParametersToMatch', () => {
 
     const blockers = collectParamAndBlockers(tree, { cat: false, potato: true })
     expect(blockers.get('potato')?.blockedBy).toEqual(['CAT'])
+    expect(blockers.get('potato')?.blockedEffectCount).toBe(1)
     expect(blockers.has('cat')).toBe(false)
+    expect(formatParamAndBlockHint(blockers.get('potato')!)).toContain('targets blocked by CAT')
   })
 })

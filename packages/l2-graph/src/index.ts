@@ -92,6 +92,7 @@ export {
   collectParameterNodes,
   countParamControlPanels,
   findParamControlByName,
+  formatParamAndBlockHint,
   normalizeControlBindings,
   normalizeOptionBindings,
   setParamValueAcrossMatch,

@@ -262,7 +262,7 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
         const live = sharedValues[control.name] ?? values[control.name] ?? control.default
         if (control.type === 'boolean') {
           const on = live === true || live === 'true'
-          const blockedBy = andBlockers.get(control.name)?.blockedBy
+          const blockInfo = andBlockers.get(control.name)
           return (
             <div key={control.name} className="l2-flow-parameters-control-row">
               <ToggleRow
@@ -270,8 +270,8 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
                 hint={control.description || undefined}
                 checked={on}
                 readOnly={readOnly}
-                andBlocked={Boolean(blockedBy?.length)}
-                andBlockedBy={blockedBy}
+                andBlocked={Boolean(blockInfo)}
+                andBlockInfo={blockInfo}
                 ariaLabel={`${control.label || control.name} parameter`}
                 onChange={(checked) => setValue(control.name, checked)}
               />
