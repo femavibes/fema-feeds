@@ -948,7 +948,12 @@ function ParamControlCard({
                 />
               </div>
               {andBlocked && andBlockInfo ? (
-                <pre className="l2-param-and-block-hint">{formatParamAndBlockHint(andBlockInfo)}</pre>
+                <pre className="l2-param-and-block-hint">
+                  {formatParamAndBlockHint(andBlockInfo, {
+                    nodeLabels,
+                    match,
+                  })}
+                </pre>
               ) : null}
             </label>
           </div>

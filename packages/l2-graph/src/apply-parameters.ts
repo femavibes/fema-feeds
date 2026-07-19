@@ -871,12 +871,32 @@ export function collectParamAndBlockers(
 }
 
 /** Inspector copy listing which targets are blocked by which Param. */
-export function formatParamAndBlockHint(info: ParamAndBlockInfo): string {
+export function formatParamAndBlockHint(
+  info: ParamAndBlockInfo,
+  opts?: {
+    /** Visual custom names keyed by node id. */
+    nodeLabels?: Record<string, string>
+    /** Optional match tree for group / logic-block labels. */
+    match?: L2RuleNode
+  },
+): string {
+  const byId = opts?.match ? indexRuleNodesById(opts.match) : undefined
+  const formatNode = (nodeId: string): string => {
+    const fromMap = opts?.nodeLabels?.[nodeId]?.trim()
+    if (fromMap) return `${fromMap} (${nodeId})`
+    const node = byId?.get(nodeId)
+    if (node && (node.type === 'group' || node.type === 'logic_block_ref')) {
+      const label = node.label?.trim()
+      if (label) return `${label} (${nodeId})`
+    }
+    return nodeId
+  }
+
   const partial =
     info.totalEffectCount > 0 && info.blockedEffectCount < info.totalEffectCount
   const lines = info.blockedTargets.map((t) => {
     const who = t.blockedBy.join(', ')
-    return `${t.effect} on ${t.nodeId} — ${who}`
+    return `${t.effect} on ${formatNode(t.nodeId)} — ${who}`
   })
   const head = partial
     ? 'Some targets blocked (others still apply):'
