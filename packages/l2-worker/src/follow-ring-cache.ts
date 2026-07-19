@@ -14,6 +14,7 @@ import {
   upsertAuthorListCache,
 } from '@cfb/storage-postgres'
 import type pg from 'pg'
+import { getCachedDidList, setCachedDidList, invalidateDidListCache } from './did-list-mem-cache.js'
 
 export interface FollowRingSourceJson {
   kind: 'follow_ring'
@@ -198,6 +199,12 @@ export async function loadFollowRingsForFeed(
         out[node.id] = []
         return
       }
+      const memKey = `ring:${node.id}`
+      const mem = getCachedDidList(memKey)
+      if (mem) {
+        out[node.id] = mem.dids
+        return
+      }
       const hubDid = await resolveHubDid(node.hub ?? '')
       if (!hubDid) {
         out[node.id] = []
@@ -208,10 +215,11 @@ export async function loadFollowRingsForFeed(
         (await getAuthorListCache(pool, followRingCacheListId(node.id))) ??
         (await getAuthorListCacheByRemotePollKey(pool, remotePollKey))
       if (cached?.dids.length) {
-        out[node.id] = cached.dids
+        out[node.id] = setCachedDidList(memKey, cached.dids).dids
         return
       }
-      out[node.id] = await refreshFollowRingCache(pool, feed, node)
+      const dids = await refreshFollowRingCache(pool, feed, node)
+      out[node.id] = setCachedDidList(memKey, dids).dids
     }),
   )
   return out
@@ -267,6 +275,8 @@ export async function pollDueFollowRings(
       refreshedAt: now,
       nextPollAt,
     })
+    invalidateDidListCache(`ring:${src.nodeId}`)
+    setCachedDidList(`ring:${src.nodeId}`, dids)
     count++
   }
   return count

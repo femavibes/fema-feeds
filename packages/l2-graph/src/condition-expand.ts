@@ -73,6 +73,27 @@ function mediaTypeLabel(value: number): string {
   }
 }
 
+function mediaKindLabel(kind: string): string {
+  switch (kind) {
+    case 'text_only':
+      return 'text'
+    case 'image':
+      return 'image'
+    case 'video':
+      return 'video'
+    case 'gif':
+      return 'GIF'
+    case 'link_card':
+      return 'link card'
+    case 'quote':
+      return 'quote'
+    case 'quote_with_media':
+      return 'quote w/ media'
+    default:
+      return kind.replace(/_/g, ' ')
+  }
+}
+
 /** Compact formula string for engagement-math nodes (no web formula-parser dep). */
 export function formatExpandExpr(expr: L2Expr): string {
   switch (expr.type) {
@@ -160,6 +181,8 @@ export function conditionExpandMetrics(rule: L2RuleNode): ConditionExpandMetrics
       return { textLines: [...(rule.kinds ?? [])], profileRows: 0 }
     case 'media_type':
       return { textLines: (rule.mediaTypes ?? []).map(mediaTypeLabel), profileRows: 0 }
+    case 'media':
+      return { textLines: (rule.kinds ?? []).map(mediaKindLabel), profileRows: 0 }
     case 'mime_type':
       return { textLines: rule.pattern ? [rule.pattern] : [], profileRows: 0 }
     case 'alt_text':
@@ -334,6 +357,11 @@ export function conditionCollapseMetrics(rule: L2RuleNode): ConditionExpandMetri
     case 'media_type':
       return {
         textLines: teaserFromList((rule.mediaTypes ?? []).map(mediaTypeLabel)),
+        profileRows: 0,
+      }
+    case 'media':
+      return {
+        textLines: teaserFromList((rule.kinds ?? []).map(mediaKindLabel)),
         profileRows: 0,
       }
     case 'mime_type':

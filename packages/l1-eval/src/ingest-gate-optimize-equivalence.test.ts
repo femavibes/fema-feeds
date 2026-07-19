@@ -27,9 +27,11 @@ const posts: NormalizedPost[] = [
     postKind: 'root',
     embed: {
       hasVideo: false,
+      hasGif: false,
       hasImage: false,
       hasLinkCard: false,
       hasQuote: false,
+      hasQuoteWithMedia: false,
       hasRecord: false,
       hasTextOnly: true,
     },
@@ -53,9 +55,11 @@ const posts: NormalizedPost[] = [
     postKind: 'root',
     embed: {
       hasVideo: false,
+      hasGif: false,
       hasImage: false,
       hasLinkCard: false,
       hasQuote: false,
+      hasQuoteWithMedia: false,
       hasRecord: false,
       hasTextOnly: true,
     },
@@ -79,9 +83,11 @@ const posts: NormalizedPost[] = [
     postKind: 'root',
     embed: {
       hasVideo: false,
+      hasGif: false,
       hasImage: false,
       hasLinkCard: false,
       hasQuote: false,
+      hasQuoteWithMedia: false,
       hasRecord: false,
       hasTextOnly: true,
     },
@@ -170,7 +176,7 @@ describe('optimized compile equivalence', () => {
     const opt = compileProjectIngestGate('p1', feeds)
     const extras = {
       ingestGateExtrasByProject: {
-        p1: { authorListDids: { vip: ['did:plc:vip'] } },
+        p1: { authorListDids: { vip: new Set(['did:plc:vip']) } },
       },
     }
 

@@ -2,9 +2,8 @@ import type { ReactNode } from 'react'
 import type {
   AuthorListConfig,
   FeedAuthorListConfig,
-  L2BoolField,
   L2CompareCondition,
-  L2MediaTypeValue,
+  L2MediaKind,
   L2NumericField,
   L2PostKindCondition,
   L2RuleNode,
@@ -12,18 +11,18 @@ import type {
   PostKind,
 } from '@cfb/core-types'
 import {
-  L2_BOOL_FIELDS,
   L2_COMPARE_OPS,
+  L2_MEDIA_KINDS,
   L2_MEDIA_STAT_METRICS,
-  L2_MEDIA_TYPE_VALUES,
   L2_NUMERIC_FIELDS,
   L2_POST_KINDS,
   fieldLabel,
   formatTags,
+  mediaKindLabel,
   mediaStatLabel,
-  mediaTypeLabel,
   parseTags,
 } from '../../lib/l2-form'
+import { ingestRoleBadgeFor } from '../../lib/l2-ingest-badge'
 import { KeywordMatchToggles } from '../KeywordMatchToggles'
 import { TermListEditor } from '../TermListEditor'
 import { ToggleRow } from '../ToggleRow'
@@ -53,7 +52,9 @@ interface Props {
   onAuthorFeedUpdate?: (lists: FeedAuthorListConfig[], node: L2AuthorCondition) => void
   listCache?: ListCacheEntry[]
   projectId?: string
+  feedId?: string
   onRefreshList?: (listId: string) => Promise<void>
+  onListsChanged?: () => void | Promise<void>
   /** Project prefilter editor — no per-node pool toggle. */
   prefilterMode?: boolean
   readOnly?: boolean
@@ -71,7 +72,9 @@ export function ConditionRow({
   onAuthorFeedUpdate,
   listCache = [],
   projectId = '',
+  feedId = '',
   onRefreshList,
+  onListsChanged,
   prefilterMode = false,
   readOnly = false,
 }: Props) {
@@ -93,6 +96,7 @@ export function ConditionRow({
               title="Text (legacy)"
               onRemove={onRemove}
               showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
             />
             <select
               disabled={readOnly}
@@ -121,6 +125,7 @@ export function ConditionRow({
               title="Keyword"
               onRemove={onRemove}
               showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
               trailing={
                 <select
                   disabled={readOnly}
@@ -166,6 +171,7 @@ export function ConditionRow({
               title="Regex"
               onRemove={onRemove}
               showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
               trailing={
                 <select
                   disabled={readOnly}
@@ -206,6 +212,7 @@ export function ConditionRow({
               title="Hashtag"
               onRemove={onRemove}
               showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
               trailing={
                 <select
                   disabled={readOnly}
@@ -238,6 +245,7 @@ export function ConditionRow({
               title="URL"
               onRemove={onRemove}
               showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
               trailing={
                 <select
                   disabled={readOnly}
@@ -276,28 +284,28 @@ export function ConditionRow({
           </div>
         )}
 
-        {node.type === 'bool' && (
+        {node.type === 'media' && (
           <div className="l2-condition-stack">
-            <ConditionHead title="Embed" onRemove={onRemove} showRemove={showRemove} />
-            <select
-              disabled={readOnly}
-              value={node.field}
-              onChange={(e) => onChange({ ...node, field: e.target.value as L2BoolField })}
-            >
-              {L2_BOOL_FIELDS.map((f) => (
-                <option key={f} value={f}>
-                  {fieldLabel(f)}
-                </option>
-              ))}
-            </select>
-            <select
-              disabled={readOnly}
-              value={node.value ? 'require' : 'exclude'}
-              onChange={(e) => onChange({ ...node, value: e.target.value === 'require' })}
-            >
-              <option value="require">required</option>
-              <option value="exclude">excluded</option>
-            </select>
+            <ConditionHead
+              title="Media"
+              onRemove={onRemove}
+              showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
+              trailing={
+                <select
+                  disabled={readOnly}
+                  value={node.op}
+                  onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
+                >
+                  <option value="is">is</option>
+                  <option value="is_not">is not</option>
+                </select>
+              }
+            />
+            <p className="l2-condition-hint">
+              Match if any selected kind is present (OR). Video excludes GIFs; Quote is plain quote only.
+            </p>
+            <MediaKindPicker node={node} onChange={onChange} readOnly={readOnly} />
           </div>
         )}
 
@@ -307,6 +315,7 @@ export function ConditionRow({
               title="Language"
               onRemove={onRemove}
               showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
               trailing={
                 <select
                   disabled={readOnly}
@@ -327,7 +336,8 @@ export function ConditionRow({
 
         {node.type === 'post_kind' && (
           <div className="l2-condition-stack">
-            <ConditionHead title="Post type" onRemove={onRemove} showRemove={showRemove} />
+            <ConditionHead title="Post type" onRemove={onRemove} showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)} />
             <select
               disabled={readOnly}
               value={node.op}
@@ -340,33 +350,10 @@ export function ConditionRow({
           </div>
         )}
 
-        {node.type === 'media_type' && (
-          <div className="l2-condition-stack">
-            <ConditionHead
-              title="Media type"
-              onRemove={onRemove}
-              showRemove={showRemove}
-              trailing={
-                <select
-                  disabled={readOnly}
-                  value={node.op}
-                  onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
-                >
-                  <option value="is">is</option>
-                  <option value="is_not">is not</option>
-                </select>
-              }
-            />
-            <p className="l2-condition-hint">
-              Near You media bucket from ingest (text, image, video, GIF, link card, quote).
-            </p>
-            <MediaTypePicker node={node} onChange={onChange} readOnly={readOnly} />
-          </div>
-        )}
-
         {node.type === 'alt_text' && (
           <div className="l2-condition-stack">
-            <ConditionHead title="Alt text" onRemove={onRemove} showRemove={showRemove} />
+            <ConditionHead title="Alt text" onRemove={onRemove} showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)} />
             <select
               disabled={readOnly}
               value={node.op}
@@ -381,7 +368,8 @@ export function ConditionRow({
 
         {node.type === 'post_age' && (
           <div className="l2-condition-stack">
-            <ConditionHead title="Post age" onRemove={onRemove} showRemove={showRemove} />
+            <ConditionHead title="Post age" onRemove={onRemove} showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)} />
             <select
               disabled={readOnly}
               value={node.op}
@@ -410,7 +398,8 @@ export function ConditionRow({
 
         {node.type === 'media_stats' && (
           <div className="l2-condition-stack">
-            <ConditionHead title="Media stats" onRemove={onRemove} showRemove={showRemove} />
+            <ConditionHead title="Media stats" onRemove={onRemove} showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)} />
             <select
               disabled={readOnly}
               value={node.metric}
@@ -459,6 +448,7 @@ export function ConditionRow({
               title="MIME type"
               onRemove={onRemove}
               showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
               trailing={
                 <select
                   disabled={readOnly}
@@ -487,6 +477,7 @@ export function ConditionRow({
               title="Labels"
               onRemove={onRemove}
               showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
               trailing={
                 <select
                   disabled={readOnly}
@@ -524,14 +515,16 @@ export function ConditionRow({
 
         {node.type === 'compare' && (
           <div className="l2-condition-stack">
-            <ConditionHead title="Math" onRemove={onRemove} showRemove={showRemove} />
+            <ConditionHead title="Math" onRemove={onRemove} showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)} />
             <MathCompareRow node={node} onChange={onChange} readOnly={readOnly} />
           </div>
         )}
 
         {node.type === 'author' && (
           <div className="l2-condition-stack">
-            <ConditionHead title="Author" onRemove={onRemove} showRemove={showRemove} />
+            <ConditionHead title="Author" onRemove={onRemove} showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)} />
             <select
               disabled={readOnly}
               value={node.op}
@@ -580,7 +573,9 @@ export function ConditionRow({
                 onAuthorFeedUpdate={onAuthorFeedUpdate}
                 listCache={listCache}
                 projectId={projectId}
+                feedId={feedId}
                 onRefreshList={onRefreshList}
+                onListCacheInvalidate={onListsChanged}
                 prefilterMode={prefilterMode}
               />
             ) : (
@@ -614,6 +609,7 @@ export function ConditionRow({
               title="Mention"
               onRemove={onRemove}
               showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
               trailing={
                 <select
                   disabled={readOnly}
@@ -628,6 +624,30 @@ export function ConditionRow({
             <p className="l2-condition-hint">
               Matches @mention facets — not the post author, not plain @text without a facet.
             </p>
+            <label>
+              Mode
+              <select
+                disabled={readOnly || node.op === 'excludes'}
+                value={node.op === 'excludes' ? 'filter' : (node.role ?? 'discover')}
+                onChange={(e) =>
+                  onChange({
+                    ...node,
+                    role: e.target.value as 'filter' | 'discover',
+                  })
+                }
+              >
+                <option value="filter">Filter (only gate posts already in play)</option>
+                <option value="discover">
+                  Discover (pull posts that mention these accounts into the pool)
+                </option>
+              </select>
+            </label>
+            {node.op !== 'excludes' && (node.role ?? 'discover') === 'discover' ? (
+              <p className="l2-condition-hint">
+                Discover matches posts whose facets @-mention any of these accounts (or list
+                members) and pulls them into the project pool at ingest.
+              </p>
+            ) : null}
             <div className="term-list-scroll scrollbar-modern l2-mention-terms-scroll">
               <TermListEditor
                 terms={node.accounts}
@@ -669,6 +689,7 @@ export function ConditionRow({
               title="Follow ring"
               onRemove={onRemove}
               showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)}
               trailing={
                 <select
                   disabled={readOnly}
@@ -774,7 +795,8 @@ export function ConditionRow({
 
         {node.type === 'graze_stub' && (
           <div className="l2-condition-stack">
-            <ConditionHead title="Graze" onRemove={onRemove} showRemove={showRemove} />
+            <ConditionHead title="Graze" onRemove={onRemove} showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)} />
             <span className="l2-graze-stub-label" title="Imported Graze node — replace with a native condition when ready">
               {node.title ?? node.grazeType}
             </span>
@@ -783,7 +805,8 @@ export function ConditionRow({
 
         {node.type === 'substitute' && (
           <div className="l2-condition-stack">
-            <ConditionHead title="Substitute" onRemove={onRemove} showRemove={showRemove} />
+            <ConditionHead title="Substitute" onRemove={onRemove} showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)} />
             <label className="l2-condition-field">
               Direction
               <select
@@ -834,7 +857,8 @@ export function ConditionRow({
 
         {node.type === 'scout' && (
           <div className="l2-condition-stack">
-            <ConditionHead title="Scout discovery" onRemove={onRemove} showRemove={showRemove} />
+            <ConditionHead title="Scout discovery" onRemove={onRemove} showRemove={showRemove}
+              ingestBadge={ingestRoleBadgeFor(node)} />
             <label className="l2-condition-field">
               Scout source
               <select
@@ -977,16 +1001,31 @@ function ConditionHead({
   onRemove,
   showRemove = true,
   trailing,
+  ingestBadge,
 }: {
   title: string
   onRemove: () => void
   showRemove?: boolean
   trailing?: ReactNode
+  /** Discover = can pull posts into the L1 pool; Filter = L2-only / exclude. */
+  ingestBadge?: 'discover' | 'filter' | null
 }) {
   return (
     <div className="l2-condition-head">
       <div className="l2-condition-head-left">
         <span className="l2-condition-type">{title}</span>
+        {ingestBadge ? (
+          <span
+            className={`l2-ingest-role-badge l2-ingest-role-badge--${ingestBadge}`}
+            title={
+              ingestBadge === 'discover'
+                ? 'Discover — this node can pull matching posts into the project pool from the firehose'
+                : 'Filter — does not pull new posts into the pool; only gates posts already in play (or excludes)'
+            }
+          >
+            {ingestBadge === 'discover' ? 'Discover' : 'Filter'}
+          </span>
+        ) : null}
         {showRemove ? (
           <button
             type="button"
@@ -1003,6 +1042,7 @@ function ConditionHead({
   )
 }
 
+/** Badge for nodes that participate in strict-mode ingest extraction. */
 function PostKindPicker({
   node,
   onChange,
@@ -1035,31 +1075,31 @@ function PostKindPicker({
   )
 }
 
-function MediaTypePicker({
+function MediaKindPicker({
   node,
   onChange,
   readOnly = false,
 }: {
-  node: Extract<L2RuleNode, { type: 'media_type' }>
+  node: Extract<L2RuleNode, { type: 'media' }>
   onChange: (node: L2RuleNode) => void
   readOnly?: boolean
 }) {
-  const toggle = (value: L2MediaTypeValue) => {
-    const set = new Set(node.mediaTypes)
-    if (set.has(value)) set.delete(value)
-    else set.add(value)
-    onChange({ ...node, mediaTypes: L2_MEDIA_TYPE_VALUES.filter((v) => set.has(v)) })
+  const toggle = (kind: L2MediaKind) => {
+    const set = new Set(node.kinds)
+    if (set.has(kind)) set.delete(kind)
+    else set.add(kind)
+    onChange({ ...node, kinds: L2_MEDIA_KINDS.filter((k) => set.has(k)) })
   }
 
   return (
     <div className="option-toggle-list l2-post-kind-toggle-list">
-      {L2_MEDIA_TYPE_VALUES.map((value) => (
+      {L2_MEDIA_KINDS.map((kind) => (
         <ToggleRow
-          key={value}
-          label={mediaTypeLabel(value)}
-          checked={node.mediaTypes.includes(value)}
-          onChange={() => toggle(value)}
-          ariaLabel={`Media type ${mediaTypeLabel(value)}`}
+          key={kind}
+          label={mediaKindLabel(kind)}
+          checked={node.kinds.includes(kind)}
+          onChange={() => toggle(kind)}
+          ariaLabel={`Media ${mediaKindLabel(kind)}`}
           readOnly={readOnly}
         />
       ))}

@@ -10,10 +10,12 @@ export type L1StepId =
   | 'language'
   | 'language_unknown'
   | 'has_video'
+  | 'has_gif'
   | 'has_image'
   | 'has_link_card'
   | 'has_quote'
   | 'has_record'
+  | 'has_quote_with_media'
   | 'has_text_only'
   | 'hashtag_exclude'
   | 'hashtag_include'
@@ -33,12 +35,22 @@ export type LanguageUnknownPolicy = 'include' | 'exclude' | 'detect'
 
 /** Embed flags extracted once at normalize time — cheap L1 bit checks. */
 export interface EmbedFlags {
+  /** Real video (not GIF). */
   hasVideo: boolean
+  /** GIF embed (video with presentation === gif). */
+  hasGif: boolean
   hasImage: boolean
   hasLinkCard: boolean
+  /** Plain quote embed (app.bsky.embed.record). */
   hasQuote: boolean
+  /** Quote with media (app.bsky.embed.recordWithMedia). */
+  hasQuoteWithMedia: boolean
+  /**
+   * @deprecated Alias of hasQuoteWithMedia for older summary_json / L1 step ids.
+   * Always set equal to hasQuoteWithMedia when writing.
+   */
   hasRecord: boolean
-  /** True when no media embed present. */
+  /** True when no media/quote embed present. */
   hasTextOnly: boolean
 }
 
@@ -139,9 +151,11 @@ export interface ProjectL1Config {
     block: string[]
   }
   hasVideo?: EmbedFlagRequirement
+  hasGif?: EmbedFlagRequirement
   hasImage?: EmbedFlagRequirement
   hasLinkCard?: EmbedFlagRequirement
   hasQuote?: EmbedFlagRequirement
+  hasQuoteWithMedia?: EmbedFlagRequirement
   hasRecord?: EmbedFlagRequirement
   hasTextOnly?: EmbedFlagRequirement
   hashtagInclude?: string[]

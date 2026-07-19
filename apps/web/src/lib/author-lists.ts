@@ -118,7 +118,7 @@ export function collectRegisteredLists(input: {
       scope: row.projectId === input.projectId ? (row.feedOnly ? 'feed' : 'project') : 'deployment',
       projectId: row.projectId,
       memberCount: row.memberCount,
-      remotePollKey: row.remotePollKey ?? null,
+      remotePollKey: row.graphUri ?? row.remotePollKey ?? null,
     })
   }
   return out
@@ -130,7 +130,14 @@ export function findDuplicateAuthorList(
 ): RegisteredAuthorList | null {
   const key = remotePollKeyForUri(uri)
   if (!key) return null
-  return registered.find((entry) => entry.remotePollKey === key) ?? null
+  return (
+    registered.find(
+      (entry) =>
+        entry.remotePollKey === key ||
+        entry.listId === key ||
+        (!key.startsWith('pending:') && entry.listId === key),
+    ) ?? null
+  )
 }
 
 export function inferAuthorListMode(
@@ -183,14 +190,20 @@ export function pruneFeedAuthorLists(
   )
 }
 
-export function newFeedAuthorList(existing: FeedAuthorListConfig[] = []): FeedAuthorListConfig {
+export function newFeedAuthorList(
+  existing: FeedAuthorListConfig[] = [],
+  opts?: { feedId?: string },
+): FeedAuthorListConfig {
   const used = new Set(existing.map((l) => l.listId))
-  let n = existing.length + 1
-  let listId = `feed-list-${n}`
-  while (used.has(listId)) {
-    n++
-    listId = `feed-list-${n}`
-  }
+  // list_id is a global PK in author_list_cache — must not reuse feed-list-1 across feeds.
+  const feedSlug = (opts?.feedId ?? 'feed')
+    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 32) || 'feed'
+  let listId = ''
+  do {
+    listId = `fl-${feedSlug}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  } while (used.has(listId))
   return {
     listId,
     sources: [{ type: 'bluesky_list', uri: '', pollIntervalMinutes: 60 }],

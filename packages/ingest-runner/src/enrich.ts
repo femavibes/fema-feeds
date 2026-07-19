@@ -19,13 +19,28 @@ import {
 
 const pendingAuthorFetches = new Set<string>()
 
+/** Cache labeler DID list — queried every post before this fix. */
+let cachedLabelerDids: string[] | null = null
+let cachedLabelerDidsAt = 0
+const LABELER_DID_TTL_MS = 60_000
+
+async function enabledLabelerDids(pool: pg.Pool): Promise<string[]> {
+  const now = Date.now()
+  if (cachedLabelerDids && now - cachedLabelerDidsAt < LABELER_DID_TTL_MS) {
+    return cachedLabelerDids
+  }
+  cachedLabelerDids = await listEnabledLabelerDids(pool)
+  cachedLabelerDidsAt = now
+  return cachedLabelerDids
+}
+
 export async function maybeResolveLabelerLabels(
   pool: pg.Pool,
   post: NormalizedPost,
   settings: EnrichmentSettings,
 ): Promise<NormalizedPost> {
   if (!settings.enabled || !settings.resolveLabelerLabels) return post
-  const labelerDids = await listEnabledLabelerDids(pool)
+  const labelerDids = await enabledLabelerDids(pool)
   if (labelerDids.length === 0) return post
   try {
     return await resolveLabelerLabelsForPost(post, { labelerDids })
@@ -77,7 +92,25 @@ export function createEngagementHandler(
   stats: EngagementHandlerStats,
   options?: EngagementHandlerOptions,
 ): (event: EngagementEvent) => Promise<void> {
+  const maxInFlight = Math.max(
+    8,
+    Number(process.env.CFB_ENGAGEMENT_MAX_IN_FLIGHT ?? 64) || 64,
+  )
+  let inFlight = 0
+  let dropped = 0
+
   return async (event) => {
+    if (inFlight >= maxInFlight) {
+      dropped++
+      stats.ignored++
+      if (dropped === 1 || dropped % 10_000 === 0) {
+        console.error(
+          `[ingest] engagement backpressure: dropped=${dropped} inFlight=${inFlight} max=${maxInFlight}`,
+        )
+      }
+      return
+    }
+    inFlight++
     try {
       // Always emit scout signal for create events (before pool check)
       if (event.operation === 'create' && options?.onScoutSignal) {
@@ -95,6 +128,8 @@ export function createEngagementHandler(
       }
     } catch {
       stats.errors++
+    } finally {
+      inFlight--
     }
   }
 }

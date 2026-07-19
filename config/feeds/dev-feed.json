@@ -8,7 +8,224 @@
     "id": "root",
     "type": "group",
     "logic": "any",
-    "children": []
+    "children": [
+      {
+        "id": "group-mrps3u5q",
+        "type": "group",
+        "logic": "all",
+        "children": [
+          {
+            "id": "group-mrpuw1iz",
+            "type": "group",
+            "logic": "all",
+            "children": [
+              {
+                "id": "math-mrps4c5e",
+                "op": ">=",
+                "left": {
+                  "type": "field",
+                  "field": "like_count"
+                },
+                "type": "compare",
+                "right": {
+                  "type": "literal",
+                  "value": 10
+                }
+              },
+              {
+                "id": "author-mrpsqb0r",
+                "op": "in_list",
+                "dids": [
+                  "ericallixrogers.com",
+                  "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+                  "did:plc:bfquns4d2vygcv2lmvqs65wn",
+                  "did:plc:wnvnipbgrcjigyh2kbwyz4mk",
+                  "did:plc:ljgx3wpbd6plc7y6jmms5l6u"
+                ],
+                "role": "discover",
+                "type": "author",
+                "listId": "feed-list-1"
+              }
+            ]
+          },
+          {
+            "id": "score-mrps3yxy",
+            "type": "score",
+            "points": 1
+          },
+          {
+            "id": "sub-mrps3zo3",
+            "type": "substitute",
+            "direction": "reply_to_root",
+            "threshold": 1,
+            "timeWindowHours": 0
+          },
+          {
+            "id": "scout-mrps4025",
+            "type": "scout",
+            "scouts": [],
+            "threshold": {
+              "max": 8,
+              "min": 3,
+              "curve": "linear",
+              "scaleWindowMinutes": 60
+            },
+            "maxPostAgeHours": 48
+          },
+          {
+            "id": "kw-mrps40oz",
+            "op": "includes",
+            "type": "keyword",
+            "terms": [
+              "dog",
+              "cat",
+              "penis",
+              "bread"
+            ],
+            "fields": [
+              "text"
+            ]
+          },
+          {
+            "id": "regex-mrps410q",
+            "op": "matches",
+            "type": "regex",
+            "fields": [
+              "text"
+            ],
+            "pattern": "i think regex is cool",
+            "caseInsensitive": true
+          },
+          {
+            "id": "tag-mrps43h9",
+            "op": "includes",
+            "tags": [
+              "tagggy",
+              "baggy",
+              "laggy",
+              "goog",
+              "ha",
+              "fish"
+            ],
+            "type": "hashtag"
+          },
+          {
+            "id": "url-mrps43yk",
+            "op": "includes",
+            "type": "url",
+            "sources": [
+              "link_card",
+              "facet_link",
+              "bridgy_original"
+            ],
+            "patterns": [
+              "PENIS.COM",
+              "pen.island",
+              "dogggs.com",
+              "ffff"
+            ]
+          },
+          {
+            "id": "lang-mrps44gw",
+            "type": "language",
+            "allow": [
+              "en"
+            ],
+            "unknown": "exclude"
+          },
+          {
+            "id": "labels-mrps44vs",
+            "op": "includes",
+            "type": "labels",
+            "scope": "all",
+            "values": [
+              "porn",
+              "impersonation",
+              "scam",
+              "spam",
+              "security",
+              "rude"
+            ]
+          },
+          {
+            "id": "bool-mrps46is",
+            "type": "bool",
+            "field": "has_video",
+            "value": true
+          },
+          {
+            "id": "kind-mrps46yy",
+            "op": "is",
+            "type": "post_kind",
+            "kinds": [
+              "root",
+              "reply",
+              "quote",
+              "repost"
+            ]
+          },
+          {
+            "id": "media-mrps47m1",
+            "op": "is",
+            "type": "media_type",
+            "mediaTypes": [
+              0,
+              1,
+              2,
+              3
+            ]
+          },
+          {
+            "id": "alt-mrps484m",
+            "op": "has",
+            "type": "alt_text"
+          },
+          {
+            "id": "age-mrps48ma",
+            "op": "newer_than",
+            "use": "indexed_at",
+            "type": "post_age",
+            "hours": 24
+          },
+          {
+            "id": "media-stat-mrps4957",
+            "op": ">=",
+            "type": "media_stats",
+            "value": 3,
+            "metric": "image_count"
+          },
+          {
+            "id": "mime-mrps49ks",
+            "op": "includes",
+            "type": "mime_type",
+            "pattern": "image/jpeg"
+          },
+          {
+            "id": "mention-mrps4ass",
+            "op": "includes",
+            "type": "mention",
+            "accounts": [
+              "FEMA.MONSTER"
+            ]
+          },
+          {
+            "id": "ring-mrps4b9g",
+            "op": "includes",
+            "hub": "FEMA.MONSTER",
+            "type": "follow_ring",
+            "direction": "followers",
+            "hubSource": "account",
+            "pollIntervalMinutes": 60
+          },
+          {
+            "id": "author-mrpwgb0w",
+            "op": "in_list",
+            "type": "author",
+            "listId": "feed-list-1"
+          }
+        ]
+      }
+    ]
   },
   "public": true,
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
@@ -19,29 +236,261 @@
       "field": "like_count"
     }
   },
-  "liveAt": "2026-07-17T05:28:47.626Z",
+  "liveAt": "2026-07-18T20:28:32.351Z",
   "personalization": {
-    "boostFollowed": {
-      "enabled": true,
-      "factor": 1.3
+    "formula": {
+      "type": "field",
+      "field": "like_count"
     },
     "boostMutuals": {
-      "enabled": true,
-      "factor": 1.5
+      "factor": 1.5,
+      "enabled": true
     },
     "suppressSeen": {
       "enabled": true,
       "penalty": 0.5,
       "windowHours": 48
     },
+    "affinityBoost": {
+      "factor": 1.2,
+      "enabled": true,
+      "windowDays": 30
+    },
+    "boostFollowed": {
+      "factor": 1.3,
+      "enabled": true
+    },
+    "formulaEnabled": false,
     "authorDiversity": {
       "enabled": true,
       "maxConsecutive": 2
-    },
-    "affinityBoost": {
-      "enabled": true,
-      "factor": 1.2,
-      "windowDays": 30
     }
-  }
+  },
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-group-mrps3u5q",
+        "branch": true,
+        "source": "start",
+        "target": "group-mrps3u5q"
+      },
+      {
+        "id": "e-group-mrps3u5q-end",
+        "branch": true,
+        "source": "group-mrps3u5q",
+        "target": "end"
+      }
+    ],
+    "labels": {
+      "kw-mrps40oz": "KW CUSTOMNAME",
+      "age-mrps48ma": "POST AGE CUST NAME",
+      "alt-mrps484m": "ALT TEXT CUST NAME",
+      "sub-mrps3zo3": "SUB NODE CUSTOM NAME",
+      "tag-mrpejglc": "Ggg",
+      "tag-mrps43h9": "HASHTAG CUSTOMNAME",
+      "url-mrps43yk": "URL CUSTOM NAME",
+      "bool-mrps46is": "EMBED CUST NAME",
+      "kind-mrps46yy": "POST TYPE CUST NAME",
+      "lang-mrps44gw": "LANG CUSTOM NAME",
+      "math-mrps4c5e": "ENGAGEMENT CUST NAME",
+      "mime-mrps49ks": "MIME CUST NAME",
+      "ring-mrps4b9g": "FR CUSTNAME",
+      "logic-mrpocrct": "ddd",
+      "media-mrps47m1": "MEDIA TYPE CUST NAME",
+      "regex-mrps410q": "REGEX CUSTOM NAME",
+      "score-mrps3yxy": "SCORE NODE CUSTOM NAME",
+      "scout-mrpej86l": "dddddddd",
+      "scout-mrps4025": "SCOUT NODE CUSTOM NAME",
+      "author-mrpsqb0r": "ddd",
+      "labels-mrps44vs": "LABELS CUST NAME",
+      "mention-mrps4ass": "MENTION CUST NAME",
+      "media-stat-mrps4957": "MEDIA STATS CUST NAME"
+    },
+    "positions": {
+      "end": {
+        "x": 880.4164498852907,
+        "y": 38.56383147552714
+      },
+      "start": {
+        "x": -149.99064168152196,
+        "y": -31.11459754348529
+      },
+      "alt-mrpqzklt": {
+        "x": 420.38397756784644,
+        "y": 790.4435514497123
+      },
+      "bool-mrpr1my5": {
+        "x": -375.96651669893606,
+        "y": 509.4396695365776
+      },
+      "lang-mrpqt5ah": {
+        "x": 369.05669961705775,
+        "y": 120.07818367040709
+      },
+      "ring-mrpr6sy3": {
+        "x": -0.34416442270953246,
+        "y": 745.0785364924712
+      },
+      "group-mrps3u5q": {
+        "x": 262.021346208125,
+        "y": -364.38452017346265
+      },
+      "group-mrpuw1iz": {
+        "x": 336.5467804471911,
+        "y": -233.1886429043176
+      },
+      "author-mrpr2a0b": {
+        "x": -56.33755855084268,
+        "y": 797.1835004728174
+      },
+      "author-mrpwgb0w": {
+        "x": 692.9742793710739,
+        "y": 242.39234012211148
+      },
+      "labels-mrpqwiqw": {
+        "x": 362.8352113805985,
+        "y": 29.52096715092509
+      },
+      "mention-mrpqs5q7": {
+        "x": 403.27488491758356,
+        "y": 115.41206749306266
+      }
+    },
+    "nodeSources": {
+      "kw-mrpe6gq9": "native",
+      "kw-mrpe77c5": "native",
+      "kw-mrpe7gpe": "native",
+      "kw-mrpn30b4": "native",
+      "kw-mrpn30go": "native",
+      "kw-mrpo7d4b": "native",
+      "kw-mrpo7gjs": "native",
+      "kw-mrps40oz": "native",
+      "kw-mrpwj1nk": "native",
+      "age-mrpo8pns": "native",
+      "age-mrps48ma": "native",
+      "alt-mrpo8ml8": "native",
+      "alt-mrpqzklt": "native",
+      "alt-mrps484m": "native",
+      "sub-mrpdv8wb": "native",
+      "sub-mrpdv9km": "native",
+      "sub-mrpl36e2": "native",
+      "sub-mrpo65bq": "native",
+      "sub-mrps3zo3": "native",
+      "sub-mrpwizvz": "native",
+      "sub-mrpwj0px": "native",
+      "tag-mrpejglc": "native",
+      "tag-mrpo7lo8": "native",
+      "tag-mrps43h9": "native",
+      "url-mrpo7pxp": "native",
+      "url-mrps43yk": "native",
+      "bool-mrpo8973": "native",
+      "bool-mrpr1my5": "native",
+      "bool-mrps46is": "native",
+      "kind-mrpo8b5s": "native",
+      "kind-mrpqx97c": "native",
+      "kind-mrps46yy": "native",
+      "lang-mrpo7xiw": "native",
+      "lang-mrpqt5ah": "native",
+      "lang-mrps44gw": "native",
+      "math-mrpo9ov7": "native",
+      "math-mrpob0wx": "native",
+      "math-mrpob1xb": "native",
+      "math-mrps4c5e": "native",
+      "mime-mrpo9gua": "native",
+      "mime-mrps49ks": "native",
+      "ring-mrpjznsw": "native",
+      "ring-mrpo9m2f": "native",
+      "ring-mrpr6sy3": "native",
+      "ring-mrps4b9g": "native",
+      "ring-mrq0t5uw": "native",
+      "group-mrpe6g22": "native",
+      "group-mrpe6qxz": "native",
+      "group-mrpej3um": "native",
+      "group-mrpejq0n": "native",
+      "group-mrpejyf6": "native",
+      "group-mrpkpipt": "native",
+      "group-mrpkpkmz": "native",
+      "group-mrpo46l1": "native",
+      "group-mrpo4720": "native",
+      "group-mrpo4cgn": "native",
+      "group-mrpobthz": "native",
+      "group-mrpobunq": "native",
+      "group-mrpobwnh": "native",
+      "group-mrpoby5y": "native",
+      "group-mrps3u5q": "native",
+      "group-mrpuw1iz": "native",
+      "logic-mrpocrct": "collection",
+      "logic-mrpoq367": "subscription",
+      "logic-mrpoq5er": "subscription",
+      "logic-mrpoqcl6": "subscription",
+      "logic-mrpx8lu6": "subscription",
+      "media-mrpo8j1v": "native",
+      "media-mrpqxs48": "native",
+      "media-mrps47m1": "native",
+      "regex-mrpejmjs": "native",
+      "regex-mrpo7jb8": "native",
+      "regex-mrps410q": "native",
+      "score-mrpl310t": "native",
+      "score-mrpo4ls4": "native",
+      "score-mrps3yxy": "native",
+      "scout-mrpej86l": "native",
+      "scout-mrpo6gnd": "native",
+      "scout-mrps4025": "native",
+      "author-mrpo9nlw": "native",
+      "author-mrpr2a0b": "native",
+      "author-mrps4bq7": "native",
+      "author-mrpsqb0r": "native",
+      "author-mrpxhn06": "native",
+      "labels-mrpo7z7h": "native",
+      "labels-mrpqwiqw": "native",
+      "labels-mrps44vs": "native",
+      "mention-mrpo9jmw": "native",
+      "mention-mrpo9k73": "native",
+      "mention-mrpqs5q7": "native",
+      "mention-mrps4ass": "native",
+      "mention-mrq0xfs3": "native",
+      "mention-mrq0xge2": "native",
+      "media-stat-mrpo9cme": "native",
+      "media-stat-mrpr0u0m": "native",
+      "media-stat-mrpr0up5": "native",
+      "media-stat-mrps4957": "native"
+    },
+    "lockedNodeIds": [
+      "author-mrpsqb0r"
+    ],
+    "expandedNodeIds": [
+      "scout-mrpej86l",
+      "regex-mrpejmjs",
+      "tag-mrpejglc",
+      "kw-mrpn30b4",
+      "url-mrpo7pxp",
+      "mention-mrpqs5q7",
+      "lang-mrpqt5ah",
+      "labels-mrpqwiqw",
+      "kind-mrpqx97c",
+      "media-mrpqxs48",
+      "alt-mrpqzklt",
+      "media-stat-mrpr0up5",
+      "bool-mrpr1my5",
+      "author-mrpr2a0b",
+      "ring-mrpr6sy3",
+      "ring-mrps4b9g",
+      "math-mrps4c5e",
+      "sub-mrps3zo3",
+      "tag-mrps43h9"
+    ]
+  },
+  "authorLists": [
+    {
+      "listId": "feed-list-1",
+      "sources": [
+        {
+          "uri": "https://bsky.app/profile/did:plc:lptjvw6ut224kwrj7ub3sqbe/lists/3lhukbonwub2x",
+          "type": "bluesky_list",
+          "pollIntervalMinutes": 60
+        }
+      ],
+      "pollIntervalMinutes": 60
+    }
+  ]
 }

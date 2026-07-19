@@ -28,6 +28,7 @@ import { L2GraphCanvas } from './L2GraphCanvas'
 import { L2PropertiesInspector } from './L2NodeInspector'
 import { L2PreviewRail } from './L2PreviewRail'
 import { RailCollapseStrip, RailPanelHead, RailResizeHandle } from './L2RailChrome'
+import { PropertiesHelpModal } from './PropertiesHelpModal'
 import { MobileSheetHandle } from './MobileSheetHandle'
 import { L2NodePalette } from './L2NodePalette'
 import { L2NodeRenameDialog } from './L2NodeRenameDialog'
@@ -90,6 +91,7 @@ interface Props {
   projectAuthorLists?: AuthorListConfig[]
   listCache?: ListCacheEntry[]
   onRefreshList?: (listId: string) => Promise<void>
+  onListsChanged?: () => void | Promise<void>
 }
 
 export function L2VisualEditor({
@@ -118,8 +120,10 @@ export function L2VisualEditor({
   projectAuthorLists = [],
   listCache = [],
   onRefreshList,
+  onListsChanged,
 }: Props) {
   const rails = useVisualEditorRails()
+  const [propertiesHelpOpen, setPropertiesHelpOpen] = useState(false)
   const [innerLogicPreview, setInnerLogicPreview] = useState<{
     packageId: string
     versionPin: string
@@ -1060,6 +1064,8 @@ export function L2VisualEditor({
               onCollapse={rails.toggleProps}
               collapseLabel="Collapse properties"
               sourceFile="L2NodeInspector.tsx"
+              onHelp={() => setPropertiesHelpOpen(true)}
+              helpLabel="About this node"
             />
             {metadataPanel ? (
               <div className="logic-block-editor-metadata">{metadataPanel}</div>
@@ -1085,6 +1091,7 @@ export function L2VisualEditor({
               projectAuthorLists={projectAuthorLists}
               listCache={listCache}
               onRefreshList={onRefreshList}
+              onListsChanged={onListsChanged}
               prefilterMode={prefilterMode}
               readOnly={readOnly}
               onOpenInnerLogicPreview={setInnerLogicPreview}
@@ -1163,6 +1170,15 @@ export function L2VisualEditor({
         onClose={() => setInnerLogicPreview(null)}
       />
     ) : null}
+    <PropertiesHelpModal
+      open={propertiesHelpOpen}
+      onClose={() => setPropertiesHelpOpen(false)}
+      context={{
+        selected: selectedId ? findInMatch(match, selectedId) : null,
+        selectedEdgeId,
+        prefilterMode,
+      }}
+    />
     </VisualEditorNestContext.Provider>
   )
 

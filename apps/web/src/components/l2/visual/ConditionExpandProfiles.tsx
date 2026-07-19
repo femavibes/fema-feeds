@@ -82,6 +82,7 @@ export function ConditionExpandProfiles({
     [actors],
   )
   const [members, setMembers] = useState<ListMemberEntry[]>([])
+  const [memberCount, setMemberCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(false)
 
@@ -90,13 +91,17 @@ export function ConditionExpandProfiles({
     if (listId) {
       setLoading(true)
       setError(false)
-      void listMembersCached(listId)
-        .then((list) => {
-          if (!cancelled) setMembers(list)
+      void listMembersCached(listId, { limit: maxVisible })
+        .then((res) => {
+          if (!cancelled) {
+            setMembers(res.members)
+            setMemberCount(res.memberCount)
+          }
         })
         .catch(() => {
           if (!cancelled) {
             setMembers([])
+            setMemberCount(0)
             setError(true)
           }
         })
@@ -110,6 +115,7 @@ export function ConditionExpandProfiles({
 
     if (refs.length === 0) {
       setMembers([])
+      setMemberCount(0)
       return
     }
 
@@ -118,11 +124,15 @@ export function ConditionExpandProfiles({
     const timer = window.setTimeout(() => {
       void resolveActorsCached(refs)
         .then((list) => {
-          if (!cancelled) setMembers(list)
+          if (!cancelled) {
+            setMembers(list)
+            setMemberCount(list.length)
+          }
         })
         .catch(() => {
           if (!cancelled) {
             setMembers([])
+            setMemberCount(0)
             setError(true)
           }
         })
@@ -134,14 +144,14 @@ export function ConditionExpandProfiles({
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [listId, refs.join('\n')])
+  }, [listId, refs.join('\n'), maxVisible])
 
   if (!listId && refs.length === 0) {
     return <span className="l2-flow-condition-body-empty">No accounts</span>
   }
 
   const visible = members.slice(0, maxVisible)
-  const extra = members.length - visible.length
+  const extra = Math.max(0, memberCount - visible.length)
 
   return (
     <div className="l2-flow-profile-list">

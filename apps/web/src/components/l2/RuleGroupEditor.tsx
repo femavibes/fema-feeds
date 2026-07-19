@@ -3,11 +3,11 @@ import {
   newAndGroup,
   newAuthorCondition,
   newCompareCondition,
-  newEmbedCondition,
   newHashtagCondition,
   newKeywordCondition,
   newLabelsCondition,
   newLanguageCondition,
+  newMediaCondition,
   newNOfGroup,
   newOrGroup,
   newPostKindCondition,
@@ -137,8 +137,8 @@ export function RuleGroupEditor({ group, onChange, isRoot, canvasWired }: Props)
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => addChild(newLanguageCondition())}>
           + Language
         </button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => addChild(newEmbedCondition())}>
-          + Embed
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => addChild(newMediaCondition())}>
+          + Media
         </button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => addChild(newPostKindCondition())}>
           + Post type

@@ -4964,6 +4964,31 @@ input.readonly {
   gap: 0.25rem;
 }
 
+.l2-ingest-role-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.35rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  border: 1px solid var(--border);
+}
+
+.l2-ingest-role-badge--discover {
+  color: color-mix(in srgb, var(--accent) 85%, var(--text));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.l2-ingest-role-badge--filter {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
+}
+
 .l2-condition-remove {
   min-width: 1.5rem;
   padding: 0.1rem 0.35rem;
@@ -5403,6 +5428,26 @@ input.readonly {
 .l2-flow-condition-head .l2-flow-condition-title {
   flex: 1;
   min-width: 0;
+}
+
+.l2-flow-condition-ingest-icon-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  line-height: 1;
+}
+
+.l2-flow-condition-ingest-icon-btn--filter {
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 10%, transparent);
+  border-color: var(--border);
 }
 
 .l2-flow-condition-teaser {
@@ -6529,8 +6574,87 @@ body.l2-visual-open #root {
   min-width: 0;
 }
 
-.l2-rail-panel-head--collapse-end .l2-rail-panel-collapse {
+.l2-rail-panel-head--collapse-end .l2-rail-panel-head-end {
   margin-left: auto;
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.l2-rail-panel-help {
+  flex-shrink: 0;
+  align-self: stretch;
+  border-radius: 0;
+  border: none;
+  border-left: 1px solid var(--border);
+  padding: 0 0.55rem;
+  min-width: 2rem;
+  color: var(--text-muted);
+}
+
+.l2-rail-panel-help:hover {
+  color: var(--text);
+}
+
+.l2-properties-help-dialog {
+  max-width: 32rem;
+  width: min(92vw, 32rem);
+}
+
+.l2-properties-help-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.l2-properties-help-head h3 {
+  margin: 0;
+}
+
+.l2-properties-help-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.l2-properties-help-body h4 {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.l2-properties-help-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.l2-properties-help-table th,
+.l2-properties-help-table td {
+  text-align: left;
+  padding: 0.35rem 0.45rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.l2-properties-help-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.l2-author-list-type-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .l2-rail-panel-collapse {
@@ -7111,6 +7235,8 @@ body.l2-visual-open #root {
   inset: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   visibility: hidden;
   pointer-events: none;
 }
@@ -7125,6 +7251,8 @@ body.l2-visual-open #root {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 0.5rem 0.75rem 0.75rem;
 }
 
@@ -7300,41 +7428,56 @@ body.l2-visual-open #root {
   color: var(--text);
 }
 
+/* Default: long condition UIs (author lists, etc.) grow and the properties
+   panel body scrolls. Keyword fill-height reclaims the flex chain below. */
 .l2-inspector-body--condition {
   flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .l2-inspector-condition {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .l2-inspector-condition .l2-condition {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .l2-inspector-condition .l2-condition-body {
-  flex: 1 1 0;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .l2-inspector-condition .l2-condition-stack {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* Keyword: panel body locks; term list fills remaining height and scrolls. */
+.l2-inspector-body--condition:has(.l2-condition-fill) {
+  overflow: hidden;
+}
+
+.l2-inspector-body--condition:has(.l2-condition-fill) .l2-inspector-condition,
+.l2-inspector-body--condition:has(.l2-condition-fill) .l2-inspector-condition .l2-condition,
+.l2-inspector-body--condition:has(.l2-condition-fill) .l2-inspector-condition .l2-condition-body,
+.l2-inspector-body--condition:has(.l2-condition-fill) .l2-inspector-condition .l2-condition-stack {
   flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
@@ -7758,6 +7901,47 @@ body.l2-visual-open #root {
   gap: 0.15rem;
 }
 
+.l2-author-list-members-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.l2-author-list-members-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.l2-author-list-members-title-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+}
+
+.l2-author-list-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.l2-author-list-icon-btn:hover {
+  background: var(--surface-hover, rgba(255, 255, 255, 0.06));
+  color: var(--text);
+}
+
 .l2-author-list-members-actions {
   display: flex;
   flex-wrap: wrap;
@@ -7856,19 +8040,7 @@ body.l2-visual-open #root {
 .author-did-list-editor {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-}
-
-.author-did-list-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.author-did-list-label {
-  font-size: 0.82rem;
-  font-weight: 500;
+  gap: 0.65rem;
 }
 
 .author-did-list-status {
@@ -7876,96 +8048,36 @@ body.l2-visual-open #root {
   opacity: 0.65;
 }
 
-.author-did-list-rows {
-  display: flex;
-  flex-direction: column;
+.author-did-input {
+  width: 100%;
+  font-size: 0.78rem;
+}
+
+.author-did-member-row {
+  justify-content: space-between;
   gap: 0.35rem;
+  text-decoration: none;
+  color: inherit;
 }
 
-.author-did-row {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.author-did-row-inputs {
+.author-did-member-link {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.55rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
 }
 
-.author-did-input {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.78rem;
+.author-did-member-pending {
+  opacity: 0.75;
 }
 
 .author-did-remove {
   flex-shrink: 0;
   min-width: 2rem;
   padding-inline: 0.35rem;
-}
-
-.author-did-add {
-  align-self: flex-start;
-}
-
-.author-did-resolved {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.35rem 0.45rem;
-  border-radius: 0.45rem;
-  background: var(--surface-muted, rgba(255, 255, 255, 0.04));
-  color: inherit;
-  text-decoration: none;
-  max-width: 100%;
-  transition: background 0.12s ease;
-}
-
-.author-did-resolved:hover {
-  background: var(--surface-hover, rgba(255, 255, 255, 0.07));
-}
-
-.author-did-resolved-avatar {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 999px;
-  flex-shrink: 0;
-  object-fit: cover;
-  background: var(--surface-muted, rgba(255, 255, 255, 0.06));
-}
-
-.author-did-resolved-avatar-fallback {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-muted, rgba(255, 255, 255, 0.65));
-}
-
-.author-did-resolved-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.05rem;
-  min-width: 0;
-}
-
-.author-did-resolved-name {
-  font-size: 0.78rem;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.author-did-resolved-handle {
-  font-size: 0.68rem;
-  opacity: 0.72;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .l2-regex-pattern {
@@ -11522,6 +11634,7 @@ body.l2-visual-open #root {
     z-index: 30;
     min-height: 0;
     height: auto;
+    max-height: 100%;
     border-top: 1px solid var(--border);
     border-right: none;
     border-left: none;
@@ -11551,6 +11664,14 @@ body.l2-visual-open #root {
   .l2-visual-rail-left.is-open {
     align-self: end;
     height: 50%;
+  }
+
+  /* Properties / preview: full editor height (toolbar→bottom bar); body scrolls */
+  .l2-visual-rail-props.is-open,
+  .l2-visual-rail-preview.is-open {
+    align-self: stretch;
+    height: 100%;
+    max-height: 100%;
   }
 
   /* Match the bottom bar thirds: category nav = Nodes tab width (1/3),

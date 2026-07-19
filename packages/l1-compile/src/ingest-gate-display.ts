@@ -24,6 +24,7 @@ export function ingestRuleEvalCost(rule: IngestGateRule): number {
       return 4
     case 'author':
     case 'follow_ring':
+    case 'mention':
       return 5
     case 'regex':
       return 8
@@ -60,6 +61,10 @@ export function formatIngestLeafLabel(branch: IngestGateBranch): string {
       return branch.listId
         ? `Author ${branch.op}: list “${branch.listId}”`
         : `Author ${branch.op}: ${branch.dids?.length ?? 0} DIDs`
+    case 'mention': {
+      const n = branch.accounts?.length ?? branch.dids?.length ?? 0
+      return `Mention ${branch.op}: ${n} account(s)`
+    }
     default:
       return 'Rule'
   }

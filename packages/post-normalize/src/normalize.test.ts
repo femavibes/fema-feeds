@@ -148,9 +148,53 @@ describe('normalizeJetstreamPost', () => {
     }
     const q = normalizeJetstreamPost(quote)
     expect(q.postKind).toBe('quote')
+    expect(q.embed.hasQuote).toBe(true)
+    expect(q.embed.hasQuoteWithMedia).toBe(false)
+    expect(q.embed.hasRecord).toBe(false)
     expect(q.embedDetail?.record).toEqual({
       uri: 'at://did:plc:q/app.bsky.feed.post/1',
       cid: 'bafyq',
     })
+  })
+
+  it('splits GIF from video and quote+media from plain quote', () => {
+    const gif: JetstreamPostEvent = {
+      uri: 'at://did:plc:x/app.bsky.feed.post/gif',
+      cid: 'bafygif',
+      author: 'did:plc:x',
+      record: {
+        text: 'gif',
+        embed: {
+          $type: 'app.bsky.embed.video',
+          video: { $type: 'blob', mimeType: 'video/mp4', size: 100 },
+          presentation: 'gif',
+        },
+      },
+    }
+    const g = normalizeJetstreamPost(gif)
+    expect(g.embed.hasGif).toBe(true)
+    expect(g.embed.hasVideo).toBe(false)
+
+    const withMedia: JetstreamPostEvent = {
+      uri: 'at://did:plc:x/app.bsky.feed.post/qwm',
+      cid: 'bafyqwm',
+      author: 'did:plc:x',
+      record: {
+        text: 'quote with media',
+        embed: {
+          $type: 'app.bsky.embed.recordWithMedia',
+          record: { record: { uri: 'at://did:plc:q/app.bsky.feed.post/1', cid: 'bafyq' } },
+          media: {
+            $type: 'app.bsky.embed.images',
+            images: [{ alt: 'x', image: { $type: 'blob', mimeType: 'image/jpeg', size: 10 } }],
+          },
+        },
+      },
+    }
+    const m = normalizeJetstreamPost(withMedia)
+    expect(m.embed.hasQuoteWithMedia).toBe(true)
+    expect(m.embed.hasRecord).toBe(true)
+    expect(m.embed.hasQuote).toBe(false)
+    expect(m.embed.hasImage).toBe(true)
   })
 })

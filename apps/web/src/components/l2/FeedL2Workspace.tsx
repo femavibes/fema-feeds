@@ -56,6 +56,7 @@ interface Props {
     hasUnpublishedDraft: boolean
   }) => void
   onRefreshList?: (listId: string) => Promise<void>
+  onListsChanged?: () => void | Promise<void>
   onUpdateLive?: () => Promise<void>
   onCloneFeed?: () => void
 }
@@ -79,6 +80,7 @@ export function FeedL2Workspace({
   onNavigatorReady,
   onFeedUpgradeApplied,
   onRefreshList,
+  onListsChanged,
   onUpdateLive,
   onCloneFeed,
 }: Props) {
@@ -398,6 +400,7 @@ export function FeedL2Workspace({
           projectAuthorLists={project.authorLists ?? []}
           listCache={listCache.filter((l) => l.projectId === project.projectId)}
           onRefreshList={onRefreshList}
+          onListsChanged={onListsChanged}
         />
       )}
 

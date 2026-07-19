@@ -49,11 +49,23 @@ export type L2MediaStatMetric = Extract<
 
 export type L2BoolField =
   | 'has_video'
+  | 'has_gif'
   | 'has_image'
   | 'has_link_card'
   | 'has_quote'
   | 'has_record'
+  | 'has_quote_with_media'
   | 'has_text_only'
+
+/** Media kinds for the unified Media node (multi-toggle OR). */
+export type L2MediaKind =
+  | 'text_only'
+  | 'image'
+  | 'video'
+  | 'gif'
+  | 'link_card'
+  | 'quote'
+  | 'quote_with_media'
 
 export type L2CompareOp = '==' | '!=' | '<' | '<=' | '>' | '>='
 
@@ -119,11 +131,22 @@ export interface L2RegexCondition {
   runAtIngest?: boolean
 }
 
+/** @deprecated Prefer L2MediaCondition (`type: 'media'`). Migrated on feed load. */
 export interface L2BoolCondition {
   type: 'bool'
   id: string
   field: L2BoolField
   value: boolean
+  runAtIngest?: boolean
+}
+
+/** Unified Media node — multi-toggle OR over embed flags (Discover at L1 by default). */
+export interface L2MediaCondition {
+  type: 'media'
+  id: string
+  op: 'is' | 'is_not'
+  kinds: L2MediaKind[]
+  /** Compile into project ingest gate when live (default true). */
   runAtIngest?: boolean
 }
 
@@ -185,11 +208,18 @@ export interface L2MentionCondition {
   accounts: string[]
   /** Advanced: also match facet mentions of anyone on this Bluesky list (must be synced). */
   listUri?: string
+  /**
+   * filter = gate posts already in play (L2).
+   * discover = pull matching mention posts into the L1 pool.
+   * Default discover.
+   */
+  role?: import('./follow-ring.js').FollowRingRole
 }
 
 /** Near You–style media bucket from ingest rank_snapshot (0=text … 5=quote). */
 export type L2MediaTypeValue = 0 | 1 | 2 | 3 | 4 | 5
 
+/** @deprecated Prefer L2MediaCondition (`type: 'media'`). Migrated on feed load. */
 export interface L2MediaTypeCondition {
   type: 'media_type'
   id: string
@@ -343,6 +373,7 @@ export type L2RuleNode =
   | L2KeywordCondition
   | L2RegexCondition
   | L2BoolCondition
+  | L2MediaCondition
   | L2PostKindCondition
   | L2LanguageCondition
   | L2LabelsCondition
@@ -457,12 +488,12 @@ export interface L2EvalInput {
   nowMs?: number
   /** Editor preview — evaluate rules even when feed.enabled is false. */
   preview?: boolean
-  /** Resolved author list DIDs for in_list conditions */
-  authorLists?: Record<string, string[]>
+  /** Resolved author list DIDs for in_list conditions (arrays or Sets — Sets preferred for large lists) */
+  authorLists?: Record<string, string[] | ReadonlySet<string>>
   /** Resolved mention target DIDs keyed by mention condition node id */
   mentionDids?: Record<string, string[]>
-  /** Resolved follow-ring DID sets keyed by follow_ring node id */
-  followRings?: Record<string, string[]>
+  /** Resolved follow-ring DIDs keyed by follow_ring node id (arrays or Sets) */
+  followRings?: Record<string, string[] | ReadonlySet<string>>
   /** Resolve marketplace / collection logic blocks at eval time (dereference). */
   resolveLogicBlock?: (ref: import('./logic-blocks.js').LogicBlockRef) => L2RuleGroup | null
   /** Evaluate a custom code logic block (WASM/remote). Returns match + optional score. */

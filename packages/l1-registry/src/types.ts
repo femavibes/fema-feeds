@@ -19,8 +19,9 @@ export interface L1EvalContext {
   accountFollowRingDids?: string[]
   /** Follow-ring + author-list DIDs for compiled ingest_gate branches. */
   ingestGateExtras?: {
-    followRingDids?: Record<string, string[]>
-    authorListDids?: Record<string, string[]>
+    followRingDids?: Record<string, string[] | ReadonlySet<string>>
+    authorListDids?: Record<string, ReadonlySet<string>>
+    mentionDids?: Record<string, ReadonlySet<string> | string[]>
   }
 }
 

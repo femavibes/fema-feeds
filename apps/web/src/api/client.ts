@@ -121,6 +121,11 @@ export interface ListCacheEntry {
   remotePollKey?: string | null
   graphUri?: string | null
   feedOnly?: boolean
+  listKind?: string | null
+  listPurpose?: string | null
+  listTypeLabel?: string | null
+  lastManualRefreshAt?: string | null
+  refreshCooldownRemainingMs?: number
 }
 
 export interface ListMemberEntry {
@@ -135,7 +140,35 @@ export interface ListMembersResponse {
   graphName: string | null
   memberCount: number
   refreshedAt: string | null
+  listKind?: string | null
+  listPurpose?: string | null
+  listTypeLabel?: string | null
+  graphUri?: string | null
+  offset?: number
+  limit?: number
+  truncated?: boolean
   members: ListMemberEntry[]
+}
+
+export interface EnsureListResponse {
+  listId: string
+  graphName: string | null
+  memberCount: number
+  listKind: string | null
+  listPurpose: string | null
+  graphUri: string
+  reused: boolean
+}
+
+export interface RefreshListResponse {
+  listId: string
+  memberCount: number
+  graphName?: string | null
+  listKind?: string | null
+  listPurpose?: string | null
+  listTypeLabel?: string | null
+  refreshedAt: string
+  cooldownRemainingMs?: number
 }
 
 export interface LabelerSource {
@@ -590,9 +623,15 @@ export const api = {
     }),
   stats: () => apiFetch<IngestStats>('/api/stats'),
   listCache: () => apiFetch<{ lists: ListCacheEntry[] }>('/api/lists/cache'),
-  listMembers: (listId: string, extraDids?: string[]) => {
+  listMembers: (
+    listId: string,
+    opts?: { extraDids?: string[]; limit?: number; offset?: number },
+  ) => {
     const params = new URLSearchParams()
+    const extraDids = opts?.extraDids
     if (extraDids?.length) params.set('extraDids', extraDids.join(','))
+    if (opts?.limit != null) params.set('limit', String(opts.limit))
+    if (opts?.offset != null) params.set('offset', String(opts.offset))
     const q = params.toString()
     return apiFetch<ListMembersResponse>(
       `/api/lists/${encodeURIComponent(listId)}/members${q ? `?${q}` : ''}`,
@@ -607,6 +646,36 @@ export const api = {
     return apiFetch<{ members: ListMemberEntry[] }>(`/api/author-profiles?${params}`)
   },
   pollLists: () => apiFetch<{ refreshed: number }>('/api/lists/poll', { method: 'POST' }),
+  ensureList: (uri: string, projectId: string) =>
+    apiFetch<EnsureListResponse>('/api/lists/ensure', {
+      method: 'POST',
+      body: JSON.stringify({ uri, projectId }),
+    }),
+  refreshList: async (listId: string): Promise<RefreshListResponse> => {
+    const res = await fetch(`/api/lists/${encodeURIComponent(listId)}/refresh`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/json' },
+    })
+    const body = (await res.json().catch(() => ({}))) as RefreshListResponse & {
+      error?: string
+      message?: string
+      cooldownRemainingMs?: number
+    }
+    if (res.status === 429) {
+      const err = new Error(body.message ?? body.error ?? 'Refresh cooling down') as Error & {
+        cooldownRemainingMs?: number
+        code?: string
+      }
+      err.cooldownRemainingMs = body.cooldownRemainingMs
+      err.code = 'refresh_cooldown'
+      throw err
+    }
+    if (!res.ok) {
+      throw new Error(body.error ?? body.message ?? `Request failed (${res.status})`)
+    }
+    return body as RefreshListResponse
+  },
   getEnrichmentSettings: () =>
     apiFetch<{ settings: EnrichmentSettings }>('/api/settings/enrichment'),
   saveEnrichmentSettings: (patch: Partial<EnrichmentSettings>) =>
@@ -653,10 +722,6 @@ export const api = {
     }),
   deleteLabeler: (did: string) =>
     apiFetch<{ ok: boolean }>(`/api/labelers/${encodeURIComponent(did)}`, { method: 'DELETE' }),
-  refreshList: (listId: string) =>
-    apiFetch<{ listId: string; memberCount: number }>(`/api/lists/${listId}/refresh`, {
-      method: 'POST',
-    }),
   authStatus: () => apiFetch<AuthStatus>('/api/auth/status'),
   authMe: () =>
     apiFetch<{

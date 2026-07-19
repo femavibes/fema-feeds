@@ -7,9 +7,11 @@ import { languageStep } from './language.js'
 import { languageUnknownStep } from './language-unknown.js'
 import {
   hasVideoStep,
+  hasGifStep,
   hasImageStep,
   hasLinkCardStep,
   hasQuoteStep,
+  hasQuoteWithMediaStep,
   hasRecordStep,
   hasTextOnlyStep,
 } from './embed-flags.js'
@@ -35,9 +37,11 @@ export const L1_FILTER_STEPS: Record<string, L1FilterStep> = {
   language: languageStep,
   language_unknown: languageUnknownStep,
   has_video: hasVideoStep,
+  has_gif: hasGifStep,
   has_image: hasImageStep,
   has_link_card: hasLinkCardStep,
   has_quote: hasQuoteStep,
+  has_quote_with_media: hasQuoteWithMediaStep,
   has_record: hasRecordStep,
   has_text_only: hasTextOnlyStep,
   hashtag_exclude: hashtagExcludeStep,

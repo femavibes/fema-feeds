@@ -13,6 +13,7 @@ export {
   seedAuthorListsFromProjects,
   seedAuthorListsFromFeeds,
   refreshAuthorListToCache,
+  ensureBlueskyListInCache,
   pollDueAuthorLists,
   loadHydratedProjects,
   prepareProjectsForIngest,

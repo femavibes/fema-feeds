@@ -362,14 +362,30 @@ function searchPostToNormalized(post: {
   }
 
   const embed = record.embed
-  const hasVideo = embed?.$type === 'app.bsky.embed.video' || embed?.media?.$type === 'app.bsky.embed.video'
-  const hasImage = embed?.$type === 'app.bsky.embed.images' || embed?.media?.$type === 'app.bsky.embed.images'
-  const hasLinkCard = embed?.$type === 'app.bsky.embed.external' || embed?.media?.$type === 'app.bsky.embed.external'
-  const hasQuote = embed?.$type === 'app.bsky.embed.record' || embed?.$type === 'app.bsky.embed.recordWithMedia'
-  const hasRecord = hasQuote
+  const media = embed?.media
+  const videoBlob = embed?.video ?? media?.video
+  const presentation = videoBlob?.presentation
+  const rawHasVideo = Boolean(
+    embed?.$type === 'app.bsky.embed.video' ||
+      media?.$type === 'app.bsky.embed.video' ||
+      videoBlob,
+  )
+  const hasGif = rawHasVideo && presentation === 'gif'
+  const hasVideo = rawHasVideo && !hasGif
+  const hasImage =
+    embed?.$type === 'app.bsky.embed.images' || media?.$type === 'app.bsky.embed.images'
+  const hasLinkCard =
+    embed?.$type === 'app.bsky.embed.external' || media?.$type === 'app.bsky.embed.external'
+  const hasQuote = embed?.$type === 'app.bsky.embed.record'
+  const hasQuoteWithMedia = embed?.$type === 'app.bsky.embed.recordWithMedia'
+  const hasRecord = hasQuoteWithMedia
 
   const isReply = Boolean(record.reply)
-  const postKind = isReply ? 'reply' as const : hasQuote ? 'quote' as const : 'root' as const
+  const postKind = isReply
+    ? ('reply' as const)
+    : hasQuote || hasQuoteWithMedia
+      ? ('quote' as const)
+      : ('root' as const)
 
   return {
     uri: post.uri,
@@ -384,11 +400,14 @@ function searchPostToNormalized(post: {
     postKind,
     embed: {
       hasVideo,
+      hasGif,
       hasImage,
       hasLinkCard,
       hasQuote,
+      hasQuoteWithMedia,
       hasRecord,
-      hasTextOnly: !hasVideo && !hasImage && !hasLinkCard && !hasQuote && !hasRecord,
+      hasTextOnly:
+        !hasVideo && !hasGif && !hasImage && !hasLinkCard && !hasQuote && !hasQuoteWithMedia,
     },
     facetTags,
     hiddenFacetTags: [],

@@ -145,6 +145,13 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
   let l2Written = 0
   let l2Errors = 0
   let lastSession: IngestLastSession | null = null
+  /** Cap concurrent firehose handlers so the CT does not thrash (see CFB_INGEST_MAX_IN_FLIGHT). */
+  let postInFlight = 0
+  let postDropped = 0
+  const maxPostInFlight = Math.max(
+    8,
+    Number(process.env.CFB_INGEST_MAX_IN_FLIGHT ?? 48) || 48,
+  )
 
   const ownsPool = options.ownsPool ?? options.pool === undefined
   const pool: Pool | null =
@@ -159,7 +166,7 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
   let accountFollowRings: Record<string, string[]> = {}
   let ingestGateExtrasByProject: Record<
     string,
-    { followRingDids: Record<string, string[]>; authorListDids: Record<string, string[]> }
+    { followRingDids: Record<string, string[] | ReadonlySet<string>>; authorListDids: Record<string, Set<string>>; mentionDids?: Record<string, Set<string>> }
   > = {}
   let globalPrefilterGate: CompiledIngestGate | null = null
   let globalPrefilterReject = 0
@@ -295,7 +302,20 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
 
     const { stop } = await startJetstreamIngest(jetstreamUrl, {
       onPost: (post) => {
-        void handlePost(post)
+        // Bound concurrent firehose work — unbounded void/async grew RSS to ~1–2GB on a 4GB CT.
+        if (postInFlight >= maxPostInFlight) {
+          postDropped++
+          if (postDropped === 1 || postDropped % 5_000 === 0) {
+            console.error(
+              `[ingest] post backpressure: dropped=${postDropped} inFlight=${postInFlight} max=${maxPostInFlight}`,
+            )
+          }
+          return
+        }
+        postInFlight++
+        void handlePost(post).finally(() => {
+          postInFlight--
+        })
         // Persist cursor periodically for reconnection resilience
         if (pool && seen % 1000 === 0) {
           const cursorUs = Date.now() * 1000
@@ -308,21 +328,9 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       seen++
       // Feed intelligence: sample firehose (in-memory, non-blocking)
       feedIntelligence?.maybeSampleFirehose(post)
-      let resolved = post
-      if (pool && enrichmentSettings) {
-        resolved = await maybeResolveLabelerLabels(pool, post, enrichmentSettings).then(
-          (p) => {
-            if (p.labelerLabels.length > post.labelerLabels.length) labelResolves++
-            return p
-          },
-          () => {
-            labelResolveErrors++
-            return post
-          },
-        )
-      }
+      // Cheap L1 first (flags/text) — defer labeler HTTP until a project actually matches.
       // Global prefilter — reject before any per-project evaluation
-      if (globalPrefilterGate && !evaluateIngestGate(globalPrefilterGate, resolved)) {
+      if (globalPrefilterGate && !evaluateIngestGate(globalPrefilterGate, post)) {
         globalPrefilterReject++
         return
       }
@@ -331,7 +339,7 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       const strictConfigs = configs.filter((c) => c.prefilterMode === 'strict')
 
       // Manual mode projects: standard L1 evaluation
-      const result = evaluateMergedL1(resolved, manualConfigs, {
+      const result = evaluateMergedL1(post, manualConfigs, {
         accountFollowRings,
         ingestGateExtrasByProject,
       })
@@ -342,7 +350,7 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
         .filter((c) =>
           c.enabled &&
           postPassesStrictGate(
-            resolved,
+            post,
             c,
             strictGateState,
             ingestGateExtrasByProject[c.projectId],
@@ -353,6 +361,19 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
       const matched = [...manualMatched, ...strictMatched]
       if (matched.length > 0) {
         l1Pass++
+        let resolved = post
+        if (pool && enrichmentSettings) {
+          resolved = await maybeResolveLabelerLabels(pool, post, enrichmentSettings).then(
+            (p) => {
+              if (p.labelerLabels.length > post.labelerLabels.length) labelResolves++
+              return p
+            },
+            () => {
+              labelResolveErrors++
+              return post
+            },
+          )
+        }
         // Feed intelligence: record pool signals (in-memory, non-blocking)
         feedIntelligence?.recordPoolPost(resolved, matched.map((m) => m.projectId))
         if (pool) {

@@ -5,6 +5,7 @@ import type {
   L2CompareOp,
   L2Expr,
   L2GroupLogic,
+  L2MediaKind,
   L2MediaStatMetric,
   L2MediaTypeValue,
   L2NumericField,
@@ -67,6 +68,35 @@ export function mediaStatLabel(metric: L2MediaStatMetric): string {
   return fieldLabel(metric)
 }
 
+export const L2_MEDIA_KINDS: L2MediaKind[] = [
+  'text_only',
+  'image',
+  'video',
+  'gif',
+  'link_card',
+  'quote',
+  'quote_with_media',
+]
+
+export function mediaKindLabel(kind: L2MediaKind): string {
+  switch (kind) {
+    case 'text_only':
+      return 'Text'
+    case 'image':
+      return 'Image'
+    case 'video':
+      return 'Video'
+    case 'gif':
+      return 'GIF'
+    case 'link_card':
+      return 'Link card'
+    case 'quote':
+      return 'Quote'
+    case 'quote_with_media':
+      return 'Quote w/ media'
+  }
+}
+
 export const L2_MEDIA_TYPE_VALUES: L2MediaTypeValue[] = [0, 1, 2, 3, 4, 5]
 
 export function mediaTypeLabel(value: L2MediaTypeValue): string {
@@ -88,9 +118,11 @@ export function mediaTypeLabel(value: L2MediaTypeValue): string {
 
 export const L2_BOOL_FIELDS: L2BoolField[] = [
   'has_video',
+  'has_gif',
   'has_image',
   'has_link_card',
   'has_quote',
+  'has_quote_with_media',
   'has_record',
   'has_text_only',
 ]
@@ -205,7 +237,7 @@ export function newUrlCondition(): L2RuleNode {
 }
 
 export function newMentionCondition(): L2RuleNode {
-  return { type: 'mention', id: newId('mention'), op: 'includes', accounts: [] }
+  return { type: 'mention', id: newId('mention'), op: 'includes', accounts: [], role: 'discover' }
 }
 
 export function followRingCacheListId(nodeId: string): string {
@@ -228,8 +260,13 @@ export function newBoolCondition(field: L2BoolField = 'has_video'): L2RuleNode {
   return { type: 'bool', id: newId('bool'), field, value: true }
 }
 
+/** @deprecated Prefer newMediaCondition — kept for imports / tests. */
 export function newEmbedCondition(field: L2BoolField = 'has_video'): L2RuleNode {
-  return newBoolCondition(field)
+  return newMediaCondition(field === 'has_image' ? ['image'] : ['video'])
+}
+
+export function newMediaCondition(kinds: L2MediaKind[] = ['image']): L2RuleNode {
+  return { type: 'media', id: newId('media'), op: 'is', kinds }
 }
 
 export function newLanguageCondition(): L2RuleNode {
@@ -268,8 +305,9 @@ export function newScoreNode(points = 1): L2RuleNode {
   return { type: 'score', id: newId('score'), points }
 }
 
+/** @deprecated Prefer newMediaCondition — migrated on load. */
 export function newMediaTypeCondition(): L2RuleNode {
-  return { type: 'media_type', id: newId('media'), op: 'is', mediaTypes: [1] }
+  return newMediaCondition(['image'])
 }
 
 export function newAltTextCondition(): L2RuleNode {
@@ -425,16 +463,20 @@ export function fieldLabel(field: string): string {
       return 'Audience reposts (this feed\'s readers)'
     case 'has_video':
       return 'Has video'
+    case 'has_gif':
+      return 'Has GIF'
     case 'has_image':
       return 'Has image'
     case 'has_link_card':
       return 'Link card'
     case 'has_quote':
-      return 'Quote embed'
+      return 'Quote'
+    case 'has_quote_with_media':
+      return 'Quote w/ media'
     case 'has_record':
-      return 'Record / repost embed'
+      return 'Quote w/ media'
     case 'has_text_only':
-      return 'Text only (no embed)'
+      return 'Text'
     case 'root':
       return 'Top-level post'
     case 'reply':

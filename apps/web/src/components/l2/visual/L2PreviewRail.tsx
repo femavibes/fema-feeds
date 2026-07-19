@@ -56,7 +56,7 @@ export function L2PreviewRail({
       </RailPanelHead>
       <div className="l2-inspector-preview-panes">
         <div
-          className={`l2-inspector-panel l2-inspector-matches${tab === 'matches' ? ' is-active' : ''}`}
+          className={`l2-inspector-panel scrollbar-modern l2-inspector-matches${tab === 'matches' ? ' is-active' : ''}`}
         >
           <L2MatchPoolPanel
             draft={draft}
@@ -66,7 +66,7 @@ export function L2PreviewRail({
             onSelectNode={onSelectNode}
           />
         </div>
-        <div className={`l2-inspector-panel l2-inspector-test${tab === 'test' ? ' is-active' : ''}`}>
+        <div className={`l2-inspector-panel scrollbar-modern l2-inspector-test${tab === 'test' ? ' is-active' : ''}`}>
           <L2PreviewPanel
             draft={draft}
             compact

@@ -1,5 +1,5 @@
 export { loadPostMetrics } from './metrics.js'
-export { collectAuthorListIds, loadAuthorListsForFeeds } from './author-lists.js'
+export { collectAuthorListIds, loadAuthorListsForFeeds, loadAuthorListSetsForFeeds } from './author-lists.js'
 export { loadMentionDidsForFeed } from './mention-accounts.js'
 export {
   seedFollowRingsFromFeeds,

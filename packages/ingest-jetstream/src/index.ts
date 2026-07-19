@@ -11,3 +11,8 @@ export {
   type EngagementEvent,
   type EngagementJetstreamOptions,
 } from './engagement-client.js'
+export {
+  startListitemJetstream,
+  type ListitemEvent,
+  type ListitemJetstreamOptions,
+} from './listitem-client.js'

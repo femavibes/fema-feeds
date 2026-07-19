@@ -1,0 +1,26 @@
+{
+  "name": "@cfb/listitem-stream",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@cfb/ingest-jetstream": "workspace:*",
+    "@cfb/storage-postgres": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/pg": "^8.15.2",
+    "typescript": "^5.8.3"
+  }
+}

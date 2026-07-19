@@ -15,9 +15,11 @@ const post: NormalizedPost = {
   postKind: 'root',
   embed: {
     hasVideo: false,
+      hasGif: false,
     hasImage: false,
     hasLinkCard: false,
     hasQuote: false,
+      hasQuoteWithMedia: false,
     hasRecord: false,
     hasTextOnly: true,
   },
@@ -57,6 +59,19 @@ vi.mock('./metrics.js', () => ({
 
 vi.mock('./author-lists.js', () => ({
   loadAuthorListsForFeeds: vi.fn(async () => ({})),
+  loadAuthorListSetsForFeeds: vi.fn(async () => ({})),
+}))
+
+vi.mock('./follow-ring-cache.js', () => ({
+  loadFollowRingsForFeeds: vi.fn(async () => ({})),
+}))
+
+vi.mock('./mention-accounts.js', () => ({
+  loadMentionDidsForFeeds: vi.fn(async () => ({})),
+}))
+
+vi.mock('./did-list-mem-cache.js', () => ({
+  getCachedDidList: vi.fn(() => null),
 }))
 
 describe('processPostForFeeds', () => {

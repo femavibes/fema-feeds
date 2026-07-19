@@ -17,6 +17,7 @@
     "@cfb/label-stream": "workspace:*",
     "@cfb/l2-worker": "workspace:*",
     "@cfb/list-cache": "workspace:*",
+    "@cfb/listitem-stream": "workspace:*",
     "@cfb/project-config": "workspace:*",
     "@cfb/storage-postgres": "workspace:*",
     "dotenv": "^17.2.3"

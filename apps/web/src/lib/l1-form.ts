@@ -14,16 +14,25 @@ export const POST_KINDS: PostKind[] = ['root', 'reply', 'quote', 'repost']
 export const EMBED_FLAGS: Array<{
   key: keyof Pick<
     ProjectL1Config,
-    'hasVideo' | 'hasImage' | 'hasLinkCard' | 'hasQuote' | 'hasRecord' | 'hasTextOnly'
+    | 'hasVideo'
+    | 'hasGif'
+    | 'hasImage'
+    | 'hasLinkCard'
+    | 'hasQuote'
+    | 'hasQuoteWithMedia'
+    | 'hasRecord'
+    | 'hasTextOnly'
   >
   label: string
 }> = [
   { key: 'hasVideo', label: 'Video' },
+  { key: 'hasGif', label: 'GIF' },
   { key: 'hasImage', label: 'Image' },
   { key: 'hasLinkCard', label: 'Link card' },
   { key: 'hasQuote', label: 'Quote' },
-  { key: 'hasRecord', label: 'Record embed' },
-  { key: 'hasTextOnly', label: 'Text only' },
+  { key: 'hasQuoteWithMedia', label: 'Quote w/ media' },
+  { key: 'hasRecord', label: 'Quote w/ media (legacy)' },
+  { key: 'hasTextOnly', label: 'Text' },
 ]
 
 export const EMBED_OPTIONS: Array<EmbedFlagRequirement | 'unset'> = [
@@ -46,8 +55,17 @@ export const LISTED_AUTHOR_FILTER_GROUPS: Array<{ title: string; hint?: string; 
   },
   {
     title: 'Media & embeds',
-    hint: 'Require video/image/link/quote/record/text-only rules.',
-    steps: ['has_video', 'has_image', 'has_link_card', 'has_quote', 'has_record', 'has_text_only'],
+    hint: 'Require video/GIF/image/link/quote/text-only rules.',
+    steps: [
+      'has_video',
+      'has_gif',
+      'has_image',
+      'has_link_card',
+      'has_quote',
+      'has_quote_with_media',
+      'has_record',
+      'has_text_only',
+    ],
   },
   {
     title: 'Keywords & hashtags',
@@ -64,11 +82,13 @@ const STEP_LABELS: Partial<Record<L1StepId, string>> = {
   language: 'Language allowlist',
   language_unknown: 'Posts with no language tag',
   has_video: 'Video posts',
+  has_gif: 'GIF posts',
   has_image: 'Image posts',
   has_link_card: 'Link card posts',
   has_quote: 'Quote posts',
-  has_record: 'Record embed posts',
-  has_text_only: 'Text-only posts',
+  has_quote_with_media: 'Quote w/ media posts',
+  has_record: 'Quote w/ media posts (legacy)',
+  has_text_only: 'Text posts',
   hashtag_include: 'Required hashtags',
   hashtag_exclude: 'Blocked hashtags',
   keyword_include: 'Required keywords',

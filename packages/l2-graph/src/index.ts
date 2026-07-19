@@ -27,6 +27,11 @@ export {
 } from './condition-expand.js'
 export { normalizeRuleGroup, normalizeRuleNode } from './normalize-match.js'
 export {
+  migrateBoolToMedia,
+  migrateMediaTypeToMedia,
+  migrateMediaNodes,
+} from './migrate-media.js'
+export {
   matchToFlowGraph,
   summarizeRule,
   conditionNodeTitle,

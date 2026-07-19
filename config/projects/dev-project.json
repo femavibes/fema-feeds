@@ -17,7 +17,7 @@
     "restrictBranches": []
   },
   "compiledL1Meta": {
-    "compiledAt": "2026-07-16T18:12:18.507Z",
+    "compiledAt": "2026-07-18T20:21:05.350Z",
     "source": "prefilter"
   },
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
@@ -26,14 +26,132 @@
     "versionPin": "1.0.1"
   },
   "strictIncludeGate": {
-    "includeBranches": [],
+    "includeBranches": [
+      {
+        "type": "all",
+        "rules": [
+          {
+            "type": "hashtag",
+            "op": "includes",
+            "tags": [
+              "tagggy",
+              "baggy",
+              "laggy",
+              "goog",
+              "ha",
+              "fish"
+            ],
+            "sourceFeedId": "dev-feed",
+            "sourceNodeId": "tag-mrps43h9"
+          },
+          {
+            "type": "labels",
+            "op": "includes",
+            "values": [
+              "porn",
+              "impersonation",
+              "scam",
+              "spam",
+              "security",
+              "rude"
+            ],
+            "scope": "all",
+            "sourceFeedId": "dev-feed",
+            "sourceNodeId": "labels-mrps44vs"
+          },
+          {
+            "type": "author",
+            "op": "in_list",
+            "listId": "feed-list-1",
+            "dids": [
+              "ericallixrogers.com",
+              "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+              "did:plc:bfquns4d2vygcv2lmvqs65wn",
+              "did:plc:wnvnipbgrcjigyh2kbwyz4mk",
+              "did:plc:ljgx3wpbd6plc7y6jmms5l6u"
+            ],
+            "sourceFeedId": "dev-feed",
+            "sourceNodeId": "author-mrpsqb0r"
+          },
+          {
+            "type": "author",
+            "op": "in_list",
+            "listId": "feed-list-1",
+            "sourceFeedId": "dev-feed",
+            "sourceNodeId": "author-mrpwgb0w"
+          },
+          {
+            "type": "keyword",
+            "op": "includes",
+            "terms": [
+              "dog",
+              "cat",
+              "penis",
+              "bread"
+            ],
+            "fields": [
+              "text"
+            ],
+            "sourceFeedId": "dev-feed",
+            "sourceNodeId": "kw-mrps40oz"
+          },
+          {
+            "type": "url",
+            "op": "includes",
+            "patterns": [
+              "PENIS.COM",
+              "pen.island",
+              "dogggs.com",
+              "ffff"
+            ],
+            "sources": [
+              "link_card",
+              "facet_link",
+              "bridgy_original"
+            ],
+            "sourceFeedId": "dev-feed",
+            "sourceNodeId": "url-mrps43yk"
+          }
+        ]
+      }
+    ],
     "excludeBranches": [],
-    "restrictBranches": []
+    "restrictBranches": [
+      {
+        "type": "embed",
+        "field": "has_video",
+        "required": true,
+        "sourceFeedId": "dev-feed",
+        "sourceNodeId": "bool-mrps46is"
+      },
+      {
+        "type": "post_kind",
+        "kinds": [
+          "root",
+          "reply",
+          "quote",
+          "repost"
+        ],
+        "sourceFeedId": "dev-feed",
+        "sourceNodeId": "kind-mrps46yy"
+      },
+      {
+        "type": "language",
+        "allow": [
+          "en"
+        ],
+        "unknown": "exclude",
+        "sourceFeedId": "dev-feed",
+        "sourceNodeId": "lang-mrps44gw"
+      }
+    ]
   },
   "strictGateMeta": {
-    "compiledAt": "2026-07-17T05:28:47.648Z",
+    "compiledAt": "2026-07-18T20:28:32.367Z",
     "feedCount": 1,
-    "pathCount": 0,
-    "contributingFeeds": []
+    "pathCount": 1,
+    "contributingFeeds": [
+      "dev-feed"
+    ]
   }
 }

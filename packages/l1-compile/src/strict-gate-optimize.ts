@@ -107,8 +107,10 @@ export function buildOptimizedStrictGate(gate: CompiledIngestGate): OptimizedStr
 }
 
 export type StrictGateExtras = {
-  followRingDids?: Record<string, string[]>
-  authorListDids?: Record<string, string[]>
+  followRingDids?: Record<string, string[] | ReadonlySet<string>>
+  /** DID membership sets — O(1) lookup; required for large Discover lists. */
+  authorListDids?: Record<string, ReadonlySet<string>>
+  mentionDids?: Record<string, ReadonlySet<string> | string[]>
 }
 
 /**
@@ -189,20 +191,14 @@ function authorDidOnBranch(
   post: NormalizedPost,
   extras: StrictGateExtras,
 ): boolean {
-  const fromList =
-    branch.listId && extras.authorListDids?.[branch.listId]
-      ? extras.authorListDids[branch.listId]!
-      : []
-  const manual = branch.dids ?? []
-  const fromNodeKey =
-    !branch.listId && branch.sourceNodeId
-      ? (extras.authorListDids?.[branch.sourceNodeId] ?? [])
-      : []
-  return (
-    fromList.includes(post.authorDid) ||
-    manual.includes(post.authorDid) ||
-    fromNodeKey.includes(post.authorDid)
-  )
+  if (branch.listId) {
+    const list = extras.authorListDids?.[branch.listId]
+    if (list?.has(post.authorDid)) return true
+  } else if (branch.sourceNodeId) {
+    const list = extras.authorListDids?.[branch.sourceNodeId]
+    if (list?.has(post.authorDid)) return true
+  }
+  return (branch.dids ?? []).includes(post.authorDid)
 }
 
 function evalBranch(
@@ -251,11 +247,17 @@ function evalBranch(
       return post.langs.some((l) => branch.allow.includes(l))
     }
     case 'embed': {
-      const map: Record<string, keyof typeof post.embed> = {
-        has_video: 'hasVideo', has_image: 'hasImage', has_link_card: 'hasLinkCard',
-        has_quote: 'hasQuote', has_record: 'hasRecord', has_text_only: 'hasTextOnly',
-      }
-      const has = post.embed[map[branch.field]!]
+      const embed = post.embed
+      const field = branch.field
+      const has =
+        field === 'has_video' ? embed.hasVideo
+        : field === 'has_gif' ? (embed.hasGif ?? false)
+        : field === 'has_image' ? embed.hasImage
+        : field === 'has_link_card' ? embed.hasLinkCard
+        : field === 'has_quote' ? embed.hasQuote
+        : field === 'has_quote_with_media' || field === 'has_record'
+          ? (embed.hasQuoteWithMedia ?? embed.hasRecord ?? false)
+        : embed.hasTextOnly
       return branch.required ? has : !has
     }
     case 'labels': {
@@ -271,6 +273,17 @@ function evalBranch(
     case 'author': {
       const on = authorDidOnBranch(branch, post, extras)
       return branch.op === 'in_list' ? on : !on
+    }
+    case 'mention': {
+      const nodeId = branch.sourceNodeId ?? ''
+      const fromExtras = extras.mentionDids?.[nodeId]
+      const hit = post.facetMentions.some((did) => {
+        if (fromExtras) {
+          return Array.isArray(fromExtras) ? fromExtras.includes(did) : fromExtras.has(did)
+        }
+        return (branch.dids ?? []).includes(did)
+      })
+      return branch.op === 'includes' ? hit : !hit
     }
     case 'url': {
       if (branch.patterns.length === 0) return false

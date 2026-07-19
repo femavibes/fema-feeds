@@ -48,8 +48,9 @@ export interface L1EvalBatchExtras {
   ingestGateExtrasByProject?: Record<
     string,
     {
-      followRingDids?: Record<string, string[]>
-      authorListDids?: Record<string, string[]>
+      followRingDids?: Record<string, string[] | ReadonlySet<string>>
+      authorListDids?: Record<string, ReadonlySet<string>>
+      mentionDids?: Record<string, ReadonlySet<string> | string[]>
     }
   >
 }

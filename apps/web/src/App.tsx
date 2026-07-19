@@ -605,6 +605,7 @@ export function App() {
                 await api.refreshList(listId)
                 await loadDeployment()
               }}
+              onListsChanged={() => void loadDeployment()}
               saving={saving}
               onSaveProject={() => void handleSave()}
               onDeleteProject={() => setConfirmDeleteProject(true)}

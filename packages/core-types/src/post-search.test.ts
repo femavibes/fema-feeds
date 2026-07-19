@@ -15,9 +15,11 @@ const post: NormalizedPost = {
   postKind: 'root',
   embed: {
     hasVideo: false,
+      hasGif: false,
     hasImage: true,
     hasLinkCard: false,
     hasQuote: false,
+      hasQuoteWithMedia: false,
     hasRecord: false,
     hasTextOnly: false,
   },

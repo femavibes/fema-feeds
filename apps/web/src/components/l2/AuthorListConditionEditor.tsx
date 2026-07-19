@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type {
   AuthorListConfig,
   FeedAuthorListConfig,
   L2AuthorCondition,
 } from '@cfb/core-types'
-import type { ListCacheEntry } from '../../api/client'
+import { api, type ListCacheEntry } from '../../api/client'
 import {
   collectRegisteredLists,
   feedAuthorListHasContent,
@@ -18,7 +18,6 @@ import {
 } from '../../lib/author-lists'
 import { AuthorListMembersPanel } from './AuthorListMembersPanel'
 import { AuthorDidListEditor } from './AuthorDidListEditor'
-import { AuthorListSourceSummary } from './AuthorListSourceSummary'
 import { ToggleRow } from '../ToggleRow'
 
 interface Props {
@@ -30,7 +29,10 @@ interface Props {
   onAuthorFeedUpdate?: (lists: FeedAuthorListConfig[], node: L2AuthorCondition) => void
   listCache: ListCacheEntry[]
   projectId: string
+  feedId?: string
   onRefreshList?: (listId: string) => Promise<void>
+  /** Called after ensure so parent can merge cache rows. */
+  onListCacheInvalidate?: () => void | Promise<void>
   /** Project prefilter editor — authors-only applies at Jetstream ingest. */
   prefilterMode?: boolean
 }
@@ -54,10 +56,6 @@ function linkedFeedList(
   return feedAuthorLists.find((l) => l.listId === node.listId)
 }
 
-function listDisplayTitle(listId: string, cache: ListCacheEntry | undefined): string {
-  return cache?.graphName?.trim() || listId
-}
-
 function ingestionOptionLabel(listId: string, cache: ListCacheEntry | undefined): string {
   const label = cache?.graphName?.trim() || listId
   if (cache?.memberCount != null) return `${label} (${cache.memberCount} members)`
@@ -73,7 +71,9 @@ export function AuthorListConditionEditor({
   onAuthorFeedUpdate,
   listCache,
   projectId,
+  feedId,
   onRefreshList,
+  onListCacheInvalidate,
   prefilterMode = false,
 }: Props) {
   const projectListCache = useMemo(
@@ -107,9 +107,16 @@ export function AuthorListConditionEditor({
   const [draftList, setDraftList] = useState<FeedAuthorListConfig | null>(
     () => linkedFeed ?? null,
   )
+  const [ensuring, setEnsuring] = useState(false)
+  const [ensureError, setEnsureError] = useState<string | null>(null)
+  const ensureSeq = useRef(0)
 
   const cacheForList = (id: string | undefined) =>
-    id ? projectListCache.find((c) => c.listId === id) : undefined
+    id
+      ? projectListCache.find(
+          (c) => c.listId === id || c.graphUri === id || c.remotePollKey === id,
+        )
+      : undefined
 
   const commitFeedList = (lists: FeedAuthorListConfig[], nextNode: L2AuthorCondition) => {
     if (onAuthorFeedUpdate) {
@@ -134,16 +141,17 @@ export function AuthorListConditionEditor({
     setDraftList(null)
     setDraftUri('')
     setEditingList(false)
+    setEnsureError(null)
     onChange({ ...node, listId: entry.listId })
   }
 
   const applyListUri = (uri: string) => {
     const trimmed = uri.trim()
     setDraftUri(uri)
-    // Wait until the URL/URI parses as a Bluesky list or starter pack.
+    setEnsureError(null)
     if (!trimmed || !remotePollKeyForUri(trimmed)) return
 
-    const working = draftList ?? linkedFeed ?? newFeedAuthorList(feedAuthorLists)
+    const working = draftList ?? linkedFeed ?? newFeedAuthorList(feedAuthorLists, { feedId })
     const dup = findDuplicateAuthorList(
       trimmed,
       registered.filter((r) => r.listId !== working.listId),
@@ -153,14 +161,51 @@ export function AuthorListConditionEditor({
       return
     }
 
-    const nextList: FeedAuthorListConfig = {
-      ...working,
-      sources: [{ type: 'bluesky_list', uri: trimmed, pollIntervalMinutes: 60 }],
-      // Extra accounts live on the condition node (union at eval), not on the list def.
-      dids: undefined,
-    }
-    saveFeedList(nextList, { ...node, listId: nextList.listId })
-    setEditingList(false)
+    const seq = ++ensureSeq.current
+    setEnsuring(true)
+    void (async () => {
+      try {
+        const ensured = await api.ensureList(trimmed, projectId)
+        if (seq !== ensureSeq.current) return
+
+        const existingSame = registered.find(
+          (r) =>
+            r.listId === ensured.listId ||
+            r.remotePollKey === ensured.graphUri ||
+            r.remotePollKey === ensured.listId,
+        )
+        if (existingSame && existingSame.listId !== working.listId) {
+          adoptDuplicate(existingSame)
+          await onListCacheInvalidate?.()
+          return
+        }
+
+        const sourceType =
+          ensured.listKind === 'starterpack' ? 'bluesky_starter_pack' : 'bluesky_list'
+        const sourceUri =
+          ensured.listKind === 'starterpack' ? trimmed : ensured.graphUri
+
+        const nextList: FeedAuthorListConfig = {
+          listId: ensured.listId,
+          sources: [{ type: sourceType, uri: sourceUri, pollIntervalMinutes: 60 }],
+          pollIntervalMinutes: 60,
+          dids: undefined,
+        }
+        // Drop provisional fl-* row if we had one.
+        const others = feedAuthorLists.filter(
+          (l) => l.listId !== working.listId && l.listId !== nextList.listId,
+        )
+        commitFeedList([...others, nextList], { ...node, listId: nextList.listId })
+        setDraftList(nextList)
+        setEditingList(false)
+        await onListCacheInvalidate?.()
+      } catch (e) {
+        if (seq !== ensureSeq.current) return
+        setEnsureError(e instanceof Error ? e.message : 'Failed to resolve list')
+      } finally {
+        if (seq === ensureSeq.current) setEnsuring(false)
+      }
+    })()
   }
 
   const clearList = () => {
@@ -172,6 +217,7 @@ export function AuthorListConditionEditor({
     setDraftList(null)
     setDraftUri('')
     setEditingList(true)
+    setEnsureError(null)
   }
 
   const startEditList = () => {
@@ -179,10 +225,10 @@ export function AuthorListConditionEditor({
       setDraftList(linkedFeed)
       setDraftUri(listSourceUri(linkedFeed))
     } else if (projectList) {
-      setDraftList(newFeedAuthorList(feedAuthorLists))
+      setDraftList(newFeedAuthorList(feedAuthorLists, { feedId }))
       setDraftUri(listSourceUri(projectList))
     } else {
-      setDraftList(newFeedAuthorList(feedAuthorLists))
+      setDraftList(newFeedAuthorList(feedAuthorLists, { feedId }))
       setDraftUri('')
     }
     setEditingList(true)
@@ -190,7 +236,6 @@ export function AuthorListConditionEditor({
 
   const linkProjectList = (listId: string) => {
     if (!listId) return
-    // Drop unused feed-only def if we were pointing at one.
     const prevId = node.listId
     if (prevId && isFeedAuthorList(prevId, feedAuthorLists) && prevId !== listId) {
       onFeedAuthorListsChange(feedAuthorLists.filter((l) => l.listId !== prevId))
@@ -202,11 +247,6 @@ export function AuthorListConditionEditor({
   }
 
   const showSummary = hasLinkedList && !editingList
-  const summaryTitle = projectList
-    ? listDisplayTitle(projectList.listId, cacheForList(projectList.listId))
-    : node.listId
-      ? listDisplayTitle(node.listId, cacheForList(node.listId))
-      : ''
   const summaryUri = projectList
     ? listSourceUri(projectList) || undefined
     : linkedFeed
@@ -220,6 +260,10 @@ export function AuthorListConditionEditor({
           registered.filter((r) => r.listId !== (draftList ?? linkedFeed)?.listId),
         )
       : null
+
+  useEffect(() => {
+    if (hasLinkedList) setEditingList(false)
+  }, [hasLinkedList, node.listId])
 
   return (
     <div className="l2-author-list-editor">
@@ -242,31 +286,19 @@ export function AuthorListConditionEditor({
           ) : null}
         </div>
 
-        {showSummary ? (
-          <div className="l2-author-list-feed-form">
-            <AuthorListSourceSummary title={summaryTitle} uri={summaryUri} />
-            {isProject ? (
-              <p className="l2-condition-hint">
-                Linked to an L1 project list (used for pool ingestion). Same list can also gate this
-                feed&apos;s Author rule.
-              </p>
-            ) : (
-              <p className="l2-condition-hint">
-                Feed-scoped list: polled for this feed&apos;s Author rules only. Separate from L1
-                project lists that filter what enters the ingestion pool.
-              </p>
-            )}
-          </div>
-        ) : (
+        {showSummary ? null : (
           <div className="l2-author-list-feed-form">
             <label>
-              List or starter-pack URL
+              List, mod list, or starter-pack URL
               <input
                 value={draftUri}
                 onChange={(e) => applyListUri(e.target.value)}
                 placeholder="https://bsky.app/profile/…/lists/…"
+                disabled={ensuring}
               />
             </label>
+            {ensuring ? <p className="l2-condition-hint">Resolving list…</p> : null}
+            {ensureError ? <p className="field-error">{ensureError}</p> : null}
             {projectAuthorLists.length > 0 ? (
               <label>
                 Or use an L1 ingestion list
@@ -308,16 +340,25 @@ export function AuthorListConditionEditor({
               </p>
             ) : (
               <p className="l2-condition-hint">
-                Paste a URL to attach a list. Extra accounts go in DIDs below — both are unioned at
-                match time.
+                Paste a URL to attach. Curation lists, moderation lists, and starter packs are
+                treated the same — membership is shared by the backing list.
               </p>
             )}
           </div>
         )}
+
+        {node.listId ? (
+          <AuthorListMembersPanel
+            listId={node.listId}
+            uri={summaryUri}
+            cache={cacheForList(node.listId)}
+            onRefreshList={onRefreshList}
+          />
+        ) : null}
       </div>
 
       <AuthorDidListEditor
-        label="Author DIDs"
+        label="Extra authors"
         dids={node.dids ?? []}
         onChange={(dids) =>
           onChange({
@@ -327,21 +368,10 @@ export function AuthorListConditionEditor({
         }
         hint={
           node.listId
-            ? 'Optional extras — unioned with the list members at evaluation time.'
-            : 'Match these accounts. Add a Bluesky list above if you also want list members.'
+            ? 'Press Enter to add. Matched in addition to the Bluesky list above.'
+            : 'Press Enter to add. Attach a Bluesky list above to include a whole list too.'
         }
       />
-
-      {node.listId ? (
-        <AuthorListMembersPanel
-          listId={node.listId}
-          extraDids={node.dids}
-          cache={cacheForList(node.listId)}
-          onRefreshList={onRefreshList}
-        />
-      ) : (node.dids?.length ?? 0) > 0 ? (
-        <AuthorListMembersPanel manualDids={node.dids} />
-      ) : null}
 
       {prefilterMode && node.op === 'in_list' ? (
         <ToggleRow

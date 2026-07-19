@@ -5,6 +5,7 @@ import { config as loadEnv } from 'dotenv'
 import { loadAllFeeds } from '@cfb/feed-config'
 import { sweepLabelRefresh } from '@cfb/label-refresh'
 import { createLabelStreamManager } from '@cfb/label-stream'
+import { createListitemStreamManager } from '@cfb/listitem-stream'
 import { loadAllProjects } from '@cfb/project-config'
 import { reevalPoolForFeeds, pollDueFollowRings, seedFollowRingsFromFeeds, seedFollowRingsFromProjects } from '@cfb/l2-worker'
 import { loadHydratedProjects, pollDueAuthorLists, seedAuthorListsFromFeeds, seedAuthorListsFromProjects } from '@cfb/list-cache'
@@ -108,6 +109,28 @@ async function runLabelStream() {
   })
 }
 
+async function runListitemStream() {
+  const pool = createPool()
+  const manager = createListitemStreamManager({ pool })
+  await manager.start()
+  console.error('[worker] listitem-stream running — Ctrl+C to stop')
+
+  const logStats = () => {
+    const s = manager.getStats()
+    console.error(
+      `[worker] listitem-stream: owners=${s.ownerCount} events=${s.events} creates=${s.creates} deletes=${s.deletes} applied=${s.applied} ignored=${s.ignored} errors=${s.errors}`,
+    )
+  }
+  const statsTimer = setInterval(logStats, 60_000)
+
+  process.on('SIGINT', async () => {
+    clearInterval(statsTimer)
+    manager.stop()
+    await pool.end()
+    process.exit(0)
+  })
+}
+
 async function runPrune() {
   const pool = createPool()
   const removed = await pruneExpiredPosts(pool)
@@ -149,6 +172,8 @@ if (cmd === 'poll-lists') {
   await runRefreshLabels(once, intervalSec)
 } else if (cmd === 'label-stream') {
   await runLabelStream()
+} else if (cmd === 'listitem-stream') {
+  await runListitemStream()
 } else if (cmd === 'prune') {
   await runPrune()
 } else if (cmd === 'refresh-engagement') {
@@ -165,6 +190,7 @@ if (cmd === 'poll-lists') {
   node dist/main.js refresh-labels [--once] [--interval=300]
   node dist/main.js refresh-engagement [--project=urbanism]
   node dist/main.js label-stream
+  node dist/main.js listitem-stream
   node dist/main.js prune
   node dist/main.js l2-reeval [--project=urbanism]
 

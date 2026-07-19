@@ -147,7 +147,7 @@ export function CreateFeedModal({
       projectId,
       name: name.trim() || id,
       description: description.trim() || undefined,
-      enabled: false,
+      enabled: true,
       poolScope: 'project_only',
       match: effectiveLogic?.match ?? (pinnedLogicBlock
         ? { type: 'group', id: 'root', logic: 'any', children: [{ type: 'logic_block_ref', id: 'lb-project', packageId: pinnedLogicBlock.packageId, versionPin: pinnedLogicBlock.versionPin }] }

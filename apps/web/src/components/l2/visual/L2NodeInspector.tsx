@@ -86,6 +86,7 @@ interface Props {
   listCache?: ListCacheEntry[]
 
   onRefreshList?: (listId: string) => Promise<void>
+  onListsChanged?: () => void | Promise<void>
   prefilterMode?: boolean
   readOnly?: boolean
   onOpenInnerLogicPreview?: (target: {
@@ -128,6 +129,7 @@ export function L2PropertiesInspector({
   listCache = [],
 
   onRefreshList,
+  onListsChanged,
   prefilterMode = false,
   readOnly = false,
   onOpenInnerLogicPreview,
@@ -172,7 +174,7 @@ export function L2PropertiesInspector({
 
         <div
 
-          className={`l2-inspector-body${
+          className={`l2-inspector-body scrollbar-modern${
 
             selected && selected.type !== 'group' ? ' l2-inspector-body--condition' : ''
 
@@ -661,7 +663,11 @@ export function L2PropertiesInspector({
 
                   projectId={draft.projectId}
 
+                  feedId={draft.feedId}
+
                   onRefreshList={onRefreshList}
+
+                  onListsChanged={onListsChanged}
 
                   prefilterMode={prefilterMode}
 

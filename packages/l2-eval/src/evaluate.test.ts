@@ -15,9 +15,11 @@ const basePost: NormalizedPost = {
   postKind: 'root',
   embed: {
     hasVideo: false,
+    hasGif: false,
     hasImage: true,
     hasLinkCard: false,
     hasQuote: false,
+    hasQuoteWithMedia: false,
     hasRecord: false,
     hasTextOnly: false,
   },
@@ -676,6 +678,87 @@ describe('evaluateFeedL2', () => {
       evaluateFeedL2(
         { ...basePost, embed: { ...basePost.embed, hasImage: false, hasTextOnly: true } },
         feed,
+      ).matched,
+    ).toBe(false)
+  })
+
+  it('matches media multi-toggle OR over embed flags', () => {
+    const feed: FeedConfig = {
+      ...baseFeed,
+      match: {
+        type: 'group',
+        id: 'root',
+        logic: 'all',
+        children: [
+          {
+            type: 'media',
+            id: 'm',
+            op: 'is',
+            kinds: ['video', 'gif'],
+          },
+        ],
+      },
+    }
+    expect(
+      evaluateFeedL2(
+        {
+          ...basePost,
+          embed: {
+            ...basePost.embed,
+            hasImage: false,
+            hasVideo: true,
+            hasGif: false,
+            hasTextOnly: false,
+          },
+        },
+        feed,
+      ).matched,
+    ).toBe(true)
+    expect(
+      evaluateFeedL2(
+        {
+          ...basePost,
+          embed: {
+            ...basePost.embed,
+            hasImage: false,
+            hasVideo: false,
+            hasGif: true,
+            hasTextOnly: false,
+          },
+        },
+        feed,
+      ).matched,
+    ).toBe(true)
+    expect(
+      evaluateFeedL2(
+        {
+          ...basePost,
+          embed: {
+            ...basePost.embed,
+            hasImage: true,
+            hasVideo: false,
+            hasGif: false,
+            hasTextOnly: false,
+          },
+        },
+        feed,
+      ).matched,
+    ).toBe(false)
+
+    const exclude = {
+      ...feed,
+      match: {
+        ...feed.match,
+        children: [
+          { type: 'media' as const, id: 'm', op: 'is_not' as const, kinds: ['quote' as const] },
+        ],
+      },
+    }
+    expect(evaluateFeedL2(basePost, exclude).matched).toBe(true)
+    expect(
+      evaluateFeedL2(
+        { ...basePost, embed: { ...basePost.embed, hasQuote: true, hasTextOnly: false } },
+        exclude,
       ).matched,
     ).toBe(false)
   })

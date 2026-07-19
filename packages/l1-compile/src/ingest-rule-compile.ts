@@ -20,10 +20,12 @@ import { resolveFeedMatch } from '@cfb/l2-graph'
 
 import { semanticRuleKey } from './ingest-gate-optimize.js'
 import { buildIngestGateFromPaths, collectIngestPathsFromFeed } from './ingest-path-dnf.js'
+import { compileMediaIngestRule } from './compile-media.js'
+import { isIngestGateComposite, ingestCompositeChildren } from './ingest-gate-rules.js'
 
 
 
-export function branchFromNode(feedId: string, node: L2RuleNode): IngestGateBranch | null {
+export function branchFromNode(feedId: string, node: L2RuleNode): IngestGateRule | null {
 
   if (!nodeRunsAtIngest(node)) return null
 
@@ -121,6 +123,10 @@ export function branchFromNode(feedId: string, node: L2RuleNode): IngestGateBran
 
       }
 
+    case 'media':
+
+      return compileMediaIngestRule(node, meta)
+
     case 'labels':
 
       return {
@@ -173,6 +179,19 @@ export function branchFromNode(feedId: string, node: L2RuleNode): IngestGateBran
 
       }
 
+    case 'mention': {
+      const accounts = [...(node.accounts ?? [])]
+      const literalDids = accounts.filter((a) => a.trim().toLowerCase().startsWith('did:'))
+      return {
+        type: 'mention',
+        op: node.op,
+        accounts,
+        listUri: node.listUri,
+        dids: literalDids.length > 0 ? literalDids : undefined,
+        ...meta,
+      }
+    }
+
     default:
 
       return null
@@ -193,7 +212,11 @@ export function classifyIngestBranch(branch: IngestGateBranch): 'include' | 'exc
 
     branch.type === 'hashtag' ||
 
-    branch.type === 'labels'
+    branch.type === 'labels' ||
+
+    branch.type === 'url' ||
+
+    branch.type === 'mention'
 
   ) {
 
@@ -329,6 +352,9 @@ export function compileIngestRule(feedId: string, node: L2RuleNode): IngestGateR
 
   if (!branch) return null
 
+  // Composites (e.g. Media any/all) and embed restricts are handled via Full DNF paths.
+  if (isIngestGateComposite(branch)) return null
+
   const role = classifyIngestBranchRole(branch)
 
   if (role === 'exclude' || role === 'restrict') return null
@@ -349,7 +375,16 @@ export function collectRestrictBranches(feedId: string, node: L2RuleNode): Inges
 
   const branch = branchFromNode(feedId, node)
 
-  if (branch && classifyIngestBranchRole(branch) === 'restrict') return [branch]
+  if (!branch) return []
+
+  if (isIngestGateComposite(branch)) {
+    return ingestCompositeChildren(branch).flatMap((child) => {
+      if (isIngestGateComposite(child)) return []
+      return classifyIngestBranchRole(child) === 'restrict' ? [child] : []
+    })
+  }
+
+  if (classifyIngestBranchRole(branch) === 'restrict') return [branch]
 
   return []
 
@@ -367,7 +402,9 @@ export function collectExcludeBranches(feedId: string, node: L2RuleNode): Ingest
 
   const branch = branchFromNode(feedId, node)
 
-  if (branch && classifyIngestBranch(branch) === 'exclude') return [branch]
+  if (!branch || isIngestGateComposite(branch)) return []
+
+  if (classifyIngestBranch(branch) === 'exclude') return [branch]
 
   return []
 

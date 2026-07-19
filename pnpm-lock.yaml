@@ -245,6 +245,9 @@ importers:
       '@cfb/list-cache':
         specifier: workspace:*
         version: link:../../packages/list-cache
+      '@cfb/listitem-stream':
+        specifier: workspace:*
+        version: link:../../packages/listitem-stream
       '@cfb/project-config':
         specifier: workspace:*
         version: link:../../packages/project-config
@@ -649,6 +652,25 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.6(@types/node@22.19.21)(tsx@4.22.4)
+
+  packages/listitem-stream:
+    dependencies:
+      '@cfb/ingest-jetstream':
+        specifier: workspace:*
+        version: link:../ingest-jetstream
+      '@cfb/storage-postgres':
+        specifier: workspace:*
+        version: link:../storage-postgres
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.21
+        version: 22.19.21
+      '@types/pg':
+        specifier: ^8.15.2
+        version: 8.20.0
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
 
   packages/plugin-wasm:
     dependencies:

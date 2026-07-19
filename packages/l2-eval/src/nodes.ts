@@ -1,7 +1,9 @@
 import type {
+  EmbedFlags,
   L2AltTextCondition,
   L2AuthorCondition,
   L2BoolCondition,
+  L2BoolField,
   L2CompareCondition,
   L2EvalInput,
   L2HashtagCondition,
@@ -10,6 +12,8 @@ import type {
   L2LanguageCondition,
   L2MentionCondition,
   L2FollowRingCondition,
+  L2MediaCondition,
+  L2MediaKind,
   L2MediaTypeCondition,
   L2MimeTypeCondition,
   L2MediaStatsCondition,
@@ -34,6 +38,19 @@ import {
   urlMatchesAny,
 } from '@cfb/core-types'
 import type { L2RuntimeContext } from './context.js'
+
+function didCollectionHas(
+  collection: string[] | ReadonlySet<string> | undefined,
+  did: string,
+): boolean {
+  if (!collection) return false
+  return Array.isArray(collection) ? collection.includes(did) : collection.has(did)
+}
+
+function didCollectionSize(collection: string[] | ReadonlySet<string> | undefined): number {
+  if (!collection) return 0
+  return Array.isArray(collection) ? collection.length : collection.size
+}
 import { numericFieldValue, postAgeHoursForUse } from './context.js'
 import { compareNumbers, evalExpr } from './expr.js'
 import { collectEmbedMimeTypes } from '@cfb/post-normalize'
@@ -89,14 +106,54 @@ function evalPostKind(node: L2PostKindCondition, ctx: L2RuntimeContext): boolean
   return node.op === 'is' ? hit : !hit
 }
 
+function embedFlagValue(embed: EmbedFlags, field: L2BoolField): boolean {
+  switch (field) {
+    case 'has_video':
+      return embed.hasVideo
+    case 'has_gif':
+      return embed.hasGif ?? false
+    case 'has_image':
+      return embed.hasImage
+    case 'has_link_card':
+      return embed.hasLinkCard
+    case 'has_quote':
+      return embed.hasQuote
+    case 'has_quote_with_media':
+    case 'has_record':
+      return embed.hasQuoteWithMedia ?? embed.hasRecord ?? false
+    case 'has_text_only':
+      return embed.hasTextOnly
+  }
+}
+
+function mediaKindFlag(embed: EmbedFlags, kind: L2MediaKind): boolean {
+  switch (kind) {
+    case 'text_only':
+      return embedFlagValue(embed, 'has_text_only')
+    case 'image':
+      return embedFlagValue(embed, 'has_image')
+    case 'video':
+      return embedFlagValue(embed, 'has_video')
+    case 'gif':
+      return embedFlagValue(embed, 'has_gif')
+    case 'link_card':
+      return embedFlagValue(embed, 'has_link_card')
+    case 'quote':
+      return embedFlagValue(embed, 'has_quote')
+    case 'quote_with_media':
+      return embedFlagValue(embed, 'has_quote_with_media')
+  }
+}
+
 function evalBool(node: L2BoolCondition, ctx: L2RuntimeContext): boolean {
-  const actual = ctx.post.embed[node.field === 'has_video' ? 'hasVideo'
-    : node.field === 'has_image' ? 'hasImage'
-    : node.field === 'has_link_card' ? 'hasLinkCard'
-    : node.field === 'has_quote' ? 'hasQuote'
-    : node.field === 'has_record' ? 'hasRecord'
-    : 'hasTextOnly']
-  return actual === node.value
+  return embedFlagValue(ctx.post.embed, node.field) === node.value
+}
+
+/** Multi-toggle OR: `is` = any selected kind true; `is_not` = none true. */
+function evalMedia(node: L2MediaCondition, ctx: L2RuntimeContext): boolean {
+  if (node.kinds.length === 0) return node.op === 'is_not'
+  const hit = node.kinds.some((k) => mediaKindFlag(ctx.post.embed, k))
+  return node.op === 'is' ? hit : !hit
 }
 
 function evalLabels(node: L2LabelsCondition, ctx: L2RuntimeContext): boolean {
@@ -169,10 +226,10 @@ function evalAuthor(
   input: L2EvalInput,
 ): { ok: boolean; detail: string } {
   const manual = new Set(node.dids ?? [])
-  const fromList = (node.listId && input.authorLists?.[node.listId]) ?? []
+  const fromList = (node.listId && input.authorLists?.[node.listId]) || undefined
   const authorDid = ctx.post.authorDid
   const inManual = manual.has(authorDid)
-  const inList = fromList.includes(authorDid)
+  const inList = didCollectionHas(fromList, authorDid)
   const on = inManual || inList
   const ok = node.op === 'in_list' ? on : !on
 
@@ -182,14 +239,14 @@ function evalAuthor(
     if (on) {
       const via: string[] = []
       if (inList && node.listId) {
-        via.push(`list "${node.listId}" (${fromList.length} cached)`)
+        via.push(`list "${node.listId}" (${didCollectionSize(fromList)} cached)`)
       }
       if (inManual) via.push(`${manual.size} manual DID(s)`)
       return { ok, detail: `${shortDid} matched via ${via.join(' + ')}` }
     }
     const expected: string[] = []
     if (node.listId) {
-      expected.push(`list "${node.listId}" (${fromList.length} cached)`)
+      expected.push(`list "${node.listId}" (${didCollectionSize(fromList)} cached)`)
     }
     if (manual.size) expected.push(`${manual.size} manual DID(s)`)
     return {
@@ -277,9 +334,9 @@ function evalFollowRing(
         ? 'excludes'
         : node.op
 
-  const ring = new Set(input.followRings?.[node.id] ?? [])
+  const ring = input.followRings?.[node.id]
   const authorDid = ctx.post.authorDid
-  const on = ring.has(authorDid)
+  const on = didCollectionHas(ring, authorDid)
   const ok = op === 'includes' ? on : !on
 
   const shortDid = authorDid.length > 24 ? `${authorDid.slice(0, 22)}…` : authorDid
@@ -288,13 +345,13 @@ function evalFollowRing(
 
   if (op === 'includes') {
     if (ok) {
-      return { ok, detail: `${shortDid} in ${hub} ${dir} (${ring.size} cached)` }
+      return { ok, detail: `${shortDid} in ${hub} ${dir} (${didCollectionSize(ring)} cached)` }
     }
     return {
       ok,
       detail:
-        ring.size > 0
-          ? `${shortDid} not in ${hub} ${dir} (${ring.size} cached)`
+        didCollectionSize(ring) > 0
+          ? `${shortDid} not in ${hub} ${dir} (${didCollectionSize(ring)} cached)`
           : `follow ring empty — sync hub ${hub}`,
     }
   }
@@ -401,6 +458,10 @@ export function evalRuleNode(
     case 'bool':
       ok = evalBool(node, ctx)
       detail = ok ? undefined : `${node.field} !== ${node.value}`
+      break
+    case 'media':
+      ok = evalMedia(node, ctx)
+      detail = ok ? undefined : `media ${node.op} ${node.kinds.join(',')}`
       break
     case 'language':
       ok = evalLanguage(node, ctx)

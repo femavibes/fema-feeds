@@ -4,7 +4,15 @@ import { pushTrace } from '@cfb/l1-registry'
 
 export function applyEmbedRequirement(
   ctx: L1EvalContext,
-  stepId: 'has_video' | 'has_image' | 'has_link_card' | 'has_quote' | 'has_record' | 'has_text_only',
+  stepId:
+    | 'has_video'
+    | 'has_gif'
+    | 'has_image'
+    | 'has_link_card'
+    | 'has_quote'
+    | 'has_quote_with_media'
+    | 'has_record'
+    | 'has_text_only',
   requirement: EmbedFlagRequirement | undefined,
   present: boolean,
 ): L1StepOutcome {

@@ -14,9 +14,11 @@ export interface IngestedPostRow {
 
 const EMPTY_EMBED: EmbedFlags = {
   hasVideo: false,
+  hasGif: false,
   hasImage: false,
   hasLinkCard: false,
   hasQuote: false,
+  hasQuoteWithMedia: false,
   hasRecord: false,
   hasTextOnly: true,
 }

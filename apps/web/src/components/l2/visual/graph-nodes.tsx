@@ -6,6 +6,7 @@ import {
   conditionCollapseMetrics,
   conditionExpandMetrics,
 } from '@cfb/l2-graph'
+import { ingestRoleBadgeFor } from '../../../lib/l2-ingest-badge'
 import { useNodeExpand } from './node-expand-context'
 import { ConditionExpandProfiles } from './ConditionExpandProfiles'
 
@@ -372,10 +373,46 @@ function ConditionTeaserBody({
   )
 }
 
+function NodeIngestIcon({ role }: { role: 'discover' | 'filter' }) {
+  const title =
+    role === 'discover'
+      ? 'Discover — can pull matching posts into the project pool'
+      : 'Filter — does not discover new posts'
+  return (
+    <span
+      className={`l2-flow-condition-ingest-icon-btn l2-flow-condition-ingest-icon-btn--${role}`}
+      title={title}
+      aria-label={role === 'discover' ? 'Discover' : 'Filter'}
+    >
+      {role === 'discover' ? (
+        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden>
+          {/* radar / broadcast */}
+          <circle cx="8" cy="8" r="1.6" fill="currentColor" />
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.25"
+            d="M8 3.2a4.8 4.8 0 0 1 4.8 4.8M8 1.5a6.5 6.5 0 0 1 6.5 6.5M8 3.2a4.8 4.8 0 0 0-4.8 4.8M8 1.5A6.5 6.5 0 0 0 1.5 8"
+          />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden>
+          {/* funnel */}
+          <path
+            fill="currentColor"
+            d="M2.2 2.5h11.6l-4.2 5.2v4.3L6.4 13V7.7L2.2 2.5z"
+          />
+        </svg>
+      )}
+    </span>
+  )
+}
+
 export function ConditionNode({ data }: NodeProps<Node<GraphNodeData>>) {
   const expandApi = useNodeExpand()
   const traceClass = data.traceOutcome ? `trace-${data.traceOutcome}` : ''
   const header = data.title ?? data.label
+  const ingestBadge = data.rule ? ingestRoleBadgeFor(data.rule) : null
   const customName = data.customName?.trim()
   const provenance = data.nodeProvenance ?? 'native'
   const provenanceClass =
@@ -427,6 +464,7 @@ export function ConditionNode({ data }: NodeProps<Node<GraphNodeData>>) {
             Sub
           </span>
         ) : null}
+        {ingestBadge ? <NodeIngestIcon role={ingestBadge} /> : null}
         <NodeLockButton nodeId={data.nodeId} locked={Boolean(data.locked)} />
       </div>
       <span className={`l2-flow-condition-name${customName ? ' has-name' : ''}`}>

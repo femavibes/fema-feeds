@@ -146,6 +146,8 @@ export function conditionNodeTitle(node: L2RuleNode): string {
       return `FOLLOW RING ${formatConditionBracket(node.op)}`
     case 'media_type':
       return `MEDIA TYPE ${formatConditionBracket(node.op)}`
+    case 'media':
+      return `MEDIA ${formatConditionBracket(node.op)}`
     case 'alt_text':
       return `ALT TEXT ${formatConditionBracket(node.op)}`
     case 'post_age':
@@ -208,6 +210,8 @@ export function summarizeRule(node: L2RuleNode): string {
     }
     case 'media_type':
       return `media ${node.op} type ${(node.mediaTypes ?? []).join('|') || '…'}`
+    case 'media':
+      return `media ${node.op} ${(node.kinds ?? []).join('|') || '…'}`
     case 'alt_text':
       return `alt text ${node.op}`
     case 'post_age':

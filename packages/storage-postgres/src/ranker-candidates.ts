@@ -21,7 +21,7 @@ function parseRankSnapshot(raw: unknown, summary: Record<string, unknown>): Post
 
 function hasMediaFromEmbed(embed: EmbedFlags): boolean {
 
-  return embed.hasImage || embed.hasVideo || embed.hasLinkCard || embed.hasQuote || embed.hasRecord
+  return embed.hasImage || embed.hasVideo || embed.hasGif || embed.hasLinkCard || embed.hasQuote || embed.hasQuoteWithMedia || embed.hasRecord
 
 }
 

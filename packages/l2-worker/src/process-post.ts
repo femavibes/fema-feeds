@@ -3,9 +3,10 @@ import { resolveFeedMatch } from '@cfb/l2-graph'
 import { evaluateFeedL2 } from '@cfb/l2-eval'
 import type pg from 'pg'
 import { deleteFeedCandidate, upsertFeedCandidate } from '@cfb/storage-postgres'
-import { loadAuthorListsForFeeds } from './author-lists.js'
+import { loadAuthorListSetsForFeeds } from './author-lists.js'
 import { loadFollowRingsForFeeds } from './follow-ring-cache.js'
 import { loadMentionDidsForFeeds } from './mention-accounts.js'
+import { getCachedDidList } from './did-list-mem-cache.js'
 import { buildLogicBlockEvalInput } from './logic-block-eval.js'
 import { resolveFeedSortPack } from './sort-pack-eval.js'
 import { loadPostMetrics } from './metrics.js'
@@ -69,11 +70,21 @@ export async function processPostForFeeds(
 
   const [metrics, authorLists, mentionByFeed, followRingByFeed] = await Promise.all([
     loadPostMetrics(pool, post.uri, post.authorDid, applicable[0]?.feedId),
-    loadAuthorListsForFeeds(pool, applicable),
+    loadAuthorListSetsForFeeds(pool, applicable),
     loadMentionDidsForFeeds(pool, applicable),
     loadFollowRingsForFeeds(pool, applicable),
   ])
 
+  // Prefer mem-cached Sets for follow rings (avoid new Set(49k) per post).
+  const followRingSetsByFeed: Record<string, Record<string, ReadonlySet<string>>> = {}
+  for (const [feedId, rings] of Object.entries(followRingByFeed)) {
+    const sets: Record<string, ReadonlySet<string>> = {}
+    for (const [nodeId, dids] of Object.entries(rings)) {
+      const mem = getCachedDidList(`ring:${nodeId}`)
+      sets[nodeId] = mem?.set ?? new Set(dids)
+    }
+    followRingSetsByFeed[feedId] = sets
+  }
   let matched = 0
   let written = 0
   const matchedFeedIds: string[] = []
@@ -83,7 +94,7 @@ export async function processPostForFeeds(
       metrics,
       authorLists,
       mentionDids: mentionByFeed[feed.feedId],
-      followRings: followRingByFeed[feed.feedId],
+      followRings: followRingSetsByFeed[feed.feedId],
     })
     const result = evaluateFeedL2(post, { ...feedForEval, match: resolveFeedMatch(feedForEval) }, {
       ...evalInput,

@@ -8,6 +8,25 @@ export interface ListResolveOptions {
   fetch?: typeof fetch
 }
 
+/** Bluesky graph.list purpose values (moderation vs curation). */
+export type BlueskyListPurpose = 'curatelist' | 'modlist' | 'referencelist' | string
+
+export type BlueskyListKind = 'list' | 'starterpack'
+
+export interface BlueskyGraphResolveMeta {
+  /** Bluesky members only — never includes manual extras. */
+  dids: string[]
+  graphName: string | null
+  /** Backing list at:// URI (canonical membership key). */
+  graphUri: string
+  /** How the user attached it. */
+  kind: BlueskyListKind
+  purpose: BlueskyListPurpose | null
+  ownerDid: string | null
+  /** Starter pack at:// when kind === starterpack. */
+  starterPackUri?: string | null
+}
+
 function extractSubjectDid(subject: unknown): string | undefined {
   if (typeof subject === 'string') return subject
   if (subject && typeof subject === 'object' && 'did' in subject) {
@@ -15,6 +34,20 @@ function extractSubjectDid(subject: unknown): string | undefined {
     if (typeof did === 'string') return did
   }
   return undefined
+}
+
+function ownerDidFromAtUri(atUri: string): string | null {
+  const m = /^at:\/\/(did:[^/]+)\//i.exec(atUri)
+  return m?.[1] ?? null
+}
+
+function normalizePurpose(raw: unknown): BlueskyListPurpose | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null
+  const v = raw.trim()
+  if (v.endsWith('#modlist') || v === 'modlist') return 'modlist'
+  if (v.endsWith('#curatelist') || v === 'curatelist') return 'curatelist'
+  if (v.endsWith('#referencelist') || v === 'referencelist') return 'referencelist'
+  return v
 }
 
 async function resolveActorToDid(actor: string, base: string, fetchFn: typeof fetch): Promise<string> {
@@ -30,9 +63,14 @@ async function fetchListMembers(
   listAtUri: string,
   base: string,
   fetchFn: typeof fetch,
-): Promise<{ dids: string[]; graphName: string | null }> {
+): Promise<{
+  dids: string[]
+  graphName: string | null
+  purpose: BlueskyListPurpose | null
+}> {
   const dids: string[] = []
   let graphName: string | null = null
+  let purpose: BlueskyListPurpose | null = null
   let cursor: string | undefined
 
   do {
@@ -42,13 +80,14 @@ async function fetchListMembers(
     const res = await fetchFn(url)
     if (!res.ok) throw new Error(`getList failed for ${listAtUri}: ${res.status}`)
     const data = (await res.json()) as {
-      list?: { name?: string }
+      list?: { name?: string; purpose?: string }
       items?: Array<{ subject?: unknown }>
       cursor?: string
     }
     if (graphName == null && data.list?.name?.trim()) {
       graphName = data.list.name.trim()
     }
+    if (purpose == null) purpose = normalizePurpose(data.list?.purpose)
     for (const item of data.items ?? []) {
       const did = extractSubjectDid(item.subject)
       if (did) dids.push(did)
@@ -56,7 +95,7 @@ async function fetchListMembers(
     cursor = data.cursor
   } while (cursor)
 
-  return { dids, graphName }
+  return { dids, graphName, purpose }
 }
 
 async function resolveStarterPackToListUri(
@@ -74,9 +113,7 @@ async function resolveStarterPackToListUri(
       record?: { list?: string; name?: string }
     }
   }
-  const listUri =
-    data.starterPack?.list ??
-    data.starterPack?.record?.list
+  const listUri = data.starterPack?.list ?? data.starterPack?.record?.list
   if (typeof listUri !== 'string' || !listUri.startsWith('at://')) {
     throw new Error(`Starter pack has no list reference: ${starterAtUri}`)
   }
@@ -88,8 +125,10 @@ async function resolveParsedGraph(
   parsed: NonNullable<ReturnType<typeof parseGraphUri>>,
   base: string,
   fetchFn: typeof fetch,
-): Promise<{ dids: string[]; graphName: string | null }> {
+): Promise<BlueskyGraphResolveMeta> {
   let atUri = parsed.atUri
+  let kind: BlueskyListKind = parsed.kind === 'starterpack' ? 'starterpack' : 'list'
+  let starterPackUri: string | null = null
 
   if (parsed.resolveActor) {
     const did = await resolveActorToDid(parsed.resolveActor.actor, base, fetchFn)
@@ -101,15 +140,31 @@ async function resolveParsedGraph(
   }
 
   if (parsed.kind === 'starterpack' || atUri.includes('app.bsky.graph.starterpack')) {
+    kind = 'starterpack'
+    starterPackUri = atUri
     const { listUri, graphName: starterName } = await resolveStarterPackToListUri(atUri, base, fetchFn)
     const list = await fetchListMembers(listUri, base, fetchFn)
     return {
       dids: list.dids,
       graphName: starterName ?? list.graphName,
+      graphUri: listUri,
+      kind,
+      purpose: list.purpose,
+      ownerDid: ownerDidFromAtUri(listUri),
+      starterPackUri,
     }
   }
 
-  return fetchListMembers(atUri, base, fetchFn)
+  const list = await fetchListMembers(atUri, base, fetchFn)
+  return {
+    dids: list.dids,
+    graphName: list.graphName,
+    graphUri: atUri,
+    kind: 'list',
+    purpose: list.purpose,
+    ownerDid: ownerDidFromAtUri(atUri),
+    starterPackUri: null,
+  }
 }
 
 /** Resolve any Bluesky graph URI (list, modlist, starter pack) to member DIDs. */
@@ -124,7 +179,7 @@ export async function resolveBlueskyGraphUri(
 export async function resolveBlueskyGraphWithMeta(
   uri: string,
   options: ListResolveOptions = {},
-): Promise<{ dids: string[]; graphName: string | null }> {
+): Promise<BlueskyGraphResolveMeta> {
   const fetchFn = options.fetch ?? fetch
   const base = options.publicApiBase ?? PUBLIC_API
   const parsed = parseGraphUri(uri)
@@ -146,7 +201,7 @@ export async function resolveListSource(
 export async function resolveListSourceWithMeta(
   source: ListSource,
   options?: ListResolveOptions,
-): Promise<{ dids: string[]; graphName: string | null }> {
+): Promise<{ dids: string[]; graphName: string | null } & Partial<BlueskyGraphResolveMeta>> {
   switch (source.type) {
     case 'manual_dids':
       return { dids: [...source.dids], graphName: null }
@@ -163,6 +218,23 @@ export async function resolveListSourceWithMeta(
   }
 }
 
+/**
+ * Bluesky-only members for author_list_cache.
+ * Manual extras stay on the feed condition / L1 config and are unioned at eval time.
+ */
+export async function resolveBlueskyMembersForCache(
+  list: { sources?: ListSource[] },
+  options?: ListResolveOptions,
+): Promise<BlueskyGraphResolveMeta | null> {
+  for (const source of list.sources ?? []) {
+    if (source.type !== 'bluesky_list' && source.type !== 'bluesky_starter_pack') continue
+    const uri = source.uri?.trim() ?? ''
+    if (!uri) continue
+    return resolveBlueskyGraphWithMeta(uri, options)
+  }
+  return null
+}
+
 export async function resolveAuthorListDids(
   list: { sources?: ListSource[]; dids?: string[] },
   options?: ListResolveOptions,
@@ -171,23 +243,44 @@ export async function resolveAuthorListDids(
   return result.dids
 }
 
-/** Resolve DIDs and Bluesky graph display name for cache storage. */
+/**
+ * Full union for in-memory L1 without DB (manual + bluesky).
+ * Prefer resolveBlueskyMembersForCache for DB rows.
+ */
 export async function resolveAuthorListForCache(
   list: { sources?: ListSource[]; dids?: string[] },
   options?: ListResolveOptions,
-): Promise<{ dids: string[]; graphName: string | null }> {
-  const set = new Set<string>()
-  let graphName: string | null = null
-
+): Promise<{ dids: string[]; graphName: string | null } & Partial<BlueskyGraphResolveMeta>> {
+  const remote = await resolveBlueskyMembersForCache(list, options)
+  const set = new Set<string>(remote?.dids ?? [])
   if (list.dids?.length) {
     for (const d of list.dids) set.add(d)
   }
-
   for (const source of list.sources ?? []) {
-    const resolved = await resolveListSourceWithMeta(source, options)
-    if (!graphName && resolved.graphName) graphName = resolved.graphName
-    for (const d of resolved.dids) set.add(d)
+    if (source.type === 'manual_dids') {
+      for (const d of source.dids) set.add(d)
+    }
   }
+  return {
+    dids: [...set],
+    graphName: remote?.graphName ?? null,
+    graphUri: remote?.graphUri,
+    kind: remote?.kind,
+    purpose: remote?.purpose ?? null,
+    ownerDid: remote?.ownerDid ?? null,
+    starterPackUri: remote?.starterPackUri,
+  }
+}
 
-  return { dids: [...set], graphName }
+export function formatBlueskyListTypeLabel(input: {
+  kind?: string | null
+  purpose?: string | null
+}): string {
+  const kind = input.kind ?? 'list'
+  const purpose = input.purpose
+  if (kind === 'starterpack') return 'Starter pack'
+  if (purpose === 'modlist') return 'Moderation list'
+  if (purpose === 'referencelist') return 'Reference list'
+  if (purpose === 'curatelist') return 'Curation list'
+  return 'Bluesky list'
 }

@@ -1,50 +1,55 @@
 import type { L2RuleGroup, L2RuleNode, PostSearchField } from '@cfb/core-types'
+import { migrateMediaNodes } from './migrate-media.js'
 
 const DEFAULT_SEARCH_FIELDS: PostSearchField[] = ['text']
 const DEFAULT_URL_SOURCES = ['link_card', 'facet_link', 'bridgy_original'] as const
 
 /** Ensure rule trees from storage/imports always have required array fields. */
 export function normalizeRuleNode(node: L2RuleNode): L2RuleNode {
-  if (node.type === 'group') {
+  const migrated = migrateMediaNodes(node)
+
+  if (migrated.type === 'group') {
     return {
-      ...node,
-      children: (node.children ?? []).map(normalizeRuleNode),
+      ...migrated,
+      children: (migrated.children ?? []).map(normalizeRuleNode),
     }
   }
 
-  switch (node.type) {
+  switch (migrated.type) {
     case 'keyword':
       return {
-        ...node,
-        terms: node.terms ?? [],
-        fields: node.fields?.length ? node.fields : [...DEFAULT_SEARCH_FIELDS],
+        ...migrated,
+        terms: migrated.terms ?? [],
+        fields: migrated.fields?.length ? migrated.fields : [...DEFAULT_SEARCH_FIELDS],
       }
     case 'regex':
       return {
-        ...node,
-        pattern: node.pattern ?? '',
-        fields: node.fields?.length ? node.fields : [...DEFAULT_SEARCH_FIELDS],
+        ...migrated,
+        pattern: migrated.pattern ?? '',
+        fields: migrated.fields?.length ? migrated.fields : [...DEFAULT_SEARCH_FIELDS],
       }
     case 'hashtag':
-      return { ...node, tags: node.tags ?? [] }
+      return { ...migrated, tags: migrated.tags ?? [] }
     case 'url':
       return {
-        ...node,
-        patterns: node.patterns ?? [],
-        sources: node.sources?.length ? node.sources : [...DEFAULT_URL_SOURCES],
+        ...migrated,
+        patterns: migrated.patterns ?? [],
+        sources: migrated.sources?.length ? migrated.sources : [...DEFAULT_URL_SOURCES],
       }
     case 'mention':
-      return { ...node, accounts: node.accounts ?? [] }
+      return { ...migrated, accounts: migrated.accounts ?? [] }
     case 'language':
-      return { ...node, allow: node.allow ?? [] }
+      return { ...migrated, allow: migrated.allow ?? [] }
     case 'labels':
-      return { ...node, values: node.values ?? [] }
+      return { ...migrated, values: migrated.values ?? [] }
     case 'post_kind':
-      return { ...node, kinds: node.kinds ?? [] }
+      return { ...migrated, kinds: migrated.kinds ?? [] }
+    case 'media':
+      return { ...migrated, kinds: migrated.kinds ?? [] }
     case 'media_type':
-      return { ...node, mediaTypes: node.mediaTypes ?? [] }
+      return { ...migrated, mediaTypes: migrated.mediaTypes ?? [] }
     default:
-      return node
+      return migrated
   }
 }
 

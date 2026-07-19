@@ -10,7 +10,6 @@ import {
 import { listManualDids, listSourceUri } from '../lib/author-lists'
 import { AuthorDidListEditor } from './l2/AuthorDidListEditor'
 import { AuthorListMembersPanel } from './l2/AuthorListMembersPanel'
-import { AuthorListSourceSummary } from './l2/AuthorListSourceSummary'
 
 interface Props {
   list: AuthorListConfig
@@ -34,7 +33,7 @@ export function L1AuthorListBlock({ list, cache, onChange, onRemove, onRefreshLi
   return (
     <div className="author-list-block card">
       <div className="author-list-head">
-        <AuthorListSourceSummary title={listDisplayTitle(list.listId, cache)} uri={uri || undefined} />
+        <strong>{listDisplayTitle(list.listId, cache)}</strong>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onRemove}>
           Remove
         </button>
@@ -67,8 +66,15 @@ export function L1AuthorListBlock({ list, cache, onChange, onRemove, onRefreshLi
         />
       </label>
 
+      <AuthorListMembersPanel
+        listId={list.listId}
+        uri={uri || undefined}
+        cache={cache}
+        onRefreshList={onRefreshList}
+      />
+
       <AuthorDidListEditor
-        label="Additional DIDs (optional)"
+        label="Extra authors"
         dids={listManualDids(list)}
         onChange={(dids) =>
           onChange({
@@ -77,14 +83,7 @@ export function L1AuthorListBlock({ list, cache, onChange, onRemove, onRefreshLi
             sources: (list.sources ?? []).filter((s) => s.type !== 'manual_dids'),
           })
         }
-        hint="Unioned with the Bluesky list at refresh and evaluation time."
-      />
-
-      <AuthorListMembersPanel
-        listId={list.listId}
-        extraDids={listManualDids(list)}
-        cache={cache}
-        onRefreshList={onRefreshList}
+        hint="Press Enter to add. Matched in addition to the Bluesky list above."
       />
 
       <div className="listed-author-policy">

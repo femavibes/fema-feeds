@@ -22,6 +22,7 @@ function evalCost(rule: IngestGateRule): number {
       return 4
     case 'author':
     case 'follow_ring':
+    case 'mention':
       return 5
     case 'regex':
       return 8
@@ -66,6 +67,10 @@ export function semanticRuleKey(rule: IngestGateRule): string {
       return `follow_ring\0${b.op}\0${b.hubSource}\0${b.hub ?? ''}\0${b.direction}`
     case 'author':
       return `author\0${b.op}\0${b.listId ?? ''}\0${(b.dids ?? []).join(',')}`
+    case 'url':
+      return `url\0${b.op}\0${b.patterns.join(',')}\0${b.sources.join(',')}\0${b.caseSensitive ?? ''}`
+    case 'mention':
+      return `mention\0${b.op}\0${(b.accounts ?? []).join(',')}\0${b.listUri ?? ''}\0${(b.dids ?? []).join(',')}`
     default:
       return 'unknown'
   }

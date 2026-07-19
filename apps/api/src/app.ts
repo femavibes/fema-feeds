@@ -52,10 +52,15 @@ import {
   pollDueAuthorLists,
   prepareProjectsForIngest,
   refreshAuthorListToCache,
+  ensureBlueskyListInCache,
   hydrateProjectsWithCache,
   cacheMapFromRows,
 } from '@cfb/list-cache'
-import { refreshAllProjectAuthorLists } from '@cfb/list-sources'
+import {
+  refreshAllProjectAuthorLists,
+  manualRefreshCooldownRemainingMs,
+  formatBlueskyListTypeLabel,
+} from '@cfb/list-sources'
 import { createIngestRunner, runProjectDryRun, isDryRunInProgress, runIngestSmokeTest, isIngestSmokeTestInProgress, getLastIngestSmokeTestResult, runIngestStressTest, isIngestStressTestInProgress, getLastIngestStressTestResult, type IngestRunner } from '@cfb/ingest-runner'
 import { listProjectPoolPosts, startAgeSweep } from '@cfb/l2-worker'
 import {
@@ -1116,8 +1121,19 @@ export function createApp(options?: {
             refreshedAt: r.refreshedAt?.toISOString() ?? null,
             nextPollAt: r.nextPollAt?.toISOString() ?? null,
             remotePollKey: r.remotePollKey,
-            graphUri: remoteSource && 'uri' in remoteSource ? remoteSource.uri : null,
+            graphUri: r.graphUri ?? (remoteSource && 'uri' in remoteSource ? remoteSource.uri : null),
             feedOnly: source.feedOnly === true,
+            listKind: r.listKind,
+            listPurpose: r.listPurpose,
+            listTypeLabel: formatBlueskyListTypeLabel({
+              kind: r.listKind,
+              purpose: r.listPurpose,
+            }),
+            lastManualRefreshAt: r.lastManualRefreshAt?.toISOString() ?? null,
+            refreshCooldownRemainingMs: manualRefreshCooldownRemainingMs(
+              r.lastManualRefreshAt,
+              r.memberCount,
+            ),
           }
         }),
       })
@@ -1148,18 +1164,62 @@ export function createApp(options?: {
       .split(/[,\n]/)
       .map((s) => s.trim())
       .filter(Boolean)
+
+    /** Hard cap — never resolve tens of thousands of profiles for the builder. */
+    const MAX_LIMIT = 100
+    const DEFAULT_LIMIT = 48
+    const rawLimit = c.req.query('limit')
+    const rawOffset = c.req.query('offset')
+    const limit = Math.min(
+      MAX_LIMIT,
+      Math.max(0, rawLimit != null && rawLimit !== '' ? Number(rawLimit) : DEFAULT_LIMIT),
+    )
+    const offset = Math.max(0, rawOffset != null && rawOffset !== '' ? Number(rawOffset) : 0)
+
     const row = await getAuthorListCache(pool, listId)
     if (!row) return c.json({ error: 'not found' }, 404)
     const didSet = new Set([...row.dids, ...extraDids])
     const dids = [...didSet]
-    const members = await resolveListMemberProfiles(pool, dids)
+    const pageDids = limit === 0 ? [] : dids.slice(offset, offset + limit)
+    const members = pageDids.length > 0 ? await resolveListMemberProfiles(pool, pageDids) : []
     return c.json({
       listId: row.listId,
       graphName: row.graphName,
       memberCount: dids.length,
       refreshedAt: row.refreshedAt?.toISOString() ?? null,
+      listKind: row.listKind,
+      listPurpose: row.listPurpose,
+      listTypeLabel: formatBlueskyListTypeLabel({
+        kind: row.listKind,
+        purpose: row.listPurpose,
+      }),
+      graphUri: row.graphUri,
+      offset,
+      limit,
+      truncated: offset + members.length < dids.length,
       members,
     })
+  })
+
+  app.post('/api/lists/ensure', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const body = (await c.req.json().catch(() => ({}))) as {
+      uri?: string
+      projectId?: string
+    }
+    const uri = body.uri?.trim() ?? ''
+    const projectId = body.projectId?.trim() ?? ''
+    if (!uri || !projectId) {
+      return c.json({ error: 'uri and projectId required' }, 400)
+    }
+    try {
+      const ensured = await ensureBlueskyListInCache(pool, { uri, projectId })
+      return c.json(ensured)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to resolve list'
+      console.error('[api] POST /api/lists/ensure', err)
+      return c.json({ error: message }, 400)
+    }
   })
 
   app.post('/api/lists/:listId/refresh', async (c) => {
@@ -1167,17 +1227,43 @@ export function createApp(options?: {
     const listId = c.req.param('listId')
     const row = await getAuthorListCache(pool, listId)
     if (!row) return c.json({ error: 'not found' }, 404)
+
+    const remaining = manualRefreshCooldownRemainingMs(row.lastManualRefreshAt, row.memberCount)
+    if (remaining > 0) {
+      return c.json(
+        {
+          error: 'refresh_cooldown',
+          message: `Refresh available in ${Math.ceil(remaining / 1000)}s`,
+          cooldownRemainingMs: remaining,
+          memberCount: row.memberCount,
+        },
+        429,
+      )
+    }
+
     const refreshed = await refreshAuthorListToCache(
       pool,
       row.listId,
       row.projectId,
       row.sourceJson as Parameters<typeof refreshAuthorListToCache>[3],
+      { manual: true },
     )
+    const next = await getAuthorListCache(pool, refreshed.listId)
     return c.json({
-      listId,
+      listId: refreshed.listId,
       memberCount: refreshed.dids?.length ?? 0,
-      graphName: (await getAuthorListCache(pool, listId))?.graphName ?? null,
+      graphName: next?.graphName ?? null,
+      listKind: next?.listKind ?? null,
+      listPurpose: next?.listPurpose ?? null,
+      listTypeLabel: formatBlueskyListTypeLabel({
+        kind: next?.listKind,
+        purpose: next?.listPurpose,
+      }),
       refreshedAt: new Date().toISOString(),
+      cooldownRemainingMs: manualRefreshCooldownRemainingMs(
+        next?.lastManualRefreshAt,
+        next?.memberCount ?? 0,
+      ),
     })
   })
 

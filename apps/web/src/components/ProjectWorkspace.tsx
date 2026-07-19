@@ -34,6 +34,7 @@ interface Props {
   onProjectCompiled?: (project: ProjectL1Config) => void
   listCache: ListCacheEntry[]
   onRefreshList: (listId: string) => Promise<void>
+  onListsChanged?: () => void | Promise<void>
   saving: boolean
   onSaveProject: () => void
   onDeleteProject: () => void
@@ -53,6 +54,7 @@ export function ProjectWorkspace({
   onProjectCompiled,
   listCache,
   onRefreshList,
+  onListsChanged,
   saving,
   onSaveProject,
   onDeleteProject,
@@ -342,6 +344,7 @@ export function ProjectWorkspace({
                 onLiveUpdated(result.live, result.hasUnpublishedDraft)
               }}
               onRefreshList={onRefreshList}
+              onListsChanged={onListsChanged}
               onUpdateLive={handleUpdateLive}
               onCloneFeed={onCloneFeed && feedDraft ? () => onCloneFeed(feedDraft) : undefined}
             />

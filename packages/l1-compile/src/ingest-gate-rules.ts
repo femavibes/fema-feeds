@@ -115,4 +115,14 @@ export function collectFollowRingBranches(
 
 }
 
+export function collectMentionBranches(
+  rules: IngestGateRule[],
+): Extract<IngestGateBranch, { type: 'mention' }>[] {
+  const out: Extract<IngestGateBranch, { type: 'mention' }>[] = []
+  walkIngestBranches(rules, (branch) => {
+    if (branch.type === 'mention') out.push(branch)
+  })
+  return out
+}
+
 

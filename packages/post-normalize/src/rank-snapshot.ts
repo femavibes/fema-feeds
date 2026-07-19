@@ -10,9 +10,11 @@ import { buildPostMediaStats } from './media-stats.js'
 
 const EMPTY_EMBED: EmbedFlags = {
   hasVideo: false,
+  hasGif: false,
   hasImage: false,
   hasLinkCard: false,
   hasQuote: false,
+  hasQuoteWithMedia: false,
   hasRecord: false,
   hasTextOnly: true,
 }
@@ -20,8 +22,17 @@ const EMPTY_EMBED: EmbedFlags = {
 /** Near You media_type — ported from ATlas subscription.detectMediaType */
 export function detectNearYouMediaType(embedDetail: PostEmbedDetail | undefined, embed: EmbedFlags): NearYouMediaType {
   if (!embedDetail && embed.hasTextOnly) return 0
-  if (embed.hasQuote || embedDetail?.record || embedDetail?.quotedRecord) return 5
+  if (
+    embed.hasQuote ||
+    embed.hasQuoteWithMedia ||
+    embed.hasRecord ||
+    embedDetail?.record ||
+    embedDetail?.quotedRecord
+  ) {
+    return 5
+  }
   if (embed.hasImage) return 1
+  if (embed.hasGif) return 3
   if (embed.hasVideo) {
     const presentation = embedDetail?.video?.presentation ?? embedDetail?.media?.video?.presentation
     return presentation === 'gif' ? 3 : 2

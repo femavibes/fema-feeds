@@ -94,6 +94,8 @@ export type IngestGateBranch =
 
         | 'has_video'
 
+        | 'has_gif'
+
         | 'has_image'
 
         | 'has_link_card'
@@ -101,6 +103,8 @@ export type IngestGateBranch =
         | 'has_quote'
 
         | 'has_record'
+
+        | 'has_quote_with_media'
 
         | 'has_text_only'
 
@@ -172,6 +176,18 @@ export type IngestGateBranch =
       patterns: string[]
       sources: import('./post-record.js').PostUrlSource[]
       caseSensitive?: boolean
+      sourceFeedId?: string
+      sourceNodeId?: string
+    }
+
+  | {
+      type: 'mention'
+      op: 'includes' | 'excludes'
+      /** Original account refs (handles or DIDs) from the L2 node. */
+      accounts?: string[]
+      listUri?: string
+      /** Literal did: accounts baked at compile time for zero-extra matches. */
+      dids?: string[]
       sourceFeedId?: string
       sourceNodeId?: string
     }

@@ -38,25 +38,24 @@ import { pushTrace } from '@cfb/l1-registry'
 
 
 function embedValue(post: import('@cfb/core-types').NormalizedPost, field: L2BoolField): boolean {
-
-  const map: Record<L2BoolField, keyof typeof post.embed> = {
-
-    has_video: 'hasVideo',
-
-    has_image: 'hasImage',
-
-    has_link_card: 'hasLinkCard',
-
-    has_quote: 'hasQuote',
-
-    has_record: 'hasRecord',
-
-    has_text_only: 'hasTextOnly',
-
+  const embed = post.embed
+  switch (field) {
+    case 'has_video':
+      return embed.hasVideo
+    case 'has_gif':
+      return embed.hasGif ?? false
+    case 'has_image':
+      return embed.hasImage
+    case 'has_link_card':
+      return embed.hasLinkCard
+    case 'has_quote':
+      return embed.hasQuote
+    case 'has_quote_with_media':
+    case 'has_record':
+      return embed.hasQuoteWithMedia ?? embed.hasRecord ?? false
+    case 'has_text_only':
+      return embed.hasTextOnly
   }
-
-  return post.embed[map[field]]
-
 }
 
 
@@ -69,9 +68,11 @@ function evalIncludeBranch(
 
   extras: {
 
-    followRingDids?: Record<string, string[]>
+    followRingDids?: Record<string, string[] | ReadonlySet<string>>
 
-    authorListDids?: Record<string, string[]>
+    authorListDids?: Record<string, ReadonlySet<string>>
+
+    mentionDids?: Record<string, ReadonlySet<string> | string[]>
 
   },
 
@@ -155,26 +156,23 @@ function evalIncludeBranch(
 
       const nodeId = branch.sourceNodeId ?? ''
 
-      const ring = new Set(extras.followRingDids?.[nodeId] ?? [])
-
-      return ring.has(post.authorDid)
+      const ring = extras.followRingDids?.[nodeId]
+      if (!ring) return false
+      return Array.isArray(ring) ? ring.includes(post.authorDid) : ring.has(post.authorDid)
 
     }
 
     case 'author': {
-      const fromList =
-        branch.listId && extras.authorListDids?.[branch.listId]
-          ? extras.authorListDids[branch.listId]!
-          : []
-      const manual = branch.dids ?? []
+      const listId = branch.listId
+      const fromList = listId ? extras.authorListDids?.[listId] : undefined
       const fromNodeKey =
-        !branch.listId && branch.sourceNodeId
-          ? (extras.authorListDids?.[branch.sourceNodeId] ?? [])
-          : []
+        !listId && branch.sourceNodeId
+          ? extras.authorListDids?.[branch.sourceNodeId]
+          : undefined
       const on =
-        fromList.includes(post.authorDid) ||
-        manual.includes(post.authorDid) ||
-        fromNodeKey.includes(post.authorDid)
+        (fromList?.has(post.authorDid) ?? false) ||
+        (fromNodeKey?.has(post.authorDid) ?? false) ||
+        (branch.dids ?? []).includes(post.authorDid)
 
       return branch.op === 'in_list' ? on : !on
     }
@@ -191,6 +189,19 @@ function evalIncludeBranch(
       })
       return match
     }
+
+    case 'mention': {
+      const nodeId = branch.sourceNodeId ?? ''
+      const fromExtras = extras.mentionDids?.[nodeId]
+      const hit = post.facetMentions.some((did) => {
+        if (fromExtras) {
+          return Array.isArray(fromExtras) ? fromExtras.includes(did) : fromExtras.has(did)
+        }
+        return (branch.dids ?? []).includes(did)
+      })
+      return hit
+    }
+
     default:
 
       return false
@@ -209,9 +220,11 @@ function evalPathBranch(
 
   extras: {
 
-    followRingDids?: Record<string, string[]>
+    followRingDids?: Record<string, string[] | ReadonlySet<string>>
 
-    authorListDids?: Record<string, string[]>
+    authorListDids?: Record<string, ReadonlySet<string>>
+
+    mentionDids?: Record<string, ReadonlySet<string> | string[]>
 
   },
 
@@ -237,9 +250,11 @@ function evalIncludeRule(
 
   extras: {
 
-    followRingDids?: Record<string, string[]>
+    followRingDids?: Record<string, string[] | ReadonlySet<string>>
 
-    authorListDids?: Record<string, string[]>
+    authorListDids?: Record<string, ReadonlySet<string>>
+
+    mentionDids?: Record<string, ReadonlySet<string> | string[]>
 
   },
 
@@ -307,9 +322,11 @@ function postOnCompiledAuthorList(
 
   extras: {
 
-    followRingDids?: Record<string, string[]>
+    followRingDids?: Record<string, string[] | ReadonlySet<string>>
 
-    authorListDids?: Record<string, string[]>
+    authorListDids?: Record<string, ReadonlySet<string>>
+
+    mentionDids?: Record<string, ReadonlySet<string> | string[]>
 
   },
 
@@ -335,9 +352,11 @@ function evalExcludeBranch(
 
   extras: {
 
-    followRingDids?: Record<string, string[]>
+    followRingDids?: Record<string, string[] | ReadonlySet<string>>
 
-    authorListDids?: Record<string, string[]>
+    authorListDids?: Record<string, ReadonlySet<string>>
+
+    mentionDids?: Record<string, ReadonlySet<string> | string[]>
 
   },
 
@@ -349,7 +368,7 @@ function evalExcludeBranch(
 
   }
 
-  if (branch.type === 'keyword' || branch.type === 'regex' || branch.type === 'hashtag' || branch.type === 'url') {
+  if (branch.type === 'keyword' || branch.type === 'regex' || branch.type === 'hashtag' || branch.type === 'url' || branch.type === 'mention') {
 
     return evalIncludeBranch({ ...branch, op: 'includes' } as IngestGateBranch, post, extras)
 
@@ -427,7 +446,11 @@ export const ingestGateStep: L1FilterStep = {
 export function evaluateIngestGate(
   gate: CompiledIngestGate,
   post: import('@cfb/core-types').NormalizedPost,
-  extras?: { followRingDids?: Record<string, string[]>; authorListDids?: Record<string, string[]> },
+  extras?: {
+    followRingDids?: Record<string, string[] | ReadonlySet<string>>
+    authorListDids?: Record<string, ReadonlySet<string>>
+    mentionDids?: Record<string, ReadonlySet<string> | string[]>
+  },
 ): boolean {
   const ex = extras ?? {}
 

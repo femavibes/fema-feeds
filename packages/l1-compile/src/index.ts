@@ -14,6 +14,7 @@ export {
   walkIngestBranches,
   collectAuthorIncludeBranches,
   collectFollowRingBranches,
+  collectMentionBranches,
   type CompileProjectL1Result,
 } from './compile-from-feeds.js'
 export {

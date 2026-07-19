@@ -197,7 +197,17 @@ export function extractEmbedFlags(
   const media = embed?.media as Record<string, unknown> | undefined
   const d = detail ?? extractEmbedDetail(record)
 
-  const hasVideo = Boolean(d?.video ?? d?.media?.video ?? embed?.video ?? media?.video)
+  const video = d?.video ?? d?.media?.video
+  const rawHasVideoBlob = Boolean(video ?? embed?.video ?? media?.video)
+  const presentation =
+    (video && typeof (video as { presentation?: unknown }).presentation === 'string'
+      ? (video as { presentation: string }).presentation
+      : undefined) ??
+    (typeof embed?.presentation === 'string' ? embed.presentation : undefined) ??
+    (typeof media?.presentation === 'string' ? media.presentation : undefined)
+  const hasGif = rawHasVideoBlob && presentation === 'gif'
+  const hasVideo = rawHasVideoBlob && !hasGif
+
   const hasImage = Boolean(
     (d?.images && d.images.length > 0) ||
       (d?.media?.images && d.media.images.length > 0) ||
@@ -205,11 +215,25 @@ export function extractEmbedFlags(
       (Array.isArray(media?.images) && media.images.length > 0),
   )
   const hasLinkCard = Boolean(d?.external ?? d?.media?.external ?? embed?.external ?? media?.external)
-  const hasQuote =
-    embed?.$type === 'app.bsky.embed.record' || Boolean(d?.record ?? d?.quotedRecord)
-  const hasRecord = embed?.$type === 'app.bsky.embed.recordWithMedia' || hasQuote
-  const hasTextOnly = !hasVideo && !hasImage && !hasLinkCard && !hasQuote && !hasRecord
-  return { hasVideo, hasImage, hasLinkCard, hasQuote, hasRecord, hasTextOnly }
+
+  // Keep quote vs quote+media mutually exclusive.
+  const hasQuote = embed?.$type === 'app.bsky.embed.record'
+  const hasQuoteWithMedia = embed?.$type === 'app.bsky.embed.recordWithMedia'
+  const hasRecord = hasQuoteWithMedia
+
+  const hasTextOnly =
+    !hasVideo && !hasGif && !hasImage && !hasLinkCard && !hasQuote && !hasQuoteWithMedia
+
+  return {
+    hasVideo,
+    hasGif,
+    hasImage,
+    hasLinkCard,
+    hasQuote,
+    hasQuoteWithMedia,
+    hasRecord,
+    hasTextOnly,
+  }
 }
 
 export function inferPostKind(record: JetstreamPostEvent['record']): PostKind {

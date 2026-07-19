@@ -11,6 +11,8 @@ import { L2GraphCanvas } from '../l2/visual/L2GraphCanvas'
 import { L2PropertiesInspector } from '../l2/visual/L2NodeInspector'
 import { MobileSheetHandle } from '../l2/visual/MobileSheetHandle'
 import { RailCollapseStrip, RailPanelHead } from '../l2/visual/L2RailChrome'
+import { PropertiesHelpModal } from '../l2/visual/PropertiesHelpModal'
+import { findInMatch } from '../../lib/l2-form'
 
 interface Props {
   packageId: string
@@ -28,6 +30,7 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
   // Own open state — do not share the main editor's session-backed rails, or
   // the preview inherits "props open" and opens as a side panel / sheet.
   const [propsOpen, setPropsOpen] = useState(false)
+  const [propertiesHelpOpen, setPropertiesHelpOpen] = useState(false)
   const [pkg, setPkg] = useState<LogicBlockPackage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -153,6 +156,8 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
               title="Properties"
               onCollapse={toggleProps}
               collapseLabel="Collapse properties"
+              onHelp={() => setPropertiesHelpOpen(true)}
+              helpLabel="About this node"
             />
             {draft && match ? (
               <L2PropertiesInspector
@@ -178,6 +183,15 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
           />
         )}
       </aside>
+
+      <PropertiesHelpModal
+        open={propertiesHelpOpen}
+        onClose={() => setPropertiesHelpOpen(false)}
+        context={{
+          selected: match && selectedId ? findInMatch(match, selectedId) : null,
+          selectedEdgeId,
+        }}
+      />
 
       <div className="l2-visual-mobile-bar">
         <button

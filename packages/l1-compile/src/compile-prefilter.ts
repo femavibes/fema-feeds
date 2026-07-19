@@ -14,6 +14,7 @@ import { buildIngestGateFromPaths, dnfPathsFromRule } from './ingest-path-dnf.js
 import { optimizeIngestGate } from './ingest-gate-optimize.js'
 import type { CompileProjectL1Result } from './compile-from-feeds.js'
 import { applyCompiledIngestGate } from './compile-from-feeds.js'
+import { compileMediaIngestRule } from './compile-media.js'
 
 function groupMeta(scopeId: string, node: L2RuleGroup): Pick<IngestGateAllRule, 'sourceFeedId' | 'sourceNodeId' | 'sourcePathId'> {
   return {
@@ -33,7 +34,8 @@ export function nodeIncludedInPrefilter(node: L2RuleNode): boolean {
   return true
 }
 
-export function branchFromPrefilterNode(scopeId: string, node: L2RuleNode): IngestGateBranch | null {
+/** Compile a prefilter leaf to an ingest rule (branch or composite for Media). */
+export function branchFromPrefilterNode(scopeId: string, node: L2RuleNode): IngestGateRule | null {
   if (!nodeIncludedInPrefilter(node)) return null
 
   const meta = { sourceFeedId: scopeId, sourceNodeId: node.id }
@@ -66,12 +68,14 @@ export function branchFromPrefilterNode(scopeId: string, node: L2RuleNode): Inge
       return { type: 'language', allow: [...node.allow], unknown: node.unknown, ...meta }
     case 'bool':
       return { type: 'embed', field: node.field, required: node.value, ...meta }
+    case 'media':
+      return compileMediaIngestRule(node, meta)
     case 'labels':
       return {
         type: 'labels',
         op: node.op,
         values: [...node.values],
-        scope: node.scope ?? 'any',
+        scope: node.scope ?? 'all',
         ...meta,
       }
     case 'follow_ring':
@@ -100,6 +104,18 @@ export function branchFromPrefilterNode(scopeId: string, node: L2RuleNode): Inge
         caseSensitive: node.caseSensitive,
         ...meta,
       }
+    case 'mention': {
+      const accounts = [...(node.accounts ?? [])]
+      const literalDids = accounts.filter((a) => a.trim().toLowerCase().startsWith('did:'))
+      return {
+        type: 'mention',
+        op: node.op,
+        accounts,
+        listUri: node.listUri,
+        dids: literalDids.length > 0 ? literalDids : undefined,
+        ...meta,
+      }
+    }
     default:
       return null
   }

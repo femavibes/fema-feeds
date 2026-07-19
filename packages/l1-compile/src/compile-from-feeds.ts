@@ -56,6 +56,7 @@ export {
   walkIngestBranches,
   collectAuthorIncludeBranches,
   collectFollowRingBranches,
+  collectMentionBranches,
   isIngestGateComposite,
   ingestCompositeChildren,
 } from './ingest-gate-rules.js'
@@ -221,11 +222,15 @@ export function applyCompiledIngestGate(
 
     hasVideo: undefined,
 
+    hasGif: undefined,
+
     hasImage: undefined,
 
     hasLinkCard: undefined,
 
     hasQuote: undefined,
+
+    hasQuoteWithMedia: undefined,
 
     hasRecord: undefined,
 

@@ -15,9 +15,11 @@ const post: NormalizedPost = {
   postKind: 'root',
   embed: {
     hasVideo: false,
+      hasGif: false,
     hasImage: false,
     hasLinkCard: false,
     hasQuote: false,
+      hasQuoteWithMedia: false,
     hasRecord: false,
     hasTextOnly: true,
   },
@@ -85,7 +87,7 @@ describe('compiled ingest_gate', () => {
     }
     const extras = {
       ingestGateExtrasByProject: {
-        p1: { authorListDids: { vip: ['did:plc:vip'] } },
+        p1: { authorListDids: { vip: new Set(['did:plc:vip']) } },
       },
     }
 
@@ -153,7 +155,7 @@ describe('compiled ingest_gate', () => {
     }
     const extras = {
       ingestGateExtrasByProject: {
-        p1: { authorListDids: { vip: ['did:plc:vip'] } },
+        p1: { authorListDids: { vip: new Set(['did:plc:vip']) } },
       },
     }
 
@@ -212,7 +214,7 @@ describe('compiled ingest_gate', () => {
       },
       {
         ingestGateExtrasByProject: {
-          p1: { authorListDids: { vip: ['did:plc:vip'] } },
+          p1: { authorListDids: { vip: new Set(['did:plc:vip']) } },
         },
       },
     )
@@ -333,5 +335,50 @@ describe('compiled ingest_gate', () => {
       {},
     )
     expect(result.matched).toBe(true)
+  })
+
+  it('Discover mention include matches facetMentions via extras', () => {
+    const mentioned = {
+      ...post,
+      facetMentions: ['did:plc:target'],
+    }
+    const gate = {
+      includeBranches: [
+        {
+          type: 'mention' as const,
+          op: 'includes' as const,
+          accounts: ['did:plc:target'],
+          dids: ['did:plc:target'],
+          sourceNodeId: 'm1',
+        },
+      ],
+      excludeBranches: [],
+    }
+
+    const miss = evaluateProjectL1(
+      post,
+      {
+        projectId: 'p1',
+        name: 'P',
+        enabled: true,
+        compiledL1Meta: { compiledAt: '2024-01-01', liveFeedIds: ['f1'] },
+        ingestGate: gate,
+      },
+      { ingestGateExtrasByProject: { p1: { mentionDids: { m1: new Set(['did:plc:target']) } } } },
+    )
+    expect(miss.matched).toBe(false)
+
+    const hit = evaluateProjectL1(
+      mentioned,
+      {
+        projectId: 'p1',
+        name: 'P',
+        enabled: true,
+        compiledL1Meta: { compiledAt: '2024-01-01', liveFeedIds: ['f1'] },
+        ingestGate: gate,
+      },
+      { ingestGateExtrasByProject: { p1: { mentionDids: { m1: new Set(['did:plc:target']) } } } },
+    )
+    expect(hit.matched).toBe(true)
   })
 })

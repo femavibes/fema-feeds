@@ -1,14 +1,18 @@
-import { api, type ListMemberEntry } from '../../api/client'
+import { api, type ListMemberEntry, type ListMembersResponse } from '../../api/client'
 
 /** Session cache for Bluesky actor resolves — shared by canvas teasers, expand, and editors. */
 const TTL_MS = 30 * 60 * 1000
 
+/** Default page size for list member profile previews (never pull a full mega-list). */
+export const LIST_MEMBERS_PREVIEW_LIMIT = 48
+
 type Timed<T> = { value: T; at: number }
 
 const byRef = new Map<string, Timed<ListMemberEntry>>()
-const byList = new Map<string, Timed<ListMemberEntry[]>>()
+const byList = new Map<string, Timed<ListMembersResponse>>()
+const byListName = new Map<string, Timed<string>>()
 const inflightActors = new Map<string, Promise<ListMemberEntry | null>>()
-const inflightLists = new Map<string, Promise<ListMemberEntry[]>>()
+const inflightLists = new Map<string, Promise<ListMembersResponse>>()
 
 function now() {
   return Date.now()
@@ -54,7 +58,6 @@ export async function resolveActorsCached(refs: string[]): Promise<ListMemberEnt
     return dedupeByDid(out)
   }
 
-  // Coalesce concurrent identical batches loosely: per-ref inflight + one API call for misses.
   const stillMissing: string[] = []
   const waiting: Promise<ListMemberEntry | null>[] = []
 
@@ -98,31 +101,79 @@ export async function resolveActorsCached(refs: string[]): Promise<ListMemberEnt
   return dedupeByDid(out)
 }
 
-export async function listMembersCached(listId: string): Promise<ListMemberEntry[]> {
-  const id = listId.trim()
-  if (!id) return []
+function listCacheKey(listId: string, limit: number, offset: number): string {
+  return `${listId.trim()}::${offset}::${limit}`
+}
 
-  const hit = fresh(byList.get(id))
+/**
+ * Fetch a *page* of list member profiles (default {@link LIST_MEMBERS_PREVIEW_LIMIT}).
+ * Never requests the full list — mega-lists (50k+) would freeze the builder.
+ */
+export async function listMembersCached(
+  listId: string,
+  opts?: { limit?: number; offset?: number; extraDids?: string[] },
+): Promise<ListMembersResponse> {
+  const id = listId.trim()
+  const limit = opts?.limit ?? LIST_MEMBERS_PREVIEW_LIMIT
+  const offset = opts?.offset ?? 0
+  if (!id) {
+    return {
+      listId: '',
+      graphName: null,
+      memberCount: 0,
+      refreshedAt: null,
+      members: [],
+      limit,
+      offset,
+      truncated: false,
+    }
+  }
+
+  const key = listCacheKey(id, limit, offset)
+  const hit = fresh(byList.get(key))
   if (hit) return hit
 
-  const pending = inflightLists.get(id)
+  const pending = inflightLists.get(key)
   if (pending) return pending
 
   const p = api
-    .listMembers(id)
+    .listMembers(id, { limit, offset, extraDids: opts?.extraDids })
     .then((res) => {
-      const members = res.members ?? []
-      for (const member of members) remember(member)
-      byList.set(id, { value: members, at: now() })
-      return members
+      for (const member of res.members ?? []) remember(member)
+      byList.set(key, { value: res, at: now() })
+      if (res.graphName?.trim()) {
+        byListName.set(id, { value: res.graphName.trim(), at: now() })
+      }
+      return res
     })
-    .catch(() => [] as ListMemberEntry[])
+    .catch(() => ({
+      listId: id,
+      graphName: null,
+      memberCount: 0,
+      refreshedAt: null,
+      members: [] as ListMemberEntry[],
+      limit,
+      offset,
+      truncated: false,
+    }))
     .finally(() => {
-      inflightLists.delete(id)
+      inflightLists.delete(key)
     })
 
-  inflightLists.set(id, p)
+  inflightLists.set(key, p)
   return p
+}
+
+export function peekListGraphNameCached(listId: string): string | undefined {
+  return fresh(byListName.get(listId.trim()))
+}
+
+export function invalidateListMembersCache(listId: string): void {
+  const id = listId.trim()
+  byListName.delete(id)
+  for (const key of [...byList.keys()]) {
+    if (key === id || key.startsWith(`${id}::`)) byList.delete(key)
+  }
 }
 
 function dedupeByDid(members: ListMemberEntry[]): ListMemberEntry[] {
