@@ -143,9 +143,9 @@ export function setParamValueAcrossMatch(
 }
 
 /**
- * After editing one panel, copy shared controls (by Param ID) onto every other
- * panel that declares the same id: label, description, type, default, options,
- * bindings, and live value. Unique (unshared) controls are left alone.
+ * After editing one panel, sync shared Param IDs across other panels:
+ * live value + chrome (label / description / type / default).
+ * Bindings stay per-face — apply unions them under the shared live value.
  */
 export function syncSharedParamControlFromPanel(
   root: L2RuleGroup,
@@ -165,7 +165,6 @@ export function syncSharedParamControlFromPanel(
   const walk = (node: L2RuleNode): L2RuleNode => {
     if (isParametersNode(node)) {
       if (node.id === panelId) {
-        // Ensure this panel's values are written for shared ids (source of truth).
         const values = { ...(node.values ?? {}) }
         for (const c of shared) {
           values[c.name] = resolveControlValue(c, source.values, undefined)
@@ -183,17 +182,12 @@ export function syncSharedParamControlFromPanel(
           description: src.description,
           type: src.type,
           default: src.default,
-          options: src.options ? structuredClone(src.options) : undefined,
-          bindings: src.bindings ? structuredClone(src.bindings) : [],
-          targetNodeIds: undefined,
+          // Bindings / options stay local so faces can control different subsets.
         }
       })
       if (!touched) return node
       const values = { ...(node.values ?? {}) }
       for (const c of shared) {
-        if (!(c.name in values) && !(node.controls ?? []).some((x) => x.name === c.name)) {
-          continue
-        }
         if ((node.controls ?? []).some((x) => x.name === c.name)) {
           values[c.name] = resolveControlValue(c, source.values, undefined)
         }
@@ -209,12 +203,114 @@ export function syncSharedParamControlFromPanel(
   return walk(root) as L2RuleGroup
 }
 
-/** @deprecated Prefer syncSharedParamControlFromPanel (values + definition). */
+/** @deprecated Prefer syncSharedParamControlFromPanel. */
 export function syncSharedParamValuesFromPanel(
   root: L2RuleGroup,
   panelId: string,
 ): L2RuleGroup {
   return syncSharedParamControlFromPanel(root, panelId)
+}
+
+export type ParamBindClaim = {
+  paramName: string
+  paramLabel: string
+  panelId: string
+}
+
+/** Stable key for exclusive ownership of a presence or property bind. */
+export function paramOwnershipKey(binding: {
+  kind?: string
+  nodeId: string
+  property?: string
+  member?: string
+}): string {
+  const kind = binding.kind ?? 'presence'
+  if (kind === 'presence') return `${binding.nodeId}::presence`
+  return `${binding.nodeId}::property::${binding.property ?? ''}::${binding.member ?? ''}`
+}
+
+function claimsFromControl(
+  panelId: string,
+  control: L2ParamControl,
+  into: Map<string, ParamBindClaim[]>,
+): void {
+  if (!control.name) return
+  const claim: ParamBindClaim = {
+    paramName: control.name,
+    paramLabel: control.label?.trim() || control.name,
+    panelId,
+  }
+  const push = (binding: L2ParamTargetBinding) => {
+    if (!binding.nodeId?.trim()) return
+    const key = paramOwnershipKey(binding)
+    const list = into.get(key) ?? []
+    if (!list.some((c) => c.paramName === claim.paramName)) list.push(claim)
+    into.set(key, list)
+  }
+  for (const b of normalizeControlBindings(control)) push(b)
+  if (control.type === 'enum') {
+    for (const opt of control.options ?? []) {
+      for (const b of normalizeOptionBindings(opt)) push(b)
+    }
+  }
+}
+
+/** All presence/property claims in the graph, keyed by ownership key. */
+export function collectParamBindClaims(
+  root: L2RuleNode,
+): Map<string, ParamBindClaim[]> {
+  const into = new Map<string, ParamBindClaim[]>()
+  const walk = (node: L2RuleNode) => {
+    if (isParametersNode(node)) {
+      for (const control of node.controls ?? []) {
+        claimsFromControl(node.id, control, into)
+      }
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  return into
+}
+
+/**
+ * Exclusive owner of a bind key: lexicographically first Param ID among claimants.
+ * Same Param ID on multiple panels shares ownership (union bindings at apply).
+ */
+export function exclusiveOwnerOfKey(
+  root: L2RuleNode,
+  key: string,
+): ParamBindClaim | undefined {
+  const claims = collectParamBindClaims(root).get(key)
+  if (!claims || claims.length === 0) return undefined
+  const sorted = [...claims].sort((a, b) => a.paramName.localeCompare(b.paramName))
+  return sorted[0]
+}
+
+/** Another Param ID already owns this bind (shared same-id faces are fine). */
+export function findConflictingOwner(
+  root: L2RuleNode,
+  binding: L2ParamTargetBinding,
+  selfParamName: string,
+): ParamBindClaim | undefined {
+  const key = paramOwnershipKey(binding)
+  const claims = collectParamBindClaims(root).get(key) ?? []
+  const others = claims
+    .filter((c) => c.paramName !== selfParamName)
+    .sort((a, b) => a.paramName.localeCompare(b.paramName))
+  return others[0]
+}
+
+/** Map ownership key → winning Param ID (for apply-time exclusive enforcement). */
+export function buildExclusiveOwnerMap(root: L2RuleNode): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const [key, claims] of collectParamBindClaims(root)) {
+    const sorted = [...claims].sort((a, b) => a.paramName.localeCompare(b.paramName))
+    if (sorted[0]) out.set(key, sorted[0].paramName)
+  }
+  return out
 }
 
 /** Expand legacy `targetNodeIds` into presence bindings (deduped). */
@@ -286,6 +382,7 @@ export function collectExcludedNodeIds(
 ): Set<string> {
   const excluded = new Set<string>()
   const valueMap = buildParamValueMap(root, overrides)
+  const owners = buildExclusiveOwnerMap(root)
 
   const walk = (node: L2RuleNode) => {
     if (isParametersNode(node)) {
@@ -297,17 +394,25 @@ export function collectExcludedNodeIds(
           const on = value === true || value === 'true'
           if (!on) {
             for (const id of presenceIdsFromBindings(normalizeControlBindings(control))) {
+              const owner = owners.get(paramOwnershipKey({ nodeId: id, kind: 'presence' }))
+              if (owner && owner !== control.name) continue
               excluded.add(id)
             }
           }
         } else if (control.type === 'enum') {
           const options = control.options ?? []
           const selected = options.find((o) => o.value === value)
+          // Only presence binds this Param ID owns participate.
+          const ownedPresence = (bindings: L2ParamTargetBinding[]) =>
+            presenceIdsFromBindings(bindings).filter((id) => {
+              const owner = owners.get(paramOwnershipKey({ nodeId: id, kind: 'presence' }))
+              return !owner || owner === control.name
+            })
           const keep = new Set(
-            presenceIdsFromBindings(selected ? normalizeOptionBindings(selected) : []),
+            ownedPresence(selected ? normalizeOptionBindings(selected) : []),
           )
           const all = new Set(
-            options.flatMap((o) => presenceIdsFromBindings(normalizeOptionBindings(o))),
+            options.flatMap((o) => ownedPresence(normalizeOptionBindings(o))),
           )
           for (const id of all) {
             if (!keep.has(id)) excluded.add(id)
@@ -426,6 +531,12 @@ function applyPropertyBinding(
 function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): void {
   const byId = indexRuleNodesById(root)
   const valueMap = buildParamValueMap(root, overrides)
+  const owners = buildExclusiveOwnerMap(root)
+
+  const owns = (controlName: string, binding: L2ParamTargetBinding) => {
+    const owner = owners.get(paramOwnershipKey(binding))
+    return !owner || owner === controlName
+  }
 
   const walk = (node: L2RuleNode) => {
     if (isParametersNode(node)) {
@@ -436,6 +547,7 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
         if (control.type === 'boolean') {
           const on = value === true || value === 'true'
           for (const binding of propertyBindings(normalizeControlBindings(control))) {
+            if (!owns(control.name, binding)) continue
             const target = byId.get(binding.nodeId)
             if (target) applyPropertyBinding(target, binding, on)
           }
@@ -443,11 +555,11 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
           const options = control.options ?? []
           const selected = options.find((o) => o.value === value)
 
-          // Member fields: clear members mentioned by any option, then add selected.
           const memberMentions = new Map<string, { nodeId: string; property: string; member: string }>()
           for (const opt of options) {
             for (const b of propertyBindings(normalizeOptionBindings(opt))) {
               if (!b.member?.trim() || !b.property) continue
+              if (!owns(control.name, b)) continue
               const key = `${b.nodeId}::${b.property}::${b.member.trim()}`
               memberMentions.set(key, {
                 nodeId: b.nodeId,
@@ -463,6 +575,7 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
 
           if (selected) {
             for (const binding of propertyBindings(normalizeOptionBindings(selected))) {
+              if (!owns(control.name, binding)) continue
               const target = byId.get(binding.nodeId)
               if (target) applyPropertyBinding(target, binding, true)
             }

@@ -85,19 +85,25 @@ export {
 } from './logic-block-shell.js'
 export {
   applyParametersToMatch,
+  buildExclusiveOwnerMap,
   buildParamValueMap,
   collectExcludedNodeIds,
+  collectParamBindClaims,
   collectParamControls,
   collectParameterNodes,
   countParamControlPanels,
+  exclusiveOwnerOfKey,
+  findConflictingOwner,
   findParamControlByName,
   normalizeControlBindings,
   normalizeOptionBindings,
+  paramOwnershipKey,
   setParamValueAcrossMatch,
   stripParametersAndExcluded,
   syncSharedParamControlFromPanel,
   syncSharedParamValuesFromPanel,
   type ApplyParametersOptions,
+  type ParamBindClaim,
   type ParamValueMap,
 } from './apply-parameters.js'
 export {
