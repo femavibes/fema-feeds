@@ -124,6 +124,8 @@ export function flowGraphToRfNodes(
           ...base,
           type: 'start' as const,
           deletable: false,
+          // Keep START/FEED above group frames so wires and chips stay visible.
+          zIndex: 4,
           style: { width: box.width, height: box.height },
         }
       case 'end':
@@ -131,6 +133,7 @@ export function flowGraphToRfNodes(
           ...base,
           type: 'end' as const,
           deletable: false,
+          zIndex: 4,
           style: { width: box.width, height: box.height },
         }
       case 'group-frame': {
@@ -243,6 +246,48 @@ export function canvasEdgesToRf(
     zIndex: 1000,
     className: 'l2-flow-edge-branch',
   }))
+}
+
+/**
+ * Sanitize a multi-canvas React Flow `id` (HTML id + handle data-id prefix).
+ * Avoid dots/colons so querySelector / svg url(#…) stay valid.
+ */
+export function sanitizeFlowInstanceId(raw: string): string {
+  const cleaned = raw.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
+  return cleaned || 'flow'
+}
+
+/** Prefix node/edge DOM ids so two React Flow trees can share a page safely. */
+export function namespaceRfNodesForDom<T extends Node<GraphNodeData>>(
+  nodes: T[],
+  instanceId: string | undefined,
+): T[] {
+  if (!instanceId) return nodes
+  const ns = sanitizeFlowInstanceId(instanceId)
+  const mapId = (id: string) => `${ns}__${id}`
+  return nodes.map((n) => ({
+    ...n,
+    id: mapId(n.id),
+    parentId: n.parentId ? mapId(n.parentId) : undefined,
+  }))
+}
+
+export function namespaceRfEdgesForDom(edges: Edge[], instanceId: string | undefined): Edge[] {
+  if (!instanceId) return edges
+  const ns = sanitizeFlowInstanceId(instanceId)
+  const mapId = (id: string) => `${ns}__${id}`
+  return edges.map((e) => ({
+    ...e,
+    id: mapId(e.id),
+    source: mapId(e.source),
+    target: mapId(e.target),
+  }))
+}
+
+export function stripFlowDomId(id: string, instanceId: string | undefined): string {
+  if (!instanceId) return id
+  const prefix = `${sanitizeFlowInstanceId(instanceId)}__`
+  return id.startsWith(prefix) ? id.slice(prefix.length) : id
 }
 
 export function resolveCanvasEdges(

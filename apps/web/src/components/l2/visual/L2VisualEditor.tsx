@@ -35,6 +35,7 @@ import { MobileSheetHandle } from './MobileSheetHandle'
 import { L2NodePalette } from './L2NodePalette'
 import { L2NodeRenameDialog } from './L2NodeRenameDialog'
 import { LogicBlockInnerPreview } from '../../logic-blocks/LogicBlockInnerPreview'
+import { LogicBlockVersionCompare } from '../../logic-blocks/LogicBlockVersionCompare'
 import {
   collectDescendantLeafIds,
   isValidCanvasConnection,
@@ -130,8 +131,15 @@ export function L2VisualEditor({
     packageId: string
     versionPin: string
     title?: string
+    updatePolicy?: 'pinned' | 'notify' | 'auto_minor'
   } | null>(null)
-  const nestedOverlayOpen = innerLogicPreview !== null
+  const [logicBlockCompare, setLogicBlockCompare] = useState<{
+    packageId: string
+    fromVersion: string
+    toVersion: string
+    title?: string
+  } | null>(null)
+  const nestedOverlayOpen = innerLogicPreview !== null || logicBlockCompare !== null
 
   // Mobile: rails render as bottom sheets toggled from the editor's bottom
   // bar. Start with all sheets closed, and only allow one open at a time.
@@ -1150,6 +1158,7 @@ export function L2VisualEditor({
               prefilterMode={prefilterMode}
               readOnly={readOnly}
               onOpenInnerLogicPreview={setInnerLogicPreview}
+              onOpenLogicBlockCompare={setLogicBlockCompare}
               onUseLogicBlockHere={useLogicBlockHere}
               onInsertLogicBlock={insertLogicBlockIntoGroup}
             />
@@ -1223,8 +1232,18 @@ export function L2VisualEditor({
       <LogicBlockInnerPreview
         packageId={innerLogicPreview.packageId}
         versionPin={innerLogicPreview.versionPin}
+        updatePolicy={innerLogicPreview.updatePolicy}
         title={innerLogicPreview.title}
         onClose={() => setInnerLogicPreview(null)}
+      />
+    ) : null}
+    {logicBlockCompare ? (
+      <LogicBlockVersionCompare
+        packageId={logicBlockCompare.packageId}
+        fromVersion={logicBlockCompare.fromVersion}
+        toVersion={logicBlockCompare.toVersion}
+        title={logicBlockCompare.title}
+        onClose={() => setLogicBlockCompare(null)}
       />
     ) : null}
     <PropertiesHelpModal

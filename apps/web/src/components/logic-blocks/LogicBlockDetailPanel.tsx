@@ -7,6 +7,7 @@ import { MarketplaceListingHero } from '../marketplace/MarketplaceListingHero'
 import { PackageVersionHistory } from '../marketplace/PackageVersionHistory'
 import { LogicBlockMetadataFields } from './LogicBlockMetadataFields'
 import { LogicBlockTrustBadge, trustLabel, visibilityLabel } from './logic-block-labels'
+import { LogicBlockVersionCompare } from './LogicBlockVersionCompare'
 
 export type LogicBlockDetailVariant = 'marketplace' | 'collection'
 export type LogicBlockMarketplaceSection = 'details' | 'listing'
@@ -52,13 +53,14 @@ export function LogicBlockDetailPanel({
   const [slug, setSlug] = useState('')
   const [description, setDescription] = useState('')
   const [metaDirty, setMetaDirty] = useState(false)
-  const [updatePolicyLocal, setUpdatePolicyLocal] = useState<import('@cfb/core-types').LogicBlockUpdatePolicy>('pinned')
+  const [updatePolicyLocal, setUpdatePolicyLocal] = useState<import('@cfb/core-types').LogicBlockUpdatePolicy>('notify')
   const updatePolicy = updatePolicyProp ?? updatePolicyLocal
   const setUpdatePolicy = onUpdatePolicyChange ?? setUpdatePolicyLocal
   const [busy, setBusy] = useState(false)
   const actionBusy = busy || subscriptionBusy
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [compare, setCompare] = useState<{ fromVersion: string; toVersion: string } | null>(null)
 
   useEffect(() => {
     if (!pkg) {
@@ -259,17 +261,31 @@ export function LogicBlockDetailPanel({
           productKind="logic_block"
           packageId={pkg.id}
           latestVersion={latestVersion}
+          pinnedVersion={versionPin}
           mode="owner"
+          onCompareVersions={(fromVersion, toVersion) => setCompare({ fromVersion, toVersion })}
         />
       ) : null}
 
       {variant === 'marketplace' && isSubscribed ? (
-        <p className="settings-hint">
-          Subscribed at v{subscribedVersionPin}
-          {!onLatestPin && latestVersion !== subscribedVersionPin
-            ? ` — v${latestVersion} available`
-            : ''}
-        </p>
+        <>
+          <p className="settings-hint">
+            Subscribed at v{subscribedVersionPin}
+            {!onLatestPin && latestVersion !== subscribedVersionPin
+              ? ` — v${latestVersion} available`
+              : ''}
+          </p>
+          <PackageVersionHistory
+            productKind="logic_block"
+            packageId={pkg.id}
+            latestVersion={latestVersion}
+            pinnedVersion={subscribedVersionPin ?? versionPin}
+            updatePolicy={updatePolicy}
+            mode="subscriber"
+            busy={actionBusy}
+            onCompareVersions={(fromVersion, toVersion) => setCompare({ fromVersion, toVersion })}
+          />
+        </>
       ) : null}
 
       {variant === 'marketplace' && pkg.visibility !== 'collection' && (!isSubscribed || !onLatestPin) ? (
@@ -282,9 +298,9 @@ export function LogicBlockDetailPanel({
               setUpdatePolicy(e.target.value as import('@cfb/core-types').LogicBlockUpdatePolicy)
             }
           >
-            <option value="pinned">Pinned — stay on this version until you upgrade</option>
-            <option value="notify">Notify — flag when a newer version exists (manual upgrade)</option>
+            <option value="notify">Notify — alert when a newer version exists</option>
             <option value="auto_minor">Auto minor — apply patch releases automatically</option>
+            <option value="pinned">Quiet — stay on this version, no upgrade alerts</option>
           </select>
         </label>
       ) : null}
@@ -332,6 +348,16 @@ export function LogicBlockDetailPanel({
           </>
         )}
       </div>
+
+      {compare ? (
+        <LogicBlockVersionCompare
+          packageId={pkg.id}
+          fromVersion={compare.fromVersion}
+          toVersion={compare.toVersion}
+          title={pkg.name}
+          onClose={() => setCompare(null)}
+        />
+      ) : null}
     </div>
   )
 }

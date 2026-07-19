@@ -4,6 +4,7 @@ import type { LogicBlockPackage } from '@cfb/core-types'
 import { api } from '../../api/client'
 import { PackageVersionHistory } from '../marketplace/PackageVersionHistory'
 import { compareSemver, LogicBlockTrustBadge, trustLabel, visibilityLabel } from './logic-block-labels'
+import { LogicBlockVersionCompare } from './LogicBlockVersionCompare'
 
 interface Props {
   selectedId?: string | null
@@ -18,6 +19,12 @@ export function LogicBlocksInstalledView({ selectedId, onSelect, onChanged }: Pr
   const [catalogLatest, setCatalogLatest] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [compare, setCompare] = useState<{
+    packageId: string
+    title: string
+    fromVersion: string
+    toVersion: string
+  } | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -128,9 +135,9 @@ export function LogicBlocksInstalledView({ selectedId, onSelect, onChanged }: Pr
                       )
                     }
                   >
-                    <option value="pinned">Pinned (manual updates)</option>
                     <option value="notify">Notify on new version</option>
                     <option value="auto_minor">Auto minor patches</option>
+                    <option value="pinned">Quiet (no alerts)</option>
                   </select>
                 </label>
                 <PackageVersionHistory
@@ -142,12 +149,30 @@ export function LogicBlocksInstalledView({ selectedId, onSelect, onChanged }: Pr
                   mode="subscriber"
                   busy={busyId === pkg.id}
                   onPinVersion={(v, policy) => void pinVersion(pkg, v, policy ?? updatePolicy)}
+                  onCompareVersions={(fromVersion, toVersion) =>
+                    setCompare({
+                      packageId: pkg.id,
+                      title: pkg.name,
+                      fromVersion,
+                      toVersion,
+                    })
+                  }
                 />
               </div>
             </li>
           )
         })}
       </ul>
+
+      {compare ? (
+        <LogicBlockVersionCompare
+          packageId={compare.packageId}
+          fromVersion={compare.fromVersion}
+          toVersion={compare.toVersion}
+          title={compare.title}
+          onClose={() => setCompare(null)}
+        />
+      ) : null}
     </div>
   )
 }

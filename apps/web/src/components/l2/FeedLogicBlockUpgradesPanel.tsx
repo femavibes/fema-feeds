@@ -11,17 +11,18 @@ interface Props {
     hasUnpublishedDraft: boolean
   }) => void
   onNotify?: (message: string | null, error: string | null) => void
+  onCompare?: (hint: LogicBlockUpgradeHint) => void
 }
 
 function policyHint(policy: LogicBlockUpgradeHint['updatePolicy'], patchUpgrade: boolean) {
   if (policy === 'auto_minor' && patchUpgrade) {
-    return 'Eval already uses the latest patch (auto minor). Upgrade the feed pin to match.'
+    return 'Auto minor — pin should sync automatically.'
   }
-  if (policy === 'notify') return 'Notify policy — upgrade when you are ready.'
-  return 'Pinned — upgrade to use the newer version in this feed.'
+  if (policy === 'notify') return 'Notify — upgrade when you are ready.'
+  return 'Quiet — no alerts for this block.'
 }
 
-export function FeedLogicBlockUpgradesPanel({ feedId, onUpgraded, onNotify }: Props) {
+export function FeedLogicBlockUpgradesPanel({ feedId, onUpgraded, onNotify, onCompare }: Props) {
   const [upgrades, setUpgrades] = useState<LogicBlockUpgradeHint[]>([])
   const [loading, setLoading] = useState(true)
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set())
@@ -30,10 +31,25 @@ export function FeedLogicBlockUpgradesPanel({ feedId, onUpgraded, onNotify }: Pr
     setLoading(true)
     void api
       .listFeedLogicBlockUpgrades(feedId)
-      .then((res) => setUpgrades(res.upgrades))
+      .then((res) => {
+        setUpgrades(res.upgrades)
+        // Auto-minor patches are applied server-side; refresh the open editor draft.
+        if (
+          (res.autoAppliedNodeIds?.length ?? 0) > 0 &&
+          res.feed &&
+          res.live &&
+          typeof res.hasUnpublishedDraft === 'boolean'
+        ) {
+          onUpgraded({
+            feed: res.feed,
+            live: res.live,
+            hasUnpublishedDraft: res.hasUnpublishedDraft,
+          })
+        }
+      })
       .catch(() => setUpgrades([]))
       .finally(() => setLoading(false))
-  }, [feedId])
+  }, [feedId, onUpgraded])
 
   useEffect(() => {
     load()
@@ -115,14 +131,26 @@ export function FeedLogicBlockUpgradesPanel({ feedId, onUpgraded, onNotify }: Pr
                 </span>
                 <span className="card-hint">{policyHint(hint.updatePolicy, hint.patchUpgrade)}</span>
               </div>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={busy}
-                onClick={() => void applyOne(hint)}
-              >
-                {busy ? 'Upgrading…' : `Upgrade to v${hint.latestVersion}`}
-              </button>
+              <div className="feed-logic-upgrades-actions">
+                {onCompare ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={busy}
+                    onClick={() => onCompare(hint)}
+                  >
+                    Compare
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={busy}
+                  onClick={() => void applyOne(hint)}
+                >
+                  {busy ? 'Upgrading…' : `Upgrade to v${hint.latestVersion}`}
+                </button>
+              </div>
             </li>
           )
         })}

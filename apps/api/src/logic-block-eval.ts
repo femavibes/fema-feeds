@@ -4,7 +4,7 @@ import type { FeedConfig, L2EvalInput } from '@cfb/core-types'
 import { resolveFeedMatch } from '@cfb/l2-graph'
 import {
   collectLogicBlockRefNodes,
-  createLogicBlockResolver,
+  createFeedLogicBlockResolver,
   resolveLogicBlockVersionPin,
   type LogicBlockRefInFeed,
 } from '@cfb/l2-eval'
@@ -24,16 +24,25 @@ export async function buildLogicBlockEvalInput(
   const latestPackages = await getLatestLogicBlockPackagesByIds(pool, packageIds)
   const latestById = new Map(latestPackages.map((pkg) => [pkg.id, pkg.version]))
 
-  const refs = refNodes.map((node: LogicBlockRefInFeed) => {
+  const resolvedRefs = refNodes.map((node: LogicBlockRefInFeed) => {
     const latest = latestById.get(node.packageId)
-    const versionPin =
+    const resolvedPin =
       latest != null
         ? resolveLogicBlockVersionPin(node.versionPin, latest, node.updatePolicy)
         : node.versionPin
-    return { packageId: node.packageId, versionPin }
+    return {
+      packageId: node.packageId,
+      feedPin: node.versionPin,
+      resolvedPin,
+    }
   })
 
-  const packages = await getLogicBlockPackagesByRefs(pool, refs)
-  const resolveLogicBlock = createLogicBlockResolver(packages)
-  return { ...base, resolveLogicBlock }
+  const packages = await getLogicBlockPackagesByRefs(
+    pool,
+    resolvedRefs.map((r) => ({ packageId: r.packageId, versionPin: r.resolvedPin })),
+  )
+  return {
+    ...base,
+    resolveLogicBlock: createFeedLogicBlockResolver(packages, resolvedRefs),
+  }
 }

@@ -48,6 +48,32 @@ describe('layoutMatchFlow', () => {
 
 
 
+  it('keeps START clear of the first top-level block (no overlap)', () => {
+    const { nodes } = layoutMatchFlow({
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'group',
+          id: 'g1',
+          logic: 'any',
+          children: [{ type: 'text', id: 'a', field: 'text', op: 'contains', value: 'x' }],
+        },
+      ],
+    })
+
+    const start = nodes.find((n) => n.id === 'start')!
+    const end = nodes.find((n) => n.id === 'end')!
+    const g1 = nodes.find((n) => n.id === 'g1')!
+    const startGap = g1.x - (start.x + start.width)
+    const endGap = end.x - (g1.x + g1.width)
+    expect(startGap).toBeGreaterThan(40)
+    expect(endGap).toBe(startGap)
+  })
+
+
+
   it('places direct child groups as top-level flow boxes', () => {
 
     const { nodes, edges } = layoutMatchFlow({

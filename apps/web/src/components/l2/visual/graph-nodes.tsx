@@ -291,6 +291,7 @@ function ConditionExpandBody({
       <LogicBlockExpandOutline
         packageId={rule.packageId}
         versionPin={rule.versionPin}
+        updatePolicy={rule.updatePolicy}
       />
     )
   }
@@ -425,6 +426,11 @@ export function ConditionNode({ data }: NodeProps<Node<GraphNodeData>>) {
           </button>
         ) : null}
         <span className="l2-flow-condition-title">{header}</span>
+        {data.rule?.type === 'logic_block_ref' ? (
+          <span className="l2-flow-condition-version" title={`Logic block v${data.rule.versionPin}`}>
+            v{data.rule.versionPin}
+          </span>
+        ) : null}
         {provenance === 'custom_code' ? (
           <span className="l2-flow-condition-code-badge" aria-hidden="true">
             {'{ }'}

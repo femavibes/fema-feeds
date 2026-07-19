@@ -1,22 +1,24 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import type { LogicBlockPackage } from '@cfb/core-types'
 import { normalizeRuleGroup } from '@cfb/l2-graph'
 
 import { api } from '../../api/client'
 import { logicBlockToFeedDraft } from '../../lib/logic-block-editor'
+import { packageRootJson } from '../../lib/logic-block-json-diff'
+import { resolveLogicBlockVersionPin } from '../../lib/logic-block-version'
 import { DEFAULT_RAIL_WIDTHS } from '../../hooks/useVisualEditorRails'
-import { L2GraphCanvas } from '../l2/visual/L2GraphCanvas'
 import { L2PropertiesInspector } from '../l2/visual/L2NodeInspector'
 import { MobileSheetHandle } from '../l2/visual/MobileSheetHandle'
 import { RailCollapseStrip, RailPanelHead } from '../l2/visual/L2RailChrome'
 import { PropertiesHelpModal } from '../l2/visual/PropertiesHelpModal'
 import { findInMatch } from '../../lib/l2-form'
+import { LogicBlockReadonlyCanvas } from './LogicBlockReadonlyCanvas'
 
 interface Props {
   packageId: string
   versionPin: string
+  updatePolicy?: 'pinned' | 'notify' | 'auto_minor'
   title?: string
   onClose: () => void
 }
@@ -28,7 +30,7 @@ const CANVAS_HINT =
 
 type PreviewView = 'visual' | 'json'
 
-export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }: Props) {
+export function LogicBlockInnerPreview({ packageId, versionPin, updatePolicy, title, onClose }: Props) {
   // Own open state — do not share the main editor's session-backed rails, or
   // the preview inherits "props open" and opens as a side panel / sheet.
   const [propsOpen, setPropsOpen] = useState(false)
@@ -48,11 +50,20 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
     setSelectedId(null)
     setSelectedEdgeId(null)
     setView('visual')
-    void api
-      .getLogicBlock(packageId, versionPin)
-      .then((res) => setPkg(res.package))
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load logic block'))
-  }, [packageId, versionPin])
+    void (async () => {
+      try {
+        let loadPin = versionPin
+        if (updatePolicy === 'auto_minor') {
+          const latest = await api.getLogicBlock(packageId)
+          loadPin = resolveLogicBlockVersionPin(versionPin, latest.package.version, updatePolicy)
+        }
+        const res = await api.getLogicBlock(packageId, loadPin)
+        setPkg(res.package)
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load logic block')
+      }
+    })()
+  }, [packageId, versionPin, updatePolicy])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -67,25 +78,11 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
 
   const draft = useMemo(() => (pkg ? logicBlockToFeedDraft(pkg) : null), [pkg])
   const match = useMemo(() => (draft ? normalizeRuleGroup(draft.match) : null), [draft])
-  const positions = draft?.visualLayout?.positions ?? {}
   const canvasEdges = draft?.visualLayout?.edges ?? []
   const nodeLabels = draft?.visualLayout?.labels ?? {}
-  const nodeSources = draft?.visualLayout?.nodeSources ?? {}
 
   /** Packaged logic JSON (not the preview wrapper used for the canvas). */
-  const logicJson = useMemo(() => {
-    if (!pkg) return ''
-    return JSON.stringify(
-      {
-        id: pkg.id,
-        name: pkg.name,
-        version: pkg.version,
-        root: pkg.root,
-      },
-      null,
-      2,
-    )
-  }, [pkg])
+  const logicJson = useMemo(() => (pkg ? packageRootJson(pkg) : ''), [pkg])
 
   const noop = useCallback(() => {}, [])
 
@@ -227,30 +224,15 @@ export function LogicBlockInnerPreview({ packageId, versionPin, title, onClose }
             </pre>
           </div>
         ) : (
-          <ReactFlowProvider>
-            <L2GraphCanvas
-              readOnly
-              match={match}
-              positions={positions}
-              canvasEdges={canvasEdges}
-              selectedId={selectedId}
-              selectedEdgeId={selectedEdgeId}
-              testTrace={null}
-              onSelect={setSelectedId}
-              onSelectEdge={setSelectedEdgeId}
-              onPositionsChange={noop}
-              onEdgesChange={noop}
-              onMatchReorder={noop}
-              nodeLabels={nodeLabels}
-              nodeSources={nodeSources}
-              onNodeContextMenu={noop}
-              onEdgeContextMenu={noop}
-              onReparent={noop}
-              onExtract={noop}
-              onPaletteDrop={noop}
-              onNodeOpenProperties={openPropertiesForNode}
-            />
-          </ReactFlowProvider>
+          <LogicBlockReadonlyCanvas
+            pkg={pkg}
+            className="l2-logic-block-inner-preview-canvas"
+            selectedId={selectedId}
+            selectedEdgeId={selectedEdgeId}
+            onSelect={setSelectedId}
+            onSelectEdge={setSelectedEdgeId}
+            onNodeOpenProperties={openPropertiesForNode}
+          />
         )}
       </main>
 

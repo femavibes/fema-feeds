@@ -283,8 +283,8 @@ export function conditionExpandMetrics(rule: L2RuleNode): ConditionExpandMetrics
         profileRows: 0,
       }
     case 'logic_block_ref': {
-      // Package id is JSON-only; canvas shows version when collapsed.
-      return { textLines: [`v${rule.versionPin}`], profileRows: 0 }
+      // Version lives on the node head (collapsed + expanded).
+      return { textLines: [], profileRows: 0 }
     }
     case 'graze_stub':
       return {
@@ -457,7 +457,7 @@ export function conditionCollapseMetrics(rule: L2RuleNode): ConditionExpandMetri
         profileRows: 0,
       }
     case 'logic_block_ref': {
-      return { textLines: [`v${rule.versionPin}`], profileRows: 0 }
+      return { textLines: [], profileRows: 0 }
     }
     case 'graze_stub':
       return {

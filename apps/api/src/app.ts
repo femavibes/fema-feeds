@@ -233,7 +233,7 @@ export function createApp(options?: {
   })
 
   app.use('/api/*', createAuthMiddleware(pool))
-  registerLogicBlockRoutes(app, pool)
+  registerLogicBlockRoutes(app, pool, { feedsDir: feedDir })
   registerSortPackRoutes(app, pool)
   registerPluginRoutes(app, pool)
 

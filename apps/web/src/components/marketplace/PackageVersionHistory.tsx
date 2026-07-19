@@ -20,6 +20,8 @@ interface Props {
   updatePolicy?: 'pinned' | 'notify' | 'auto_minor'
   mode: 'owner' | 'subscriber'
   onPinVersion?: (version: string, updatePolicy?: 'pinned' | 'notify' | 'auto_minor') => void
+  /** Logic blocks only — open A vs B compare (from = pinned/selected, to = latest). */
+  onCompareVersions?: (fromVersion: string, toVersion: string) => void
   busy?: boolean
 }
 
@@ -52,9 +54,10 @@ export function PackageVersionHistory({
   pluginKind,
   latestVersion,
   pinnedVersion,
-  updatePolicy = 'pinned',
+  updatePolicy = 'notify',
   mode,
   onPinVersion,
+  onCompareVersions,
   busy,
 }: Props) {
   const [versions, setVersions] = useState<VersionRow[]>([])
@@ -105,6 +108,28 @@ export function PackageVersionHistory({
           )
         })}
       </ul>
+
+      {productKind === 'logic_block' && onCompareVersions && versions.length >= 2 ? (
+        <div className="package-version-history-actions">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={busy}
+            onClick={() => {
+              const versionList = versions.map((v) => v.version)
+              const from = (pinnedVersion ?? pick) || versionList[versionList.length - 1] || ''
+              const toCandidate = (latest ?? versionList[0]) || ''
+              const to =
+                toCandidate && toCandidate !== from
+                  ? toCandidate
+                  : versionList.find((v) => v !== from) ?? toCandidate
+              if (from && to) onCompareVersions(from, to)
+            }}
+          >
+            Compare versions…
+          </button>
+        </div>
+      ) : null}
 
       {mode === 'subscriber' && onPinVersion ? (
         <div className="package-version-history-actions">

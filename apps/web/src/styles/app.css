@@ -877,8 +877,15 @@ body {
 }
 
 .feed-logic-upgrades-sub {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   color: var(--text-muted);
+}
+
+.feed-logic-upgrades-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
 }
 
 .logic-block-save-panel {
@@ -5477,7 +5484,8 @@ input.readonly {
 }
 
 .l2-flow-condition-source-badge,
-.l2-flow-condition-code-badge {
+.l2-flow-condition-code-badge,
+.l2-flow-condition-version {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -6375,6 +6383,146 @@ body.l2-visual-open #root {
   isolation: isolate;
 }
 
+.l2-logic-block-inner-preview-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.l2-logic-block-version-compare {
+  isolation: isolate;
+}
+
+.l2-logic-block-compare-pickers {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.l2-logic-block-compare-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.l2-logic-block-compare-picker select {
+  min-width: 7rem;
+}
+
+.l2-logic-block-compare-swap {
+  align-self: flex-end;
+  margin-bottom: 0.1rem;
+}
+
+.l2-logic-block-compare-main {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.l2-logic-block-compare-visual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+  height: 100%;
+  min-height: 0;
+  padding: 0.35rem 0.55rem 0.55rem;
+  box-sizing: border-box;
+}
+
+.l2-logic-block-compare-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.l2-logic-block-compare-pane-head {
+  flex-shrink: 0;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.l2-logic-block-compare-canvas {
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.l2-logic-block-compare-json {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  padding: 0.45rem 0.65rem 0.65rem;
+  box-sizing: border-box;
+  gap: 0.4rem;
+}
+
+.l2-logic-block-compare-json-legend {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+}
+
+.l2-logic-block-compare-json-pre {
+  flex: 1 1 0;
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  padding: 0.55rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.l2-logic-block-diff-line {
+  display: flex;
+  gap: 0.45rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.l2-logic-block-diff-gutter {
+  flex-shrink: 0;
+  width: 1rem;
+  text-align: center;
+  opacity: 0.85;
+  user-select: none;
+}
+
+.l2-logic-block-diff-line.is-add {
+  background: color-mix(in srgb, var(--ok, #2f9e44) 16%, transparent);
+  color: color-mix(in srgb, var(--ok, #2f9e44) 70%, var(--text));
+}
+
+.l2-logic-block-diff-line.is-remove {
+  background: color-mix(in srgb, var(--danger, #e03131) 14%, transparent);
+  color: color-mix(in srgb, var(--danger, #e03131) 75%, var(--text));
+}
+
+.l2-logic-block-diff-line.is-same {
+  color: var(--text-muted);
+}
+
+@media (max-width: 900px) {
+  .l2-logic-block-compare-visual {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+}
+
 .l2-logic-block-inner-preview .l2-visual-rail-props {
   /* Don't set display here — mobile hides closed rails via .l2-visual-rail
      { display: none } and only shows .is-open as a bottom sheet. A forced
@@ -7179,6 +7327,20 @@ body.l2-visual-open #root {
 .l2-visual-canvas .react-flow {
   width: 100%;
   height: 100%;
+}
+
+/* Preview / compare: pan & zoom only — nodes stay put. */
+.l2-visual-canvas--readonly .react-flow__node,
+.l2-visual-canvas--readonly .react-flow__node * {
+  cursor: grab;
+}
+.l2-visual-canvas--readonly .react-flow__node.dragging,
+.l2-visual-canvas--readonly .react-flow__pane.dragging {
+  cursor: grabbing;
+}
+.l2-visual-canvas--readonly .react-flow__resize-control,
+.l2-visual-canvas--readonly .l2-node-extract-handle {
+  display: none !important;
 }
 
 .l2-visual-controls {

@@ -179,6 +179,7 @@ export {
   unsubscribeLogicBlock,
   updateLogicBlockPackage,
   upsertLogicBlockRegistryMirror,
+  repairLogicBlockRootInPlace,
   type CreateLogicBlockInput,
 } from './logic-blocks.js'
 export {

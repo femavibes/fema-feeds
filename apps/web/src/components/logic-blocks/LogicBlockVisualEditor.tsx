@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FeedConfig, LogicBlockPackage } from '@cfb/core-types'
 
-import { normalizeCanvasFeedStorage } from '@cfb/l2-graph'
+import { logicBlockRootFromCanvasMatch } from '@cfb/l2-graph'
 import { api } from '../../api/client'
 import { logicBlockToFeedDraft } from '../../lib/logic-block-editor'
 import { LogicBlockMetadataFields } from './LogicBlockMetadataFields'
@@ -66,7 +66,7 @@ export function LogicBlockVisualEditor({ pkg, onClose, onSaved }: Props) {
         name: name.trim(),
         slug: slug.trim() || name.trim(),
         description: description.trim() || null,
-        root: logicDirty ? normalizeCanvasFeedStorage(draft.match) : undefined,
+        root: logicDirty ? logicBlockRootFromCanvasMatch(draft.match) : undefined,
         visualLayout: logicDirty ? draft.visualLayout : undefined,
         bumpVersion: logicDirty,
       })

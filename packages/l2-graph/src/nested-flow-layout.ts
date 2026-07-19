@@ -88,9 +88,11 @@ export function snapNestedConditionPosition(
 const MIN_FRAME_W = 220
 const START_W = 96
 const START_H = 44
-const FLOW_START_X = 20
-const FLOW_BLOCK_X = 120
-const FLOW_END_GAP = 48
+const FLOW_START_X = 24
+/** Clear gap between START/FEED and the adjacent block (must stay equal). */
+const FLOW_ENDPOINT_GAP = 56
+const FLOW_BLOCK_X = FLOW_START_X + START_W + FLOW_ENDPOINT_GAP
+const FLOW_END_GAP = FLOW_ENDPOINT_GAP
 
 interface Measured {
   width: number
@@ -276,6 +278,7 @@ export function layoutMatchFlow(
   let flowX = FLOW_BLOCK_X
   const baseY = 40
   let maxHeight = 0
+  let contentRight = FLOW_BLOCK_X
 
   for (const child of topChildren) {
     if (child.type === 'group') {
@@ -283,6 +286,7 @@ export function layoutMatchFlow(
       maxHeight = Math.max(maxHeight, size.height)
       pushEdge(ctx, 'start', child.id)
       pushEdge(ctx, child.id, 'end')
+      contentRight = flowX + size.width
       flowX += size.width + H_GAP
     } else {
       const y = baseY + 24
@@ -302,12 +306,13 @@ export function layoutMatchFlow(
       maxHeight = Math.max(maxHeight, h + 48)
       pushEdge(ctx, 'start', child.id)
       pushEdge(ctx, child.id, 'end')
+      contentRight = flowX + w
       flowX += w + H_GAP
     }
   }
 
   const midY = baseY + maxHeight / 2 - START_H / 2
-  placeStartEnd(ctx, midY, flowX + FLOW_END_GAP)
+  placeStartEnd(ctx, midY, contentRight + FLOW_END_GAP)
 
   return { nodes: ctx.nodes, edges: ctx.edges }
 }

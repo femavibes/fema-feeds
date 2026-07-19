@@ -11,6 +11,7 @@ export { evalExpr, compareNumbers, exprUsesField } from './expr.js'
 export {
   collectLogicBlockRefs,
   createLogicBlockResolver,
+  createFeedLogicBlockResolver,
   logicBlockCacheKey,
   resolveLogicBlockRoot,
 } from './logic-blocks.js'
@@ -20,6 +21,8 @@ export {
   isPatchUpgrade,
   scanLogicBlockUpgrades,
   applyLogicBlockUpgrades,
+  bumpAutoMinorLogicBlockPins,
+  manualLogicBlockUpgradeHints,
   resolveLogicBlockVersionPin,
 } from './logic-block-upgrades.js'
 export type { LogicBlockRefInFeed } from './logic-block-upgrades.js'

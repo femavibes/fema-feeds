@@ -379,7 +379,7 @@ export function newLogicBlockRef(pkg: {
     packageId: pkg.id,
     versionPin: pkg.version,
     label: pkg.name,
-    updatePolicy: 'pinned',
+    updatePolicy: 'notify',
   }
 }
 

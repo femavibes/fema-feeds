@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { FeedConfig, ProjectL1Config } from '@cfb/core-types'
+import type { FeedConfig, LogicBlockUpgradeHint, ProjectL1Config } from '@cfb/core-types'
 
-import type { ListCacheEntry } from '../../api/client'
+import { api, type ListCacheEntry } from '../../api/client'
 
 import type { FeedWorkspaceView } from '../../lib/workspace-views'
 import { FeedEditorHome } from './FeedEditorHome'
@@ -14,6 +14,7 @@ import { FeedSourcesView } from './FeedSourcesView'
 import { FeedIntelligencePanel } from '../FeedIntelligencePanel'
 import { L2JsonEditor } from './L2JsonEditor'
 import { L2VisualEditor } from './visual/L2VisualEditor'
+import { LogicBlockVersionCompare } from '../logic-blocks/LogicBlockVersionCompare'
 import { normalizeFeedLogicPatch, type FeedLogicPatch } from '../../lib/feed-graph-exchange'
 import { normalizeRuleGroup } from '@cfb/l2-graph'
 
@@ -93,6 +94,7 @@ export function FeedL2Workspace({
   const [jsonUnsaved, setJsonUnsaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [autosaveState, setAutosaveState] = useState<AutosaveState>('idle')
+  const [logicCompare, setLogicCompare] = useState<LogicBlockUpgradeHint | null>(null)
 
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const jsonFlushRef = useRef<(() => Promise<boolean>) | null>(null)
@@ -361,11 +363,32 @@ export function FeedL2Workspace({
       className={`feed-builder-main${isEditorView ? ' feed-builder-main-editor' : ''}`}
       title={VIEW_SOURCE_FILES[view]}
     >
-      {!isEditorView ? (
-        <FeedLogicBlockUpgradesPanel
-          feedId={draft.feedId}
-          onUpgraded={(result) => onFeedUpgradeApplied?.(result)}
-          onNotify={onNotify}
+      <FeedLogicBlockUpgradesPanel
+        feedId={draft.feedId}
+        onUpgraded={(result) => onFeedUpgradeApplied?.(result)}
+        onNotify={isEditorView ? undefined : onNotify}
+        onCompare={setLogicCompare}
+      />
+
+      {logicCompare ? (
+        <LogicBlockVersionCompare
+          packageId={logicCompare.packageId}
+          fromVersion={logicCompare.pinnedVersion}
+          toVersion={logicCompare.latestVersion}
+          title={logicCompare.label ?? logicCompare.packageName}
+          onClose={() => setLogicCompare(null)}
+          onUpgrade={async () => {
+            const res = await api.applyFeedLogicBlockUpgrades(draft.feedId, [logicCompare.nodeId])
+            onFeedUpgradeApplied?.({
+              feed: res.feed,
+              live: res.live,
+              hasUnpublishedDraft: res.hasUnpublishedDraft,
+            })
+            onNotify?.(
+              `Updated ${logicCompare.packageName} to v${logicCompare.latestVersion} in feed rules`,
+              null,
+            )
+          }}
         />
       ) : null}
 

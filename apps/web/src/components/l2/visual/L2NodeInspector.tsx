@@ -97,6 +97,13 @@ interface Props {
     packageId: string
     versionPin: string
     title?: string
+    updatePolicy?: 'pinned' | 'notify' | 'auto_minor'
+  }) => void
+  onOpenLogicBlockCompare?: (target: {
+    packageId: string
+    fromVersion: string
+    toVersion: string
+    title?: string
   }) => void
   /** Replace a selected group with a logic_block_ref after Save → Use here. */
   onUseLogicBlockHere?: (groupId: string, pkg: LogicBlockPackage) => void
@@ -146,6 +153,7 @@ export function L2PropertiesInspector({
   prefilterMode = false,
   readOnly = false,
   onOpenInnerLogicPreview,
+  onOpenLogicBlockCompare,
   onUseLogicBlockHere,
   onInsertLogicBlock,
 }: Props) {
@@ -503,7 +511,10 @@ export function L2PropertiesInspector({
 
                 <p className="card-hint">
 
-                  <strong>{nodeLabels[selected.id]?.trim() || (selected.label ?? 'Custom logic')}</strong> — pinned at v{selected.versionPin}.
+                  <strong>{nodeLabels[selected.id]?.trim() || (selected.label ?? 'Custom logic')}</strong>
+                  {(selected.updatePolicy ?? 'notify') === 'auto_minor'
+                    ? ` — feed pin v${selected.versionPin}; eval uses latest patch in this minor.`
+                    : ` — using v${selected.versionPin}.`}
 
                 </p>
 
@@ -515,11 +526,29 @@ export function L2PropertiesInspector({
                     onOpenInnerLogicPreview({
                       packageId: selected.packageId,
                       versionPin: selected.versionPin,
+                      updatePolicy: selected.updatePolicy,
                       title: selected.label ?? nodeLabels[selected.id]?.trim() ?? undefined,
                     })
                   }
                 >
                   View inner logic
+                </button>
+                ) : null}
+
+                {!readOnly && onOpenLogicBlockCompare ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() =>
+                    onOpenLogicBlockCompare({
+                      packageId: selected.packageId,
+                      fromVersion: selected.versionPin,
+                      toVersion: selected.versionPin,
+                      title: selected.label ?? nodeLabels[selected.id]?.trim() ?? undefined,
+                    })
+                  }
+                >
+                  Compare versions…
                 </button>
                 ) : null}
 
@@ -530,7 +559,7 @@ export function L2PropertiesInspector({
 
                   <select
 
-                    value={selected.updatePolicy ?? 'pinned'}
+                    value={selected.updatePolicy ?? 'notify'}
 
                     onChange={(e) =>
 
@@ -550,11 +579,11 @@ export function L2PropertiesInspector({
 
                   >
 
-                    <option value="pinned">Pinned — always use v{selected.versionPin} in this feed</option>
+                    <option value="notify">Notify — alert when a newer version exists</option>
 
-                    <option value="notify">Notify — show upgrade prompts when newer versions exist</option>
+                    <option value="auto_minor">Auto minor — follow patch updates (1.0.x) automatically</option>
 
-                    <option value="auto_minor">Auto minor — eval uses latest patch (1.0.x) automatically</option>
+                    <option value="pinned">Quiet — stay on v{selected.versionPin}, no upgrade alerts</option>
 
                   </select>
 

@@ -71,6 +71,13 @@ export {
   type FlowCanvasEdge,
 } from './canvas-match.js'
 export {
+  LOGIC_BLOCK_EDITOR_ROOT_ID,
+  logicBlockRootFromCanvasMatch,
+  logicBlockRootHasEditorShell,
+  peelLogicBlockEditorShell,
+  wrapLogicBlockForCanvas,
+} from './logic-block-shell.js'
+export {
   exportFeedGraph,
   importFeedGraph,
   feedGraphToJson,

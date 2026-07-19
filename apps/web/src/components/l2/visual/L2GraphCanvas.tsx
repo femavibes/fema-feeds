@@ -6,6 +6,7 @@ import {
   MiniMap,
   ReactFlow,
   useEdgesState,
+  useNodesInitialized,
   useNodesState,
   useReactFlow,
   type Connection,
@@ -40,15 +41,33 @@ import {
   isValidCanvasConnection,
   layoutNodesForReorder,
   matchStructureKey,
+  namespaceRfEdgesForDom,
+  namespaceRfNodesForDom,
   newCanvasEdge,
   resolveCanvasSelectionId,
+  sanitizeFlowInstanceId,
   shouldRelockInOriginGroup,
+  stripFlowDomId,
   updateRfNodeLabels,
   type CanvasEdge,
   type NodeLabels,
   type NodePositions,
   type NodeSources,
 } from './graph-sync'
+
+/** Re-fit after nodes measure — dual compare panes often mount before they have height. */
+function FitViewWhenReady({ enabled }: { enabled: boolean }) {
+  const { fitView } = useReactFlow()
+  const ready = useNodesInitialized()
+  useEffect(() => {
+    if (!enabled || !ready) return
+    const id = requestAnimationFrame(() => {
+      void fitView({ padding: 0.15, duration: 0 })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [enabled, ready, fitView])
+  return null
+}
 
 export type L2GraphCanvasHandle = {
   getPlacement: () => { x: number; y: number }
@@ -94,6 +113,11 @@ interface Props {
   onRedo?: () => void
   onResetPanels?: () => void
   readOnly?: boolean
+  /**
+   * Unique id when multiple canvases share a page (e.g. version compare).
+   * Namespaces React Flow markers + edge DOM ids so both panes render wires.
+   */
+  instanceId?: string
 }
 
 function minimapNodeColor(node: Node<GraphNodeData>): string {
@@ -140,6 +164,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     onRedo,
     onResetPanels,
     readOnly = false,
+    instanceId,
   },
   ref,
 ) {
@@ -197,43 +222,73 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<GraphNodeData>>([])
   const [edges, setEdges, onRfEdgesChange] = useEdgesState<Edge>([])
 
-  useEffect(() => {
-    setNodes(
-      flowGraphToRfNodes(
-        match,
-        selectedId,
-        positionsRef.current,
-        nodeLabelsRef.current,
-        nodeSourcesRef.current,
-        feedSources,
-        expandedNodeIdsRef.current,
-        lockedNodeIdsRef.current,
-      ),
-    )
-    setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))
-  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, lockedKey, feedSources, layoutTick, setNodes, setEdges])
+  const lockNodesForReadOnly = useCallback(
+    (list: Node<GraphNodeData>[]): Node<GraphNodeData>[] => {
+      if (!readOnly) return list
+      // Per-node `draggable: true` from graph-sync overrides ReactFlow's nodesDraggable={false}.
+      return list.map((n) => ({
+        ...n,
+        draggable: false,
+        connectable: false,
+        deletable: false,
+      }))
+    },
+    [readOnly],
+  )
 
   useEffect(() => {
-    setNodes((nds) =>
-      applyTraceOutcomes(
-        updateRfNodeLabels(
-          nds,
+    setNodes(
+      lockNodesForReadOnly(
+        flowGraphToRfNodes(
           match,
           selectedId,
+          positionsRef.current,
           nodeLabelsRef.current,
           nodeSourcesRef.current,
+          feedSources,
           expandedNodeIdsRef.current,
           lockedNodeIdsRef.current,
         ),
-        testTrace,
       ),
     )
-  }, [match, selectedId, testTrace, nodeLabels, nodeSources, expandedKey, lockedKey, layoutTick, setNodes])
+    setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))
+  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, lockedKey, feedSources, layoutTick, lockNodesForReadOnly, setNodes, setEdges])
+
+  useEffect(() => {
+    setNodes((nds) =>
+      lockNodesForReadOnly(
+        applyTraceOutcomes(
+          updateRfNodeLabels(
+            nds,
+            match,
+            selectedId,
+            nodeLabelsRef.current,
+            nodeSourcesRef.current,
+            expandedNodeIdsRef.current,
+            lockedNodeIdsRef.current,
+          ),
+          testTrace,
+        ),
+      ),
+    )
+  }, [match, selectedId, testTrace, nodeLabels, nodeSources, expandedKey, lockedKey, layoutTick, lockNodesForReadOnly, setNodes])
 
   useEffect(() => {
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))
   }, [canvasEdges, selectedEdgeId, setEdges])
 
+  const flowDomId = useMemo(
+    () => (instanceId ? sanitizeFlowInstanceId(instanceId) : undefined),
+    [instanceId],
+  )
+  const displayNodes = useMemo(
+    () => namespaceRfNodesForDom(nodes, flowDomId),
+    [nodes, flowDomId],
+  )
+  const displayEdges = useMemo(
+    () => namespaceRfEdgesForDom(edges, flowDomId),
+    [edges, flowDomId],
+  )
   const setDropHighlight = useCallback(
     (targetId: string | null) => {
       setNodes((nds) =>
@@ -439,63 +494,92 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
 
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => {
+      // Strip multi-canvas DOM prefixes before touching local (logical) ids.
+      const unprefixed = changes.map((c) =>
+        'id' in c && typeof c.id === 'string'
+          ? { ...c, id: stripFlowDomId(c.id, flowDomId) }
+          : c,
+      )
       // Never let React Flow drop START/FEED from local state.
-      const filtered = changes.filter(
+      let filtered = unprefixed.filter(
         (c) => !(c.type === 'remove' && (c.id === 'start' || c.id === 'end')),
       )
+      // Read-only previews/compares: pan/zoom only — allow selection highlight,
+      // ignore drag/resize/remove/structure mutations from React Flow.
+      if (readOnly) {
+        filtered = filtered.filter((c) => c.type === 'select')
+      }
       if (filtered.length > 0) onNodesChange(filtered)
     },
-    [onNodesChange],
+    [onNodesChange, readOnly, flowDomId],
   )
 
   const handleNodesDelete = useCallback(
     (deleted: Node<GraphNodeData>[]) => {
       if (!onDeleteNodes || readOnly) return
       const ids = deleted
-        .map((n) => n.id)
+        .map((n) => stripFlowDomId(n.id, flowDomId))
         .filter((id) => id !== 'start' && id !== 'end')
       if (ids.length > 0) onDeleteNodes(ids)
     },
-    [onDeleteNodes, readOnly],
+    [onDeleteNodes, readOnly, flowDomId],
   )
 
   const handleEdgesChange = useCallback(
     (changes: Parameters<typeof onRfEdgesChange>[0]) => {
-      onRfEdgesChange(changes)
+      const unprefixed = changes.map((c) =>
+        'id' in c && typeof c.id === 'string'
+          ? { ...c, id: stripFlowDomId(c.id, flowDomId) }
+          : c,
+      )
+      if (readOnly) {
+        const selectOnly = unprefixed.filter((c) => c.type === 'select')
+        if (selectOnly.length > 0) onRfEdgesChange(selectOnly)
+        return
+      }
+      onRfEdgesChange(unprefixed)
       let next = [...edgesRef.current]
-      for (const c of changes) {
+      for (const c of unprefixed) {
         if (c.type === 'remove') {
           next = next.filter((e) => e.id !== c.id)
         } else if (c.type === 'add' && 'item' in c && c.item) {
           const item = c.item
-          if (!next.some((e) => e.id === item.id)) {
+          const source = stripFlowDomId(item.source, flowDomId)
+          const target = stripFlowDomId(item.target, flowDomId)
+          const id = stripFlowDomId(item.id, flowDomId)
+          if (!next.some((e) => e.id === id)) {
             next.push({
-              id: item.id,
-              source: item.source,
-              target: item.target,
+              id,
+              source,
+              target,
               branch: true,
             })
           }
         } else if (c.type === 'replace' && 'item' in c && c.item) {
           next = next.map((e) =>
             e.id === c.id
-              ? { ...e, source: c.item.source, target: c.item.target }
+              ? {
+                  ...e,
+                  source: stripFlowDomId(c.item.source, flowDomId),
+                  target: stripFlowDomId(c.item.target, flowDomId),
+                }
               : e,
           )
         }
       }
-      const removed = changes.some((c) => c.type === 'remove')
-      const added = changes.some((c) => c.type === 'add' || c.type === 'replace')
+      const removed = unprefixed.some((c) => c.type === 'remove')
+      const added = unprefixed.some((c) => c.type === 'add' || c.type === 'replace')
       if (removed || added) onEdgesChange(next)
     },
-    [onEdgesChange, onRfEdgesChange],
+    [onEdgesChange, onRfEdgesChange, readOnly, flowDomId],
   )
 
   return (
     <NodeExpandProvider value={expandApi}>
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        id={flowDomId}
+        nodes={displayNodes}
+        edges={displayEdges}
         nodeTypes={graphNodeTypes}
         edgeTypes={graphEdgeTypes}
         onNodesChange={handleNodesChange}
@@ -505,30 +589,51 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
         noPanClassName="nopan"
         onNodeClick={(_, node) => {
           onSelectEdge(null)
-          onSelect(resolveCanvasSelectionId(node.id, node.data))
+          onSelect(
+            resolveCanvasSelectionId(stripFlowDomId(node.id, flowDomId), node.data),
+          )
         }}
         onNodeDoubleClick={(_, node) => {
+          if (readOnly && !onNodeOpenProperties) return
           if (!onNodeOpenProperties) return
           onSelectEdge(null)
-          onNodeOpenProperties(resolveCanvasSelectionId(node.id, node.data))
+          onNodeOpenProperties(
+            resolveCanvasSelectionId(stripFlowDomId(node.id, flowDomId), node.data),
+          )
         }}
-        onNodeContextMenu={(event, node) => {
-          event.preventDefault()
-          onSelectEdge(null)
-          const resolvedId = resolveCanvasSelectionId(node.id, node.data)
-          onSelect(resolvedId)
-          onNodeContextMenu(resolvedId, event.clientX, event.clientY)
-        }}
+        onNodeContextMenu={
+          readOnly
+            ? (event) => {
+                event.preventDefault()
+              }
+            : (event, node) => {
+                event.preventDefault()
+                onSelectEdge(null)
+                const resolvedId = resolveCanvasSelectionId(
+                  stripFlowDomId(node.id, flowDomId),
+                  node.data,
+                )
+                onSelect(resolvedId)
+                onNodeContextMenu(resolvedId, event.clientX, event.clientY)
+              }
+        }
         onEdgeClick={(_, edge) => {
           onSelect(null)
-          onSelectEdge(edge.id)
+          onSelectEdge(stripFlowDomId(edge.id, flowDomId))
         }}
-        onEdgeContextMenu={(event, edge) => {
-          event.preventDefault()
-          onSelect(null)
-          onSelectEdge(edge.id)
-          onEdgeContextMenu(edge.id, event.clientX, event.clientY)
-        }}
+        onEdgeContextMenu={
+          readOnly
+            ? (event) => {
+                event.preventDefault()
+              }
+            : (event, edge) => {
+                event.preventDefault()
+                onSelect(null)
+                const edgeId = stripFlowDomId(edge.id, flowDomId)
+                onSelectEdge(edgeId)
+                onEdgeContextMenu(edgeId, event.clientX, event.clientY)
+              }
+        }
         onPaneClick={() => {
           onSelect(null)
           onSelectEdge(null)
@@ -542,18 +647,25 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
         }
         nodesDraggable={!readOnly}
         nodesConnectable={!readOnly}
+        elementsSelectable
+        nodesFocusable={!readOnly}
+        edgesFocusable={!readOnly}
         edgesReconnectable={false}
         deleteKeyCode={readOnly ? null : ['Delete', 'Backspace']}
+        selectionOnDrag={false}
         colorMode="dark"
         fitView
         fitViewOptions={{ padding: 0.15 }}
         panOnDrag
         panOnScroll
         zoomOnScroll
+        zoomOnDoubleClick={!readOnly}
         minZoom={0.1}
         maxZoom={1.5}
         proOptions={{ hideAttribution: true }}
+        className={readOnly ? 'l2-visual-flow--readonly' : undefined}
       >
+        <FitViewWhenReady enabled={Boolean(readOnly || flowDomId)} />
         <Background gap={20} size={1} color="var(--l2-grid)" />
         {onUndo && onRedo ? (
           <L2CanvasToolbar
@@ -585,7 +697,7 @@ export const L2GraphCanvas = forwardRef<L2GraphCanvasHandle, Props>(function L2G
   ref,
 ) {
   return (
-    <div className="l2-visual-canvas">
+    <div className={`l2-visual-canvas${props.readOnly ? ' l2-visual-canvas--readonly' : ''}`}>
       <CanvasBody ref={ref} {...props} />
     </div>
   )

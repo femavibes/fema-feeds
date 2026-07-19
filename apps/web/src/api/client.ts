@@ -533,9 +533,13 @@ export const api = {
     ),
   getFeed: (id: string) => apiFetch<FeedEditorResponse>(`/api/feeds/${id}`),
   listFeedLogicBlockUpgrades: (feedId: string) =>
-    apiFetch<{ upgrades: import('@cfb/core-types').LogicBlockUpgradeHint[] }>(
-      `/api/feeds/${feedId}/logic-block-upgrades`,
-    ),
+    apiFetch<{
+      upgrades: import('@cfb/core-types').LogicBlockUpgradeHint[]
+      autoAppliedNodeIds?: string[]
+      feed?: import('@cfb/core-types').FeedConfig
+      live?: import('@cfb/core-types').FeedConfig
+      hasUnpublishedDraft?: boolean
+    }>(`/api/feeds/${feedId}/logic-block-upgrades`),
   applyFeedLogicBlockUpgrades: (feedId: string, nodeIds: string[]) =>
     apiFetch<{
       feed: FeedConfig

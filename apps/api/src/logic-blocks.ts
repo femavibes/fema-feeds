@@ -1,5 +1,14 @@
 import type { Hono } from 'hono'
-import type { LogicBlockTrustTier, LogicBlockVisibility, L2RuleGroup } from '@cfb/core-types'
+import type {
+  LogicBlockPackage,
+  LogicBlockTrustTier,
+  LogicBlockVisibility,
+  L2RuleGroup,
+} from '@cfb/core-types'
+import {
+  logicBlockRootHasEditorShell,
+  peelLogicBlockEditorShell,
+} from '@cfb/l2-graph'
 import type { Pool } from '@cfb/storage-postgres'
 
 import {
@@ -15,6 +24,8 @@ import {
   listUserCollection,
 
   listUserSubscriptions,
+
+  repairLogicBlockRootInPlace,
 
   setLogicBlockVisibility,
 
@@ -55,6 +66,20 @@ import { resolveLogicBlockCatalog } from './marketplace-catalog-resolve.js'
 import { rejectOwnerGlobalVisibility } from './marketplace-visibility.js'
 import { getUserDid } from './request-user.js'
 import { isRequestMaster } from './require-master.js'
+import { propagateAutoMinorPinsForPackage } from './logic-block-upgrades.js'
+
+/** Present packages with editor OR shells stripped; heal storage when found. */
+function presentLogicBlockPackage(pkg: LogicBlockPackage): LogicBlockPackage {
+  if (!logicBlockRootHasEditorShell(pkg.root)) return pkg
+  return { ...pkg, root: peelLogicBlockEditorShell(pkg.root) }
+}
+
+function healLogicBlockRootIfNeeded(pool: Pool, pkg: LogicBlockPackage): LogicBlockPackage {
+  if (!logicBlockRootHasEditorShell(pkg.root)) return pkg
+  const root = peelLogicBlockEditorShell(pkg.root)
+  void repairLogicBlockRootInPlace(pool, pkg.id, pkg.version, root).catch(() => {})
+  return { ...pkg, root }
+}
 
 
 
@@ -86,7 +111,12 @@ function parseCatalogScope(raw: string | undefined): 'deployment' | 'global' | '
 
 
 
-export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
+export function registerLogicBlockRoutes(
+  app: Hono,
+  pool: Pool | null,
+  options?: { feedsDir?: string },
+): void {
+  const feedsDir = options?.feedsDir
   registerGlobalMarketplaceRegistryRoutes(app, pool)
   registerGlobalRegistryIngressRoutes(app, pool)
 
@@ -118,7 +148,7 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
     const packages = await listLogicBlocksForUser(pool, userDid)
 
-    return c.json({ packages })
+    return c.json({ packages: packages.map(presentLogicBlockPackage) })
 
   })
 
@@ -134,7 +164,7 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
     const packages = await listUserCollection(pool, userDid)
 
-    return c.json({ packages })
+    return c.json({ packages: packages.map(presentLogicBlockPackage) })
 
   })
 
@@ -197,7 +227,7 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
     if (versions.length === 0) return c.json({ error: 'not found' }, 404)
 
-    return c.json({ versions })
+    return c.json({ versions: versions.map((v) => healLogicBlockRootIfNeeded(pool, v)) })
 
   })
 
@@ -231,7 +261,7 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
     if (!pkg) return c.json({ error: 'not found' }, 404)
 
-    return c.json({ package: pkg })
+    return c.json({ package: healLogicBlockRootIfNeeded(pool, pkg) })
 
   })
 
@@ -273,7 +303,7 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
     const slug = normalizeSlug(body.slug ?? body.name ?? '')
 
-    const root = body.root
+    const root = body.root ? peelLogicBlockEditorShell(body.root) : body.root
 
     if (!name || !slug || !root || root.type !== 'group') {
 
@@ -303,7 +333,7 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
     })
 
-    return c.json({ package: pkg }, 201)
+    return c.json({ package: presentLogicBlockPackage(pkg) }, 201)
 
   })
 
@@ -389,7 +419,7 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
       const result = await updateLogicBlockPackage(pool, packageId, userDid, {
 
-        root: hasRoot ? body.root : undefined,
+        root: hasRoot && body.root ? peelLogicBlockEditorShell(body.root) : undefined,
 
         visualLayout: hasLayout ? body.visualLayout ?? null : undefined,
 
@@ -443,7 +473,21 @@ export function registerLogicBlockRoutes(app: Hono, pool: Pool | null): void {
 
     if (!refreshed) return c.json({ error: 'not found or not owner' }, 404)
 
-    return c.json({ package: refreshed })
+    // When the package patch bumps, push auto_minor feed pins to match right away.
+    if (
+      feedsDir &&
+      pkg &&
+      body.bumpVersion !== false &&
+      (hasRoot || hasLayout)
+    ) {
+      try {
+        await propagateAutoMinorPinsForPackage(feedsDir, pool, refreshed.id, refreshed.version)
+      } catch {
+        // Pin sync is best-effort; package save already succeeded.
+      }
+    }
+
+    return c.json({ package: healLogicBlockRootIfNeeded(pool, refreshed) })
 
   })
 

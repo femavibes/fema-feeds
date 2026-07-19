@@ -44,7 +44,7 @@ export function collectLogicBlockRefNodes(root: L2RuleNode): LogicBlockRefInFeed
         packageId: node.packageId,
         versionPin: node.versionPin,
         label: node.label,
-        updatePolicy: node.updatePolicy ?? 'pinned',
+        updatePolicy: node.updatePolicy ?? 'notify',
       })
       return
     }
@@ -105,6 +105,54 @@ export function applyLogicBlockUpgrades(
 
   const next = walk(root)
   return next.type === 'group' ? next : root
+}
+
+/**
+ * Bump feed pins for auto_minor refs when a newer patch exists.
+ * Returns the tree and which node ids changed (empty if nothing to do).
+ */
+export function bumpAutoMinorLogicBlockPins(
+  root: L2RuleGroup,
+  latestByPackageId: Map<string, string>,
+  /** When set, only bump refs for this package id. */
+  packageIdFilter?: string,
+): { next: L2RuleGroup; bumpedNodeIds: string[] } {
+  const bumpedNodeIds: string[] = []
+
+  const walk = (node: L2RuleNode): L2RuleNode => {
+    if (node.type === 'logic_block_ref') {
+      if (packageIdFilter && node.packageId !== packageIdFilter) return node
+      const policy = node.updatePolicy ?? 'notify'
+      if (policy !== 'auto_minor') return node
+      const latest = latestByPackageId.get(node.packageId)
+      if (!latest || !isPatchUpgrade(node.versionPin, latest)) return node
+      if (node.versionPin === latest) return node
+      bumpedNodeIds.push(node.id)
+      return { ...node, versionPin: latest }
+    }
+    if (node.type === 'group') {
+      return {
+        ...node,
+        children: node.children.map(walk),
+      }
+    }
+    return node
+  }
+
+  const nextNode = walk(root)
+  const next = nextNode.type === 'group' ? nextNode : root
+  return { next, bumpedNodeIds }
+}
+
+/** Hints that still need a human decision (exclude quiet/pinned + auto_minor patches). */
+export function manualLogicBlockUpgradeHints(
+  hints: LogicBlockUpgradeHint[],
+): LogicBlockUpgradeHint[] {
+  return hints.filter((h) => {
+    if (h.updatePolicy === 'pinned') return false
+    if (h.updatePolicy === 'auto_minor' && h.patchUpgrade) return false
+    return true
+  })
 }
 
 export function resolveLogicBlockVersionPin(

@@ -74,6 +74,7 @@ import { loadFeedEditorState } from './feed-editor.js'
 import {
   applyFeedLogicBlockUpgrades,
   scanFeedLogicBlockUpgrades,
+  syncAutoMinorLogicBlockPins,
 } from './logic-block-upgrades.js'
 
 import { feedgenEnvFromProcess } from './feedgen-env.js'
@@ -230,6 +231,10 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     try {
 
+      if (pool) {
+        await syncAutoMinorLogicBlockPins(feedsDir, id, pool)
+      }
+
       const state = await loadFeedEditorState(feedsDir, id, pool)
 
       const access = assertFeedAccess(state.live, getUserDid(c))
@@ -378,9 +383,16 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
       if (!access.ok) return c.json({ error: 'not found' }, access.status)
 
-      const upgrades = await scanFeedLogicBlockUpgrades(feedsDir, id, pool)
+      const scanned = await scanFeedLogicBlockUpgrades(feedsDir, id, pool)
+      const nextState = await loadFeedEditorState(feedsDir, id, pool)
 
-      return c.json({ upgrades })
+      return c.json({
+        upgrades: scanned.upgrades,
+        autoAppliedNodeIds: scanned.autoAppliedNodeIds,
+        feed: nextState.editor,
+        live: nextState.live,
+        hasUnpublishedDraft: nextState.hasUnpublishedDraft,
+      })
 
     } catch {
 

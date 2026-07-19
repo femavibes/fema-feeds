@@ -1,10 +1,13 @@
 import type { LogicBlockPackage, LogicBlockRef, L2RuleGroup, L2RuleNode } from '@cfb/core-types'
-import { resolveFeedMatch } from '@cfb/l2-graph'
+import { peelLogicBlockEditorShell, resolveFeedMatch } from '@cfb/l2-graph'
 
 export function resolveLogicBlockRoot(
   pkg: Pick<LogicBlockPackage, 'root' | 'visualLayout'>,
 ): L2RuleGroup {
-  return resolveFeedMatch({ match: pkg.root, visualLayout: pkg.visualLayout })
+  return resolveFeedMatch({
+    match: peelLogicBlockEditorShell(pkg.root),
+    visualLayout: pkg.visualLayout,
+  })
 }
 
 export function logicBlockCacheKey(ref: LogicBlockRef): string {
@@ -42,6 +45,32 @@ export function createLogicBlockResolver(
       logicBlockCacheKey({ packageId: pkg.id, versionPin: pkg.version }),
       resolveLogicBlockRoot(pkg),
     )
+  }
+  return (ref) => byKey.get(logicBlockCacheKey(ref)) ?? null
+}
+
+/**
+ * Like createLogicBlockResolver, but also aliases each feed node's stored pin to the
+ * package body loaded after updatePolicy resolution (auto_minor → latest patch).
+ * Eval looks up `node.versionPin` from the feed; without aliases that miss after a bump.
+ */
+export function createFeedLogicBlockResolver(
+  packages: Iterable<LogicBlockPackage>,
+  feedRefs: Array<{ packageId: string; feedPin: string; resolvedPin: string }>,
+): (ref: LogicBlockRef) => L2RuleGroup | null {
+  const byKey = new Map<string, L2RuleGroup>()
+  for (const pkg of packages) {
+    byKey.set(
+      logicBlockCacheKey({ packageId: pkg.id, versionPin: pkg.version }),
+      resolveLogicBlockRoot(pkg),
+    )
+  }
+  for (const { packageId, feedPin, resolvedPin } of feedRefs) {
+    if (feedPin === resolvedPin) continue
+    const group = byKey.get(logicBlockCacheKey({ packageId, versionPin: resolvedPin }))
+    if (group) {
+      byKey.set(logicBlockCacheKey({ packageId, versionPin: feedPin }), group)
+    }
   }
   return (ref) => byKey.get(logicBlockCacheKey(ref)) ?? null
 }

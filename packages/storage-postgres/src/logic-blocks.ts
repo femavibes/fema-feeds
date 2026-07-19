@@ -316,6 +316,30 @@ export async function updateLogicBlockPackage(
   return pkg
 }
 
+/** Rewrite a stored root in place (no version bump) — heals editor-shell corruption. */
+export async function repairLogicBlockRootInPlace(
+  pool: pg.Pool,
+  packageId: string,
+  version: string,
+  root: L2RuleGroup,
+): Promise<boolean> {
+  const rootJson = JSON.stringify(root)
+  const pkgRes = await pool.query(
+    `UPDATE logic_block_packages
+     SET root_group = $3::jsonb, updated_at = NOW()
+     WHERE id = $1 AND version = $2
+     RETURNING id`,
+    [packageId, version, rootJson],
+  )
+  await pool.query(
+    `UPDATE logic_block_package_versions
+     SET root_group = $3::jsonb
+     WHERE package_id = $1 AND version = $2`,
+    [packageId, version, rootJson],
+  )
+  return Boolean(pkgRes.rows[0])
+}
+
 export async function createLogicBlockPackage(
   pool: pg.Pool,
   input: CreateLogicBlockInput,

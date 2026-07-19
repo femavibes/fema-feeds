@@ -6,11 +6,13 @@ import {
   estimateLogicBlockPreviewBodyHeight,
   groupNodeTitle,
   normalizeRuleGroup,
+  peelLogicBlockEditorShell,
   setLogicBlockPreviewBodyHeight,
 } from '@cfb/l2-graph'
 
 import { api } from '../../../api/client'
 import { ingestRoleBadgeFor } from '../../../lib/l2-ingest-badge'
+import { resolveLogicBlockVersionPin } from '../../../lib/logic-block-version'
 import { NodeRoleIcon } from '../NodeRoleIcon'
 import { useNodeExpand } from './node-expand-context'
 
@@ -82,9 +84,11 @@ function MiniLogicTree({ node }: { node: L2RuleNode }) {
 export function LogicBlockExpandOutline({
   packageId,
   versionPin,
+  updatePolicy,
 }: {
   packageId: string
   versionPin: string
+  updatePolicy?: 'pinned' | 'notify' | 'auto_minor'
 }) {
   const expandApi = useNodeExpand()
   const refreshLayoutRef = useRef(expandApi?.requestLayoutRefresh)
@@ -98,11 +102,23 @@ export function LogicBlockExpandOutline({
     setLoading(true)
     setError(null)
     setRoot(null)
-    void api
-      .getLogicBlock(packageId, versionPin)
-      .then((res) => {
+    void (async () => {
+      try {
+        let loadPin = versionPin
+        if (updatePolicy === 'auto_minor') {
+          const latest = await api.getLogicBlock(packageId)
+          loadPin = resolveLogicBlockVersionPin(
+            versionPin,
+            latest.package.version,
+            updatePolicy,
+          )
+        }
+        const res = await api.getLogicBlock(packageId, loadPin)
         if (cancelled) return
-        const match = normalizeRuleGroup(structuredClone(res.package.root))
+        // Peel editor OR shells accidentally persisted into package roots.
+        const match = peelLogicBlockEditorShell(
+          normalizeRuleGroup(structuredClone(res.package.root)),
+        )
         setRoot(match)
         setLogicBlockPreviewBodyHeight(
           packageId,
@@ -110,24 +126,29 @@ export function LogicBlockExpandOutline({
           estimateLogicBlockPreviewBodyHeight(match),
         )
         refreshLayoutRef.current?.()
-      })
-      .catch((e) => {
+      } catch (e) {
         if (cancelled) return
         setError(e instanceof Error ? e.message : 'Failed to load logic block')
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoading(false)
-      })
+      }
+    })()
     return () => {
       cancelled = true
     }
-  }, [packageId, versionPin])
+  }, [packageId, versionPin, updatePolicy])
+
+  // In read-only previews/compares, let gestures pass through so the parent
+  // canvas can pan/zoom. Edit mode keeps nodrag/nopan so the outline is usable.
+  const interactionClass = expandApi?.readOnly
+    ? 'l2-logic-block-outline'
+    : 'l2-logic-block-outline nodrag nopan nowheel'
 
   return (
     <div
-      className="l2-logic-block-outline nodrag nopan nowheel"
-      onMouseDown={(e) => e.stopPropagation()}
-      onWheel={(e) => e.stopPropagation()}
+      className={interactionClass}
+      onMouseDown={expandApi?.readOnly ? undefined : (e) => e.stopPropagation()}
+      onWheel={expandApi?.readOnly ? undefined : (e) => e.stopPropagation()}
     >
       {loading ? (
         <p className="l2-logic-block-outline-status">Loading logic…</p>
