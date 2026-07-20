@@ -8029,6 +8029,41 @@ body.l2-visual-open #root {
   opacity: 1;
 }
 
+.l2-param-field-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-height: 1.15rem;
+}
+
+.l2-param-label-help-btn {
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 999px;
+  opacity: 0.65;
+}
+
+.l2-param-label-help-btn:hover {
+  opacity: 1;
+}
+
+.l2-param-copy-btn {
+  min-width: 1.75rem;
+  padding-inline: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.75;
+}
+
+.l2-param-copy-btn:hover {
+  opacity: 1;
+}
+
 .l2-param-sync-help-btn {
   min-width: 1.6rem;
   padding-inline: 0.3rem;

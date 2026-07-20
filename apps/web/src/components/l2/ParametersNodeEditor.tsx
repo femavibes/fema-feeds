@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type {
   L2ParamControl,
@@ -88,6 +88,105 @@ function isEmptyParamValue(value: L2ParamValue | undefined): boolean {
   if (Array.isArray(value)) return value.length === 0
   if (typeof value === 'string') return value.trim() === ''
   return false
+}
+
+function CopyIcon({ done }: { done?: boolean }) {
+  if (done) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d="M5 13l4 4L19 7"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    )
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <rect
+        x="9"
+        y="9"
+        width="12"
+        height="12"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
+function LabelHelpButton({
+  label,
+  onClick,
+}: {
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm l2-param-label-help-btn"
+      title={label}
+      aria-label={label}
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        onClick()
+      }}
+    >
+      ?
+    </button>
+  )
+}
+
+function ParamHelpModal({
+  titleId,
+  title,
+  children,
+  onClose,
+}: {
+  titleId: string
+  title: string
+  children: ReactNode
+  onClose: () => void
+}) {
+  return createPortal(
+    <div
+      className="l2-param-modal-backdrop"
+      role="presentation"
+      onClick={onClose}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose()
+      }}
+    >
+      <div
+        className="l2-param-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 id={titleId}>{title}</h3>
+        {children}
+        <div className="l2-param-modal-actions">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
 }
 
 /** Text field that keeps focus while typing; commits on blur. */
@@ -196,7 +295,6 @@ function TargetBindingsEditor({
   bindings,
   readOnly,
   onChange,
-  hint,
   match,
   nodeLabels = {},
   allowAbsoluteValue,
@@ -207,7 +305,6 @@ function TargetBindingsEditor({
   bindings: L2ParamTargetBinding[]
   readOnly: boolean
   onChange: (next: L2ParamTargetBinding[]) => void
-  hint: string
   match: L2RuleGroup
   /** Visual custom names keyed by node id. */
   nodeLabels?: Record<string, string>
@@ -221,6 +318,7 @@ function TargetBindingsEditor({
 }) {
   const [draftId, setDraftId] = useState('')
   const [collapsedTargets, setCollapsedTargets] = useState<Record<string, boolean>>({})
+  const [targetsHelpOpen, setTargetsHelpOpen] = useState(false)
   const byId = useMemo(() => indexRuleNodesById(match), [match])
   const list = bindings ?? []
 
@@ -306,14 +404,36 @@ function TargetBindingsEditor({
     onChange(list.map((b) => (b.nodeId === from ? { ...b, nodeId: to } : b)))
   }
 
+  const isTextParam = controlType === 'string' || controlType === 'stringList'
+  const targetsHelpText = isTextParam
+    ? 'Paste a node id — we bind its Terms / Tags / Pattern / URL patterns to this Param. Edit the list on the Param; the target field locks.'
+    : 'Paste a node id, choose Presence (show/hide), then which settings this control owns. Toggle/dropdown overlaps AND together.'
+
   return (
     <div className="l2-param-target-ids">
-      <span className="l2-param-target-ids-label">{hint}</span>
-      <p className="card-hint">
-        {controlType === 'stringList' || controlType === 'string'
-          ? 'Paste a node id — we bind its Terms / Tags / Pattern / URL patterns to this Param. Edit the list on the Param; the target field locks.'
-          : 'Paste a node id, choose Presence (show/hide), then which settings this control owns. Toggle/dropdown overlaps AND together.'}
-      </p>
+      <div className="l2-param-field-label-row">
+        <span className="l2-param-target-ids-label">Targets</span>
+        <LabelHelpButton label={targetsHelpText} onClick={() => setTargetsHelpOpen(true)} />
+      </div>
+      {targetsHelpOpen ? (
+        <ParamHelpModal
+          titleId="param-targets-help"
+          title="Targets"
+          onClose={() => setTargetsHelpOpen(false)}
+        >
+          {isTextParam ? (
+            <p>
+              Paste a node id — we bind its Terms / Tags / Pattern / URL patterns to this Param.
+              Edit the list on the Param; the target field locks.
+            </p>
+          ) : (
+            <p>
+              Paste a node id, choose <strong>Presence</strong> (show/hide), then which settings
+              this control owns. Toggle/dropdown overlaps <strong>AND</strong> together.
+            </p>
+          )}
+        </ParamHelpModal>
+      ) : null}
       {nodeIds.map((nodeId) => {
         const target = byId.get(nodeId)
         const nodeBindings = bindingsFor(nodeId)
@@ -969,6 +1089,7 @@ function TargetBindingsEditor({
             className="mono"
             value={draftId}
             placeholder="Paste node id, then Enter"
+            title={targetsHelpText}
             onChange={(e) => setDraftId(e.target.value)}
             onBlur={commitDraft}
             onKeyDown={(e) => {
@@ -1077,9 +1198,8 @@ export function ParametersNodeEditor({
       ) : null}
 
       <p className="card-hint">
-        Paste a node id — Presence shows/hides it; property binds puppet its settings. Shared Param
-        IDs stay fully in sync. To drive keyword Terms: use a <strong>Toggle</strong>, bind Terms,
-        and set the on/off lists (replace or merge).
+        Shared Param IDs stay fully in sync. To drive keyword Terms: use a <strong>Toggle</strong>,
+        bind Terms, and set replace or merge.
       </p>
 
       {controls.length === 0 ? (
@@ -1263,7 +1383,13 @@ function ParamControlCard({
       ) : null}
       <div className="l2-param-field-row">
         <div className="l2-inspector-field">
-          <span>Param ID</span>
+          <div className="l2-param-field-label-row">
+            <span>Param ID</span>
+            <LabelHelpButton
+              label="How Param ID sync works"
+              onClick={() => setSyncHelpOpen(true)}
+            />
+          </div>
           <div className="l2-param-id-row">
             <BlurCommitInput
               value={control.name}
@@ -1274,24 +1400,12 @@ function ParamControlCard({
             />
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
-              title="Copy Param ID"
+              className="btn btn-ghost btn-sm l2-param-copy-btn"
+              title={copied ? 'Copied' : 'Copy Param ID'}
+              aria-label={copied ? 'Copied' : 'Copy Param ID'}
               onClick={() => void copyParamId()}
             >
-              {copied ? 'Copied' : 'Copy'}
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm l2-param-sync-help-btn"
-              title="How Param ID sync works"
-              aria-label="How Param ID sync works"
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                setSyncHelpOpen(true)
-              }}
-            >
-              ?
+              <CopyIcon done={copied} />
             </button>
           </div>
           {isShared ? (
@@ -1319,42 +1433,18 @@ function ParamControlCard({
         </label>
       </div>
 
-      {syncHelpOpen
-        ? createPortal(
-            <div
-              className="l2-param-modal-backdrop"
-              role="presentation"
-              onClick={() => setSyncHelpOpen(false)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setSyncHelpOpen(false)
-              }}
-            >
-              <div
-                className="l2-param-modal"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={`param-sync-help-${control.name}`}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <h3 id={`param-sync-help-${control.name}`}>Sync with another toggle</h3>
-                <p>
-                  Copy this Param ID (or use <strong>Link existing…</strong>) to fully sync with
-                  another toggle — same live value, label, description, and targets.
-                </p>
-                <div className="l2-param-modal-actions">
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setSyncHelpOpen(false)}
-                  >
-                    Got it
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+      {syncHelpOpen ? (
+        <ParamHelpModal
+          titleId={`param-sync-help-${control.name}`}
+          title="Sync with another toggle"
+          onClose={() => setSyncHelpOpen(false)}
+        >
+          <p>
+            Copy this Param ID (or use <strong>Link existing…</strong>) to fully sync with another
+            toggle — same live value, label, description, and targets.
+          </p>
+        </ParamHelpModal>
+      ) : null}
 
       {linkModalOpen
         ? createPortal(
@@ -1425,7 +1515,6 @@ function ParamControlCard({
           nodeLabels={nodeLabels}
           controlType="boolean"
           controlLiveValue={liveValue}
-          hint="Targets (presence and/or property)"
           onChange={(next) => patch({ bindings: next, targetNodeIds: undefined })}
         />
       ) : control.type === 'string' ? (
@@ -1451,7 +1540,6 @@ function ParamControlCard({
             controlType="string"
             controlLiveValue={liveValue}
             onSeedControlValue={(seed) => onLiveValue(Array.isArray(seed) ? seed.join(' ') : seed)}
-            hint="Targets (property writes this text)"
             onChange={(next) => patch({ bindings: next, targetNodeIds: undefined })}
           />
         </>
@@ -1488,7 +1576,6 @@ function ParamControlCard({
             onSeedControlValue={(seed) =>
               onLiveValue(Array.isArray(seed) ? seed : seed ? [seed] : [])
             }
-            hint="Targets (property writes this list)"
             onChange={(next) => patch({ bindings: next, targetNodeIds: undefined })}
           />
         </>
@@ -1586,7 +1673,6 @@ function EnumOptionsEditor({
             nodeLabels={nodeLabels}
             allowAbsoluteValue
             controlType="enum"
-            hint="Targets for this mode (presence and/or property)"
             onChange={(bindings) => updateOption(index, { bindings, targetNodeIds: [] })}
           />
           {!readOnly ? (
