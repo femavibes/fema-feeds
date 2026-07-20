@@ -198,7 +198,10 @@ export function ConditionRow({
                 readOnly={locked('fields')}
               />
             </div>
-            <div ref={termScroll.scrollRef} className="term-list-scroll term-list-scroll--fill scrollbar-modern">
+            <div
+              ref={termScroll.scrollRef}
+              className={`term-list-scroll scrollbar-modern${fillHeight ? ' term-list-scroll--fill' : ''}`}
+            >
               <span className="l2-param-list-section-label">Node terms (always on)</span>
               <TermListEditor
                 terms={node.terms}

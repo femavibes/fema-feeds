@@ -471,7 +471,9 @@ function ConditionExpandProperties({
     const el = bodyRef.current
     if (!el) return
     const publish = () => {
-      const h = Math.ceil(el.getBoundingClientRect().height)
+      const rectH = Math.ceil(el.getBoundingClientRect().height)
+      const scrollH = Math.ceil(el.scrollHeight)
+      const h = Math.max(rectH, scrollH) + 36
       const prev = getConditionExpandBodyHeight(nodeId)
       if (prev !== undefined && Math.abs(prev - h) < 2) return
       setConditionExpandBodyHeight(nodeId, h)

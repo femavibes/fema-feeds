@@ -8281,8 +8281,9 @@ body.l2-visual-open #root {
 .l2-flow-condition-props {
   width: 100%;
   min-width: 0;
-  padding: 0.15rem 0.1rem 0.25rem;
+  padding: 0.15rem 0.15rem 0.45rem;
   box-sizing: border-box;
+  overflow: visible;
 }
 
 .l2-condition--canvas {
@@ -8311,10 +8312,30 @@ body.l2-visual-open #root {
 .l2-condition--canvas .term-list-scroll,
 .l2-condition--canvas .term-list-scroll--fill {
   max-height: none;
+  overflow: visible;
+  min-height: 0;
+}
+
+.l2-condition--canvas .term-list-panel {
+  overflow: visible;
+}
+
+.l2-condition--canvas .term-list-search {
+  position: static;
+  background: transparent;
+  border-bottom: none;
+  padding-bottom: 0.2rem;
+}
+
+.l2-condition--canvas .term-list-search-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
 }
 
 .l2-condition--canvas .l2-param-live-list {
   max-height: none;
+  overflow: visible;
 }
 
 .l2-condition--canvas .l2-inspector-field,
