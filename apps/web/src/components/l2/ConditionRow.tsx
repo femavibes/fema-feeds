@@ -114,6 +114,9 @@ export function ConditionRow({
 
   const locked = (prop: string) => readOnly || Boolean(paramLockedProps?.has(prop))
 
+  const liveListFor = (property: string) =>
+    paramListPreviews?.find((p) => p.property === property && p.changed)
+
   return (
     <div
       className={`l2-condition${fillHeight ? ' l2-condition-fill' : ''}${readOnly ? ' l2-condition--readonly' : ''}${canvasEmbed ? ' l2-condition--canvas' : ''}`}
@@ -121,31 +124,6 @@ export function ConditionRow({
       {paramLockHint ? (
         <p className="l2-param-lock-banner" title={paramLockHint}>
           Showing live Parameter values — locked settings change when you flip the Parameter.
-        </p>
-      ) : null}
-      {paramListPreviews && paramListPreviews.some((p) => p.changed) ? (
-        <div className="l2-param-list-preview-banner">
-          {paramListPreviews
-            .filter((p) => p.changed)
-            .map((p) => (
-              <p key={p.property} className="l2-param-list-preview-line">
-                <strong>Live {p.label}:</strong>{' '}
-                {p.effective.length === 0
-                  ? '(empty)'
-                  : p.effective.map((t) => `“${t}”`).join(', ')}
-                <span className="l2-param-list-preview-base">
-                  {' '}
-                  · node baseline:{' '}
-                  {p.authored.length === 0
-                    ? '(empty)'
-                    : p.authored.map((t) => `“${t}”`).join(', ')}
-                </span>
-              </p>
-            ))}
-        </div>
-      ) : paramListPreviews && paramListPreviews.length > 0 ? (
-        <p className="l2-param-list-preview-banner l2-param-list-preview-banner--idle">
-          Param term binds are off (or match the node) — editing the list below is the live baseline.
         </p>
       ) : null}
       <div className="l2-condition-body">
@@ -221,6 +199,7 @@ export function ConditionRow({
               />
             </div>
             <div ref={termScroll.scrollRef} className="term-list-scroll term-list-scroll--fill scrollbar-modern">
+              <span className="l2-param-list-section-label">Node terms (always on)</span>
               <TermListEditor
                 terms={node.terms}
                 onChange={(terms) => onChange({ ...node, terms })}
@@ -230,6 +209,20 @@ export function ConditionRow({
                 readOnly={locked('terms')}
               />
             </div>
+            {liveListFor('terms') ? (
+              <div className="l2-param-live-list">
+                <span className="l2-param-list-section-label">
+                  Live terms (with Parameters) — read only
+                </span>
+                <TermListEditor
+                  terms={liveListFor('terms')!.effective}
+                  onChange={() => undefined}
+                  placeholder="term"
+                  itemNoun="term"
+                  readOnly
+                />
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -310,6 +303,7 @@ export function ConditionRow({
             />
             <p className="l2-condition-hint">Matches #hashtag facets only — not plain text in the body.</p>
             <div className="term-list-scroll scrollbar-modern l2-hashtag-terms-scroll">
+              <span className="l2-param-list-section-label">Node tags (always on)</span>
               <TermListEditor
                 terms={node.tags}
                 onChange={(tags) => onChange({ ...node, tags })}
@@ -320,6 +314,21 @@ export function ConditionRow({
                 readOnly={locked('tags')}
               />
             </div>
+            {liveListFor('tags') ? (
+              <div className="l2-param-live-list">
+                <span className="l2-param-list-section-label">
+                  Live tags (with Parameters) — read only
+                </span>
+                <TermListEditor
+                  terms={liveListFor('tags')!.effective}
+                  onChange={() => undefined}
+                  placeholder="tag"
+                  itemNoun="hashtag"
+                  stripHash
+                  readOnly
+                />
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -364,6 +373,7 @@ export function ConditionRow({
               readOnly={locked('sources')}
             />
             <div className="term-list-scroll scrollbar-modern">
+              <span className="l2-param-list-section-label">Node URL patterns (always on)</span>
               <TermListEditor
                 terms={node.patterns}
                 onChange={(patterns) => onChange({ ...node, patterns })}
@@ -374,6 +384,20 @@ export function ConditionRow({
                 readOnly={locked('patterns')}
               />
             </div>
+            {liveListFor('patterns') ? (
+              <div className="l2-param-live-list">
+                <span className="l2-param-list-section-label">
+                  Live URL patterns (with Parameters) — read only
+                </span>
+                <TermListEditor
+                  terms={liveListFor('patterns')!.effective}
+                  onChange={() => undefined}
+                  placeholder="pattern"
+                  itemNoun="URL pattern"
+                  readOnly
+                />
+              </div>
+            ) : null}
           </div>
         )}
 

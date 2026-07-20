@@ -5451,6 +5451,10 @@ input.readonly {
 .l2-flow-condition.is-expanded {
   /* Keep title pinned under the same top padding as collapsed — never re-center. */
   padding-bottom: 0.65rem;
+  /* Let Properties-style expand grow; RF node height is measured from content. */
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
 }
 
 /* Parameter-disabled targets: still selectable, but clearly “absent” at eval. */
@@ -8306,7 +8310,11 @@ body.l2-visual-open #root {
 
 .l2-condition--canvas .term-list-scroll,
 .l2-condition--canvas .term-list-scroll--fill {
-  max-height: 9.5rem;
+  max-height: none;
+}
+
+.l2-condition--canvas .l2-param-live-list {
+  max-height: none;
 }
 
 .l2-condition--canvas .l2-inspector-field,
@@ -8320,7 +8328,29 @@ body.l2-visual-open #root {
 }
 
 .l2-flow-condition.is-expanded {
-  overflow: hidden;
+  overflow: visible;
+  height: auto;
+  min-height: 100%;
+}
+
+.l2-param-list-section-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0 0 0.25rem;
+}
+
+.l2-condition--canvas .l2-param-list-section-label {
+  font-size: 0.62rem;
+}
+
+.l2-param-live-list {
+  margin-top: 0.45rem;
+  padding: 0.4rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--ok, #2f9e44) 32%, var(--border));
+  background: color-mix(in srgb, var(--ok, #2f9e44) 8%, var(--surface-2, transparent));
 }
 
 .l2-param-lock-banner {

@@ -481,7 +481,15 @@ function ConditionExpandProperties({
     const ro = new ResizeObserver(publish)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [nodeId, expandApi, display, locks.length, listPreviews, readOnly])
+  }, [
+    nodeId,
+    expandApi,
+    display,
+    locks.length,
+    listPreviews,
+    listPreviews.map((p) => `${p.property}:${p.effective.join(',')}`).join('|'),
+    readOnly,
+  ])
 
   return (
     <div
