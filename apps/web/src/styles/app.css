@@ -8688,26 +8688,15 @@ body.l2-visual-open #root {
 .l2-param-bind-text-section {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-bottom: 0.65rem;
-  padding: 0.55rem 0.6rem;
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--accent) 6%, var(--surface-2));
+  gap: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
 }
 
 .l2-param-bind-text-target {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.35rem 0.4rem;
-  border-radius: var(--radius-sm, 4px);
-  background: var(--surface);
-  border: 1px solid transparent;
-}
-
-.l2-param-bind-text-target.is-active {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  gap: 0.35rem;
 }
 
 .l2-param-bind-text-active-hint {

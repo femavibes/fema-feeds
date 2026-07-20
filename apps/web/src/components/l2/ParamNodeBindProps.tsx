@@ -419,10 +419,7 @@ export function ParamNodeBindProps({
                 : `Drive “${field.label}” when toggle is on`
 
               return (
-                <div
-                  key={field.key}
-                  className={`l2-param-bind-text-target${active ? ' is-active' : ''}`}
-                >
+                <div key={field.key} className="l2-param-bind-text-target">
                   <ToggleRow
                     label={actionLabel}
                     checked={active}
@@ -469,6 +466,29 @@ export function ParamNodeBindProps({
                       }
                     }}
                   />
+                  {active ? (
+                    <label className="l2-param-when-on">
+                      Apply when ON
+                      <select
+                        disabled={readOnly}
+                        value={existing?.listMode ?? 'merge'}
+                        onChange={(e) => {
+                          const listMode =
+                            e.target.value === 'replace' ? 'replace' : 'merge'
+                          setFieldBinding(field, {
+                            listMode,
+                            listValue: existing?.listValue,
+                            value: existing?.value,
+                          })
+                        }}
+                      >
+                        <option value="replace">
+                          Replace — use Param terms instead of the node’s
+                        </option>
+                        <option value="merge">Merge — add Param terms onto the node’s</option>
+                      </select>
+                    </label>
+                  ) : null}
                   {active && isTextParam ? (
                     <p className="l2-param-bind-text-active-hint">
                       Connected — edit the {controlType === 'stringList' ? 'list' : 'text'} on this
@@ -540,27 +560,6 @@ export function ParamNodeBindProps({
                           </p>
                         )
                       })()}
-                      <label className="l2-param-when-on">
-                        Apply when ON
-                        <select
-                          disabled={readOnly}
-                          value={existing?.listMode ?? 'merge'}
-                          onChange={(e) => {
-                            const listMode =
-                              e.target.value === 'replace' ? 'replace' : 'merge'
-                            setFieldBinding(field, {
-                              listMode,
-                              listValue: existing?.listValue,
-                              value: existing?.value,
-                            })
-                          }}
-                        >
-                          <option value="replace">
-                            Replace — use Param terms instead of the node’s
-                          </option>
-                          <option value="merge">Merge — add Param terms onto the node’s</option>
-                        </select>
-                      </label>
                       <p className="card-hint">
                         Node keeps its own {field.label.toLowerCase()} (always editable on the
                         node). When this toggle is off, only the node’s list is used.
@@ -601,28 +600,6 @@ export function ParamNodeBindProps({
                         />
                       )}
                     </div>
-                  ) : null}
-                  {active && controlType !== 'boolean' ? (
-                    <label className="l2-param-when-on">
-                      Apply when ON
-                      <select
-                        disabled={readOnly}
-                        value={existing?.listMode ?? 'merge'}
-                        onChange={(e) => {
-                          const listMode = e.target.value === 'replace' ? 'replace' : 'merge'
-                          setFieldBinding(field, {
-                            listMode,
-                            listValue: existing?.listValue,
-                            value: existing?.value,
-                          })
-                        }}
-                      >
-                        <option value="replace">
-                          Replace — use Param terms instead of the node’s
-                        </option>
-                        <option value="merge">Merge — add Param terms onto the node’s</option>
-                      </select>
-                    </label>
                   ) : null}
                 </div>
               )
