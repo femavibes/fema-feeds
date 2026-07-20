@@ -8,6 +8,8 @@ export type NodeExpandApi = {
   toggleLocked: (nodeId: string) => void
   /** Open the properties panel for a node (e.g. expanded “+N more”). */
   openProperties?: (nodeId: string) => void
+  /** Open Parameter control mode for a Param-driven target node. */
+  openParamControlMode?: (nodeId: string) => void
   /** Re-measure node heights after async expand content loads (logic blocks). */
   requestLayoutRefresh?: () => void
   /** Patch a Parameter Node’s live values from the canvas controls. */

@@ -25,6 +25,7 @@ import {
 import { NodeRoleIcon } from '../NodeRoleIcon'
 import { ToggleRow } from '../../ToggleRow'
 import { ConditionRow } from '../ConditionRow'
+import { ParamTargetBadge } from '../ParamControlModeModal'
 import { useNodeExpand } from './node-expand-context'
 import { ConditionExpandProfiles } from './ConditionExpandProfiles'
 import { LogicBlockExpandOutline } from './LogicBlockExpandOutline'
@@ -654,12 +655,13 @@ export function ConditionNode({ data }: NodeProps<Node<GraphNodeData>>) {
           </span>
         ) : null}
         {data.paramDriven ? (
-          <span
-            className="l2-flow-condition-param-badge"
-            title="Driven by a Parameter control (Presence and/or properties)"
-          >
-            Param
-          </span>
+          <ParamTargetBadge
+            onClick={
+              expandApi?.openParamControlMode
+                ? () => expandApi.openParamControlMode?.(data.nodeId)
+                : undefined
+            }
+          />
         ) : null}
         {provenance === 'custom_code' ? (
           <span className="l2-flow-condition-code-badge" aria-hidden="true">

@@ -14,6 +14,7 @@ import {
   normalizeControlBindings,
   normalizeOptionBindings,
   resolveBindableField,
+  resolveParamControlMode,
 } from '@cfb/l2-graph'
 
 function nodeLabel(node: L2RuleNode | undefined, nodeId: string): string {
@@ -371,12 +372,15 @@ export function collectParamPropertyLocks(
   const seen = new Set<string>()
   const byId = indexRuleNodesById(match)
   const target = byId.get(targetId)
+  const fullControl =
+    target && resolveParamControlMode(target) === 'full_control'
 
   const add = (b: L2ParamTargetBinding, controlLabel: string) => {
     if (b.kind !== 'property' || !b.property || b.nodeId !== targetId) return
-    // Term/text baselines stay editable on the node; Param only overlays when on.
+    // Term/text baselines stay editable; override_when_on keeps other fields editable too.
     const field = target ? resolveBindableField(target, b) : undefined
     if (field?.valueKind === 'string' || field?.valueKind === 'stringList') return
+    if (!fullControl) return
     const key = `${b.property}::${b.member ?? ''}`
     if (seen.has(key)) return
     seen.add(key)

@@ -37,8 +37,10 @@ import {
   paramLockSummary,
   paramLockedPropertySet,
   restoreParamLockedValues,
+  isTargetOfAnyParam,
 } from '../../../lib/param-bind-preview'
 import { ConditionRow } from '../ConditionRow'
+import { ParamTargetBadge } from '../ParamControlModeModal'
 import {
   LogicBlockParamValuesEditor,
   ParametersNodeEditor,
@@ -135,6 +137,8 @@ interface Props {
     versionPin: string,
     provenance: L2NodeProvenance,
   ) => void
+  /** Open Parameter control mode modal for this target node. */
+  onOpenParamControlMode?: (nodeId: string) => void
 }
 
 
@@ -177,6 +181,7 @@ export function L2PropertiesInspector({
   onOpenLogicBlockCompare,
   onUseLogicBlockHere,
   onInsertLogicBlock,
+  onOpenParamControlMode,
 }: Props) {
 
   const selected = selectedId ? findInMatch(match, selectedId) : null
@@ -746,23 +751,30 @@ export function L2PropertiesInspector({
 
                   <h4>Condition</h4>
 
-                  {!readOnly && onRenameNode && selectedId ? (
+                  <div className="l2-inspector-section-head-trailing">
+                    {isTargetOfAnyParam(match, selected.id) && onOpenParamControlMode ? (
+                      <ParamTargetBadge
+                        onClick={() => onOpenParamControlMode(selected.id)}
+                      />
+                    ) : null}
+                    {!readOnly && onRenameNode && selectedId ? (
 
-                    <button
+                      <button
 
-                      type="button"
+                        type="button"
 
-                      className="l2-inspector-rename btn btn-secondary btn-sm"
+                        className="l2-inspector-rename btn btn-secondary btn-sm"
 
-                      onClick={() => onRenameNode(selectedId)}
+                        onClick={() => onRenameNode(selectedId)}
 
-                    >
+                      >
 
-                      Rename
+                        Rename
 
-                    </button>
+                      </button>
 
-                  ) : null}
+                    ) : null}
+                  </div>
 
                 </div>
 

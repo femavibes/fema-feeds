@@ -124,6 +124,11 @@ export {
   type ParamBindableField,
 } from './param-bind-fields.js'
 export {
+  DEFAULT_PARAM_CONTROL_MODE,
+  isParamTargetNode,
+  resolveParamControlMode,
+} from './param-control-mode.js'
+export {
   exportFeedGraph,
   importFeedGraph,
   feedGraphToJson,

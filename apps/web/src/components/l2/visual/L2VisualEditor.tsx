@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { createPortal } from 'react-dom'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import type { FeedConfig, L2NodeProvenance, L2NodeTrace, L2RuleGroup, AuthorListConfig, LogicBlockPackage } from '@cfb/core-types'
+import type { FeedConfig, L2NodeProvenance, L2NodeTrace, L2ParamControlMode, L2RuleGroup, AuthorListConfig, LogicBlockPackage } from '@cfb/core-types'
 import type { ListCacheEntry } from '../../../api/client'
 import { useVisualEditorHistory, type VisualEditorSnapshot } from '../../../hooks/useVisualEditorHistory'
 import { useVisualEditorRails } from '../../../hooks/useVisualEditorRails'
@@ -24,10 +24,11 @@ import {
   updateInMatch,
   newId,
 } from '../../../lib/l2-form'
-import { flattenTopLevelMatch, normalizeCanvasFeedStorage, normalizeRuleGroup, sanitizeCanvasEdges, syncSharedParamControlFromPanel } from '@cfb/l2-graph'
+import { flattenTopLevelMatch, normalizeCanvasFeedStorage, normalizeRuleGroup, resolveParamControlMode, sanitizeCanvasEdges, syncSharedParamControlFromPanel } from '@cfb/l2-graph'
 import { L2CanvasContextMenu, type CanvasContextMenuState } from './L2CanvasContextMenu'
 import { L2GraphCanvas } from './L2GraphCanvas'
 import { L2PropertiesInspector } from './L2NodeInspector'
+import { ParamControlModeModal } from '../ParamControlModeModal'
 import { L2PreviewRail } from './L2PreviewRail'
 import { RailCollapseStrip, RailPanelHead, RailResizeHandle } from './L2RailChrome'
 import { PropertiesHelpModal } from './PropertiesHelpModal'
@@ -216,6 +217,7 @@ export function L2VisualEditor({
   const lockedSet = useMemo(() => new Set(lockedNodeIds), [lockedNodeIds])
   const [contextMenu, setContextMenu] = useState<CanvasContextMenuState>(null)
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null)
+  const [paramModeNodeId, setParamModeNodeId] = useState<string | null>(null)
   /** After "Connect to…", the next node tap completes the wire. */
   const [connectFromId, setConnectFromId] = useState<string | null>(null)
 
@@ -1063,6 +1065,10 @@ export function L2VisualEditor({
             onNodeContextMenu={openNodeContextMenu}
             onEdgeContextMenu={openEdgeContextMenu}
             onNodeOpenProperties={openPropertiesForNode}
+            onOpenParamControlMode={(nodeId) => {
+              openPropertiesForNode(nodeId)
+              setParamModeNodeId(nodeId)
+            }}
             onPatchParameterValues={(nodeId, values) => {
               const rule = findInMatch(match, nodeId)
               if (!rule || rule.type !== 'parameters') return
@@ -1123,6 +1129,30 @@ export function L2VisualEditor({
             onSave={applyNodeRename}
             onClose={() => setRenameTargetId(null)}
           />
+          {(() => {
+            const paramModeNode = paramModeNodeId ? findInMatch(match, paramModeNodeId) : null
+            if (!paramModeNode || paramModeNode.type === 'group' || paramModeNode.type === 'parameters') {
+              return null
+            }
+            const mode: L2ParamControlMode = resolveParamControlMode(paramModeNode)
+            return (
+              <ParamControlModeModal
+                open={Boolean(paramModeNodeId)}
+                mode={mode}
+                readOnly={readOnly}
+                onChange={(next) => {
+                  if (!paramModeNodeId) return
+                  patchMatch(
+                    updateInMatch(match, paramModeNodeId, {
+                      ...paramModeNode,
+                      paramControlMode: next,
+                    }),
+                  )
+                }}
+                onClose={() => setParamModeNodeId(null)}
+              />
+            )
+          })()}
         </ReactFlowProvider>
       </main>
 
@@ -1164,6 +1194,10 @@ export function L2VisualEditor({
                 )
               }
               onRenameNode={renameNode}
+              onOpenParamControlMode={(nodeId) => {
+                setSelectedId(nodeId)
+                setParamModeNodeId(nodeId)
+              }}
               onDraftChange={onDraftChange}
               onPatchDraft={patchDraft}
               projectAuthorLists={projectAuthorLists}

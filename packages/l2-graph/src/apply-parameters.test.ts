@@ -566,6 +566,7 @@ describe('applyParametersToMatch', () => {
           patterns: [],
           sources: ['link_card'],
           caseSensitive: false,
+          paramControlMode: 'full_control',
         },
       ],
     }
@@ -851,5 +852,86 @@ describe('applyParametersToMatch', () => {
     const replaced = applyParametersToMatch(tree, { values: { pack: 'b' } })
     const urlB = replaced.children.find((c) => c.id === 'url')
     if (urlB?.type === 'url') expect(urlB.patterns).toEqual(['zzz'])
+  })
+
+  it('override_when_on (default): Param OFF leaves node property baseline', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'params',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Strict',
+              type: 'boolean',
+              default: true,
+              bindings: [
+                { nodeId: 'kw', kind: 'property', property: 'caseSensitive', value: false },
+              ],
+            },
+          ],
+          values: { strict: true },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['hi'],
+          fields: ['text'],
+          caseSensitive: true,
+        },
+      ],
+    }
+
+    const on = applyParametersToMatch(tree)
+    const kwOn = on.children.find((c) => c.id === 'kw')
+    if (kwOn?.type === 'keyword') expect(kwOn.caseSensitive).toBe(false)
+
+    const off = applyParametersToMatch(tree, { values: { strict: false } })
+    const kwOff = off.children.find((c) => c.id === 'kw')
+    if (kwOff?.type === 'keyword') expect(kwOff.caseSensitive).toBe(true)
+  })
+
+  it('full_control: Param OFF writes inverse pole', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'params',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Strict',
+              type: 'boolean',
+              default: true,
+              bindings: [
+                { nodeId: 'kw', kind: 'property', property: 'caseSensitive', value: false },
+              ],
+            },
+          ],
+          values: { strict: false },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['hi'],
+          fields: ['text'],
+          caseSensitive: true,
+          paramControlMode: 'full_control',
+        },
+      ],
+    }
+
+    const off = applyParametersToMatch(tree, { values: { strict: false } })
+    const kwOff = off.children.find((c) => c.id === 'kw')
+    if (kwOff?.type === 'keyword') expect(kwOff.caseSensitive).toBe(true)
   })
 })

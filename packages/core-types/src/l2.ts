@@ -429,6 +429,13 @@ export interface L2ParametersCondition {
 }
 
 /**
+ * How Parameters interact with bound properties on a target node.
+ * - override_when_on (default): Param ON overrides; OFF leaves the node alone.
+ * - full_control: Param ON and OFF both write (OFF uses the inverse pole).
+ */
+export type L2ParamControlMode = 'override_when_on' | 'full_control'
+
+/**
  * Substitute node — consumes matching posts as votes toward a related post.
  * When vote count reaches threshold, the target post enters the pathway.
  */

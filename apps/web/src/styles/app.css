@@ -8560,6 +8560,67 @@ body.l2-visual-open #root {
   background: color-mix(in srgb, var(--accent, #3b82f6) 18%, transparent);
   color: color-mix(in srgb, var(--accent, #3b82f6) 85%, #0f172a);
   flex-shrink: 0;
+  border: none;
+  font: inherit;
+  line-height: 1.3;
+}
+
+.l2-flow-condition-param-badge--btn {
+  cursor: pointer;
+}
+
+.l2-flow-condition-param-badge--btn:hover {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 28%, transparent);
+}
+
+.l2-inspector-section-head-trailing {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.l2-param-control-mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0.65rem 0 0.35rem;
+}
+
+.l2-param-control-mode-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.55rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.l2-param-control-mode-option:has(input:checked) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.l2-param-control-mode-option input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.l2-param-control-mode-option-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.l2-param-control-mode-option-body strong {
+  font-size: 0.82rem;
+}
+
+.l2-param-control-mode-option-body .card-hint {
+  margin: 0;
 }
 
 .l2-flow-condition.is-param-driven:not(.is-param-disabled) {

@@ -105,6 +105,8 @@ interface Props {
   onEdgeContextMenu: (edgeId: string, x: number, y: number) => void
   /** Double-click / double-tap on a node — open its properties panel. */
   onNodeOpenProperties?: (nodeId: string) => void
+  /** Open Parameter control mode modal for a target node. */
+  onOpenParamControlMode?: (nodeId: string) => void
   /** Persist Parameter Node live values from expanded canvas controls. */
   onPatchParameterValues?: (
     nodeId: string,
@@ -164,6 +166,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     onNodeContextMenu,
     onEdgeContextMenu,
     onNodeOpenProperties,
+    onOpenParamControlMode,
     onPatchParameterValues,
     onPatchRuleNode,
     onDeleteNodes,
@@ -201,6 +204,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
       expandAllInGroup: (groupId: string) => onExpandAllInGroup?.(groupId),
       toggleLocked: (nodeId: string) => onToggleNodeLocked?.(nodeId),
       openProperties: (nodeId: string) => onNodeOpenProperties?.(nodeId),
+      openParamControlMode: (nodeId: string) => onOpenParamControlMode?.(nodeId),
       requestLayoutRefresh: () => setLayoutTick((n) => n + 1),
       patchParameterValues: onPatchParameterValues,
       patchRuleNode: onPatchRuleNode,
@@ -213,6 +217,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
       onExpandAllInGroup,
       onToggleNodeLocked,
       onNodeOpenProperties,
+      onOpenParamControlMode,
       onPatchParameterValues,
       onPatchRuleNode,
       match,

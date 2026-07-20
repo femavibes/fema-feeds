@@ -17,6 +17,7 @@ import {
   findDiscoveredField,
   type ParamBindableField,
 } from './param-bind-fields.js'
+import { resolveParamControlMode } from './param-control-mode.js'
 
 export type ParamValueMap = Record<string, L2ParamValue>
 
@@ -499,6 +500,9 @@ function computePropertyWrite(
   const field = resolveBindableField(node, binding)
   if (!field) return null
 
+  const mode = resolveParamControlMode(node)
+  const overrideWhenOn = mode === 'override_when_on'
+
   if (field.valueKind === 'string' || field.valueKind === 'stringList') {
     const text = resolveTextPropertyWrite(field, binding, {
       controlType: controlMeta?.type ?? 'boolean',
@@ -508,6 +512,8 @@ function computePropertyWrite(
     if (!text) return null
     return { kind: 'text', ...text }
   }
+
+  if (overrideWhenOn && !active) return null
 
   if (field.valueKind === 'member' || field.member) {
     const member = (binding.member ?? field.member)?.trim()
@@ -561,6 +567,8 @@ function computePropertyWrite(
  * Text/list: toggle off = no write (node baseline). Toggle on replace/merge;
  * multiple active replaces union their lists (baseline dropped); merges add
  * onto baseline (or onto the replace union).
+ * Non-text in override_when_on mode: Param OFF = no write (node baseline).
+ * full_control: Param OFF writes the inverse pole (legacy behavior).
  */
 function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): void {
   const byId = indexRuleNodesById(root)
