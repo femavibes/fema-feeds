@@ -438,273 +438,360 @@ function TargetBindingsEditor({
             </div>
 
             <div className="l2-param-bind-props">
-              <span className="l2-param-bind-props-label">Node settings to control</span>
-              <div className="l2-param-bind-toggles">
-                {fields.length === 0 && target ? (
-                  <p className="card-hint">No bindable properties available for this node type.</p>
-                ) : null}
+              {(() => {
+                const textFields = fields.filter(
+                  (f) => f.valueKind === 'string' || f.valueKind === 'stringList',
+                )
+                const otherFields = fields.filter(
+                  (f) => f.valueKind !== 'string' && f.valueKind !== 'stringList',
+                )
+                const isTextParam =
+                  controlType === 'string' || controlType === 'stringList'
+                return (
+                  <>
+                    {textFields.length > 0 ? (
+                      <div className="l2-param-bind-text-section">
+                        <span className="l2-param-bind-props-label">
+                          {isTextParam
+                            ? 'Write this Param into…'
+                            : 'Text / list fields to drive…'}
+                        </span>
+                        {isTextParam ? (
+                          <p className="card-hint">
+                            This is the important part. Turn one on so the Param’s{' '}
+                            {controlType === 'stringList' ? 'term list' : 'text'} replaces that
+                            input on the target node.
+                          </p>
+                        ) : (
+                          <p className="card-hint">
+                            Bind authored lists/strings for when this toggle/dropdown is on (or
+                            for each dropdown option).
+                          </p>
+                        )}
+                        <div className="l2-param-bind-toggles">
+                          {textFields.map((field) => {
+                            const active = nodeBindings.some(
+                              (b) =>
+                                b.kind === 'property' && bindingMatchesField(b, field),
+                            )
+                            const existing = nodeBindings.find(
+                              (b) =>
+                                b.kind === 'property' && bindingMatchesField(b, field),
+                            )
+                            const isList = field.valueKind === 'stringList'
+                            const actionLabel = isTextParam
+                              ? isList
+                                ? `Replace “${field.label}” with this Param’s list`
+                                : `Replace “${field.label}” with this Param’s text`
+                              : field.label
 
-                {fields.map((field) => {
+                            return (
+                              <div
+                                key={field.key}
+                                className={`l2-param-bind-text-target${active ? ' is-active' : ''}`}
+                              >
+                                <ToggleRow
+                                  label={actionLabel}
+                                  checked={active}
+                                  readOnly={readOnly || !target}
+                                  ariaLabel={actionLabel}
+                                  onChange={(checked) => {
+                                    const rest = nodeBindings.filter(
+                                      (b) =>
+                                        !(
+                                          b.kind === 'property' &&
+                                          bindingMatchesField(b, field)
+                                        ),
+                                    )
+                                    if (!checked) {
+                                      setBindingsFor(nodeId, rest)
+                                      return
+                                    }
+                                    const seed = seedFromTargetField(target, field)
+                                    const listSeed = Array.isArray(seed)
+                                      ? seed
+                                      : typeof seed === 'string' && seed
+                                        ? [seed]
+                                        : []
+                                    if (controlType === 'boolean') {
+                                      setBindingsFor(nodeId, [
+                                        ...rest,
+                                        bindingFromBindableField(nodeId, field, {
+                                          listMode: 'replace',
+                                          listValue: isList ? listSeed : undefined,
+                                          listWhenOff: isList ? [] : undefined,
+                                          value: !isList
+                                            ? typeof seed === 'string'
+                                              ? seed
+                                              : ''
+                                            : undefined,
+                                        }),
+                                      ])
+                                      return
+                                    }
+                                    if (controlType === 'enum' && allowAbsoluteValue) {
+                                      setBindingsFor(nodeId, [
+                                        ...rest,
+                                        bindingFromBindableField(nodeId, field, {
+                                          listMode: 'replace',
+                                          listValue: isList ? listSeed : undefined,
+                                          value: !isList
+                                            ? typeof seed === 'string'
+                                              ? seed
+                                              : ''
+                                            : undefined,
+                                        }),
+                                      ])
+                                      return
+                                    }
+                                    setBindingsFor(nodeId, [
+                                      ...rest,
+                                      bindingFromBindableField(nodeId, field, {
+                                        listMode: 'replace',
+                                      }),
+                                    ])
+                                    if (
+                                      seed !== undefined &&
+                                      isEmptyParamValue(controlLiveValue) &&
+                                      onSeedControlValue
+                                    ) {
+                                      onSeedControlValue(seed)
+                                    }
+                                  }}
+                                />
+                                {active && isTextParam ? (
+                                  <p className="l2-param-bind-text-active-hint">
+                                    Connected — edit the {controlType === 'stringList' ? 'list' : 'text'}{' '}
+                                    on this Param control. “{field.label}” on the target is locked.
+                                  </p>
+                                ) : null}
+                                {active && controlType === 'boolean' ? (
+                                  <>
+                                    <div className="l2-inspector-field">
+                                      <span>List when toggle is on</span>
+                                      {isList ? (
+                                        <TermListEditor
+                                          terms={existing?.listValue ?? []}
+                                          readOnly={readOnly}
+                                          placeholder="term"
+                                          itemNoun="term"
+                                          onChange={(listValue) => {
+                                            const rest = nodeBindings.filter(
+                                              (b) =>
+                                                !(
+                                                  b.kind === 'property' &&
+                                                  bindingMatchesField(b, field)
+                                                ),
+                                            )
+                                            setBindingsFor(nodeId, [
+                                              ...rest,
+                                              bindingFromBindableField(nodeId, field, {
+                                                listValue,
+                                                listWhenOff: existing?.listWhenOff ?? [],
+                                                listMode: existing?.listMode ?? 'replace',
+                                              }),
+                                            ])
+                                          }}
+                                        />
+                                      ) : (
+                                        <BlurCommitInput
+                                          disabled={readOnly}
+                                          value={
+                                            existing?.listValue?.[0] ??
+                                            (typeof existing?.value === 'string'
+                                              ? existing.value
+                                              : '')
+                                          }
+                                          placeholder="text when on"
+                                          onCommit={(text) => {
+                                            const rest = nodeBindings.filter(
+                                              (b) =>
+                                                !(
+                                                  b.kind === 'property' &&
+                                                  bindingMatchesField(b, field)
+                                                ),
+                                            )
+                                            setBindingsFor(nodeId, [
+                                              ...rest,
+                                              bindingFromBindableField(nodeId, field, {
+                                                listValue: text ? [text] : [],
+                                                listWhenOff: existing?.listWhenOff,
+                                                listMode: existing?.listMode ?? 'replace',
+                                                value: text,
+                                              }),
+                                            ])
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                    <div className="l2-inspector-field">
+                                      <span>List when toggle is off</span>
+                                      {isList ? (
+                                        <TermListEditor
+                                          terms={existing?.listWhenOff ?? []}
+                                          readOnly={readOnly}
+                                          placeholder="term"
+                                          itemNoun="term"
+                                          onChange={(listWhenOff) => {
+                                            const rest = nodeBindings.filter(
+                                              (b) =>
+                                                !(
+                                                  b.kind === 'property' &&
+                                                  bindingMatchesField(b, field)
+                                                ),
+                                            )
+                                            setBindingsFor(nodeId, [
+                                              ...rest,
+                                              bindingFromBindableField(nodeId, field, {
+                                                listValue: existing?.listValue ?? [],
+                                                listWhenOff,
+                                                listMode: existing?.listMode ?? 'replace',
+                                              }),
+                                            ])
+                                          }}
+                                        />
+                                      ) : (
+                                        <BlurCommitInput
+                                          disabled={readOnly}
+                                          value={(existing?.listWhenOff ?? [])[0] ?? ''}
+                                          placeholder="text when off (empty clears)"
+                                          onCommit={(text) => {
+                                            const rest = nodeBindings.filter(
+                                              (b) =>
+                                                !(
+                                                  b.kind === 'property' &&
+                                                  bindingMatchesField(b, field)
+                                                ),
+                                            )
+                                            setBindingsFor(nodeId, [
+                                              ...rest,
+                                              bindingFromBindableField(nodeId, field, {
+                                                listValue: existing?.listValue,
+                                                listWhenOff: text ? [text] : [],
+                                                listMode: existing?.listMode ?? 'replace',
+                                                value: existing?.value,
+                                              }),
+                                            ])
+                                          }}
+                                        />
+                                      )}
+                                    </div>
+                                  </>
+                                ) : null}
+                                {active && allowAbsoluteValue && controlType === 'enum' ? (
+                                  <div className="l2-inspector-field">
+                                    <span>Value for this option</span>
+                                    {isList ? (
+                                      <TermListEditor
+                                        terms={existing?.listValue ?? []}
+                                        readOnly={readOnly}
+                                        placeholder="term"
+                                        itemNoun="term"
+                                        onChange={(listValue) => {
+                                          const rest = nodeBindings.filter(
+                                            (b) =>
+                                              !(
+                                                b.kind === 'property' &&
+                                                bindingMatchesField(b, field)
+                                              ),
+                                          )
+                                          setBindingsFor(nodeId, [
+                                            ...rest,
+                                            bindingFromBindableField(nodeId, field, {
+                                              listValue,
+                                              listMode: existing?.listMode ?? 'replace',
+                                            }),
+                                          ])
+                                        }}
+                                      />
+                                    ) : (
+                                      <BlurCommitInput
+                                        disabled={readOnly}
+                                        value={
+                                          existing?.listValue?.[0] ??
+                                          (typeof existing?.value === 'string'
+                                            ? existing.value
+                                            : '')
+                                        }
+                                        placeholder="text for this option"
+                                        onCommit={(text) => {
+                                          const rest = nodeBindings.filter(
+                                            (b) =>
+                                              !(
+                                                b.kind === 'property' &&
+                                                bindingMatchesField(b, field)
+                                              ),
+                                          )
+                                          setBindingsFor(nodeId, [
+                                            ...rest,
+                                            bindingFromBindableField(nodeId, field, {
+                                              listValue: text ? [text] : [],
+                                              listMode: existing?.listMode ?? 'replace',
+                                              value: text,
+                                            }),
+                                          ])
+                                        }}
+                                      />
+                                    )}
+                                  </div>
+                                ) : null}
+                                {active ? (
+                                  <label className="l2-param-when-on">
+                                    Apply mode
+                                    <select
+                                      disabled={readOnly}
+                                      value={existing?.listMode ?? 'replace'}
+                                      onChange={(e) => {
+                                        const listMode =
+                                          e.target.value === 'merge' ? 'merge' : 'replace'
+                                        const rest = nodeBindings.filter(
+                                          (b) =>
+                                            !(
+                                              b.kind === 'property' &&
+                                              bindingMatchesField(b, field)
+                                            ),
+                                        )
+                                        setBindingsFor(nodeId, [
+                                          ...rest,
+                                          {
+                                            ...(existing ??
+                                              bindingFromBindableField(nodeId, field)),
+                                            listMode,
+                                          },
+                                        ])
+                                      }}
+                                    >
+                                      <option value="replace">Replace</option>
+                                      <option value="merge">Merge into existing</option>
+                                    </select>
+                                  </label>
+                                ) : null}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <span className="l2-param-bind-props-label">
+                      {isTextParam ? 'Also control toggles (optional)' : 'Node settings to control'}
+                    </span>
+                    <div className="l2-param-bind-toggles">
+                      {otherFields.length === 0 && target ? (
+                        <p className="card-hint">
+                          {textFields.length > 0
+                            ? 'No toggle settings on this node type.'
+                            : 'No bindable properties available for this node type.'}
+                        </p>
+                      ) : null}
+
+                      {otherFields.map((field) => {
                 const active = nodeBindings.some(
                   (b) => b.kind === 'property' && bindingMatchesField(b, field),
                 )
                 const existing = nodeBindings.find(
                   (b) => b.kind === 'property' && bindingMatchesField(b, field),
                 )
-
-                if (field.valueKind === 'string' || field.valueKind === 'stringList') {
-                  const isList = field.valueKind === 'stringList'
-                  return (
-                    <div key={field.key} className="l2-param-bind-member">
-                      <ToggleRow
-                        label={field.label}
-                        checked={active}
-                        readOnly={readOnly || !target}
-                        ariaLabel={field.label}
-                        onChange={(checked) => {
-                          const rest = nodeBindings.filter(
-                            (b) => !(b.kind === 'property' && bindingMatchesField(b, field)),
-                          )
-                          if (!checked) {
-                            setBindingsFor(nodeId, rest)
-                            return
-                          }
-                          const seed = seedFromTargetField(target, field)
-                          const listSeed = Array.isArray(seed)
-                            ? seed
-                            : typeof seed === 'string' && seed
-                              ? [seed]
-                              : []
-                          if (controlType === 'boolean') {
-                            setBindingsFor(nodeId, [
-                              ...rest,
-                              bindingFromBindableField(nodeId, field, {
-                                listMode: 'replace',
-                                listValue: isList ? listSeed : undefined,
-                                listWhenOff: isList ? [] : undefined,
-                                value: !isList
-                                  ? typeof seed === 'string'
-                                    ? seed
-                                    : ''
-                                  : undefined,
-                              }),
-                            ])
-                            return
-                          }
-                          if (controlType === 'enum' && allowAbsoluteValue) {
-                            setBindingsFor(nodeId, [
-                              ...rest,
-                              bindingFromBindableField(nodeId, field, {
-                                listMode: 'replace',
-                                listValue: isList ? listSeed : undefined,
-                                value: !isList
-                                  ? typeof seed === 'string'
-                                    ? seed
-                                    : ''
-                                  : undefined,
-                              }),
-                            ])
-                            return
-                          }
-                          setBindingsFor(nodeId, [
-                            ...rest,
-                            bindingFromBindableField(nodeId, field, { listMode: 'replace' }),
-                          ])
-                          if (
-                            seed !== undefined &&
-                            isEmptyParamValue(controlLiveValue) &&
-                            onSeedControlValue
-                          ) {
-                            onSeedControlValue(seed)
-                          }
-                        }}
-                      />
-                      {active ? (
-                        <>
-                          {(controlType === 'string' || controlType === 'stringList') ? (
-                            <span className="card-hint">
-                              Edit the list/text on this Param (above). It owns {field.label} —
-                              that field is locked on the target node.
-                            </span>
-                          ) : null}
-                          {controlType === 'boolean' ? (
-                            <>
-                              <div className="l2-inspector-field">
-                                <span>When on</span>
-                                {isList ? (
-                                  <TermListEditor
-                                    terms={existing?.listValue ?? []}
-                                    readOnly={readOnly}
-                                    placeholder="term"
-                                    itemNoun="item"
-                                    onChange={(listValue) => {
-                                      const rest = nodeBindings.filter(
-                                        (b) =>
-                                          !(b.kind === 'property' && bindingMatchesField(b, field)),
-                                      )
-                                      setBindingsFor(nodeId, [
-                                        ...rest,
-                                        bindingFromBindableField(nodeId, field, {
-                                          listValue,
-                                          listWhenOff: existing?.listWhenOff ?? [],
-                                          listMode: existing?.listMode ?? 'replace',
-                                        }),
-                                      ])
-                                    }}
-                                  />
-                                ) : (
-                                  <BlurCommitInput
-                                    disabled={readOnly}
-                                    value={
-                                      existing?.listValue?.[0] ??
-                                      (typeof existing?.value === 'string'
-                                        ? existing.value
-                                        : '')
-                                    }
-                                    placeholder="text when on"
-                                    onCommit={(text) => {
-                                      const rest = nodeBindings.filter(
-                                        (b) =>
-                                          !(b.kind === 'property' && bindingMatchesField(b, field)),
-                                      )
-                                      setBindingsFor(nodeId, [
-                                        ...rest,
-                                        bindingFromBindableField(nodeId, field, {
-                                          listValue: text ? [text] : [],
-                                          listWhenOff: existing?.listWhenOff,
-                                          listMode: existing?.listMode ?? 'replace',
-                                          value: text,
-                                        }),
-                                      ])
-                                    }}
-                                  />
-                                )}
-                              </div>
-                              <div className="l2-inspector-field">
-                                <span>When off</span>
-                                {isList ? (
-                                  <TermListEditor
-                                    terms={existing?.listWhenOff ?? []}
-                                    readOnly={readOnly}
-                                    placeholder="term"
-                                    itemNoun="item"
-                                    onChange={(listWhenOff) => {
-                                      const rest = nodeBindings.filter(
-                                        (b) =>
-                                          !(b.kind === 'property' && bindingMatchesField(b, field)),
-                                      )
-                                      setBindingsFor(nodeId, [
-                                        ...rest,
-                                        bindingFromBindableField(nodeId, field, {
-                                          listValue: existing?.listValue ?? [],
-                                          listWhenOff,
-                                          listMode: existing?.listMode ?? 'replace',
-                                        }),
-                                      ])
-                                    }}
-                                  />
-                                ) : (
-                                  <BlurCommitInput
-                                    disabled={readOnly}
-                                    value={(existing?.listWhenOff ?? [])[0] ?? ''}
-                                    placeholder="text when off (empty clears)"
-                                    onCommit={(text) => {
-                                      const rest = nodeBindings.filter(
-                                        (b) =>
-                                          !(b.kind === 'property' && bindingMatchesField(b, field)),
-                                      )
-                                      setBindingsFor(nodeId, [
-                                        ...rest,
-                                        bindingFromBindableField(nodeId, field, {
-                                          listValue: existing?.listValue,
-                                          listWhenOff: text ? [text] : [],
-                                          listMode: existing?.listMode ?? 'replace',
-                                          value: existing?.value,
-                                        }),
-                                      ])
-                                    }}
-                                  />
-                                )}
-                              </div>
-                            </>
-                          ) : null}
-                          {allowAbsoluteValue && controlType === 'enum' ? (
-                            <div className="l2-inspector-field">
-                              <span>Value for this option</span>
-                              {isList ? (
-                                <TermListEditor
-                                  terms={existing?.listValue ?? []}
-                                  readOnly={readOnly}
-                                  placeholder="term"
-                                  itemNoun="item"
-                                  onChange={(listValue) => {
-                                    const rest = nodeBindings.filter(
-                                      (b) =>
-                                        !(b.kind === 'property' && bindingMatchesField(b, field)),
-                                    )
-                                    setBindingsFor(nodeId, [
-                                      ...rest,
-                                      bindingFromBindableField(nodeId, field, {
-                                        listValue,
-                                        listMode: existing?.listMode ?? 'replace',
-                                      }),
-                                    ])
-                                  }}
-                                />
-                              ) : (
-                                <BlurCommitInput
-                                  disabled={readOnly}
-                                  value={
-                                    existing?.listValue?.[0] ??
-                                    (typeof existing?.value === 'string' ? existing.value : '')
-                                  }
-                                  placeholder="text for this option"
-                                  onCommit={(text) => {
-                                    const rest = nodeBindings.filter(
-                                      (b) =>
-                                        !(b.kind === 'property' && bindingMatchesField(b, field)),
-                                    )
-                                    setBindingsFor(nodeId, [
-                                      ...rest,
-                                      bindingFromBindableField(nodeId, field, {
-                                        listValue: text ? [text] : [],
-                                        listMode: existing?.listMode ?? 'replace',
-                                        value: text,
-                                      }),
-                                    ])
-                                  }}
-                                />
-                              )}
-                            </div>
-                          ) : null}
-                          <label className="l2-param-when-on">
-                            Apply mode
-                            <select
-                              disabled={readOnly}
-                              value={existing?.listMode ?? 'replace'}
-                              onChange={(e) => {
-                                const listMode = e.target.value === 'merge' ? 'merge' : 'replace'
-                                const rest = nodeBindings.filter(
-                                  (b) => !(b.kind === 'property' && bindingMatchesField(b, field)),
-                                )
-                                setBindingsFor(nodeId, [
-                                  ...rest,
-                                  {
-                                    ...(existing ?? bindingFromBindableField(nodeId, field)),
-                                    listMode,
-                                  },
-                                ])
-                              }}
-                            >
-                              <option value="replace">Replace</option>
-                              <option value="merge">Merge into existing</option>
-                            </select>
-                          </label>
-                        </>
-                      ) : null}
-                    </div>
-                  )
-                }
 
                 if (field.valueKind === 'member' && !field.member) {
                   return (
@@ -905,7 +992,10 @@ function TargetBindingsEditor({
                   </div>
                 )
               })}
-              </div>
+                    </div>
+                  </>
+                )
+              })()}
 
               {unsupported.length > 0 ? (
                 <p className="card-hint">
