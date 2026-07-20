@@ -274,6 +274,50 @@ function TargetBindingsEditor({
       setDraftId('')
       return
     }
+    const target = byId.get(nodeId)
+    const fields = discoverBindableFields(target)
+
+    // Text / term-list Params: Presence does nothing — bind the matching text field.
+    if (controlType === 'stringList') {
+      const listField = fields.find((f) => f.valueKind === 'stringList')
+      if (listField) {
+        const seed = seedFromTargetField(target, listField)
+        onChange([
+          ...list,
+          bindingFromBindableField(nodeId, listField, { listMode: 'replace' }),
+        ])
+        if (
+          seed !== undefined &&
+          isEmptyParamValue(controlLiveValue) &&
+          onSeedControlValue
+        ) {
+          onSeedControlValue(seed)
+        }
+        setDraftId('')
+        return
+      }
+    }
+    if (controlType === 'string') {
+      const textField = fields.find((f) => f.valueKind === 'string')
+      if (textField) {
+        const seed = seedFromTargetField(target, textField)
+        onChange([
+          ...list,
+          bindingFromBindableField(nodeId, textField, { listMode: 'replace' }),
+        ])
+        if (
+          seed !== undefined &&
+          isEmptyParamValue(controlLiveValue) &&
+          onSeedControlValue
+        ) {
+          onSeedControlValue(seed)
+        }
+        setDraftId('')
+        return
+      }
+    }
+
+    // Toggle / dropdown: default Presence (show/hide).
     onChange([...list, { nodeId, kind: 'presence' }])
     setDraftId('')
   }
@@ -292,9 +336,9 @@ function TargetBindingsEditor({
     <div className="l2-param-target-ids">
       <span className="l2-param-target-ids-label">{hint}</span>
       <p className="card-hint">
-        Paste a node id, choose Presence (show/hide), then which settings this control owns.
-        Toggle/dropdown overlaps AND together. Text/list fields replace (or merge) — edit them
-        on this Param, not on the target node.
+        {controlType === 'stringList' || controlType === 'string'
+          ? 'Paste a node id — we bind its Terms / Tags / Pattern / URL patterns to this Param. Edit the list on the Param; the target field locks.'
+          : 'Paste a node id, choose Presence (show/hide), then which settings this control owns. Toggle/dropdown overlaps AND together.'}
       </p>
       {nodeIds.map((nodeId) => {
         const target = byId.get(nodeId)
@@ -384,7 +428,14 @@ function TargetBindingsEditor({
                   )
                 }}
               />
-                          </div>
+              {controlType === 'string' || controlType === 'stringList' ? (
+                <p className="card-hint">
+                  Presence is for toggles/dropdowns. For this Param, turn on{' '}
+                  <strong>Terms</strong> (or Tags / Pattern) under Node settings — that is what
+                  makes the list do something.
+                </p>
+              ) : null}
+            </div>
 
             <div className="l2-param-bind-props">
               <span className="l2-param-bind-props-label">Node settings to control</span>
