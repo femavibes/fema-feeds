@@ -18,6 +18,7 @@ import {
   DISCOVER_MODE_OPTIONS,
   matchOpSelectOptions,
   ParamOwnedSelect,
+  polarityPairOptions,
   sortNodeSettingFields,
   WhenControlOnSelect,
 } from './param-bind-ui'
@@ -182,6 +183,11 @@ export function ParamNodeBindProps({
     }
 
     const whenOn = String(existing?.value ?? polarity.onValue)
+    const absOpts = matchOpSelectOptions(field)
+    const onLab =
+      absOpts.find((o) => o.value === polarity.onValue)?.label ?? polarity.onLabel
+    const offLab =
+      absOpts.find((o) => o.value === polarity.offValue)?.label ?? polarity.offLabel
     return (
       <div key={field.key} className="l2-param-bind-condition-head">
         <span className="l2-condition-type">{typeLabel}</span>
@@ -189,9 +195,9 @@ export function ParamNodeBindProps({
           className="l2-param-bind-match-select"
           bound={active}
           value={whenOn}
-          options={options}
+          options={polarityPairOptions(polarity.onValue, polarity.offValue, onLab, offLab)}
           readOnly={readOnly || !target}
-          title="When this Param is on, use this match mode (off uses the other)"
+          title="When this Param is on / off — which match mode to use"
           onUnbind={() => clearField(field)}
           onBindValue={(value) => setFieldBinding(field, { value })}
         />
@@ -214,9 +220,9 @@ export function ParamNodeBindProps({
         label="Mode"
         bound={active}
         value={whenOnDiscover ? 'true' : 'false'}
-        options={[...DISCOVER_MODE_OPTIONS]}
+        options={DISCOVER_MODE_OPTIONS}
         readOnly={readOnly || !target}
-        title="When this Param is on, use this Mode (off uses the other)"
+        title="When this Param is on / off — Discover vs Filter"
         onUnbind={() => clearField(field)}
         onBindValue={(raw) => setFieldBinding(field, { value: raw === 'true' })}
       />
@@ -308,12 +314,14 @@ export function ParamNodeBindProps({
             label={field.label}
             bound={active}
             value={String(existing?.value ?? polarity.onValue)}
-            options={[
-              { value: polarity.onValue, label: polarity.onLabel },
-              { value: polarity.offValue, label: polarity.offLabel },
-            ]}
+            options={polarityPairOptions(
+              polarity.onValue,
+              polarity.offValue,
+              polarity.onLabel,
+              polarity.offLabel,
+            )}
             readOnly={readOnly || !target}
-            title="When this Param is on, use this value (off uses the other)"
+            title="When this Param is on / off — which value to use"
             onUnbind={() => clearField(field)}
             onBindValue={(value) => setFieldBinding(field, { value })}
           />

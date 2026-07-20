@@ -72,7 +72,7 @@ export function ParamOwnedSelect({
           else onBindValue(next)
         }}
       >
-        <option value="">Not controlled by this Param</option>
+        <option value="">Not controlled</option>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
@@ -101,7 +101,7 @@ export function sortNodeSettingFields(fields: ParamBindableField[]): ParamBindab
   return [...fields].sort((a, b) => rank(a) - rank(b) || a.label.localeCompare(b.label))
 }
 
-/** Match ConditionRow option wording for common ops. */
+/** Match ConditionRow option wording for common ops (absolute / display). */
 export function matchOpSelectOptions(
   field: ParamBindableField,
 ): { value: string; label: string }[] {
@@ -115,7 +115,22 @@ export function matchOpSelectOptions(
   })
 }
 
-export const DISCOVER_MODE_OPTIONS = [
-  { value: 'true', label: 'Discover (matching posts can enter the pool)' },
-  { value: 'false', label: 'Filter (only gate posts already in play)' },
-] as const
+/** Toggle polarity options: make ON/OFF pairing explicit. */
+export function polarityPairOptions(
+  onValue: string,
+  offValue: string,
+  onLabel: string,
+  offLabel: string,
+): { value: string; label: string }[] {
+  return [
+    { value: onValue, label: `ON: ${onLabel} · OFF: ${offLabel}` },
+    { value: offValue, label: `ON: ${offLabel} · OFF: ${onLabel}` },
+  ]
+}
+
+export const DISCOVER_MODE_OPTIONS = polarityPairOptions(
+  'true',
+  'false',
+  'Discover',
+  'Filter',
+)
