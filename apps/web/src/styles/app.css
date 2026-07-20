@@ -7985,10 +7985,11 @@ body.l2-visual-open #root {
 }
 
 .l2-param-control-card {
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border));
   border-radius: var(--radius);
   padding: 0.65rem 0.75rem;
-  background: var(--surface-2);
+  /* Same accent wash used on selected/active panels — lifts off inspector surface. */
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-1));
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
@@ -8607,7 +8608,8 @@ body.l2-visual-open #root {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.45rem 0.5rem;
-  background: color-mix(in srgb, var(--surface-2) 70%, var(--surface));
+  /* Darker inset so nested targets read inside the control card. */
+  background: var(--surface-1);
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
@@ -8702,9 +8704,10 @@ body.l2-visual-open #root {
 }
 
 .l2-param-enum-option {
-  border: 1px dashed var(--border);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 0.5rem;
+  background: var(--surface-1);
   display: flex;
   flex-direction: column;
   gap: 0.35rem;

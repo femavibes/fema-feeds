@@ -434,6 +434,27 @@ function TargetBindingsEditor({
           )}
         </ParamHelpModal>
       ) : null}
+      {!readOnly ? (
+        <div className="l2-param-target-row l2-param-target-add">
+          <input
+            className="mono"
+            value={draftId}
+            placeholder="Paste node id, then Enter"
+            title={targetsHelpText}
+            onChange={(e) => setDraftId(e.target.value)}
+            onBlur={commitDraft}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                commitDraft()
+              }
+            }}
+          />
+          <button type="button" className="btn btn-secondary btn-sm" onClick={commitDraft}>
+            Add
+          </button>
+        </div>
+      ) : null}
       {nodeIds.map((nodeId) => {
         const target = byId.get(nodeId)
         const nodeBindings = bindingsFor(nodeId)
@@ -1083,27 +1104,6 @@ function TargetBindingsEditor({
           </div>
         )
       })}
-      {!readOnly ? (
-        <div className="l2-param-target-row l2-param-target-add">
-          <input
-            className="mono"
-            value={draftId}
-            placeholder="Paste node id, then Enter"
-            title={targetsHelpText}
-            onChange={(e) => setDraftId(e.target.value)}
-            onBlur={commitDraft}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                commitDraft()
-              }
-            }}
-          />
-          <button type="button" className="btn btn-secondary btn-sm" onClick={commitDraft}>
-            Add
-          </button>
-        </div>
-      ) : null}
     </div>
   )
 }
