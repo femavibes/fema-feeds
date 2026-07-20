@@ -261,7 +261,9 @@ export function L2PropertiesInspector({
 
   const canDeleteEdge = Boolean(selectedEdgeId)
 
-  const showFooter = !readOnly && (canDeleteNode || canDeleteEdge)
+  const showNodeId = Boolean(selected && selectedId)
+  const showFooter =
+    showNodeId || (!readOnly && (canDeleteNode || canDeleteEdge))
 
 
 
@@ -413,20 +415,6 @@ export function L2PropertiesInspector({
                       ) : null}
 
                     </div>
-
-                    <label className="l2-inspector-field">
-                      Node id
-                      <div className="l2-inspector-id-row">
-                        <code className="mono l2-inspector-node-id">{selected.id}</code>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => void navigator.clipboard.writeText(selected.id)}
-                        >
-                          Copy
-                        </button>
-                      </div>
-                    </label>
 
                     <label className="l2-inspector-field">
 
@@ -598,20 +586,6 @@ export function L2PropertiesInspector({
 
                 </p>
 
-                <label className="l2-inspector-field">
-                  Node id
-                  <div className="l2-inspector-id-row">
-                    <code className="mono l2-inspector-node-id">{selected.id}</code>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => void navigator.clipboard.writeText(selected.id)}
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </label>
-
                 {!readOnly && onOpenInnerLogicPreview ? (
                 <button
                   type="button"
@@ -714,19 +688,6 @@ export function L2PropertiesInspector({
                     </button>
                   ) : null}
                 </div>
-                <label className="l2-inspector-field">
-                  Node id
-                  <div className="l2-inspector-id-row">
-                    <code className="mono l2-inspector-node-id">{selected.id}</code>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => void navigator.clipboard.writeText(selected.id)}
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </label>
                 <ParametersNodeEditor
                   node={selected}
                   match={match}
@@ -774,19 +735,6 @@ export function L2PropertiesInspector({
                 <p className="l2-inspector-hint">
                   Posts passing through this node accumulate +{selected.points} editorial score. Score always sticks even if the path fails later.
                 </p>
-                <label className="l2-inspector-field">
-                  Node id
-                  <div className="l2-inspector-id-row">
-                    <code className="mono l2-inspector-node-id">{selected.id}</code>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => void navigator.clipboard.writeText(selected.id)}
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </label>
               </>
             )}
 
@@ -817,20 +765,6 @@ export function L2PropertiesInspector({
                   ) : null}
 
                 </div>
-
-                <label className="l2-inspector-field">
-                  Node id
-                  <div className="l2-inspector-id-row">
-                    <code className="mono l2-inspector-node-id">{selected.id}</code>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => void navigator.clipboard.writeText(selected.id)}
-                    >
-                      Copy
-                    </button>
-                  </div>
-                </label>
 
                 {conditionRoleBadges.length > 0 ? (
                   <div className="l2-inspector-role-badges" aria-label="Node roles">
@@ -935,17 +869,29 @@ export function L2PropertiesInspector({
 
 
           {showFooter ? (
-
             <footer className="l2-inspector-footer sidebar-footer">
-
-              <button type="button" className="btn btn-danger btn-sm" onClick={onDeleteSelected}>
-
-                {canDeleteEdge ? 'Disconnect line' : 'Delete node'}
-
-              </button>
-
+              {showNodeId ? (
+                <div className="l2-inspector-footer-id">
+                  <code className="mono l2-inspector-node-id" title={selectedId ?? undefined}>
+                    {selectedId}
+                  </code>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => selectedId && void navigator.clipboard.writeText(selectedId)}
+                  >
+                    Copy
+                  </button>
+                </div>
+              ) : (
+                <span />
+              )}
+              {!readOnly && (canDeleteNode || canDeleteEdge) ? (
+                <button type="button" className="btn btn-danger btn-sm" onClick={onDeleteSelected}>
+                  {canDeleteEdge ? 'Disconnect line' : 'Delete node'}
+                </button>
+              ) : null}
             </footer>
-
           ) : null}
 
     </div>

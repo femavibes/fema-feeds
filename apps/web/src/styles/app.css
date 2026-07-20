@@ -7670,8 +7670,22 @@ body.l2-visual-open #root {
 .l2-inspector-footer {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
-  justify-content: flex-end;
+  justify-content: space-between;
+}
+
+.l2-inspector-footer-id {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.l2-inspector-footer-id .l2-inspector-node-id {
+  flex: 0 1 auto;
+  max-width: 100%;
 }
 
 .l2-context-menu-backdrop {
