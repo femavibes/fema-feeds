@@ -1,6 +1,6 @@
 import { type SyntheticEvent, useLayoutEffect, useMemo, useRef } from 'react'
 import { type Node, type NodeProps, Handle, Position } from '@xyflow/react'
-import type { L2NodeProvenance, L2ParametersCondition, L2RuleNode } from '@cfb/core-types'
+import type { L2NodeProvenance, L2ParametersCondition, L2ParamValue, L2RuleNode } from '@cfb/core-types'
 import {
   COND_TEASER_MAX,
   applyParametersToMatch,
@@ -249,7 +249,7 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
     return <span className="l2-flow-condition-body-empty">No controls yet</span>
   }
 
-  const setValue = (name: string, value: boolean | string) => {
+  const setValue = (name: string, value: L2ParamValue) => {
     expandApi?.patchParameterValues?.(rule.id, { ...values, [name]: value })
   }
 
@@ -274,6 +274,40 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
                 ariaLabel={`${control.label || control.name} parameter`}
                 onChange={(checked) => setValue(control.name, checked)}
               />
+            </div>
+          )
+        }
+        if (control.type === 'string') {
+          return (
+            <div key={control.name} className="l2-flow-parameters-control-row l2-flow-parameters-enum-row">
+              <label className="l2-flow-parameters-enum-head">
+                <span className="l2-flow-parameters-enum-label" title={control.description || control.name}>
+                  {control.label || control.name}
+                </span>
+                <input
+                  className="nodrag nopan"
+                  disabled={readOnly}
+                  value={String(live ?? '')}
+                  placeholder={control.placeholder || ''}
+                  onMouseDown={stopNodeGesture}
+                  onChange={(e) => {
+                    stopNodeGesture(e)
+                    setValue(control.name, e.target.value)
+                  }}
+                />
+              </label>
+            </div>
+          )
+        }
+        if (control.type === 'stringList') {
+          const list = Array.isArray(live) ? live : []
+          return (
+            <div key={control.name} className="l2-flow-parameters-control-row">
+              <span className="l2-flow-parameters-enum-label" title={control.description || control.name}>
+                {control.label || control.name}
+                {list.length > 0 ? ` (${list.length})` : ''}
+              </span>
+              <span className="card-hint">Edit list in Properties</span>
             </div>
           )
         }

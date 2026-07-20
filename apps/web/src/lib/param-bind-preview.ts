@@ -43,12 +43,25 @@ function fieldLabelForBinding(
   return binding.property
 }
 
+function formatListPreview(list: string[] | undefined): string {
+  if (!list || list.length === 0) return '(empty)'
+  if (list.length <= 3) return list.map((t) => `“${t}”`).join(', ')
+  return `${list.slice(0, 3).map((t) => `“${t}”`).join(', ')} +${list.length - 3}`
+}
+
 function formatForcedValue(
   binding: L2ParamTargetBinding,
   active: boolean,
   target?: L2RuleNode,
 ): string {
   if (binding.kind !== 'property') return ''
+  if (binding.listValue !== undefined || binding.listWhenOff !== undefined) {
+    const onList = binding.listValue ?? (typeof binding.value === 'string' ? [String(binding.value)] : [])
+    const offList = binding.listWhenOff ?? []
+    return active
+      ? `= ${formatListPreview(onList)}${binding.listMode === 'merge' ? ' (merge)' : ''}`
+      : `= ${formatListPreview(offList)}${binding.listMode === 'merge' ? ' (merge)' : ''}`
+  }
   if (binding.member) {
     return active ? `add “${binding.member}”` : `remove “${binding.member}”`
   }
@@ -57,6 +70,9 @@ function formatForcedValue(
   }
   if (target) {
     const field = resolveBindableField(target, binding)
+    if (field?.valueKind === 'string' || field?.valueKind === 'stringList') {
+      return active ? '= control value' : '= when-off list / empty'
+    }
     const polarity = field ? binaryEnumPolarity(field) : null
     if (polarity) {
       return active ? `= ${polarity.onLabel}` : `= ${polarity.offLabel}`
@@ -74,9 +90,9 @@ export type ParamEffectLine = {
 /** Human-readable effects for one Parameter control at a given live value. */
 export function describeParamControlEffects(
   control: L2ParamControl,
-  liveValue: boolean | string | undefined,
+  liveValue: boolean | string | string[] | undefined,
   byId: Map<string, L2RuleNode>,
-): { active: boolean | string; lines: ParamEffectLine[]; idleHint?: string } {
+): { active: boolean | string | string[]; lines: ParamEffectLine[]; idleHint?: string } {
   if (control.type === 'boolean') {
     const on = liveValue === true || liveValue === 'true' ||
       (liveValue === undefined && (control.default === true || control.default === 'true'))
@@ -95,13 +111,6 @@ export function describeParamControlEffects(
         })
       } else if (b.kind === 'property') {
         const label = fieldLabelForBinding(target, b)
-        if (b.value !== undefined && !on) {
-          lines.push({
-            kind: 'property',
-            text: `${who}: ${label} — bound, but boolean off does not set an alternate value`,
-          })
-          continue
-        }
         lines.push({
           kind: 'property',
           text: `${who}: ${label} ${formatForcedValue(b, on, target)}`,
@@ -118,6 +127,33 @@ export function describeParamControlEffects(
     }
 
     return { active: on, lines }
+  }
+
+  if (control.type === 'string' || control.type === 'stringList') {
+    const bindings = normalizeControlBindings(control)
+    const preview =
+      control.type === 'stringList'
+        ? formatListPreview(Array.isArray(liveValue) ? liveValue : asStringListPreview(liveValue))
+        : `“${String(liveValue ?? control.default ?? '')}”`
+    const lines: ParamEffectLine[] = []
+    for (const b of bindings) {
+      if (b.kind !== 'property') continue
+      const target = byId.get(b.nodeId)
+      const who = nodeLabel(target, b.nodeId)
+      const label = fieldLabelForBinding(target, b)
+      lines.push({
+        kind: 'property',
+        text: `${who}: ${label} = ${preview}${b.listMode === 'merge' ? ' (merge)' : ''}`,
+      })
+    }
+    if (lines.length === 0) {
+      return {
+        active: liveValue ?? control.default,
+        lines: [],
+        idleHint: 'No property binds yet — this text/list control writes nowhere.',
+      }
+    }
+    return { active: liveValue ?? control.default, lines }
   }
 
   // enum
@@ -178,6 +214,12 @@ export function describeParamControlEffects(
   return { active: selectedValue, lines }
 }
 
+function asStringListPreview(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String)
+  if (typeof value === 'string' && value) return [value]
+  return []
+}
+
 /** All Parameter-driven effects currently applied to a target node id. */
 export function describeEffectsOnTarget(
   match: L2RuleGroup,
@@ -213,6 +255,19 @@ export function describeEffectsOnTarget(
                 text: `“${label}” → ${fl} ${formatForcedValue(b, on, target)}`,
               })
             }
+          }
+        } else if (control.type === 'string' || control.type === 'stringList') {
+          for (const b of normalizeControlBindings(control)) {
+            if (b.nodeId !== targetId || b.kind !== 'property') continue
+            const fl = fieldLabelForBinding(target, b)
+            const preview =
+              control.type === 'stringList'
+                ? formatListPreview(Array.isArray(live) ? live : asStringListPreview(live))
+                : `“${String(live ?? '')}”`
+            lines.push({
+              kind: 'property',
+              text: `“${label}” → ${fl} = ${preview}${b.listMode === 'merge' ? ' (merge)' : ''}`,
+            })
           }
         } else {
           const options = control.options ?? []
@@ -275,7 +330,7 @@ export function isTargetOfAnyParam(match: L2RuleGroup, nodeId: string): boolean 
     if (hit) return
     if (node.type === 'parameters') {
       for (const control of node.controls ?? []) {
-        if (control.type === 'boolean') {
+        if (control.type === 'boolean' || control.type === 'string' || control.type === 'stringList') {
           if (normalizeControlBindings(control).some((b) => b.nodeId === nodeId)) {
             hit = true
             return
@@ -329,7 +384,7 @@ export function collectParamPropertyLocks(
     if (node.type === 'parameters') {
       for (const control of node.controls ?? []) {
         const label = control.label || control.name
-        if (control.type === 'boolean') {
+        if (control.type === 'boolean' || control.type === 'string' || control.type === 'stringList') {
           for (const b of normalizeControlBindings(control)) add(b, label)
         } else {
           for (const opt of control.options ?? []) {

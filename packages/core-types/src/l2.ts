@@ -337,7 +337,7 @@ export interface L2LogicBlockRefCondition {
    * Consumer overrides for Parameter Node controls inside the packaged root.
    * Keyed by param `name`; missing keys use the control default.
    */
-  paramValues?: Record<string, boolean | string>
+  paramValues?: Record<string, boolean | string | string[]>
 }
 
 /** One option on an enum Parameter control (mode → which nodes exist / property writes). */
@@ -372,33 +372,48 @@ export interface L2ParamTargetBinding {
    * - Boolean Parameter + binary enum: which pole when active (default first/`includes`); inactive gets the other.
    * - Boolean Parameter + member: omit/`true` = add when active; `false` = remove when active.
    * - Dropdown Parameter option: absolute value written when that option is selected.
+   * - Text/list fields: prefer `listValue` / `listWhenOff`; `value` may hold a single string.
    */
   value?: boolean | string | number
+  /**
+   * For stringList (and optional string) fields: list written when the control is active /
+   * when this enum option is selected. Boolean inactive uses `listWhenOff` (default []).
+   */
+  listValue?: string[]
+  /** Boolean Parameter + stringList: list when the toggle is off (default empty). */
+  listWhenOff?: string[]
+  /** How to apply list/string writes onto the node field (default replace). */
+  listMode?: 'replace' | 'merge'
 }
 
-/** A named control on a Parameter Node (toggle or dropdown). */
+/** Live / default / override value for a Parameter control. */
+export type L2ParamValue = boolean | string | string[]
+
+/** A named control on a Parameter Node (toggle, dropdown, text, or list). */
 export interface L2ParamControl {
   name: string
   label: string
   description?: string
-  type: 'boolean' | 'enum'
-  /** boolean default or selected enum value */
-  default: boolean | string
+  type: 'boolean' | 'enum' | 'string' | 'stringList'
+  /** boolean default, selected enum value, string, or string list */
+  default: L2ParamValue
   /**
    * Boolean controls: node ids that exist when the toggle is ON
    * (excluded / treated as non-existent when OFF). Legacy shorthand for
    * presence bindings — prefer `bindings`.
    */
   targetNodeIds?: string[]
-  /** Boolean (and shared) rich targets: presence and/or property. */
+  /** Rich targets: presence and/or property (including text/list). */
   bindings?: L2ParamTargetBinding[]
   /** Enum controls: each option lists presence targets / property writes. */
   options?: L2ParamEnumOption[]
+  /** string / stringList: placeholder shown in the control editor. */
+  placeholder?: string
 }
 
 /**
  * Eval-neutral control panel. Never Discover/Filter; stripped before L1/L2 match.
- * Controls include/exclude other nodes by id (groups cascade).
+ * Controls include/exclude other nodes by id and/or patch whitelisted fields.
  */
 export interface L2ParametersCondition {
   type: 'parameters'
@@ -407,7 +422,7 @@ export interface L2ParametersCondition {
   title?: string
   controls: L2ParamControl[]
   /** Live values while editing this feed (overrides defaults). */
-  values?: Record<string, boolean | string>
+  values?: Record<string, L2ParamValue>
 }
 
 /**

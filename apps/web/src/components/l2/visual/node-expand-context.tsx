@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import type { L2RuleGroup, L2RuleNode } from '@cfb/core-types'
+import type { L2ParamValue, L2RuleGroup, L2RuleNode } from '@cfb/core-types'
 
 export type NodeExpandApi = {
   toggleExpanded: (nodeId: string) => void
@@ -13,7 +13,7 @@ export type NodeExpandApi = {
   /** Patch a Parameter Node’s live values from the canvas controls. */
   patchParameterValues?: (
     nodeId: string,
-    values: Record<string, boolean | string>,
+    values: Record<string, L2ParamValue>,
   ) => void
   /** Patch any condition node from the Properties-style expand form. */
   patchRuleNode?: (nodeId: string, next: L2RuleNode) => void

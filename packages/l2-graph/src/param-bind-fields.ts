@@ -1,6 +1,6 @@
 import type { L2ParamTargetBinding, L2RuleNode, PostSearchField } from '@cfb/core-types'
 
-export type ParamBindValueKind = 'boolean' | 'enum' | 'member' | 'number'
+export type ParamBindValueKind = 'boolean' | 'enum' | 'member' | 'number' | 'string' | 'stringList'
 
 export type ParamBindableField = {
   /** Stable picker id (may be synthetic, e.g. fields:text). */
@@ -17,29 +17,23 @@ export type ParamBindableField = {
   member?: string
 }
 
-/** Keys that are text/list authoring inputs — not toggle binds (yet). */
+/** Keys that remain non-bindable (complex / identity / package metadata). */
 export const PARAM_UNSUPPORTED_INPUT_KEYS = [
-  'terms',
-  'tags',
-  'patterns',
   'accounts',
   'dids',
-  'values',
-  'pattern',
-  'value',
-  'hub',
-  'listId',
-  'listUri',
   'labelerDids',
   'scouts',
   'payload',
-  'title',
-  'label',
-  'description',
+  'hub',
+  'listId',
+  'listUri',
   'packageId',
   'versionPin',
   'controls',
   'paramValues',
+  'title',
+  'label',
+  'description',
 ] as const
 
 const SKIP_META_KEYS = new Set([
@@ -140,6 +134,7 @@ export const PARAM_BINDABLE_FIELDS: Partial<
   Record<L2RuleNode['type'], readonly ParamBindableField[]>
 > = {
   keyword: [
+    { key: 'terms', label: 'Terms', valueKind: 'stringList' },
     { key: 'caseSensitive', label: 'Case sensitive', valueKind: 'boolean' },
     { key: 'wholeWord', label: 'Whole words only', valueKind: 'boolean' },
     { key: 'runAtIngest', label: 'Discover (pull into pool)', valueKind: 'boolean' },
@@ -155,6 +150,7 @@ export const PARAM_BINDABLE_FIELDS: Partial<
     ...searchFieldBindables(),
   ],
   regex: [
+    { key: 'pattern', label: 'Pattern', valueKind: 'string' },
     { key: 'caseInsensitive', label: 'Case insensitive', valueKind: 'boolean' },
     { key: 'runAtIngest', label: 'Discover (pull into pool)', valueKind: 'boolean' },
     {
@@ -169,6 +165,7 @@ export const PARAM_BINDABLE_FIELDS: Partial<
     ...searchFieldBindables(),
   ],
   text: [
+    { key: 'value', label: 'Text / pattern', valueKind: 'string' },
     { key: 'caseInsensitive', label: 'Case insensitive', valueKind: 'boolean' },
     {
       key: 'op',
@@ -201,6 +198,7 @@ export const PARAM_BINDABLE_FIELDS: Partial<
     { key: 'runAtIngest', label: 'Discover (pull into pool)', valueKind: 'boolean' },
   ],
   hashtag: [
+    { key: 'tags', label: 'Tags', valueKind: 'stringList' },
     {
       key: 'op',
       label: 'Match mode',
@@ -213,6 +211,7 @@ export const PARAM_BINDABLE_FIELDS: Partial<
     { key: 'runAtIngest', label: 'Discover (pull into pool)', valueKind: 'boolean' },
   ],
   url: [
+    { key: 'patterns', label: 'URL patterns', valueKind: 'stringList' },
     { key: 'caseSensitive', label: 'Case sensitive', valueKind: 'boolean' },
     {
       key: 'op',
@@ -394,6 +393,9 @@ export function bindingFromBindableField(
     property: field.property ?? field.key,
     member: field.member ?? extras?.member,
     value: extras?.value,
+    listValue: extras?.listValue,
+    listWhenOff: extras?.listWhenOff,
+    listMode: extras?.listMode,
   }
 }
 

@@ -594,4 +594,153 @@ describe('applyParametersToMatch', () => {
       }),
     ).toContain('Case sensitive on URL YES (url) — CAT')
   })
+
+  it('stringList control replaces keyword terms', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'p',
+          controls: [
+            {
+              name: 'terms',
+              label: 'Terms',
+              type: 'stringList',
+              default: ['hello'],
+              bindings: [{ nodeId: 'kw', kind: 'property', property: 'terms', listMode: 'replace' }],
+            },
+          ],
+          values: { terms: ['alpha', 'beta'] },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['seed'],
+          fields: ['text'],
+        },
+      ],
+    }
+    const out = applyParametersToMatch(tree)
+    const kw = out.children.find((c) => c.id === 'kw')
+    expect(kw?.type).toBe('keyword')
+    if (kw?.type === 'keyword') expect(kw.terms).toEqual(['alpha', 'beta'])
+  })
+
+  it('boolean toggle swaps authored lists on keyword terms', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'p',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Strict terms',
+              type: 'boolean',
+              default: true,
+              bindings: [
+                {
+                  nodeId: 'kw',
+                  kind: 'property',
+                  property: 'terms',
+                  listValue: ['strict-a', 'strict-b'],
+                  listWhenOff: ['loose'],
+                  listMode: 'replace',
+                },
+              ],
+            },
+          ],
+          values: { strict: true },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['authored'],
+          fields: ['text'],
+        },
+      ],
+    }
+    const on = applyParametersToMatch(tree)
+    const kwOn = on.children.find((c) => c.id === 'kw')
+    if (kwOn?.type === 'keyword') expect(kwOn.terms).toEqual(['strict-a', 'strict-b'])
+
+    const off = applyParametersToMatch(tree, { values: { strict: false } })
+    const kwOff = off.children.find((c) => c.id === 'kw')
+    if (kwOff?.type === 'keyword') expect(kwOff.terms).toEqual(['loose'])
+  })
+
+  it('enum option presets merge into url patterns', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'p',
+          controls: [
+            {
+              name: 'pack',
+              label: 'Pattern pack',
+              type: 'enum',
+              default: 'a',
+              options: [
+                {
+                  value: 'a',
+                  label: 'Pack A',
+                  targetNodeIds: [],
+                  bindings: [
+                    {
+                      nodeId: 'url',
+                      kind: 'property',
+                      property: 'patterns',
+                      listValue: ['foo', 'bar'],
+                      listMode: 'merge',
+                    },
+                  ],
+                },
+                {
+                  value: 'b',
+                  label: 'Pack B',
+                  targetNodeIds: [],
+                  bindings: [
+                    {
+                      nodeId: 'url',
+                      kind: 'property',
+                      property: 'patterns',
+                      listValue: ['zzz'],
+                      listMode: 'replace',
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+          values: { pack: 'a' },
+        },
+        {
+          type: 'url',
+          id: 'url',
+          op: 'includes',
+          patterns: ['seed'],
+          sources: ['link_card'],
+        },
+      ],
+    }
+    const merged = applyParametersToMatch(tree)
+    const url = merged.children.find((c) => c.id === 'url')
+    if (url?.type === 'url') expect(url.patterns).toEqual(['seed', 'foo', 'bar'])
+
+    const replaced = applyParametersToMatch(tree, { values: { pack: 'b' } })
+    const urlB = replaced.children.find((c) => c.id === 'url')
+    if (urlB?.type === 'url') expect(urlB.patterns).toEqual(['zzz'])
+  })
 })

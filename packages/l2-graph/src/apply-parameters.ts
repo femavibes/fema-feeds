@@ -3,6 +3,7 @@ import type {
   L2ParamEnumOption,
   L2ParamTargetBinding,
   L2ParametersCondition,
+  L2ParamValue,
   L2RuleGroup,
   L2RuleNode,
 } from '@cfb/core-types'
@@ -14,9 +15,10 @@ import {
   isValidPropertyBinding,
   resolveBindableField,
   findDiscoveredField,
+  type ParamBindableField,
 } from './param-bind-fields.js'
 
-export type ParamValueMap = Record<string, boolean | string>
+export type ParamValueMap = Record<string, L2ParamValue>
 
 function isParametersNode(node: L2RuleNode): node is L2ParametersCondition {
   return node.type === 'parameters'
@@ -26,7 +28,7 @@ function resolveControlValue(
   control: L2ParamControl,
   nodeValues: ParamValueMap | undefined,
   overrides: ParamValueMap | undefined,
-): boolean | string {
+): L2ParamValue {
   if (overrides && Object.prototype.hasOwnProperty.call(overrides, control.name)) {
     return overrides[control.name]!
   }
@@ -34,6 +36,99 @@ function resolveControlValue(
     return nodeValues[control.name]!
   }
   return control.default
+}
+
+function asStringList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((x) => String(x))
+  if (typeof value === 'string') return value ? [value] : []
+  return []
+}
+
+function mergeStringLists(base: string[], incoming: string[]): string[] {
+  const out = [...base]
+  for (const item of incoming) {
+    if (!out.includes(item)) out.push(item)
+  }
+  return out
+}
+
+function coerceTextPayload(
+  field: ParamBindableField,
+  payload: string | string[],
+): string | string[] {
+  if (field.valueKind === 'string') {
+    return Array.isArray(payload) ? payload.join(' ') : String(payload ?? '')
+  }
+  return asStringList(payload)
+}
+
+/**
+ * Resolve a string / stringList write. Text is exclusive (replace/merge), not AND.
+ * - string / stringList controls: write the live control value
+ * - boolean: listValue when on, listWhenOff when off (default [])
+ * - enum option: listValue or string `value` when selected
+ */
+function resolveTextPropertyWrite(
+  field: ParamBindableField,
+  binding: L2ParamTargetBinding,
+  opts: {
+    controlType: L2ParamControl['type']
+    controlValue: L2ParamValue
+    active: boolean
+  },
+): { property: string; value: string | string[]; mode: 'replace' | 'merge' } | null {
+  if (binding.kind !== 'property' || !binding.property) return null
+  if (field.valueKind !== 'string' && field.valueKind !== 'stringList') return null
+
+  const mode = binding.listMode === 'merge' ? 'merge' : 'replace'
+  let payload: string | string[] | undefined
+
+  if (opts.controlType === 'string' || opts.controlType === 'stringList') {
+    if (Array.isArray(opts.controlValue)) payload = opts.controlValue
+    else if (typeof opts.controlValue === 'string') payload = opts.controlValue
+    else payload = opts.controlValue ? 'true' : ''
+  } else if (opts.controlType === 'boolean') {
+    if (opts.active) {
+      payload =
+        binding.listValue ??
+        (typeof binding.value === 'string' || typeof binding.value === 'number'
+          ? String(binding.value)
+          : [])
+    } else {
+      payload = binding.listWhenOff ?? []
+    }
+  } else if (opts.controlType === 'enum') {
+    if (!opts.active) return null
+    if (binding.listValue) payload = binding.listValue
+    else if (binding.value !== undefined) payload = String(binding.value)
+    else return null
+  }
+
+  if (payload === undefined) return null
+  return {
+    property: binding.property,
+    value: coerceTextPayload(field, payload),
+    mode,
+  }
+}
+
+function applyTextWrite(
+  node: L2RuleNode,
+  write: { property: string; value: string | string[]; mode: 'replace' | 'merge' },
+): void {
+  const rec = asRecord(node)
+  if (write.mode === 'merge' && Array.isArray(write.value)) {
+    rec[write.property] = mergeStringLists(asStringList(rec[write.property]), write.value)
+    return
+  }
+  if (write.mode === 'merge' && typeof write.value === 'string') {
+    const cur = typeof rec[write.property] === 'string' ? String(rec[write.property]) : ''
+    rec[write.property] = cur && write.value && !cur.includes(write.value)
+      ? `${cur} ${write.value}`
+      : write.value || cur
+    return
+  }
+  rec[write.property] = write.value
 }
 
 /**
@@ -117,7 +212,7 @@ export function findParamControlByName(
 export function setParamValueAcrossMatch(
   root: L2RuleGroup,
   name: string,
-  value: boolean | string,
+  value: L2ParamValue,
 ): L2RuleGroup {
   const id = name.trim()
   if (!id) return root
@@ -182,6 +277,7 @@ export function syncSharedParamControlFromPanel(
           description: src.description,
           type: src.type,
           default: src.default,
+          placeholder: src.placeholder,
           options: src.options ? structuredClone(src.options) : undefined,
           bindings: src.bindings ? structuredClone(src.bindings) : [],
           targetNodeIds: undefined,
@@ -373,67 +469,33 @@ function applyMember(
   rec[property] = list
 }
 
-function applyPropertyBinding(
-  node: L2RuleNode,
-  binding: L2ParamTargetBinding,
-  active: boolean,
-): void {
-  if (binding.kind !== 'property' || !binding.property) return
-  if (!isValidPropertyBinding(node, binding)) return
-  const field = resolveBindableField(node, binding)
-  if (!field) return
-  const rec = asRecord(node)
-
-  // Array membership (language.allow, keyword.fields:text, …)
-  if (field.valueKind === 'member' || field.member) {
-    const member = (binding.member ?? field.member)?.trim()
-    if (!member) return
-    // Default: add when active. value === false → remove when active (add when inactive).
-    const includeWhenActive = !(binding.value === false || binding.value === 'false')
-    applyMember(node, binding.property, member, active ? includeWhenActive : !includeWhenActive)
-    return
-  }
-
-  if (field.valueKind === 'boolean') {
-    // Default when-on → true; value false → when-on → false (inactive gets inverse).
-    const whenOn = !(binding.value === false || binding.value === 'false')
-    rec[binding.property] = active ? whenOn : !whenOn
-    return
-  }
-
-  const polarity = binaryEnumPolarity(field)
-  if (polarity) {
-    const whenActive =
-      binding.value !== undefined && String(binding.value) === polarity.offValue
-        ? polarity.offValue
-        : polarity.onValue
-    const whenInactive =
-      whenActive === polarity.onValue ? polarity.offValue : polarity.onValue
-    rec[binding.property] = active ? whenActive : whenInactive
-    return
-  }
-
-  // Non-binary enum absolute value (dropdown Parameter option).
-  if (binding.value !== undefined && active) {
-    rec[binding.property] = binding.value
-  }
-}
-
-/** What a property binding would write for the given active state (booleans / binary enums / members). */
+/** What a property binding would write for the given active state (booleans / binary enums / members / text). */
 function computePropertyWrite(
   node: L2RuleNode,
   binding: L2ParamTargetBinding,
   active: boolean,
+  controlMeta?: { type: L2ParamControl['type']; value: L2ParamValue },
 ):
   | { kind: 'bool'; property: string; value: boolean }
   | { kind: 'enum'; property: string; value: string; onValue: string; offValue: string }
   | { kind: 'member'; property: string; member: string; include: boolean }
+  | { kind: 'text'; property: string; value: string | string[]; mode: 'replace' | 'merge' }
   | { kind: 'raw'; property: string; value: unknown }
   | null {
   if (binding.kind !== 'property' || !binding.property) return null
   if (!isValidPropertyBinding(node, binding)) return null
   const field = resolveBindableField(node, binding)
   if (!field) return null
+
+  if (field.valueKind === 'string' || field.valueKind === 'stringList') {
+    const text = resolveTextPropertyWrite(field, binding, {
+      controlType: controlMeta?.type ?? 'boolean',
+      controlValue: controlMeta?.value ?? (active ? true : false),
+      active,
+    })
+    if (!text) return null
+    return { kind: 'text', ...text }
+  }
 
   if (field.valueKind === 'member' || field.member) {
     const member = (binding.member ?? field.member)?.trim()
@@ -483,7 +545,8 @@ function computePropertyWrite(
  * Apply property patches. Presence is already AND-style (any off strips).
  * Overlapping boolean / binary-enum / member binds from *different* Param IDs
  * AND together (all must agree for the “on/include” pole). Same Param ID on
- * multiple panels is one vote. Absolute enum values: last walk wins.
+ * multiple panels is one vote. Absolute enum values and text/list writes:
+ * last walk wins (replace) or merge into the current field value.
  */
 function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): void {
   const byId = indexRuleNodesById(root)
@@ -496,6 +559,12 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
     Map<string, { value: string; onValue: string; offValue: string }>
   >()
   const memberVotes = new Map<string, Map<string, boolean>>()
+  const textWrites: Array<{
+    nodeId: string
+    property: string
+    value: string | string[]
+    mode: 'replace' | 'merge'
+  }> = []
   const rawWrites: Array<{ nodeId: string; property: string; value: unknown }> = []
 
   const noteBool = (nodeId: string, property: string, paramName: string, value: boolean) => {
@@ -535,16 +604,24 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
     paramName: string,
     binding: L2ParamTargetBinding,
     active: boolean,
+    controlMeta: { type: L2ParamControl['type']; value: L2ParamValue },
   ) => {
     const target = byId.get(nodeId)
     if (!target) return
-    const write = computePropertyWrite(target, binding, active)
+    const write = computePropertyWrite(target, binding, active, controlMeta)
     if (!write) return
     if (write.kind === 'bool') noteBool(nodeId, write.property, paramName, write.value)
     else if (write.kind === 'enum') {
       noteEnum(nodeId, write.property, paramName, write.value, write.onValue, write.offValue)
     } else if (write.kind === 'member') {
       noteMember(nodeId, write.property, write.member, paramName, write.include)
+    } else if (write.kind === 'text') {
+      textWrites.push({
+        nodeId,
+        property: write.property,
+        value: write.value,
+        mode: write.mode,
+      })
     } else {
       rawWrites.push({ nodeId, property: write.property, value: write.value })
     }
@@ -556,10 +633,11 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
         const value = Object.prototype.hasOwnProperty.call(valueMap, control.name)
           ? valueMap[control.name]!
           : control.default
+        const meta = { type: control.type, value }
         if (control.type === 'boolean') {
           const on = value === true || value === 'true'
           for (const binding of propertyBindings(normalizeControlBindings(control))) {
-            consider(binding.nodeId, control.name, binding, on)
+            consider(binding.nodeId, control.name, binding, on, meta)
           }
         } else if (control.type === 'enum') {
           const options = control.options ?? []
@@ -574,8 +652,12 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
           }
           if (selected) {
             for (const binding of propertyBindings(normalizeOptionBindings(selected))) {
-              consider(binding.nodeId, control.name, binding, true)
+              consider(binding.nodeId, control.name, binding, true, meta)
             }
+          }
+        } else if (control.type === 'string' || control.type === 'stringList') {
+          for (const binding of propertyBindings(normalizeControlBindings(control))) {
+            consider(binding.nodeId, control.name, binding, true, meta)
           }
         }
       }
@@ -613,6 +695,12 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
     if (!target || !property || !member) continue
     const include = [...votes.values()].every(Boolean)
     applyMember(target, property, member, include)
+  }
+
+  for (const w of textWrites) {
+    const target = byId.get(w.nodeId)
+    if (!target) continue
+    applyTextWrite(target, w)
   }
 
   for (const w of rawWrites) {
@@ -755,7 +843,10 @@ export function collectParamAndBlockers(
           if (binding.kind !== 'property') continue
           const target = byId.get(binding.nodeId)
           if (!target) continue
-          const write = computePropertyWrite(target, binding, on)
+          const write = computePropertyWrite(target, binding, on, {
+            type: 'boolean',
+            value: on,
+          })
           if (!write) continue
           if (write.kind === 'bool') {
             const key = `${binding.nodeId}::${write.property}`
@@ -770,6 +861,7 @@ export function collectParamAndBlockers(
             addVote(memberVotes, key, control.name, write.include)
             trackKey(memberKeysByParam, control.name, key)
           }
+          // text / raw: not AND-composed — skip blocker tracking
         }
       }
       return

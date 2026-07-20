@@ -108,7 +108,7 @@ interface Props {
   /** Persist Parameter Node live values from expanded canvas controls. */
   onPatchParameterValues?: (
     nodeId: string,
-    values: Record<string, boolean | string>,
+    values: Record<string, import('@cfb/core-types').L2ParamValue>,
   ) => void
   /** Persist condition edits from Properties-style expanded canvas forms. */
   onPatchRuleNode?: (nodeId: string, next: import('@cfb/core-types').L2RuleNode) => void
