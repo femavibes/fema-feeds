@@ -1048,7 +1048,9 @@ export function ParametersNodeEditor({
   }
 
   const setLiveValue = (name: string, value: L2ParamValue) => {
-    patch({ values: { ...values, [name]: value } })
+    // Keep `default` mirrored to live — one knob; default is only a schema fallback.
+    const list = controls.map((c) => (c.name === name ? { ...c, default: value } : c))
+    patch({ controls: list, values: { ...values, [name]: value } })
   }
 
   return (
@@ -1062,6 +1064,17 @@ export function ParametersNodeEditor({
           placeholder="Parameters"
         />
       </label>
+
+      {!readOnly ? (
+        <div className="l2-parameters-add-row">
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newBooleanControl)}>
+            Add toggle
+          </button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newEnumControl)}>
+            Add dropdown
+          </button>
+        </div>
+      ) : null}
 
       <p className="card-hint">
         Paste a node id — Presence shows/hides it; property binds puppet its settings. Shared Param
@@ -1088,17 +1101,6 @@ export function ParametersNodeEditor({
           onLiveValue={(v) => setLiveValue(control.name, v)}
         />
       ))}
-
-      {!readOnly ? (
-        <div className="l2-parameters-add-row">
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newBooleanControl)}>
-            Add toggle
-          </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newEnumControl)}>
-            Add dropdown
-          </button>
-        </div>
-      ) : null}
     </div>
   )
 }
@@ -1139,7 +1141,6 @@ function ParamControlCard({
   const isShared = sharedPanels > 1
   const liveOn = liveValue === true || liveValue === 'true'
   const andBlocked = Boolean(andBlockInfo && liveOn)
-  const defaultOn = control.default === true || control.default === 'true'
 
   const linkableIds = useMemo(() => {
     const out: { name: string; label: string; panelTitle: string }[] = []
@@ -1261,8 +1262,8 @@ function ParamControlCard({
         </pre>
       ) : null}
       <div className="l2-param-field-row">
-        <label className="l2-inspector-field">
-          Param ID
+        <div className="l2-inspector-field">
+          <span>Param ID</span>
           <div className="l2-param-id-row">
             <BlurCommitInput
               value={control.name}
@@ -1284,7 +1285,11 @@ function ParamControlCard({
               className="btn btn-ghost btn-sm l2-param-sync-help-btn"
               title="How Param ID sync works"
               aria-label="How Param ID sync works"
-              onClick={() => setSyncHelpOpen(true)}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setSyncHelpOpen(true)
+              }}
             >
               ?
             </button>
@@ -1303,7 +1308,7 @@ function ParamControlCard({
               Link existing…
             </button>
           ) : null}
-        </label>
+        </div>
         <label className="l2-inspector-field">
           Label
           <BlurCommitInput
@@ -1334,7 +1339,7 @@ function ParamControlCard({
                 <h3 id={`param-sync-help-${control.name}`}>Sync with another toggle</h3>
                 <p>
                   Copy this Param ID (or use <strong>Link existing…</strong>) to fully sync with
-                  another toggle — same live value, label, description, default, and targets.
+                  another toggle — same live value, label, description, and targets.
                 </p>
                 <div className="l2-param-modal-actions">
                   <button
@@ -1371,7 +1376,7 @@ function ParamControlCard({
                 <h3 id={`param-link-title-${control.name}`}>Link to existing Param ID</h3>
                 <p>
                   This toggle becomes a synced copy of the one you pick — same live value, label,
-                  description, default, and targets.
+                  description, and targets.
                 </p>
                 <ul className="l2-param-modal-list">
                   {linkableIds.map((item) => (
@@ -1413,59 +1418,31 @@ function ParamControlCard({
       </label>
 
       {control.type === 'boolean' ? (
-        <>
-          <label className="l2-inspector-field l2-param-default-field">
-            Default for consumers
-            <div className="l2-param-default-row">
-              <ToggleSwitch
-                checked={defaultOn}
-                readOnly={readOnly}
-                ariaLabel={`${control.label || control.name} default`}
-                onChange={(checked) => patch({ default: checked })}
-              />
-              <span className="card-hint">
-                Starting value in logic blocks when the feed doesn’t override it. Live (header /
-                canvas) is what this feed uses now.
-              </span>
-            </div>
-          </label>
-          <TargetBindingsEditor
-            bindings={bindings}
-            readOnly={readOnly}
-            match={match}
-            nodeLabels={nodeLabels}
-            controlType="boolean"
-            controlLiveValue={liveValue}
-            hint="Targets (presence and/or property)"
-            onChange={(next) => patch({ bindings: next, targetNodeIds: undefined })}
-          />
-        </>
+        <TargetBindingsEditor
+          bindings={bindings}
+          readOnly={readOnly}
+          match={match}
+          nodeLabels={nodeLabels}
+          controlType="boolean"
+          controlLiveValue={liveValue}
+          hint="Targets (presence and/or property)"
+          onChange={(next) => patch({ bindings: next, targetNodeIds: undefined })}
+        />
       ) : control.type === 'string' ? (
         <>
           <p className="card-hint">
             Single string for consumers. Bind to a regex <strong>Pattern</strong> (or text Value) —
             not keyword Terms (use Term list for those).
           </p>
-          <div className="l2-param-field-row">
-            <label className="l2-inspector-field">
-              Default
-              <BlurCommitInput
-                value={String(control.default ?? '')}
-                disabled={readOnly}
-                placeholder={control.placeholder || 'default text'}
-                onCommit={(defaultValue) => patch({ default: defaultValue })}
-              />
-            </label>
-            <label className="l2-inspector-field">
-              Live value (this feed)
-              <BlurCommitInput
-                value={String(liveValue ?? '')}
-                disabled={readOnly}
-                placeholder={control.placeholder || 'live text'}
-                onCommit={(v) => onLiveValue(v)}
-              />
-            </label>
-          </div>
+          <label className="l2-inspector-field">
+            Value (this feed)
+            <BlurCommitInput
+              value={String(liveValue ?? '')}
+              disabled={readOnly}
+              placeholder={control.placeholder || 'text'}
+              onCommit={(v) => onLiveValue(v)}
+            />
+          </label>
           <TargetBindingsEditor
             bindings={bindings}
             readOnly={readOnly}
@@ -1498,10 +1475,7 @@ function ParamControlCard({
               readOnly={readOnly}
               placeholder={control.placeholder || 'term'}
               itemNoun="term"
-              onChange={(list) => {
-                onLiveValue(list)
-                if (isEmptyParamValue(control.default)) patch({ default: list })
-              }}
+              onChange={(list) => onLiveValue(list)}
             />
           </div>
           <TargetBindingsEditor
@@ -1566,36 +1540,20 @@ function EnumOptionsEditor({
 
   return (
     <>
-      <div className="l2-param-field-row">
-        <label className="l2-inspector-field">
-          Default option
-          <select
-            disabled={readOnly || options.length === 0}
-            value={String(control.default)}
-            onChange={(e) => onChange({ ...control, default: e.target.value })}
-          >
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label || o.value}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="l2-inspector-field">
-          Live value (this feed)
-          <select
-            disabled={readOnly || options.length === 0}
-            value={liveValue}
-            onChange={(e) => onLiveValue(e.target.value)}
-          >
-            {options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label || o.value}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+      <label className="l2-inspector-field">
+        Selected option (this feed)
+        <select
+          disabled={readOnly || options.length === 0}
+          value={liveValue}
+          onChange={(e) => onLiveValue(e.target.value)}
+        >
+          {options.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label || o.value}
+            </option>
+          ))}
+        </select>
+      </label>
 
       {options.map((opt, index) => (
         <div key={`enum-opt-${index}`} className="l2-param-enum-option">

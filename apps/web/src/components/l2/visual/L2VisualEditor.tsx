@@ -1066,7 +1066,13 @@ export function L2VisualEditor({
             onPatchParameterValues={(nodeId, values) => {
               const rule = findInMatch(match, nodeId)
               if (!rule || rule.type !== 'parameters') return
-              const updated = updateInMatch(match, nodeId, { ...rule, values })
+              // Mirror live → default so schema fallback matches the knob you set.
+              const controls = (rule.controls ?? []).map((c) =>
+                Object.prototype.hasOwnProperty.call(values, c.name)
+                  ? { ...c, default: values[c.name]! }
+                  : c,
+              )
+              const updated = updateInMatch(match, nodeId, { ...rule, controls, values })
               patchMatch(syncSharedParamControlFromPanel(updated, nodeId))
             }}
             onPatchRuleNode={(nodeId, next) => {

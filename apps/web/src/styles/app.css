@@ -8101,7 +8101,8 @@ body.l2-visual-open #root {
 .l2-param-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  /* Above expanded-node inspector / rename dialog (~10100). */
+  z-index: 10200;
   display: flex;
   align-items: center;
   justify-content: center;
