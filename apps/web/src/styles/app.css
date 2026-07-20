@@ -8630,9 +8630,41 @@ body.l2-visual-open #root {
 .l2-param-bind-props {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.45rem;
   padding-top: 0.45rem;
   border-top: 1px solid var(--border);
+}
+
+.l2-param-bind-node-chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.l2-param-bind-condition-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.l2-param-bind-condition-head .l2-condition-type {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.l2-param-bind-match-select {
+  margin: 0;
+  flex: 1;
+  min-width: 8rem;
+  max-width: 14rem;
+}
+
+.l2-param-bind-match-select select {
+  width: 100%;
 }
 
 .l2-param-bind-props-label {
