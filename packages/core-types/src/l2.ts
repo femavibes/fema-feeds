@@ -97,9 +97,13 @@ export interface L2RuleGroup {
   label?: string
 }
 
+/** How Parameters interact with bound properties on a target node (default: override_when_on). */
+export type L2ParamControlMode = 'override_when_on' | 'full_control'
+
 export interface L2TextCondition {
   type: 'text'
   id: string
+  paramControlMode?: L2ParamControlMode
   field: 'text'
   op: 'contains' | 'not_contains' | 'equals' | 'regex'
   value: string
@@ -110,6 +114,7 @@ export interface L2TextCondition {
 export interface L2KeywordCondition {
   type: 'keyword'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'includes' | 'excludes'
   terms: string[]
   fields: import('./post-record.js').PostSearchField[]
@@ -123,6 +128,7 @@ export interface L2KeywordCondition {
 export interface L2RegexCondition {
   type: 'regex'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'matches' | 'not_matches'
   pattern: string
   fields: import('./post-record.js').PostSearchField[]
@@ -135,6 +141,7 @@ export interface L2RegexCondition {
 export interface L2BoolCondition {
   type: 'bool'
   id: string
+  paramControlMode?: L2ParamControlMode
   field: L2BoolField
   value: boolean
   runAtIngest?: boolean
@@ -144,6 +151,7 @@ export interface L2BoolCondition {
 export interface L2MediaCondition {
   type: 'media'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'is' | 'is_not'
   kinds: L2MediaKind[]
   /** Compile into project ingest gate when live (default true). */
@@ -154,6 +162,7 @@ export interface L2MediaCondition {
 export interface L2PostKindCondition {
   type: 'post_kind'
   id: string
+  paramControlMode?: L2ParamControlMode
   kinds: ('root' | 'reply' | 'quote' | 'repost')[]
   op: 'is' | 'is_not'
   runAtIngest?: boolean
@@ -163,6 +172,7 @@ export interface L2PostKindCondition {
 export interface L2LanguageCondition {
   type: 'language'
   id: string
+  paramControlMode?: L2ParamControlMode
   allow: string[]
   unknown: 'include' | 'exclude'
   runAtIngest?: boolean
@@ -171,6 +181,7 @@ export interface L2LanguageCondition {
 export interface L2LabelsCondition {
   type: 'labels'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'includes' | 'excludes'
   values: string[]
   /** all = self + labeler; self = record only; labeler = resolved moderation only */
@@ -183,6 +194,7 @@ export interface L2LabelsCondition {
 export interface L2HashtagCondition {
   type: 'hashtag'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'includes' | 'excludes'
   tags: string[]
   /** Compile into project ingest gate when live (default true). */
@@ -193,6 +205,7 @@ export interface L2HashtagCondition {
 export interface L2UrlCondition {
   type: 'url'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'includes' | 'excludes'
   patterns: string[]
   sources: import('./post-record.js').PostUrlSource[]
@@ -203,6 +216,7 @@ export interface L2UrlCondition {
 export interface L2MentionCondition {
   type: 'mention'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'includes' | 'excludes'
   /** Handles (user.bsky.social) or DIDs (did:plc:…). Resolved before eval. */
   accounts: string[]
@@ -223,6 +237,7 @@ export type L2MediaTypeValue = 0 | 1 | 2 | 3 | 4 | 5
 export interface L2MediaTypeCondition {
   type: 'media_type'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'is' | 'is_not'
   mediaTypes: L2MediaTypeValue[]
 }
@@ -231,6 +246,7 @@ export interface L2MediaTypeCondition {
 export interface L2AltTextCondition {
   type: 'alt_text'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'has' | 'missing'
 }
 
@@ -238,6 +254,7 @@ export interface L2AltTextCondition {
 export interface L2PostAgeCondition {
   type: 'post_age'
   id: string
+  paramControlMode?: L2ParamControlMode
   /** newer_than = within last N hours; older_than = at least N hours old */
   op: 'newer_than' | 'older_than'
   hours: number
@@ -248,6 +265,7 @@ export interface L2PostAgeCondition {
 export interface L2MediaStatsCondition {
   type: 'media_stats'
   id: string
+  paramControlMode?: L2ParamControlMode
   metric: L2MediaStatMetric
   op: L2CompareOp
   value: number
@@ -257,6 +275,7 @@ export interface L2MediaStatsCondition {
 export interface L2MimeTypeCondition {
   type: 'mime_type'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'includes' | 'excludes'
   /** Substring match against any embed mime (case-insensitive). */
   pattern: string
@@ -265,6 +284,7 @@ export interface L2MimeTypeCondition {
 export interface L2AuthorCondition {
   type: 'author'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'in_list' | 'not_in_list'
   /** Manual DIDs or cached list id from author_list_cache */
   listId?: string
@@ -285,6 +305,7 @@ export interface L2AuthorCondition {
 export interface L2FollowRingCondition {
   type: 'follow_ring'
   id: string
+  paramControlMode?: L2ParamControlMode
   op: 'includes' | 'excludes'
   /** account = fixed hub (cached at ingest); viewer = viewing user at skeleton serve */
   hubSource?: import('./follow-ring.js').FollowRingHubSource
@@ -303,6 +324,7 @@ export interface L2FollowRingCondition {
 export interface L2CompareCondition {
   type: 'compare'
   id: string
+  paramControlMode?: L2ParamControlMode
   left: L2Expr
   op: L2CompareOp
   right: L2Expr
@@ -312,6 +334,7 @@ export interface L2CompareCondition {
 export interface L2ScoreCondition {
   type: 'score'
   id: string
+  paramControlMode?: L2ParamControlMode
   /** Points added to post's editor_score when it passes through this node. */
   points: number
 }
@@ -320,6 +343,7 @@ export interface L2ScoreCondition {
 export interface L2GrazeStubCondition {
   type: 'graze_stub'
   id: string
+  paramControlMode?: L2ParamControlMode
   grazeType: string
   payload: unknown
   title?: string
@@ -329,6 +353,7 @@ export interface L2GrazeStubCondition {
 export interface L2LogicBlockRefCondition {
   type: 'logic_block_ref'
   id: string
+  paramControlMode?: L2ParamControlMode
   packageId: string
   versionPin: string
   label?: string
@@ -429,19 +454,13 @@ export interface L2ParametersCondition {
 }
 
 /**
- * How Parameters interact with bound properties on a target node.
- * - override_when_on (default): Param ON overrides; OFF leaves the node alone.
- * - full_control: Param ON and OFF both write (OFF uses the inverse pole).
- */
-export type L2ParamControlMode = 'override_when_on' | 'full_control'
-
-/**
  * Substitute node — consumes matching posts as votes toward a related post.
  * When vote count reaches threshold, the target post enters the pathway.
  */
 export interface L2SubstituteCondition {
   type: 'substitute'
   id: string
+  paramControlMode?: L2ParamControlMode
   /** Which direction to resolve the target post. */
   direction: import('./substitution.js').SubstitutionDirection
   /** Number of votes needed before target enters the pathway. Default 1. */
@@ -457,6 +476,7 @@ export interface L2SubstituteCondition {
 export interface L2ScoutCondition {
   type: 'scout'
   id: string
+  paramControlMode?: L2ParamControlMode
   /** Manual scout DIDs. */
   scouts?: string[]
   /** Auto-derive scouts from pool data. */
