@@ -436,9 +436,9 @@ function TargetBindingsEditor({
                           </p>
                         ) : (
                           <p className="card-hint">
-                            Turn one on, then author the list used when this toggle is{' '}
-                            <strong>on</strong> vs <strong>off</strong>. The toggle is the trigger;
-                            replace/merge chooses how it applies.
+                            Node keeps its own terms (always editable). When this toggle is{' '}
+                            <strong>on</strong>, Param terms either <strong>replace</strong> them or{' '}
+                            <strong>merge</strong> onto them. When off, only the node’s terms are used.
                           </p>
                         )}
                         <div className="l2-param-bind-toggles">
@@ -457,8 +457,8 @@ function TargetBindingsEditor({
                                 ? `Replace “${field.label}” with this Param’s list`
                                 : `Replace “${field.label}” with this Param’s text`
                               : isList
-                                ? `Drive “${field.label}” with on/off lists`
-                                : `Drive “${field.label}” with on/off text`
+                                ? `Drive “${field.label}” when toggle is on`
+                                : `Drive “${field.label}” when toggle is on`
 
                             return (
                               <div
@@ -493,13 +493,8 @@ function TargetBindingsEditor({
                                         ...rest,
                                         bindingFromBindableField(nodeId, field, {
                                           listMode: 'replace',
-                                          listValue: isList ? listSeed : undefined,
-                                          listWhenOff: isList ? [] : undefined,
-                                          value: !isList
-                                            ? typeof seed === 'string'
-                                              ? seed
-                                              : ''
-                                            : undefined,
+                                          listValue: isList ? [] : undefined,
+                                          value: !isList ? '' : undefined,
                                         }),
                                       ])
                                       return
@@ -543,7 +538,7 @@ function TargetBindingsEditor({
                                 {active && controlType === 'boolean' ? (
                                   <>
                                     <div className="l2-inspector-field">
-                                      <span>Terms when toggle is ON</span>
+                                      <span>Extra terms when toggle is ON</span>
                                       {isList ? (
                                         <TermListEditor
                                           terms={existing?.listValue ?? []}
@@ -562,7 +557,6 @@ function TargetBindingsEditor({
                                               ...rest,
                                               bindingFromBindableField(nodeId, field, {
                                                 listValue,
-                                                listWhenOff: existing?.listWhenOff ?? [],
                                                 listMode: existing?.listMode ?? 'replace',
                                               }),
                                             ])
@@ -590,7 +584,6 @@ function TargetBindingsEditor({
                                               ...rest,
                                               bindingFromBindableField(nodeId, field, {
                                                 listValue: text ? [text] : [],
-                                                listWhenOff: existing?.listWhenOff,
                                                 listMode: existing?.listMode ?? 'replace',
                                                 value: text,
                                               }),
@@ -599,58 +592,10 @@ function TargetBindingsEditor({
                                         />
                                       )}
                                     </div>
-                                    <div className="l2-inspector-field">
-                                      <span>Terms when toggle is OFF</span>
-                                      {isList ? (
-                                        <TermListEditor
-                                          terms={existing?.listWhenOff ?? []}
-                                          readOnly={readOnly}
-                                          placeholder="term"
-                                          itemNoun="term"
-                                          onChange={(listWhenOff) => {
-                                            const rest = nodeBindings.filter(
-                                              (b) =>
-                                                !(
-                                                  b.kind === 'property' &&
-                                                  bindingMatchesField(b, field)
-                                                ),
-                                            )
-                                            setBindingsFor(nodeId, [
-                                              ...rest,
-                                              bindingFromBindableField(nodeId, field, {
-                                                listValue: existing?.listValue ?? [],
-                                                listWhenOff,
-                                                listMode: existing?.listMode ?? 'replace',
-                                              }),
-                                            ])
-                                          }}
-                                        />
-                                      ) : (
-                                        <BlurCommitInput
-                                          disabled={readOnly}
-                                          value={(existing?.listWhenOff ?? [])[0] ?? ''}
-                                          placeholder="text when off (empty clears)"
-                                          onCommit={(text) => {
-                                            const rest = nodeBindings.filter(
-                                              (b) =>
-                                                !(
-                                                  b.kind === 'property' &&
-                                                  bindingMatchesField(b, field)
-                                                ),
-                                            )
-                                            setBindingsFor(nodeId, [
-                                              ...rest,
-                                              bindingFromBindableField(nodeId, field, {
-                                                listValue: existing?.listValue,
-                                                listWhenOff: text ? [text] : [],
-                                                listMode: existing?.listMode ?? 'replace',
-                                                value: existing?.value,
-                                              }),
-                                            ])
-                                          }}
-                                        />
-                                      )}
-                                    </div>
+                                    <p className="card-hint">
+                                      When OFF, the node uses only the terms authored on the node
+                                      itself (still editable there).
+                                    </p>
                                   </>
                                 ) : null}
                                 {active && allowAbsoluteValue && controlType === 'enum' ? (
@@ -712,7 +657,7 @@ function TargetBindingsEditor({
                                 ) : null}
                                 {active ? (
                                   <label className="l2-param-when-on">
-                                    Apply mode
+                                    Apply when ON
                                     <select
                                       disabled={readOnly}
                                       value={existing?.listMode ?? 'replace'}
@@ -736,8 +681,12 @@ function TargetBindingsEditor({
                                         ])
                                       }}
                                     >
-                                      <option value="replace">Replace</option>
-                                      <option value="merge">Merge into existing</option>
+                                      <option value="replace">
+                                        Replace — use Param terms instead of the node’s
+                                      </option>
+                                      <option value="merge">
+                                        Merge — add Param terms onto the node’s
+                                      </option>
                                     </select>
                                   </label>
                                 ) : null}

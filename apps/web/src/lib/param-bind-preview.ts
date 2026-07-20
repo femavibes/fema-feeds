@@ -55,12 +55,14 @@ function formatForcedValue(
   target?: L2RuleNode,
 ): string {
   if (binding.kind !== 'property') return ''
-  if (binding.listValue !== undefined || binding.listWhenOff !== undefined) {
-    const onList = binding.listValue ?? (typeof binding.value === 'string' ? [String(binding.value)] : [])
-    const offList = binding.listWhenOff ?? []
-    return active
-      ? `= ${formatListPreview(onList)}${binding.listMode === 'merge' ? ' (merge)' : ''}`
-      : `= ${formatListPreview(offList)}${binding.listMode === 'merge' ? ' (merge)' : ''}`
+  if (binding.listValue !== undefined || binding.listMode) {
+    const onList =
+      binding.listValue ??
+      (typeof binding.value === 'string' ? [String(binding.value)] : [])
+    if (!active) return '→ node baseline (toggle off)'
+    return binding.listMode === 'merge'
+      ? `merge ${formatListPreview(onList)} onto node`
+      : `replace with ${formatListPreview(onList)}`
   }
   if (binding.member) {
     return active ? `add “${binding.member}”` : `remove “${binding.member}”`
@@ -71,7 +73,7 @@ function formatForcedValue(
   if (target) {
     const field = resolveBindableField(target, binding)
     if (field?.valueKind === 'string' || field?.valueKind === 'stringList') {
-      return active ? '= control value' : '= when-off list / empty'
+      return active ? '= control value' : '→ node baseline'
     }
     const polarity = field ? binaryEnumPolarity(field) : null
     if (polarity) {
@@ -360,16 +362,21 @@ export type ParamPropertyLock = {
   controlLabel: string
 }
 
-/** Properties on a target that are wired to any Parameter control (owned by params). */
+/** Properties on a target that Params own for editing (toggles/enums/members — not term baselines). */
 export function collectParamPropertyLocks(
   match: L2RuleGroup,
   targetId: string,
 ): ParamPropertyLock[] {
   const locks: ParamPropertyLock[] = []
   const seen = new Set<string>()
+  const byId = indexRuleNodesById(match)
+  const target = byId.get(targetId)
 
   const add = (b: L2ParamTargetBinding, controlLabel: string) => {
     if (b.kind !== 'property' || !b.property || b.nodeId !== targetId) return
+    // Term/text baselines stay editable on the node; Param only overlays when on.
+    const field = target ? resolveBindableField(target, b) : undefined
+    if (field?.valueKind === 'string' || field?.valueKind === 'stringList') return
     const key = `${b.property}::${b.member ?? ''}`
     if (seen.has(key)) return
     seen.add(key)

@@ -63,10 +63,11 @@ function coerceTextPayload(
 }
 
 /**
- * Resolve a string / stringList write. Text is exclusive (replace/merge), not AND.
- * - string / stringList controls: write the live control value
- * - boolean: listValue when on, listWhenOff when off (default [])
- * - enum option: listValue or string `value` when selected
+ * Resolve a string / stringList write.
+ * - Toggle OFF: no write (node keeps its authored baseline terms).
+ * - Toggle ON: listValue with replace or merge (composed across Param IDs later).
+ * - Dropdown option selected: listValue / value for that option.
+ * - Legacy string/stringList controls: write the live control value.
  */
 function resolveTextPropertyWrite(
   field: ParamBindableField,
@@ -88,15 +89,13 @@ function resolveTextPropertyWrite(
     else if (typeof opts.controlValue === 'string') payload = opts.controlValue
     else payload = opts.controlValue ? 'true' : ''
   } else if (opts.controlType === 'boolean') {
-    if (opts.active) {
-      payload =
-        binding.listValue ??
-        (typeof binding.value === 'string' || typeof binding.value === 'number'
-          ? String(binding.value)
-          : [])
-    } else {
-      payload = binding.listWhenOff ?? []
-    }
+    // Off → leave node baseline alone (no write).
+    if (!opts.active) return null
+    payload =
+      binding.listValue ??
+      (typeof binding.value === 'string' || typeof binding.value === 'number'
+        ? String(binding.value)
+        : [])
   } else if (opts.controlType === 'enum') {
     if (!opts.active) return null
     if (binding.listValue) payload = binding.listValue
@@ -112,23 +111,36 @@ function resolveTextPropertyWrite(
   }
 }
 
-function applyTextWrite(
-  node: L2RuleNode,
-  write: { property: string; value: string | string[]; mode: 'replace' | 'merge' },
-): void {
-  const rec = asRecord(node)
-  if (write.mode === 'merge' && Array.isArray(write.value)) {
-    rec[write.property] = mergeStringLists(asStringList(rec[write.property]), write.value)
-    return
+/**
+ * Compose text/list writes onto one field.
+ * - Only merge votes ON: baseline ∪ all merge lists.
+ * - Any replace vote ON: discard baseline; union all replace lists, then ∪ merge lists.
+ * Same Param ID is one vote (caller dedupes by param name).
+ */
+function composeTextFieldValue(
+  baseline: unknown,
+  votes: Array<{ value: string | string[]; mode: 'replace' | 'merge' }>,
+  asList: boolean,
+): string | string[] {
+  const replaces = votes.filter((v) => v.mode === 'replace')
+  const merges = votes.filter((v) => v.mode === 'merge')
+
+  let out: string[]
+  if (replaces.length > 0) {
+    out = []
+    for (const v of replaces) out = mergeStringLists(out, asStringList(v.value))
+    for (const v of merges) out = mergeStringLists(out, asStringList(v.value))
+  } else {
+    out = asList ? asStringList(baseline) : asStringList(baseline)
+    for (const v of merges) out = mergeStringLists(out, asStringList(v.value))
   }
-  if (write.mode === 'merge' && typeof write.value === 'string') {
-    const cur = typeof rec[write.property] === 'string' ? String(rec[write.property]) : ''
-    rec[write.property] = cur && write.value && !cur.includes(write.value)
-      ? `${cur} ${write.value}`
-      : write.value || cur
-    return
+
+  if (asList) return out
+  // string fields: join with space when composing multiple; single replace keeps one string
+  if (votes.length === 1 && !Array.isArray(votes[0]!.value)) {
+    return String(votes[0]!.value)
   }
-  rec[write.property] = write.value
+  return out.join(' ')
 }
 
 /**
@@ -545,8 +557,10 @@ function computePropertyWrite(
  * Apply property patches. Presence is already AND-style (any off strips).
  * Overlapping boolean / binary-enum / member binds from *different* Param IDs
  * AND together (all must agree for the “on/include” pole). Same Param ID on
- * multiple panels is one vote. Absolute enum values and text/list writes:
- * last walk wins (replace) or merge into the current field value.
+ * multiple panels is one vote.
+ * Text/list: toggle off = no write (node baseline). Toggle on replace/merge;
+ * multiple active replaces union their lists (baseline dropped); merges add
+ * onto baseline (or onto the replace union).
  */
 function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): void {
   const byId = indexRuleNodesById(root)
@@ -559,12 +573,11 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
     Map<string, { value: string; onValue: string; offValue: string }>
   >()
   const memberVotes = new Map<string, Map<string, boolean>>()
-  const textWrites: Array<{
-    nodeId: string
-    property: string
-    value: string | string[]
-    mode: 'replace' | 'merge'
-  }> = []
+  // nodeId::property → paramName → text write (same Param ID = one vote)
+  const textVotes = new Map<
+    string,
+    Map<string, { value: string | string[]; mode: 'replace' | 'merge' }>
+  >()
   const rawWrites: Array<{ nodeId: string; property: string; value: unknown }> = []
 
   const noteBool = (nodeId: string, property: string, paramName: string, value: boolean) => {
@@ -598,6 +611,18 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
     m.set(paramName, include)
     memberVotes.set(key, m)
   }
+  const noteText = (
+    nodeId: string,
+    property: string,
+    paramName: string,
+    value: string | string[],
+    mode: 'replace' | 'merge',
+  ) => {
+    const key = `${nodeId}::${property}`
+    const m = textVotes.get(key) ?? new Map()
+    m.set(paramName, { value, mode })
+    textVotes.set(key, m)
+  }
 
   const consider = (
     nodeId: string,
@@ -616,12 +641,7 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
     } else if (write.kind === 'member') {
       noteMember(nodeId, write.property, write.member, paramName, write.include)
     } else if (write.kind === 'text') {
-      textWrites.push({
-        nodeId,
-        property: write.property,
-        value: write.value,
-        mode: write.mode,
-      })
+      noteText(nodeId, write.property, paramName, write.value, write.mode)
     } else {
       rawWrites.push({ nodeId, property: write.property, value: write.value })
     }
@@ -697,10 +717,20 @@ function applyPropertyPatches(root: L2RuleGroup, overrides?: ParamValueMap): voi
     applyMember(target, property, member, include)
   }
 
-  for (const w of textWrites) {
-    const target = byId.get(w.nodeId)
-    if (!target) continue
-    applyTextWrite(target, w)
+  for (const [key, votes] of textVotes) {
+    const [nodeId, property] = key.split('::')
+    const target = byId.get(nodeId!)
+    if (!target || !property) continue
+    const field = resolveBindableField(target, {
+      property,
+    })
+    const asList = field?.valueKind !== 'string'
+    const baseline = asRecord(target)[property]
+    asRecord(target)[property] = composeTextFieldValue(
+      baseline,
+      [...votes.values()],
+      asList,
+    )
   }
 
   for (const w of rawWrites) {

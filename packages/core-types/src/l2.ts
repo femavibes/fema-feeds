@@ -380,9 +380,12 @@ export interface L2ParamTargetBinding {
    * when this enum option is selected. Boolean inactive uses `listWhenOff` (default []).
    */
   listValue?: string[]
-  /** Boolean Parameter + stringList: list when the toggle is off (default empty). */
+  /**
+   * Legacy: unused for toggle-off (off keeps the node’s authored baseline).
+   * Kept for older graphs that stored an explicit when-off list.
+   */
   listWhenOff?: string[]
-  /** How to apply list/string writes onto the node field (default replace). */
+  /** How to apply list/string writes when the control is active (default replace). */
   listMode?: 'replace' | 'merge'
 }
 

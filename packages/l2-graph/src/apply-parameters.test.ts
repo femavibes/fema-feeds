@@ -630,7 +630,7 @@ describe('applyParametersToMatch', () => {
     if (kw?.type === 'keyword') expect(kw.terms).toEqual(['alpha', 'beta'])
   })
 
-  it('boolean toggle swaps authored lists on keyword terms', () => {
+  it('boolean toggle replace/merge terms; off restores node baseline', () => {
     const tree: L2RuleGroup = {
       type: 'group',
       id: 'root',
@@ -651,7 +651,6 @@ describe('applyParametersToMatch', () => {
                   kind: 'property',
                   property: 'terms',
                   listValue: ['strict-a', 'strict-b'],
-                  listWhenOff: ['loose'],
                   listMode: 'replace',
                 },
               ],
@@ -674,7 +673,111 @@ describe('applyParametersToMatch', () => {
 
     const off = applyParametersToMatch(tree, { values: { strict: false } })
     const kwOff = off.children.find((c) => c.id === 'kw')
-    if (kwOff?.type === 'keyword') expect(kwOff.terms).toEqual(['loose'])
+    if (kwOff?.type === 'keyword') expect(kwOff.terms).toEqual(['authored'])
+
+    const mergeTree: L2RuleGroup = {
+      ...tree,
+      children: [
+        {
+          type: 'parameters',
+          id: 'p',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Strict terms',
+              type: 'boolean',
+              default: true,
+              bindings: [
+                {
+                  nodeId: 'kw',
+                  kind: 'property',
+                  property: 'terms',
+                  listValue: ['extra'],
+                  listMode: 'merge',
+                },
+              ],
+            },
+          ],
+          values: { strict: true },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['authored'],
+          fields: ['text'],
+        },
+      ],
+    }
+    const merged = applyParametersToMatch(mergeTree)
+    const kwM = merged.children.find((c) => c.id === 'kw')
+    if (kwM?.type === 'keyword') expect(kwM.terms).toEqual(['authored', 'extra'])
+  })
+
+  it('two replace toggles both on union their lists (drop node baseline)', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'p1',
+          controls: [
+            {
+              name: 'a',
+              label: 'A',
+              type: 'boolean',
+              default: true,
+              bindings: [
+                {
+                  nodeId: 'kw',
+                  kind: 'property',
+                  property: 'terms',
+                  listValue: ['from-a', 'shared'],
+                  listMode: 'replace',
+                },
+              ],
+            },
+          ],
+          values: { a: true },
+        },
+        {
+          type: 'parameters',
+          id: 'p2',
+          controls: [
+            {
+              name: 'b',
+              label: 'B',
+              type: 'boolean',
+              default: true,
+              bindings: [
+                {
+                  nodeId: 'kw',
+                  kind: 'property',
+                  property: 'terms',
+                  listValue: ['from-b', 'shared'],
+                  listMode: 'replace',
+                },
+              ],
+            },
+          ],
+          values: { b: true },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['baseline'],
+          fields: ['text'],
+        },
+      ],
+    }
+    const out = applyParametersToMatch(tree)
+    const kw = out.children.find((c) => c.id === 'kw')
+    if (kw?.type === 'keyword') {
+      expect(kw.terms?.slice().sort()).toEqual(['from-a', 'from-b', 'shared'].sort())
+    }
   })
 
   it('enum option presets merge into url patterns', () => {
