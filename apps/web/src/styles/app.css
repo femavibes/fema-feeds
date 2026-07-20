@@ -8334,6 +8334,34 @@ body.l2-visual-open #root {
   color: var(--text, #0f172a);
 }
 
+.l2-param-list-preview-banner {
+  margin: 0 0 0.55rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  background: color-mix(in srgb, var(--ok, #2f9e44) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ok, #2f9e44) 32%, transparent);
+  color: var(--text, #0f172a);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.l2-param-list-preview-banner--idle {
+  background: var(--surface-2, #f8fafc);
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+
+.l2-param-list-preview-line {
+  margin: 0;
+}
+
+.l2-param-list-preview-base {
+  color: var(--text-muted);
+}
+
 .l2-param-effect-preview {
   margin: 0.35rem 0 0.15rem;
   padding: 0.35rem 0.45rem;

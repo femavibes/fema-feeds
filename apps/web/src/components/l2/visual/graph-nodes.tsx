@@ -6,6 +6,7 @@ import {
   applyParametersToMatch,
   buildParamValueMap,
   collectParamAndBlockers,
+  collectParamListFieldPreviews,
   conditionCollapseMetrics,
   conditionExpandMetrics,
   getConditionExpandBodyHeight,
@@ -464,6 +465,7 @@ function ConditionExpandProperties({
     ? indexRuleNodesById(applyParametersToMatch(match)).get(nodeId)
     : undefined
   const display = overlayParamLockedValues(rule, effective, locks)
+  const listPreviews = match ? collectParamListFieldPreviews(match, nodeId) : []
 
   useLayoutEffect(() => {
     const el = bodyRef.current
@@ -479,7 +481,7 @@ function ConditionExpandProperties({
     const ro = new ResizeObserver(publish)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [nodeId, expandApi, display, locks.length, readOnly])
+  }, [nodeId, expandApi, display, locks.length, listPreviews, readOnly])
 
   return (
     <div
@@ -500,6 +502,7 @@ function ConditionExpandProperties({
         readOnly={readOnly}
         paramLockedProps={paramLockedPropertySet(locks)}
         paramLockHint={locks.length ? paramLockSummary(locks) : undefined}
+        paramListPreviews={listPreviews}
       />
     </div>
   )
@@ -515,7 +518,12 @@ function ConditionTeaserBody({
 }) {
   const expandApi = useNodeExpand()
   if (!rule) return null
-  const metrics = conditionCollapseMetrics(rule)
+  // Show live Param-applied lists on the teaser (merge/replace), not just authored baseline.
+  const teaserRule =
+    expandApi?.match
+      ? indexRuleNodesById(applyParametersToMatch(expandApi.match)).get(nodeId) ?? rule
+      : rule
+  const metrics = conditionCollapseMetrics(teaserRule)
   if (metrics.textLines.length === 0 && metrics.profileRows === 0) return null
 
   const onExpand =

@@ -27,6 +27,7 @@ import {
   applyParametersToMatch,
   collectExcludedNodeIds,
   collectParamControls,
+  collectParamListFieldPreviews,
   indexRuleNodesById,
   syncSharedParamControlFromPanel,
 } from '@cfb/l2-graph'
@@ -187,6 +188,10 @@ export function L2PropertiesInspector({
   const paramLocks =
     selected && selected.type !== 'group' && selected.type !== 'parameters'
       ? collectParamPropertyLocks(match, selected.id)
+      : []
+  const paramListPreviews =
+    selected && selected.type !== 'group' && selected.type !== 'parameters'
+      ? collectParamListFieldPreviews(match, selected.id)
       : []
   const displaySelected =
     selected && selected.type !== 'group' && selected.type !== 'parameters'
@@ -875,6 +880,8 @@ export function L2PropertiesInspector({
                   paramLockedProps={paramLockedPropertySet(paramLocks)}
 
                   paramLockHint={paramLocks.length ? paramLockSummary(paramLocks) : undefined}
+
+                  paramListPreviews={paramListPreviews}
 
                   projectAuthorLists={projectAuthorLists}
 

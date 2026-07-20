@@ -8,6 +8,7 @@ import {
   countParamControlPanels,
   syncSharedParamControlFromPanel,
   collectParamAndBlockers,
+  collectParamListFieldPreviews,
   formatParamAndBlockHint,
 } from './apply-parameters.js'
 
@@ -778,6 +779,11 @@ describe('applyParametersToMatch', () => {
     if (kw?.type === 'keyword') {
       expect(kw.terms?.slice().sort()).toEqual(['from-a', 'from-b', 'shared'].sort())
     }
+
+    const preview = collectParamListFieldPreviews(tree, 'kw')
+    expect(preview[0]?.changed).toBe(true)
+    expect(preview[0]?.authored).toEqual(['baseline'])
+    expect(preview[0]?.effective.slice().sort()).toEqual(['from-a', 'from-b', 'shared'].sort())
   })
 
   it('enum option presets merge into url patterns', () => {

@@ -492,7 +492,7 @@ function TargetBindingsEditor({
                                       setBindingsFor(nodeId, [
                                         ...rest,
                                         bindingFromBindableField(nodeId, field, {
-                                          listMode: 'replace',
+                                          listMode: 'merge',
                                           listValue: isList ? [] : undefined,
                                           value: !isList ? '' : undefined,
                                         }),
@@ -557,7 +557,7 @@ function TargetBindingsEditor({
                                               ...rest,
                                               bindingFromBindableField(nodeId, field, {
                                                 listValue,
-                                                listMode: existing?.listMode ?? 'replace',
+                                                listMode: existing?.listMode ?? 'merge',
                                               }),
                                             ])
                                           }}
@@ -584,7 +584,7 @@ function TargetBindingsEditor({
                                               ...rest,
                                               bindingFromBindableField(nodeId, field, {
                                                 listValue: text ? [text] : [],
-                                                listMode: existing?.listMode ?? 'replace',
+                                                listMode: existing?.listMode ?? 'merge',
                                                 value: text,
                                               }),
                                             ])
@@ -592,9 +592,40 @@ function TargetBindingsEditor({
                                         />
                                       )}
                                     </div>
+                                    {(() => {
+                                      const baseline = seedFromTargetField(target, field)
+                                      const baseList = Array.isArray(baseline)
+                                        ? baseline
+                                        : typeof baseline === 'string' && baseline
+                                          ? [baseline]
+                                          : []
+                                      const extra = existing?.listValue ?? []
+                                      const mode = existing?.listMode ?? 'merge'
+                                      const liveOn =
+                                        controlLiveValue === true ||
+                                        controlLiveValue === 'true' ||
+                                        controlLiveValue === undefined
+                                      const effective = !liveOn
+                                        ? baseList
+                                        : mode === 'merge'
+                                          ? [
+                                              ...baseList,
+                                              ...extra.filter((t) => !baseList.includes(t)),
+                                            ]
+                                          : extra
+                                      return (
+                                        <p className="l2-param-bind-text-active-hint">
+                                          {liveOn ? 'Toggle ON → live ' : 'Toggle OFF → live '}
+                                          {field.label}:{' '}
+                                          {effective.length === 0
+                                            ? '(empty)'
+                                            : effective.map((t) => `“${t}”`).join(', ')}
+                                        </p>
+                                      )
+                                    })()}
                                     <p className="card-hint">
-                                      When OFF, the node uses only the terms authored on the node
-                                      itself (still editable there).
+                                      Edit the node’s own terms on the keyword (baseline). When OFF,
+                                      only that baseline is used.
                                     </p>
                                   </>
                                 ) : null}
@@ -660,10 +691,10 @@ function TargetBindingsEditor({
                                     Apply when ON
                                     <select
                                       disabled={readOnly}
-                                      value={existing?.listMode ?? 'replace'}
+                                      value={existing?.listMode ?? 'merge'}
                                       onChange={(e) => {
                                         const listMode =
-                                          e.target.value === 'merge' ? 'merge' : 'replace'
+                                          e.target.value === 'replace' ? 'replace' : 'merge'
                                         const rest = nodeBindings.filter(
                                           (b) =>
                                             !(
@@ -1351,6 +1382,7 @@ function ParamControlCard({
             match={match}
             nodeLabels={nodeLabels}
             controlType="boolean"
+            controlLiveValue={liveValue}
             hint="Targets (presence and/or property)"
             onChange={(next) => patch({ bindings: next, targetNodeIds: undefined })}
           />

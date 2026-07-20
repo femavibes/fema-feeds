@@ -89,6 +89,7 @@ export {
   collectExcludedNodeIds,
   collectParamAndBlockers,
   collectParamControls,
+  collectParamListFieldPreviews,
   collectParameterNodes,
   countParamControlPanels,
   findParamControlByName,
@@ -102,6 +103,7 @@ export {
   type ApplyParametersOptions,
   type ParamAndBlockInfo,
   type ParamAndBlockedTarget,
+  type ParamListFieldPreview,
   type ParamValueMap,
 } from './apply-parameters.js'
 export {

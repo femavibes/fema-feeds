@@ -745,6 +745,83 @@ export type ApplyParametersOptions = {
   values?: ParamValueMap
 }
 
+export type ParamListFieldPreview = {
+  property: string
+  label: string
+  authored: string[]
+  effective: string[]
+  /** True when Params change the live list vs the node baseline. */
+  changed: boolean
+}
+
+/**
+ * For a target node: authored vs live (after applyParameters) list/string fields
+ * that any Param currently drives. Used so the UI can show merge/replace results
+ * while the baseline stays editable.
+ */
+export function collectParamListFieldPreviews(
+  root: L2RuleGroup,
+  nodeId: string,
+  overrides?: ParamValueMap,
+): ParamListFieldPreview[] {
+  const byId = indexRuleNodesById(root)
+  const authored = byId.get(nodeId)
+  if (!authored || authored.type === 'parameters' || authored.type === 'group') return []
+
+  const driven = new Set<string>()
+  const walk = (node: L2RuleNode) => {
+    if (isParametersNode(node)) {
+      for (const control of node.controls ?? []) {
+        const bindings =
+          control.type === 'enum'
+            ? (control.options ?? []).flatMap((o) => normalizeOptionBindings(o))
+            : normalizeControlBindings(control)
+        for (const b of bindings) {
+          if (b.kind !== 'property' || b.nodeId !== nodeId || !b.property) continue
+          const field = resolveBindableField(authored, b)
+          if (field?.valueKind === 'string' || field?.valueKind === 'stringList') {
+            driven.add(b.property)
+          }
+        }
+      }
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  if (driven.size === 0) return []
+
+  const effectiveRoot = applyParametersToMatch(root, { values: overrides })
+  const effective = indexRuleNodesById(effectiveRoot).get(nodeId)
+  if (!effective) return []
+
+  const authRec = asRecord(authored)
+  const effRec = asRecord(effective)
+  const out: ParamListFieldPreview[] = []
+  for (const property of driven) {
+    const field = resolveBindableField(authored, { property })
+    const label = field?.label ?? property
+    const authoredList =
+      field?.valueKind === 'string'
+        ? typeof authRec[property] === 'string' && authRec[property]
+          ? [String(authRec[property])]
+          : []
+        : asStringList(authRec[property])
+    const effectiveList =
+      field?.valueKind === 'string'
+        ? typeof effRec[property] === 'string' && effRec[property]
+          ? [String(effRec[property])]
+          : []
+        : asStringList(effRec[property])
+    const changed =
+      [...authoredList].sort().join('\0') !== [...effectiveList].sort().join('\0')
+    out.push({ property, label, authored: authoredList, effective: effectiveList, changed })
+  }
+  return out
+}
+
 /**
  * Compile parameters away:
  * 1) apply property patches

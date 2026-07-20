@@ -70,6 +70,17 @@ interface Props {
   paramLockedProps?: ReadonlySet<string>
   /** Short explanation of which Parameter owns locked fields. */
   paramLockHint?: string
+  /**
+   * Live list/string fields after Params apply (baseline stays in the editors above).
+   * Shows merge/replace results so the effect is visible.
+   */
+  paramListPreviews?: Array<{
+    property: string
+    label: string
+    authored: string[]
+    effective: string[]
+    changed: boolean
+  }>
 }
 
 export function ConditionRow({
@@ -92,6 +103,7 @@ export function ConditionRow({
   canvasEmbed = false,
   paramLockedProps,
   paramLockHint,
+  paramListPreviews,
 }: Props) {
   const termScroll = useTermListScrollHeight(
     fillHeight && node.type === 'keyword',
@@ -109,6 +121,31 @@ export function ConditionRow({
       {paramLockHint ? (
         <p className="l2-param-lock-banner" title={paramLockHint}>
           Showing live Parameter values — locked settings change when you flip the Parameter.
+        </p>
+      ) : null}
+      {paramListPreviews && paramListPreviews.some((p) => p.changed) ? (
+        <div className="l2-param-list-preview-banner">
+          {paramListPreviews
+            .filter((p) => p.changed)
+            .map((p) => (
+              <p key={p.property} className="l2-param-list-preview-line">
+                <strong>Live {p.label}:</strong>{' '}
+                {p.effective.length === 0
+                  ? '(empty)'
+                  : p.effective.map((t) => `“${t}”`).join(', ')}
+                <span className="l2-param-list-preview-base">
+                  {' '}
+                  · node baseline:{' '}
+                  {p.authored.length === 0
+                    ? '(empty)'
+                    : p.authored.map((t) => `“${t}”`).join(', ')}
+                </span>
+              </p>
+            ))}
+        </div>
+      ) : paramListPreviews && paramListPreviews.length > 0 ? (
+        <p className="l2-param-list-preview-banner l2-param-list-preview-banner--idle">
+          Param term binds are off (or match the node) — editing the list below is the live baseline.
         </p>
       ) : null}
       <div className="l2-condition-body">
