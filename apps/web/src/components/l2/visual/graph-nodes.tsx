@@ -305,9 +305,12 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
             <div key={control.name} className="l2-flow-parameters-control-row">
               <span className="l2-flow-parameters-enum-label" title={control.description || control.name}>
                 {control.label || control.name}
-                {list.length > 0 ? ` (${list.length})` : ''}
               </span>
-              <span className="card-hint">Edit list in Properties</span>
+              <span className="card-hint">
+                {list.length === 0
+                  ? 'Empty — edit terms in Properties'
+                  : `${list.slice(0, 3).join(', ')}${list.length > 3 ? ` +${list.length - 3}` : ''}`}
+              </span>
             </div>
           )
         }

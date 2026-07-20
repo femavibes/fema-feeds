@@ -62,8 +62,8 @@ function newStringControl(): L2ParamControl {
   const name = `text_${newId('p').slice(-4)}`
   return {
     name,
-    label: 'Text',
-    description: '',
+    label: 'Text field',
+    description: 'One string — bind to regex Pattern or legacy text Value',
     type: 'string',
     default: '',
     placeholder: '',
@@ -75,8 +75,8 @@ function newStringListControl(): L2ParamControl {
   const name = `list_${newId('p').slice(-4)}`
   return {
     name,
-    label: 'List',
-    description: '',
+    label: 'Term list',
+    description: 'List of terms — bind to keyword Terms, hashtag Tags, or URL patterns',
     type: 'stringList',
     default: [],
     placeholder: 'term',
@@ -87,8 +87,33 @@ function newStringListControl(): L2ParamControl {
 function controlKindLabel(type: L2ParamControl['type']): string {
   if (type === 'boolean') return 'Toggle'
   if (type === 'enum') return 'Dropdown'
-  if (type === 'string') return 'Text'
-  return 'List'
+  if (type === 'string') return 'Text field'
+  return 'Term list'
+}
+
+/** Current authored value on a target for seeding a text/list Param bind. */
+function seedFromTargetField(
+  target: { type: string } | undefined,
+  field: { key: string; property?: string; valueKind: string },
+): string | string[] | undefined {
+  if (!target) return undefined
+  const prop = field.property ?? field.key
+  const rec = target as unknown as Record<string, unknown>
+  const cur = rec[prop]
+  if (field.valueKind === 'stringList') {
+    return Array.isArray(cur) ? [...(cur as string[])] : []
+  }
+  if (field.valueKind === 'string') {
+    return typeof cur === 'string' ? cur : ''
+  }
+  return undefined
+}
+
+function isEmptyParamValue(value: L2ParamValue | undefined): boolean {
+  if (value === undefined || value === null) return true
+  if (Array.isArray(value)) return value.length === 0
+  if (typeof value === 'string') return value.trim() === ''
+  return false
 }
 
 /** Text field that keeps focus while typing; commits on blur. */
@@ -202,6 +227,8 @@ function TargetBindingsEditor({
   nodeLabels = {},
   allowAbsoluteValue,
   controlType = 'boolean',
+  controlLiveValue,
+  onSeedControlValue,
 }: {
   bindings: L2ParamTargetBinding[]
   readOnly: boolean
@@ -213,6 +240,10 @@ function TargetBindingsEditor({
   /** Enum options can set absolute property values when selected. */
   allowAbsoluteValue?: boolean
   controlType?: L2ParamControl['type']
+  /** Live value of the Param control (for seeding empty text/list controls). */
+  controlLiveValue?: L2ParamValue
+  /** Fill an empty text/list control from the target when first binding. */
+  onSeedControlValue?: (seed: string | string[]) => void
 }) {
   const [draftId, setDraftId] = useState('')
   const [collapsedTargets, setCollapsedTargets] = useState<Record<string, boolean>>({})
@@ -261,9 +292,9 @@ function TargetBindingsEditor({
     <div className="l2-param-target-ids">
       <span className="l2-param-target-ids-label">{hint}</span>
       <p className="card-hint">
-        Paste a node id, choose Presence (show/hide), then optionally which node settings this
-        control owns. Toggle/dropdown settings AND together when different Param IDs overlap.
-        Text/list fields use replace (or merge) — not AND.
+        Paste a node id, choose Presence (show/hide), then which settings this control owns.
+        Toggle/dropdown overlaps AND together. Text/list fields replace (or merge) — edit them
+        on this Param, not on the target node.
       </p>
       {nodeIds.map((nodeId) => {
         const target = byId.get(nodeId)
@@ -387,28 +418,68 @@ function TargetBindingsEditor({
                             setBindingsFor(nodeId, rest)
                             return
                           }
+                          const seed = seedFromTargetField(target, field)
+                          const listSeed = Array.isArray(seed)
+                            ? seed
+                            : typeof seed === 'string' && seed
+                              ? [seed]
+                              : []
+                          if (controlType === 'boolean') {
+                            setBindingsFor(nodeId, [
+                              ...rest,
+                              bindingFromBindableField(nodeId, field, {
+                                listMode: 'replace',
+                                listValue: isList ? listSeed : undefined,
+                                listWhenOff: isList ? [] : undefined,
+                                value: !isList
+                                  ? typeof seed === 'string'
+                                    ? seed
+                                    : ''
+                                  : undefined,
+                              }),
+                            ])
+                            return
+                          }
+                          if (controlType === 'enum' && allowAbsoluteValue) {
+                            setBindingsFor(nodeId, [
+                              ...rest,
+                              bindingFromBindableField(nodeId, field, {
+                                listMode: 'replace',
+                                listValue: isList ? listSeed : undefined,
+                                value: !isList
+                                  ? typeof seed === 'string'
+                                    ? seed
+                                    : ''
+                                  : undefined,
+                              }),
+                            ])
+                            return
+                          }
                           setBindingsFor(nodeId, [
                             ...rest,
-                            bindingFromBindableField(nodeId, field, {
-                              listMode: 'replace',
-                              listValue: isList ? [] : undefined,
-                              listWhenOff: controlType === 'boolean' && isList ? [] : undefined,
-                              value: !isList && allowAbsoluteValue ? '' : undefined,
-                            }),
+                            bindingFromBindableField(nodeId, field, { listMode: 'replace' }),
                           ])
+                          if (
+                            seed !== undefined &&
+                            isEmptyParamValue(controlLiveValue) &&
+                            onSeedControlValue
+                          ) {
+                            onSeedControlValue(seed)
+                          }
                         }}
                       />
                       {active ? (
                         <>
                           {(controlType === 'string' || controlType === 'stringList') ? (
                             <span className="card-hint">
-                              Writes this control’s live value onto {field.label}.
+                              Edit the list/text on this Param (above). It owns {field.label} —
+                              that field is locked on the target node.
                             </span>
                           ) : null}
                           {controlType === 'boolean' ? (
                             <>
-                              <label className="l2-inspector-field">
-                                When on
+                              <div className="l2-inspector-field">
+                                <span>When on</span>
                                 {isList ? (
                                   <TermListEditor
                                     terms={existing?.listValue ?? []}
@@ -457,9 +528,9 @@ function TargetBindingsEditor({
                                     }}
                                   />
                                 )}
-                              </label>
-                              <label className="l2-inspector-field">
-                                When off
+                              </div>
+                              <div className="l2-inspector-field">
+                                <span>When off</span>
                                 {isList ? (
                                   <TermListEditor
                                     terms={existing?.listWhenOff ?? []}
@@ -503,12 +574,12 @@ function TargetBindingsEditor({
                                     }}
                                   />
                                 )}
-                              </label>
+                              </div>
                             </>
                           ) : null}
                           {allowAbsoluteValue && controlType === 'enum' ? (
-                            <label className="l2-inspector-field">
-                              Value for this option
+                            <div className="l2-inspector-field">
+                              <span>Value for this option</span>
                               {isList ? (
                                 <TermListEditor
                                   terms={existing?.listValue ?? []}
@@ -553,7 +624,7 @@ function TargetBindingsEditor({
                                   }}
                                 />
                               )}
-                            </label>
+                            </div>
                           ) : null}
                           <label className="l2-param-when-on">
                             Apply mode
@@ -897,13 +968,13 @@ export function ParametersNodeEditor({
       </label>
 
       <p className="card-hint">
-        Paste a node id — we resolve its type and list its toggles. Shared Param IDs stay fully in
-        sync. Different Param IDs can both touch the same setting — they AND together (like
-        Presence: all must be on for the setting to stay on).
+        Paste a node id — we resolve its type and list bindable settings. Shared Param IDs stay
+        fully in sync. Text field = one string (regex Pattern). Term list = keywords/tags/URL
+        patterns — edit those on the Param, not on the target node.
       </p>
 
       {controls.length === 0 ? (
-        <p className="l2-parameters-empty">No controls yet. Add a toggle, dropdown, text, or list.</p>
+        <p className="l2-parameters-empty">No controls yet. Add a toggle, dropdown, text field, or term list.</p>
       ) : null}
 
       {controls.map((control, index) => (
@@ -931,10 +1002,10 @@ export function ParametersNodeEditor({
             Add dropdown
           </button>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newStringControl)}>
-            Add text
+            Add text field
           </button>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newStringListControl)}>
-            Add list
+            Add term list
           </button>
         </div>
       ) : null}
@@ -1227,6 +1298,10 @@ function ParamControlCard({
         </>
       ) : control.type === 'string' ? (
         <>
+          <p className="card-hint">
+            Single string for consumers. Bind to a regex <strong>Pattern</strong> (or text Value) —
+            not keyword Terms (use Term list for those).
+          </p>
           <div className="l2-param-field-row">
             <label className="l2-inspector-field">
               Default
@@ -1247,52 +1322,54 @@ function ParamControlCard({
               />
             </label>
           </div>
-          <label className="l2-inspector-field">
-            Placeholder
-            <BlurCommitInput
-              value={control.placeholder ?? ''}
-              disabled={readOnly}
-              onCommit={(placeholder) => patch({ placeholder })}
-            />
-          </label>
           <TargetBindingsEditor
             bindings={bindings}
             readOnly={readOnly}
             match={match}
             nodeLabels={nodeLabels}
             controlType="string"
+            controlLiveValue={liveValue}
+            onSeedControlValue={(seed) => onLiveValue(Array.isArray(seed) ? seed.join(' ') : seed)}
             hint="Targets (property writes this text)"
             onChange={(next) => patch({ bindings: next, targetNodeIds: undefined })}
           />
         </>
       ) : control.type === 'stringList' ? (
         <>
-          <label className="l2-inspector-field">
-            Default list
+          <p className="card-hint">
+            Edit terms here, then bind <strong>Terms</strong> / <strong>Tags</strong> /{' '}
+            <strong>URL patterns</strong> on a target. The target field locks — this list is the
+            source of truth.
+          </p>
+          <div className="l2-inspector-field">
+            <span>Terms (this feed)</span>
             <TermListEditor
-              terms={Array.isArray(control.default) ? control.default : []}
+              terms={
+                Array.isArray(liveValue)
+                  ? liveValue
+                  : Array.isArray(control.default)
+                    ? control.default
+                    : []
+              }
               readOnly={readOnly}
               placeholder={control.placeholder || 'term'}
-              itemNoun="item"
-              onChange={(defaultList) => patch({ default: defaultList })}
+              itemNoun="term"
+              onChange={(list) => {
+                onLiveValue(list)
+                if (isEmptyParamValue(control.default)) patch({ default: list })
+              }}
             />
-          </label>
-          <label className="l2-inspector-field">
-            Live list (this feed)
-            <TermListEditor
-              terms={Array.isArray(liveValue) ? liveValue : []}
-              readOnly={readOnly}
-              placeholder={control.placeholder || 'term'}
-              itemNoun="item"
-              onChange={(list) => onLiveValue(list)}
-            />
-          </label>
+          </div>
           <TargetBindingsEditor
             bindings={bindings}
             readOnly={readOnly}
             match={match}
             nodeLabels={nodeLabels}
             controlType="stringList"
+            controlLiveValue={liveValue}
+            onSeedControlValue={(seed) =>
+              onLiveValue(Array.isArray(seed) ? seed : seed ? [seed] : [])
+            }
             hint="Targets (property writes this list)"
             onChange={(next) => patch({ bindings: next, targetNodeIds: undefined })}
           />

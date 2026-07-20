@@ -120,7 +120,7 @@ export function ConditionRow({
               showRemove={showRemove}
             />
             <select
-              disabled={readOnly}
+              disabled={locked('op')}
               value={node.op}
               onChange={(e) => onChange({ ...node, op: e.target.value as typeof node.op })}
             >
@@ -131,6 +131,7 @@ export function ConditionRow({
             </select>
             <input
               value={node.value}
+              disabled={locked('value')}
               onChange={(e) => onChange({ ...node, value: e.target.value })}
               placeholder="term"
             />
@@ -189,7 +190,7 @@ export function ConditionRow({
                 placeholder="fema"
                 searchable
                 caseSensitive={node.caseSensitive === true}
-                readOnly={readOnly}
+                readOnly={locked('terms')}
               />
             </div>
           </div>
@@ -239,7 +240,7 @@ export function ConditionRow({
               pattern={node.pattern}
               caseInsensitive={node.caseInsensitive !== false}
               onChange={(pattern) => onChange({ ...node, pattern })}
-              readOnly={readOnly}
+              readOnly={locked('pattern')}
             />
           </div>
         )}
@@ -279,7 +280,7 @@ export function ConditionRow({
                 searchable
                 stripHash
                 itemNoun="hashtag"
-                readOnly={readOnly}
+                readOnly={locked('tags')}
               />
             </div>
           </div>
@@ -333,7 +334,7 @@ export function ConditionRow({
                 searchable
                 caseSensitive={node.caseSensitive === true}
                 itemNoun="URL pattern"
-                readOnly={readOnly}
+                readOnly={locked('patterns')}
               />
             </div>
           </div>
