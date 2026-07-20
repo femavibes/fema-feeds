@@ -8281,7 +8281,7 @@ body.l2-visual-open #root {
 .l2-flow-condition-props {
   width: 100%;
   min-width: 0;
-  padding: 0.15rem 0.15rem 0.45rem;
+  padding: 0.15rem 0.15rem 0.2rem;
   box-sizing: border-box;
   overflow: visible;
 }

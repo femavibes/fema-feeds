@@ -20,4 +20,4 @@ export const PROPERTIES_EXPAND_LOADING_BODY_H = 220
 export const PROPERTIES_EXPAND_W = 400
 
 /** Extra px added under measured body so padding/search chrome isn’t clipped. */
-export const PROPERTIES_EXPAND_BODY_PAD = 36
+export const PROPERTIES_EXPAND_BODY_PAD = 12

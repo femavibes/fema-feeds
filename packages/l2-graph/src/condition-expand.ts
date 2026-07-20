@@ -45,7 +45,7 @@ export const COND_EXPAND_TITLE_H = 22
 export const COND_NAME_LINE_H = 16
 export const COND_COLLAPSED_H = 56
 /** Extra bottom inset so the last expand line isn’t flush with the border. */
-export const COND_EXPAND_BOTTOM_H = 24
+export const COND_EXPAND_BOTTOM_H = 16
 /** Collapsed teaser: show up to N list items / profiles, then “+N more”. */
 export const COND_TEASER_MAX = 3
 /** Expanded logic-block node width (mini frames need room). */
