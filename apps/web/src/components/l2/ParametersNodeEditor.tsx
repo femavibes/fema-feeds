@@ -58,37 +58,11 @@ function newEnumControl(): L2ParamControl {
   }
 }
 
-function newStringControl(): L2ParamControl {
-  const name = `text_${newId('p').slice(-4)}`
-  return {
-    name,
-    label: 'Text field',
-    description: 'One string — bind to regex Pattern or legacy text Value',
-    type: 'string',
-    default: '',
-    placeholder: '',
-    bindings: [],
-  }
-}
-
-function newStringListControl(): L2ParamControl {
-  const name = `list_${newId('p').slice(-4)}`
-  return {
-    name,
-    label: 'Term list',
-    description: 'List of terms — bind to keyword Terms, hashtag Tags, or URL patterns',
-    type: 'stringList',
-    default: [],
-    placeholder: 'term',
-    bindings: [],
-  }
-}
-
 function controlKindLabel(type: L2ParamControl['type']): string {
   if (type === 'boolean') return 'Toggle'
   if (type === 'enum') return 'Dropdown'
-  if (type === 'string') return 'Text field'
-  return 'Term list'
+  if (type === 'string') return 'Text field (legacy)'
+  return 'Term list (legacy)'
 }
 
 /** Current authored value on a target for seeding a text/list Param bind. */
@@ -454,18 +428,17 @@ function TargetBindingsEditor({
                         <span className="l2-param-bind-props-label">
                           {isTextParam
                             ? 'Write this Param into…'
-                            : 'Text / list fields to drive…'}
+                            : 'Term / text lists (toggle trigger)'}
                         </span>
                         {isTextParam ? (
                           <p className="card-hint">
-                            This is the important part. Turn one on so the Param’s{' '}
-                            {controlType === 'stringList' ? 'term list' : 'text'} replaces that
-                            input on the target node.
+                            Legacy text/list Param — prefer a Toggle with on/off lists instead.
                           </p>
                         ) : (
                           <p className="card-hint">
-                            Bind authored lists/strings for when this toggle/dropdown is on (or
-                            for each dropdown option).
+                            Turn one on, then author the list used when this toggle is{' '}
+                            <strong>on</strong> vs <strong>off</strong>. The toggle is the trigger;
+                            replace/merge chooses how it applies.
                           </p>
                         )}
                         <div className="l2-param-bind-toggles">
@@ -483,7 +456,9 @@ function TargetBindingsEditor({
                               ? isList
                                 ? `Replace “${field.label}” with this Param’s list`
                                 : `Replace “${field.label}” with this Param’s text`
-                              : field.label
+                              : isList
+                                ? `Drive “${field.label}” with on/off lists`
+                                : `Drive “${field.label}” with on/off text`
 
                             return (
                               <div
@@ -568,7 +543,7 @@ function TargetBindingsEditor({
                                 {active && controlType === 'boolean' ? (
                                   <>
                                     <div className="l2-inspector-field">
-                                      <span>List when toggle is on</span>
+                                      <span>Terms when toggle is ON</span>
                                       {isList ? (
                                         <TermListEditor
                                           terms={existing?.listValue ?? []}
@@ -625,7 +600,7 @@ function TargetBindingsEditor({
                                       )}
                                     </div>
                                     <div className="l2-inspector-field">
-                                      <span>List when toggle is off</span>
+                                      <span>Terms when toggle is OFF</span>
                                       {isList ? (
                                         <TermListEditor
                                           terms={existing?.listWhenOff ?? []}
@@ -1109,13 +1084,13 @@ export function ParametersNodeEditor({
       </label>
 
       <p className="card-hint">
-        Paste a node id — we resolve its type and list bindable settings. Shared Param IDs stay
-        fully in sync. Text field = one string (regex Pattern). Term list = keywords/tags/URL
-        patterns — edit those on the Param, not on the target node.
+        Paste a node id — Presence shows/hides it; property binds puppet its settings. Shared Param
+        IDs stay fully in sync. To drive keyword Terms: use a <strong>Toggle</strong>, bind Terms,
+        and set the on/off lists (replace or merge).
       </p>
 
       {controls.length === 0 ? (
-        <p className="l2-parameters-empty">No controls yet. Add a toggle, dropdown, text field, or term list.</p>
+        <p className="l2-parameters-empty">No controls yet. Add a toggle or dropdown.</p>
       ) : null}
 
       {controls.map((control, index) => (
@@ -1141,12 +1116,6 @@ export function ParametersNodeEditor({
           </button>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newEnumControl)}>
             Add dropdown
-          </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newStringControl)}>
-            Add text field
-          </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => addControl(newStringListControl)}>
-            Add term list
           </button>
         </div>
       ) : null}
