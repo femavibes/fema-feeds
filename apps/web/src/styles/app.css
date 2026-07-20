@@ -8005,6 +8005,53 @@ body.l2-visual-open #root {
   border-bottom: 1px solid var(--border);
 }
 
+.l2-param-control-card-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.l2-param-head-live {
+  display: flex;
+  align-items: center;
+}
+
+.l2-param-remove-btn {
+  min-width: 1.75rem;
+  padding-inline: 0.35rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.l2-param-remove-btn:hover {
+  opacity: 1;
+}
+
+.l2-param-sync-help-btn {
+  min-width: 1.6rem;
+  padding-inline: 0.3rem;
+  font-weight: 700;
+  border-radius: 999px;
+}
+
+.l2-param-default-field {
+  margin-bottom: 0.35rem;
+}
+
+.l2-param-default-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.l2-param-default-row .card-hint {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
 .l2-param-control-card.is-collapsed .l2-param-control-card-head {
   padding-bottom: 0;
   border-bottom: none;

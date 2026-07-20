@@ -1129,6 +1129,7 @@ function ParamControlCard({
   const [expanded, setExpanded] = useState(true)
   const [copied, setCopied] = useState(false)
   const [linkModalOpen, setLinkModalOpen] = useState(false)
+  const [syncHelpOpen, setSyncHelpOpen] = useState(false)
   const patch = (partial: Partial<L2ParamControl>) => onChange({ ...control, ...partial })
   const bindings = normalizeControlBindings(control)
   const targetCount = new Set(bindings.map((b) => b.nodeId).filter(Boolean)).size
@@ -1138,6 +1139,7 @@ function ParamControlCard({
   const isShared = sharedPanels > 1
   const liveOn = liveValue === true || liveValue === 'true'
   const andBlocked = Boolean(andBlockInfo && liveOn)
+  const defaultOn = control.default === true || control.default === 'true'
 
   const linkableIds = useMemo(() => {
     const out: { name: string; label: string; panelTitle: string }[] = []
@@ -1222,15 +1224,42 @@ function ParamControlCard({
             </span>
           ) : null}
         </button>
-        {!readOnly ? (
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onRemove}>
-            Remove
-          </button>
-        ) : null}
+        <div className="l2-param-control-card-head-actions">
+          {control.type === 'boolean' ? (
+            <div className="l2-param-head-live" title="Live value for this feed (same as canvas)">
+              <ToggleSwitch
+                checked={liveOn}
+                readOnly={readOnly}
+                andBlocked={andBlocked}
+                ariaLabel={`${control.label || control.name} live value`}
+                onChange={(checked) => onLiveValue(checked)}
+              />
+            </div>
+          ) : null}
+          {!readOnly ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm l2-param-remove-btn"
+              title="Remove control"
+              aria-label="Remove control"
+              onClick={onRemove}
+            >
+              ✕
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {expanded ? (
       <div className="l2-param-control-card-body">
+      {control.type === 'boolean' && andBlocked && andBlockInfo ? (
+        <pre className="l2-param-and-block-hint">
+          {formatParamAndBlockHint(andBlockInfo, {
+            nodeLabels,
+            match,
+          })}
+        </pre>
+      ) : null}
       <div className="l2-param-field-row">
         <label className="l2-inspector-field">
           Param ID
@@ -1250,7 +1279,21 @@ function ParamControlCard({
             >
               {copied ? 'Copied' : 'Copy'}
             </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm l2-param-sync-help-btn"
+              title="How Param ID sync works"
+              aria-label="How Param ID sync works"
+              onClick={() => setSyncHelpOpen(true)}
+            >
+              ?
+            </button>
           </div>
+          {isShared ? (
+            <span className="l2-param-shared-hint">
+              Shared across {sharedPanels} panels — fully synced
+            </span>
+          ) : null}
           {!readOnly && linkableIds.length > 0 ? (
             <button
               type="button"
@@ -1260,15 +1303,6 @@ function ParamControlCard({
               Link existing…
             </button>
           ) : null}
-          {isShared ? (
-            <span className="l2-param-shared-hint">
-              Shared across {sharedPanels} panels — fully synced (value, label, targets)
-            </span>
-          ) : (
-            <span className="l2-param-shared-hint muted">
-              Copy this id or Link existing to fully sync with another toggle
-            </span>
-          )}
         </label>
         <label className="l2-inspector-field">
           Label
@@ -1279,6 +1313,43 @@ function ParamControlCard({
           />
         </label>
       </div>
+
+      {syncHelpOpen
+        ? createPortal(
+            <div
+              className="l2-param-modal-backdrop"
+              role="presentation"
+              onClick={() => setSyncHelpOpen(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSyncHelpOpen(false)
+              }}
+            >
+              <div
+                className="l2-param-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={`param-sync-help-${control.name}`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3 id={`param-sync-help-${control.name}`}>Sync with another toggle</h3>
+                <p>
+                  Copy this Param ID (or use <strong>Link existing…</strong>) to fully sync with
+                  another toggle — same live value, label, description, default, and targets.
+                </p>
+                <div className="l2-param-modal-actions">
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setSyncHelpOpen(false)}
+                  >
+                    Got it
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {linkModalOpen
         ? createPortal(
@@ -1343,39 +1414,21 @@ function ParamControlCard({
 
       {control.type === 'boolean' ? (
         <>
-          <div className="l2-param-field-row">
-            <label className="l2-inspector-field">
-              Default
-              <div className="l2-param-toggle-wrap">
-                <ToggleSwitch
-                  checked={control.default === true || control.default === 'true'}
-                  readOnly={readOnly}
-                  ariaLabel={`${control.label || control.name} default`}
-                  onChange={(checked) => patch({ default: checked })}
-                />
-              </div>
-            </label>
-            <label className="l2-inspector-field">
-              Live value (this feed)
-              <div className="l2-param-toggle-wrap">
-                <ToggleSwitch
-                  checked={liveOn}
-                  readOnly={readOnly}
-                  andBlocked={andBlocked}
-                  ariaLabel={`${control.label || control.name} live value`}
-                  onChange={(checked) => onLiveValue(checked)}
-                />
-              </div>
-              {andBlocked && andBlockInfo ? (
-                <pre className="l2-param-and-block-hint">
-                  {formatParamAndBlockHint(andBlockInfo, {
-                    nodeLabels,
-                    match,
-                  })}
-                </pre>
-              ) : null}
-            </label>
-          </div>
+          <label className="l2-inspector-field l2-param-default-field">
+            Default for consumers
+            <div className="l2-param-default-row">
+              <ToggleSwitch
+                checked={defaultOn}
+                readOnly={readOnly}
+                ariaLabel={`${control.label || control.name} default`}
+                onChange={(checked) => patch({ default: checked })}
+              />
+              <span className="card-hint">
+                Starting value in logic blocks when the feed doesn’t override it. Live (header /
+                canvas) is what this feed uses now.
+              </span>
+            </div>
+          </label>
           <TargetBindingsEditor
             bindings={bindings}
             readOnly={readOnly}
