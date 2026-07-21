@@ -91,6 +91,9 @@ start_one label-stream "$LOG_DIR/cfb-label-stream.log" \
 start_one listitem-stream "$LOG_DIR/cfb-listitem-stream.log" \
   node "$ROOT/apps/worker/dist/main.js" listitem-stream
 
+start_one param-triggers "$LOG_DIR/cfb-param-triggers.log" \
+  node "$ROOT/apps/worker/dist/main.js" param-triggers --interval=60
+
 sleep 3
 echo
 echo "CFB processes:"
@@ -101,6 +104,7 @@ printf '  %-16s %s\n' "poll-lists" "list audit / rings    (log: $LOG_DIR/cfb-pol
 printf '  %-16s %s\n' "listitem-stream" "live list members     (log: $LOG_DIR/cfb-listitem-stream.log)"
 printf '  %-16s %s\n' "refresh-labels" "label sweep           (log: $LOG_DIR/cfb-refresh-labels.log)"
 printf '  %-16s %s\n' "label-stream" "live labels (opt)     (log: $LOG_DIR/cfb-label-stream.log)"
+printf '  %-16s %s\n' "param-triggers" "Param native triggers  (log: $LOG_DIR/cfb-param-triggers.log)"
 echo
 curl -s -o /dev/null -w "api health: %{http_code}\n" http://localhost:3000/api/health || true
 tail -n 3 "$LOG_DIR/cfb-poll-lists.log" 2>/dev/null || true

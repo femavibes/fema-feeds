@@ -407,6 +407,17 @@ export interface FeedUpdateResult {
   project?: ProjectL1Config
 }
 
+export interface FeedApiKeyRow {
+  id: string
+  feedId: string
+  ownerDid: string
+  label: string
+  keyPrefix: string
+  createdAt: string
+  revokedAt: string | null
+  lastUsedAt: string | null
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -591,6 +602,28 @@ export const api = {
     ),
   deleteFeed: (id: string) =>
     apiFetch<{ ok: boolean; feedId: string }>(`/api/feeds/${id}`, { method: 'DELETE' }),
+  listFeedApiKeys: (feedId: string) =>
+    apiFetch<{ keys: FeedApiKeyRow[] }>(`/api/feeds/${feedId}/api-keys`),
+  createFeedApiKey: (feedId: string, label?: string) =>
+    apiFetch<{ key: FeedApiKeyRow; rawKey: string }>(`/api/feeds/${feedId}/api-keys`, {
+      method: 'POST',
+      body: JSON.stringify({ label: label ?? '' }),
+    }),
+  revokeFeedApiKey: (feedId: string, keyId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/feeds/${feedId}/api-keys/${keyId}`, { method: 'DELETE' }),
+  patchFeedParams: (
+    feedId: string,
+    values: Record<string, import('@cfb/core-types').L2ParamValue>,
+    apiKey: string,
+  ) =>
+    apiFetch<{ ok: boolean; feedId: string; updated: string[]; via: string }>(
+      `/api/feeds/${feedId}/params`,
+      {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ values }),
+      },
+    ),
   previewFeed: (
     id: string,
     body: { post?: string; feed?: FeedConfig; metrics?: PostMetrics },

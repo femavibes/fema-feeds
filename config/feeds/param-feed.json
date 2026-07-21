@@ -1,0 +1,553 @@
+{
+  "feedId": "param-feed",
+  "projectId": "param",
+  "name": "param-feed",
+  "enabled": true,
+  "poolScope": "project_only",
+  "match": {
+    "id": "root",
+    "type": "group",
+    "logic": "any",
+    "children": [
+      {
+        "id": "params-mrv0l2k1",
+        "type": "parameters",
+        "title": "Parameters",
+        "values": {
+          "enabled": true
+        },
+        "controls": [
+          {
+            "name": "enabled",
+            "type": "boolean",
+            "label": "Enabled",
+            "default": true,
+            "triggers": [
+              {
+                "id": "time_mrv0m197_cp9zw",
+                "kind": "time_window",
+                "label": "",
+                "endTime": "10:00",
+                "enforce": "boundaries",
+                "startTime": "06:00",
+                "daysOfWeek": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "activeValue": true,
+                "inactiveValue": false
+              },
+              {
+                "id": "rate_mrv0ml6m_acip0",
+                "kind": "match_rate",
+                "scope": "node",
+                "enforce": "boundaries",
+                "threshold": 10,
+                "comparator": "gte",
+                "activeValue": true,
+                "inactiveValue": false,
+                "windowMinutes": 60
+              },
+              {
+                "id": "stale_mrv0n6kq_r2pa7",
+                "kind": "staleness",
+                "scope": "node",
+                "enforce": "boundaries",
+                "activeValue": true,
+                "staleMinutes": 60,
+                "inactiveValue": false
+              },
+              {
+                "id": "author_mrv0nbf7_zbts7",
+                "kind": "author_post",
+                "enforce": "boundaries",
+                "authorDids": [],
+                "activeValue": true,
+                "authorListIds": [],
+                "inactiveValue": false,
+                "lookbackMinutes": 5
+              }
+            ],
+            "description": "Turn off to disable the target nodes (paste node ids below).",
+            "targetNodeIds": []
+          }
+        ]
+      },
+      {
+        "id": "params-mrscgpbd",
+        "type": "parameters",
+        "title": "Parameters",
+        "values": {
+          "cat": false,
+          "mode_zcys": "a"
+        },
+        "controls": [
+          {
+            "name": "cat",
+            "type": "boolean",
+            "label": "CAT",
+            "default": true,
+            "bindings": [
+              {
+                "kind": "property",
+                "value": true,
+                "nodeId": "url-mrs5zwiq",
+                "property": "caseSensitive"
+              },
+              {
+                "kind": "property",
+                "value": "includes",
+                "nodeId": "url-mrs5zwiq",
+                "property": "op"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "link_card",
+                "nodeId": "url-mrs5zwiq",
+                "property": "sources"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "nodeId": "url-mrs5zwiq",
+                "property": "runAtIngest"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "facet_link",
+                "nodeId": "url-mrs5zwiq",
+                "property": "sources"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "bridgy_original",
+                "nodeId": "url-mrs5zwiq",
+                "property": "sources"
+              }
+            ],
+            "triggers": [
+              {
+                "id": "list_mrv0o7tm_n5g86",
+                "kind": "list_membership",
+                "event": "any_change",
+                "listId": "",
+                "enforce": "boundaries",
+                "activeValue": true,
+                "inactiveValue": false
+              }
+            ],
+            "description": "Turn off to disable the target nodes (paste node ids below)."
+          },
+          {
+            "name": "mode_zcys",
+            "label": "Mode",
+            "description": "",
+            "type": "enum",
+            "default": "a",
+            "options": [
+              {
+                "value": "a",
+                "label": "Option A",
+                "targetNodeIds": [],
+                "bindings": []
+              },
+              {
+                "value": "b",
+                "label": "Option B",
+                "targetNodeIds": [],
+                "bindings": []
+              }
+            ],
+            "triggers": [
+              {
+                "kind": "time_window",
+                "id": "time_mrv37t92_u7pa3",
+                "label": "",
+                "daysOfWeek": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ],
+                "startTime": "06:00",
+                "endTime": "10:00",
+                "activeValue": "a",
+                "inactiveValue": "a",
+                "enforce": "boundaries"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "url-mrs5zwiq",
+        "op": "includes",
+        "type": "url",
+        "sources": [
+          "link_card"
+        ],
+        "patterns": [],
+        "runAtIngest": false,
+        "caseSensitive": true
+      },
+      {
+        "id": "params-mrsarm5m",
+        "type": "parameters",
+        "title": "Parameters",
+        "values": {
+          "potato": true,
+          "mode_ejeu": "a"
+        },
+        "controls": [
+          {
+            "name": "potato",
+            "type": "boolean",
+            "label": "POTATO",
+            "default": true,
+            "bindings": [
+              {
+                "kind": "presence",
+                "nodeId": "url-mrs5zwiq"
+              },
+              {
+                "kind": "property",
+                "value": "includes",
+                "nodeId": "url-mrs5zwiq",
+                "property": "op"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "nodeId": "url-mrs5zwiq",
+                "property": "runAtIngest"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "link_card",
+                "nodeId": "url-mrs5zwiq",
+                "property": "sources"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "nodeId": "url-mrs5zwiq",
+                "property": "caseSensitive"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "facet_link",
+                "nodeId": "url-mrs5zwiq",
+                "property": "sources"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "bridgy_original",
+                "nodeId": "url-mrs5zwiq",
+                "property": "sources"
+              }
+            ],
+            "description": "Turn off to disable the target nodes (paste node ids below)."
+          },
+          {
+            "name": "mode_ejeu",
+            "type": "enum",
+            "label": "Mode",
+            "default": "a",
+            "options": [
+              {
+                "label": "Option A",
+                "value": "a",
+                "bindings": [],
+                "targetNodeIds": []
+              },
+              {
+                "label": "Option B",
+                "value": "b",
+                "bindings": [],
+                "targetNodeIds": []
+              }
+            ],
+            "description": ""
+          }
+        ]
+      },
+      {
+        "id": "params-mrsdfc22",
+        "type": "parameters",
+        "title": "Parameters",
+        "values": {
+          "potato": true
+        },
+        "controls": [
+          {
+            "name": "potato",
+            "type": "boolean",
+            "label": "POTATO",
+            "default": true,
+            "bindings": [
+              {
+                "kind": "presence",
+                "nodeId": "url-mrs5zwiq"
+              },
+              {
+                "kind": "property",
+                "value": "includes",
+                "nodeId": "url-mrs5zwiq",
+                "property": "op"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "nodeId": "url-mrs5zwiq",
+                "property": "runAtIngest"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "link_card",
+                "nodeId": "url-mrs5zwiq",
+                "property": "sources"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "nodeId": "url-mrs5zwiq",
+                "property": "caseSensitive"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "facet_link",
+                "nodeId": "url-mrs5zwiq",
+                "property": "sources"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "bridgy_original",
+                "nodeId": "url-mrs5zwiq",
+                "property": "sources"
+              }
+            ],
+            "triggers": [
+              {
+                "id": "rate_mrv0js93_39168",
+                "kind": "match_rate",
+                "scope": "node",
+                "enforce": "boundaries",
+                "threshold": 10,
+                "comparator": "gte",
+                "activeValue": true,
+                "inactiveValue": false,
+                "windowMinutes": 60
+              }
+            ],
+            "description": "Turn off to disable the target nodes (paste node ids below)."
+          }
+        ]
+      },
+      {
+        "id": "kw-mrsh7x0x",
+        "op": "includes",
+        "type": "keyword",
+        "terms": [
+          "GOGOG"
+        ],
+        "fields": [
+          "text"
+        ]
+      },
+      {
+        "id": "params-mrsf5tf3",
+        "type": "parameters",
+        "title": "Parameters",
+        "values": {
+          "list_9tn7": [
+            "gsdfdsfdsf",
+            "das",
+            "dddd"
+          ],
+          "text_73vv": "ffasdads"
+        },
+        "controls": [
+          {
+            "name": "text_73vv",
+            "type": "string",
+            "label": "Text",
+            "default": "dff",
+            "bindings": [
+              {
+                "kind": "presence",
+                "nodeId": "kw-mrsh7x0x"
+              }
+            ],
+            "description": "",
+            "placeholder": ""
+          },
+          {
+            "name": "list_9tn7",
+            "type": "stringList",
+            "label": "List",
+            "default": [
+              "ddddddddddddddd",
+              "aaaaaaaa"
+            ],
+            "bindings": [
+              {
+                "kind": "presence",
+                "nodeId": "kw-mrsh7x0x"
+              }
+            ],
+            "description": "",
+            "placeholder": "term"
+          }
+        ]
+      }
+    ]
+  },
+  "public": true,
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "published": false,
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-url-mrs5zwiq",
+        "branch": true,
+        "source": "start",
+        "target": "url-mrs5zwiq"
+      },
+      {
+        "id": "e-url-mrs5zwiq-end",
+        "branch": true,
+        "source": "url-mrs5zwiq",
+        "target": "end"
+      }
+    ],
+    "labels": {
+      "url-mrs5zwiq": "URL YES"
+    },
+    "positions": {
+      "end": {
+        "x": 834.4587236353249,
+        "y": -42.045382626148225
+      },
+      "start": {
+        "x": -201.99999999999997,
+        "y": 36.00000000000001
+      },
+      "kw-mrsh7x0x": {
+        "x": 644.7725035856387,
+        "y": -1031.7959661716577
+      },
+      "url-mrs5zwiq": {
+        "x": 197.29090982816442,
+        "y": -147.17725186662477
+      },
+      "params-mrsarm5m": {
+        "x": 348.3899055406492,
+        "y": -490.17779877249205
+      },
+      "params-mrscgpbd": {
+        "x": 10.204210102861254,
+        "y": -563.9706962962061
+      },
+      "params-mrsdfc22": {
+        "x": 352.6254567328097,
+        "y": -630.0850070017938
+      },
+      "params-mrsf5tf3": {
+        "x": 652.2820270855024,
+        "y": -1276.726266256219
+      },
+      "params-mrv0l2k1": {
+        "x": -348.7024816914211,
+        "y": -1183.2842166272405
+      }
+    },
+    "nodeSources": {
+      "kw-mrs5ur9v": "native",
+      "kw-mrsh7x0x": "native",
+      "tag-mrs5wph9": "native",
+      "url-mrs5zwiq": "native",
+      "lang-mrs5up0f": "native",
+      "math-mrs9t8lm": "native",
+      "ring-mrs9t6og": "native",
+      "ring-mrs9tc3d": "native",
+      "group-mrs5ucet": "native",
+      "group-mrs5uix5": "native",
+      "media-mrs9t2wg": "native",
+      "params-mrs5uugv": "native",
+      "params-mrs5wvwo": "native",
+      "params-mrsarm5m": "native",
+      "params-mrscgpbd": "native",
+      "params-mrscqmip": "native",
+      "params-mrsd7e6c": "native",
+      "params-mrsdfc22": "native",
+      "params-mrsf5r2t": "native",
+      "params-mrsf5tf3": "native",
+      "params-mrv0l2k1": "native",
+      "mention-mrs9t76v": "native",
+      "mention-mrs9tdoa": "native"
+    },
+    "lockedNodeIds": [],
+    "expandedNodeIds": [
+      "url-mrs5zwiq",
+      "params-mrsarm5m",
+      "params-mrscgpbd",
+      "params-mrsdfc22",
+      "kw-mrsh7x0x",
+      "params-mrsf5tf3"
+    ]
+  },
+  "liveAt": "2026-07-21T20:19:00.284Z",
+  "paramTriggerRuntime": {
+    "time": {
+      "enabled": {
+        "inWindow": false
+      },
+      "mode_zcys": {
+        "inWindow": false
+      }
+    },
+    "threshold": {
+      "time_mrv0m197_cp9zw": {
+        "satisfied": false
+      },
+      "rate_mrv0ml6m_acip0": {
+        "satisfied": false
+      },
+      "stale_mrv0n6kq_r2pa7": {
+        "satisfied": true
+      },
+      "author_mrv0nbf7_zbts7": {
+        "satisfied": false
+      },
+      "list_mrv0o7tm_n5g86": {
+        "satisfied": false
+      },
+      "time_mrv37t92_u7pa3": {
+        "satisfied": false
+      }
+    }
+  },
+  "paramScheduleRuntime": {
+    "byParam": {
+      "enabled": {
+        "inWindow": false
+      },
+      "mode_zcys": {
+        "inWindow": false
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FeedConfig, L2GroupLogic, L2NodeProvenance, L2NodeTrace, L2RuleGroup, L2RuleNode, AuthorListConfig, FeedAuthorListConfig, L2AuthorCondition, LogicBlockPackage } from '@cfb/core-types'
 
 import type { ListCacheEntry } from '../../../api/client'
@@ -25,18 +25,25 @@ import {
 } from '../../../lib/l2-ingest-badge'
 import {
   applyParametersToMatch,
+  buildParamValueMap,
   collectExcludedNodeIds,
   collectParamControls,
   collectParamListFieldPreviews,
+  collectParamPropertyFieldPreviews,
   indexRuleNodesById,
+  resolveParamControlMode,
   syncSharedParamControlFromPanel,
 } from '@cfb/l2-graph'
 import {
   collectParamPropertyLocks,
   overlayParamLockedValues,
+  overlayParamOverrideValues,
+  paramLiveOverrideProps,
   paramLockSummary,
   paramLockedPropertySet,
+  paramOverridePropertySet,
   restoreParamLockedValues,
+  restoreParamOverrideValues,
   isTargetOfAnyParam,
 } from '../../../lib/param-bind-preview'
 import { ConditionRow } from '../ConditionRow'
@@ -198,10 +205,33 @@ export function L2PropertiesInspector({
     selected && selected.type !== 'group' && selected.type !== 'parameters'
       ? collectParamListFieldPreviews(match, selected.id)
       : []
+  const paramPropertyPreviews =
+    selected && selected.type !== 'group' && selected.type !== 'parameters'
+      ? collectParamPropertyFieldPreviews(match, selected.id)
+      : []
+  const paramOverrideProps = paramOverridePropertySet(paramPropertyPreviews)
+  const pinnedRef = useRef<Set<string>>(new Set())
+  const [pinTick, setPinTick] = useState(0)
+  const paramValuesKey = JSON.stringify(buildParamValueMap(match))
+
+  useEffect(() => {
+    pinnedRef.current = new Set()
+    setPinTick((n) => n + 1)
+  }, [selectedId, paramValuesKey])
+
+  const pinnedBaselineProps = pinnedRef.current
+  const paramLiveProps = paramLiveOverrideProps(paramOverrideProps, pinnedBaselineProps)
   const displaySelected =
     selected && selected.type !== 'group' && selected.type !== 'parameters'
-      ? overlayParamLockedValues(selected, effectiveSelected, paramLocks)
+      ? overlayParamOverrideValues(
+          overlayParamLockedValues(selected, effectiveSelected, paramLocks),
+          effectiveSelected,
+          paramPropertyPreviews,
+          pinnedBaselineProps,
+        )
       : selected
+
+  void pinTick
 
   const conditionRoleBadges =
     selected &&
@@ -697,6 +727,12 @@ export function L2PropertiesInspector({
                   node={selected}
                   match={match}
                   nodeLabels={nodeLabels}
+                  feedTimezone={draft.timezone ?? 'UTC'}
+                  onFeedTimezoneChange={
+                    onPatchDraft
+                      ? (timezone) => onPatchDraft({ timezone: timezone.trim() || 'UTC' })
+                      : undefined
+                  }
                   readOnly={readOnly}
                   onChange={(next) => {
                     const updated = updateInMatch(match, selected.id, next)
@@ -753,9 +789,16 @@ export function L2PropertiesInspector({
 
                   <div className="l2-inspector-section-head-trailing">
                     {isTargetOfAnyParam(match, selected.id) && onOpenParamControlMode ? (
-                      <ParamTargetBadge
-                        onClick={() => onOpenParamControlMode(selected.id)}
-                      />
+                      <>
+                        <ParamTargetBadge
+                          onClick={() => onOpenParamControlMode(selected.id)}
+                        />
+                        <span className="l2-param-mode-chip" title="How Parameters control bound fields on this node">
+                          {resolveParamControlMode(selected) === 'full_control'
+                            ? 'Full control'
+                            : 'Override when on'}
+                        </span>
+                      </>
                     ) : null}
                     {!readOnly && onRenameNode && selectedId ? (
 
@@ -803,7 +846,13 @@ export function L2PropertiesInspector({
                   node={displaySelected ?? selected}
 
                   onChange={(next: L2RuleNode) => {
-                    const authored = restoreParamLockedValues(next, selected, paramLocks)
+                    const locked = restoreParamLockedValues(next, selected, paramLocks)
+                    const authored = restoreParamOverrideValues(
+                      locked,
+                      selected,
+                      paramOverrideProps,
+                      displaySelected ?? selected,
+                    )
                     const nextMatch = updateInMatch(match, selected.id, authored)
                     if (authored.type === 'author' && onPatchDraft) {
                       const referenced = collectAuthorListIdsFromMatch(nextMatch)
@@ -828,6 +877,13 @@ export function L2PropertiesInspector({
                   paramLockHint={paramLocks.length ? paramLockSummary(paramLocks) : undefined}
 
                   paramListPreviews={paramListPreviews}
+                  paramOverriddenProps={paramLiveProps}
+                  baselineNode={selected}
+                  onPinParamBaseline={(property) => {
+                    if (pinnedRef.current.has(property)) return
+                    pinnedRef.current.add(property)
+                    setPinTick((n) => n + 1)
+                  }}
 
                   projectAuthorLists={projectAuthorLists}
 

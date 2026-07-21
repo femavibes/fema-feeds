@@ -9,6 +9,7 @@ import {
   syncSharedParamControlFromPanel,
   collectParamAndBlockers,
   collectParamListFieldPreviews,
+  collectParamPropertyFieldPreviews,
   formatParamAndBlockHint,
 } from './apply-parameters.js'
 
@@ -933,5 +934,119 @@ describe('applyParametersToMatch', () => {
     const off = applyParametersToMatch(tree, { values: { strict: false } })
     const kwOff = off.children.find((c) => c.id === 'kw')
     if (kwOff?.type === 'keyword') expect(kwOff.caseSensitive).toBe(true)
+  })
+
+  it('full_control: Param OFF with whenOn=false writes inverse (on)', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'params',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Strict',
+              type: 'boolean',
+              default: false,
+              bindings: [
+                { nodeId: 'kw', kind: 'property', property: 'caseSensitive', value: false },
+              ],
+            },
+          ],
+          values: { strict: false },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['hi'],
+          fields: ['text'],
+          caseSensitive: false,
+          paramControlMode: 'full_control',
+        },
+      ],
+    }
+
+    const off = applyParametersToMatch(tree, { values: { strict: false } })
+    const kwOff = off.children.find((c) => c.id === 'kw')
+    if (kwOff?.type === 'keyword') expect(kwOff.caseSensitive).toBe(true)
+  })
+
+  it('collectParamPropertyFieldPreviews: override mode shows live bool diff', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'params',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Strict',
+              type: 'boolean',
+              default: false,
+              bindings: [
+                { nodeId: 'kw', kind: 'property', property: 'caseSensitive', value: true },
+              ],
+            },
+          ],
+          values: { strict: true },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['hi'],
+          fields: ['text'],
+          caseSensitive: false,
+        },
+      ],
+    }
+
+    const previews = collectParamPropertyFieldPreviews(tree, 'kw')
+    expect(previews).toHaveLength(1)
+    expect(previews[0]?.property).toBe('caseSensitive')
+    expect(previews[0]?.authoredDisplay).toBe('off')
+    expect(previews[0]?.effectiveDisplay).toBe('on')
+  })
+
+  it('collectParamPropertyFieldPreviews: full_control skips (overlay handles)', () => {
+    const tree: L2RuleGroup = {
+      type: 'group',
+      id: 'root',
+      logic: 'all',
+      children: [
+        {
+          type: 'parameters',
+          id: 'params',
+          controls: [
+            {
+              name: 'strict',
+              label: 'Strict',
+              type: 'boolean',
+              default: true,
+              bindings: [{ nodeId: 'kw', kind: 'property', property: 'caseSensitive' }],
+            },
+          ],
+          values: { strict: true },
+        },
+        {
+          type: 'keyword',
+          id: 'kw',
+          op: 'includes',
+          terms: ['hi'],
+          fields: ['text'],
+          caseSensitive: false,
+          paramControlMode: 'full_control',
+        },
+      ],
+    }
+
+    expect(collectParamPropertyFieldPreviews(tree, 'kw')).toEqual([])
   })
 })

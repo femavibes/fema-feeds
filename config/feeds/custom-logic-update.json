@@ -1,0 +1,78 @@
+{
+  "feedId": "custom-logic-update",
+  "projectId": "custom-logic",
+  "name": "custom-logic-update",
+  "enabled": true,
+  "poolScope": "project_only",
+  "match": {
+    "id": "root",
+    "type": "group",
+    "logic": "any",
+    "children": [
+      {
+        "id": "logic-mrri1cvt",
+        "type": "logic_block_ref",
+        "label": "COMPLEX LOGIC",
+        "packageId": "8c3c3e07-20fe-449b-8f93-a59e062db497",
+        "versionPin": "1.0.3",
+        "updatePolicy": "auto_minor"
+      },
+      {
+        "id": "logic-mrrlefrj",
+        "type": "logic_block_ref",
+        "label": "COMPLEX LOGIC",
+        "packageId": "8c3c3e07-20fe-449b-8f93-a59e062db497",
+        "versionPin": "1.0.3",
+        "updatePolicy": "notify"
+      }
+    ]
+  },
+  "public": true,
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "published": false,
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-logic-mrri1cvt",
+        "branch": true,
+        "source": "start",
+        "target": "logic-mrri1cvt"
+      },
+      {
+        "id": "e-logic-mrri1cvt-end",
+        "branch": true,
+        "source": "logic-mrri1cvt",
+        "target": "end"
+      }
+    ],
+    "labels": {},
+    "positions": {
+      "end": {
+        "x": 512,
+        "y": -1.333333333333317
+      },
+      "start": {
+        "x": -385.1326178694659,
+        "y": -42.05376348797424
+      },
+      "logic-mrri1cvt": {
+        "x": -179.56414125135473,
+        "y": -472.3729387296241
+      },
+      "logic-mrrlefrj": {
+        "x": 370.78609029220553,
+        "y": -462.8780125559707
+      }
+    },
+    "nodeSources": {
+      "logic-mrri1cvt": "collection",
+      "logic-mrrlefrj": "collection"
+    },
+    "lockedNodeIds": [],
+    "expandedNodeIds": [
+      "logic-mrri1cvt",
+      "logic-mrrlefrj"
+    ]
+  },
+  "liveAt": "2026-07-19T09:38:09.038Z"
+}

@@ -90,6 +90,7 @@ export {
   collectParamAndBlockers,
   collectParamControls,
   collectParamListFieldPreviews,
+  collectParamPropertyFieldPreviews,
   collectParameterNodes,
   countParamControlPanels,
   findParamControlByName,
@@ -104,6 +105,7 @@ export {
   type ParamAndBlockInfo,
   type ParamAndBlockedTarget,
   type ParamListFieldPreview,
+  type ParamPropertyFieldPreview,
   type ParamValueMap,
 } from './apply-parameters.js'
 export {
@@ -128,6 +130,32 @@ export {
   isParamTargetNode,
   resolveParamControlMode,
 } from './param-control-mode.js'
+export {
+  DEFAULT_FEED_TIMEZONE,
+  activeScheduleWindow,
+  decideParamScheduleTick,
+  isInsideScheduleWindow,
+  localTimeParts,
+  parseScheduleTime,
+  tickParamSchedulesForFeed,
+  type ParamScheduleDecision,
+  type ParamScheduleLocalTime,
+  type ParamScheduleTickResult,
+  localDateString,
+  dateInRange,
+  isInsideScheduleWindowWithDates,
+} from './param-schedules.js'
+export {
+  tickParamTriggersForFeed,
+  triggersForControl,
+  scheduleWindowToTrigger,
+  evaluateTrigger,
+  boundNodeIdsForControl,
+  type ParamTriggerTickContext,
+  type ParamTriggerTickResult,
+  type ParamTriggerWrite,
+  type TriggerEvalResult,
+} from './param-triggers.js'
 export {
   exportFeedGraph,
   importFeedGraph,

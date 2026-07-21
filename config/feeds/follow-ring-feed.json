@@ -1,0 +1,118 @@
+{
+  "feedId": "follow-ring-feed",
+  "projectId": "follow-ring",
+  "name": "follow-ring-feed",
+  "enabled": true,
+  "poolScope": "project_only",
+  "match": {
+    "id": "root",
+    "type": "group",
+    "logic": "any",
+    "children": [
+      {
+        "id": "ring-mrr5tb95",
+        "op": "includes",
+        "hub": "fema.monster",
+        "role": "discover",
+        "type": "follow_ring",
+        "direction": "followers",
+        "hubSource": "account",
+        "pollIntervalMinutes": 60
+      },
+      {
+        "id": "ring-mrr7139c",
+        "op": "includes",
+        "hub": "",
+        "type": "follow_ring",
+        "direction": "followers",
+        "hubSource": "viewer",
+        "pollIntervalMinutes": 60
+      }
+    ]
+  },
+  "public": true,
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "published": true,
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-ring-mrr5tb95",
+        "branch": true,
+        "source": "start",
+        "target": "ring-mrr5tb95"
+      },
+      {
+        "id": "e-ring-mrr5tb95-ring-mrr7139c",
+        "branch": true,
+        "source": "ring-mrr5tb95",
+        "target": "ring-mrr7139c"
+      },
+      {
+        "id": "e-ring-mrr7139c-end",
+        "source": "ring-mrr7139c",
+        "target": "end",
+        "branch": true
+      }
+    ],
+    "labels": {},
+    "positions": {
+      "end": {
+        "x": 1177.3087343323718,
+        "y": 47.122070537752535
+      },
+      "start": {
+        "x": -248.75,
+        "y": -30.5
+      },
+      "kw-mrrgykni": {
+        "x": 1145.3564336775219,
+        "y": -540.5278236999188
+      },
+      "tag-mrrgys76": {
+        "x": 1159.4634630659252,
+        "y": -354.6469658762493
+      },
+      "url-mrrgyts9": {
+        "x": 1192.6564733915807,
+        "y": -313.98552822732154
+      },
+      "ring-mrr5tb95": {
+        "x": 49.66666666666666,
+        "y": -346.9090881347657
+      },
+      "ring-mrr7139c": {
+        "x": 367.33333333333326,
+        "y": -79.74242146809897
+      },
+      "group-mrrgyovo": {
+        "x": 1201.7845512311358,
+        "y": -504.8453375998394
+      },
+      "regex-mrrgyn95": {
+        "x": 1147.845909451946,
+        "y": -479.95057985559794
+      }
+    },
+    "nodeSources": {
+      "kw-mrrgykni": "native",
+      "tag-mrrgys76": "native",
+      "url-mrrgyts9": "native",
+      "ring-mrr5tb95": "native",
+      "ring-mrr7139c": "native",
+      "group-mrrgyhyp": "collection",
+      "group-mrrgyovo": "native",
+      "logic-mrrgxw6k": "collection",
+      "logic-mrrgy7o1": "collection",
+      "logic-mrrgzxfp": "collection",
+      "regex-mrrgyn95": "native",
+      "logic-mrrhuigb": "subscription",
+      "logic-mrrhwtck": "collection"
+    },
+    "lockedNodeIds": [],
+    "expandedNodeIds": []
+  },
+  "liveAt": "2026-07-19T07:50:54.260Z",
+  "publishedAt": "2026-07-19T02:40:48.489Z",
+  "publishedUri": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.feed.generator/follow-ring-feed",
+  "atprotoRkey": "follow-ring-feed"
+}

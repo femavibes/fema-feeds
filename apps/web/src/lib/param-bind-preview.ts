@@ -66,23 +66,52 @@ function formatForcedValue(
       : `replace with ${formatListPreview(onList)}`
   }
   if (binding.member) {
-    return active ? `add “${binding.member}”` : `remove “${binding.member}”`
+    const mode = target ? resolveParamControlMode(target) : 'override_when_on'
+    const includeWhenActive = !(binding.value === false || binding.value === 'false')
+    if (mode === 'full_control') {
+      const include = active ? includeWhenActive : !includeWhenActive
+      return include ? `add “${binding.member}”` : `remove “${binding.member}”`
+    }
+    return active ? `add “${binding.member}”` : '→ node baseline'
+  }
+  if (target) {
+    const field = resolveBindableField(target, binding)
+    if (field?.valueKind === 'boolean') {
+      const whenOn = !(binding.value === false || binding.value === 'false')
+      const mode = resolveParamControlMode(target)
+      const written = active ? whenOn : mode === 'full_control' ? !whenOn : null
+      if (written === null) return '→ node baseline'
+      return written ? '= on' : '= off'
+    }
+    const polarity = field ? binaryEnumPolarity(field) : null
+    if (polarity) {
+      const whenActive =
+        binding.value !== undefined && String(binding.value) === polarity.offValue
+          ? polarity.offValue
+          : polarity.onValue
+      const whenInactive =
+        whenActive === polarity.onValue ? polarity.offValue : polarity.onValue
+      const mode = resolveParamControlMode(target)
+      const written = active ? whenActive : mode === 'full_control' ? whenInactive : null
+      if (written === null) return '→ node baseline'
+      return `= ${written === polarity.onValue ? polarity.onLabel : polarity.offLabel}`
+    }
   }
   if (binding.value !== undefined) {
-    return active ? `= ${String(binding.value)}` : '(unchanged when off)'
+    return active ? `= ${String(binding.value)}` : '→ node baseline'
   }
   if (target) {
     const field = resolveBindableField(target, binding)
     if (field?.valueKind === 'string' || field?.valueKind === 'stringList') {
       return active ? '= control value' : '→ node baseline'
     }
-    const polarity = field ? binaryEnumPolarity(field) : null
-    if (polarity) {
-      return active ? `= ${polarity.onLabel}` : `= ${polarity.offLabel}`
-    }
   }
-  // boolean-style: on → true, off → false
-  return active ? '= on' : '= off'
+  // boolean-style default whenOn=true
+  const mode = target ? resolveParamControlMode(target) : 'override_when_on'
+  if (mode === 'full_control') {
+    return active ? '= on' : '= off'
+  }
+  return active ? '= on' : '→ node baseline'
 }
 
 export type ParamEffectLine = {
@@ -462,6 +491,68 @@ export function restoreParamLockedValues<T extends L2RuleNode>(
   const out = { ...edited } as T & Record<string, unknown>
   const auth = authored as unknown as Record<string, unknown>
   for (const prop of props) {
+    if (prop in auth) out[prop] = auth[prop]
+    else delete out[prop]
+  }
+  return out
+}
+
+/** Properties currently overridden by Params in override_when_on mode. */
+export function paramOverridePropertySet(
+  previews: Array<{ property: string; changed: boolean }>,
+): Set<string> {
+  return new Set(previews.filter((p) => p.changed).map((p) => p.property))
+}
+
+/**
+ * Show live Param values on the node form (override_when_on).
+ * Baseline stays in storage; use restoreParamOverrideValues on save.
+ */
+export function overlayParamOverrideValues<T extends L2RuleNode>(
+  authored: T,
+  effective: L2RuleNode | undefined,
+  previews: Array<{ property: string; changed: boolean }>,
+  skipProps?: ReadonlySet<string>,
+): T {
+  const changed = previews.filter((p) => p.changed && !skipProps?.has(p.property))
+  if (!effective || changed.length === 0) return authored
+  const out = { ...authored } as T & Record<string, unknown>
+  const eff = effective as unknown as Record<string, unknown>
+  for (const p of changed) {
+    if (p.property in eff) out[p.property] = eff[p.property]
+  }
+  return out
+}
+
+/** Override props actively showing live Param values (excludes user-pinned baseline edits). */
+export function paramLiveOverrideProps(
+  overrideProps: ReadonlySet<string>,
+  pinnedBaselineProps?: ReadonlySet<string>,
+): Set<string> {
+  const out = new Set<string>()
+  for (const prop of overrideProps) {
+    if (!pinnedBaselineProps?.has(prop)) out.add(prop)
+  }
+  return out
+}
+
+/**
+ * On save: keep authored baseline for overridden props unless the user
+ * changed that field from what was displayed (then treat as baseline edit).
+ */
+export function restoreParamOverrideValues<T extends L2RuleNode>(
+  edited: T,
+  authored: T,
+  overrideProps: ReadonlySet<string>,
+  displayed: T,
+): T {
+  if (overrideProps.size === 0) return edited
+  const out = { ...edited } as T & Record<string, unknown>
+  const auth = authored as unknown as Record<string, unknown>
+  const disp = displayed as unknown as Record<string, unknown>
+  const edit = edited as unknown as Record<string, unknown>
+  for (const prop of overrideProps) {
+    if (edit[prop] !== disp[prop]) continue
     if (prop in auth) out[prop] = auth[prop]
     else delete out[prop]
   }

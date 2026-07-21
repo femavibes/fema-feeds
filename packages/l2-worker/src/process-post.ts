@@ -2,7 +2,7 @@ import type { FeedConfig, L1ProjectResult, NormalizedPost } from '@cfb/core-type
 import { resolveFeedMatch } from '@cfb/l2-graph'
 import { evaluateFeedL2 } from '@cfb/l2-eval'
 import type pg from 'pg'
-import { deleteFeedCandidate, upsertFeedCandidate } from '@cfb/storage-postgres'
+import { deleteFeedCandidate, upsertFeedCandidate, recordFeedParamMatch } from '@cfb/storage-postgres'
 import { loadAuthorListSetsForFeeds } from './author-lists.js'
 import { loadFollowRingsForFeeds } from './follow-ring-cache.js'
 import { loadMentionDidsForFeeds } from './mention-accounts.js'
@@ -106,6 +106,7 @@ export async function processPostForFeeds(
     }
     matched++
     matchedFeedIds.push(feed.feedId)
+    void recordFeedParamMatch(pool, feed.feedId, result.trace, post.authorDid).catch(() => undefined)
     const sortKey = result.sortKey ?? 0
     await upsertFeedCandidate(pool, {
       feedId: feed.feedId,

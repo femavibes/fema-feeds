@@ -1,0 +1,48 @@
+{
+  "projectId": "follow-ring",
+  "name": "follow-ring",
+  "enabled": false,
+  "prefilterMode": "strict",
+  "prefilter": {
+    "match": {
+      "type": "group",
+      "id": "prefilter-root",
+      "logic": "any",
+      "children": []
+    }
+  },
+  "ingestGate": {
+    "includeBranches": [],
+    "excludeBranches": [],
+    "restrictBranches": []
+  },
+  "compiledL1Meta": {
+    "compiledAt": "2026-07-19T07:51:08.471Z",
+    "source": "prefilter"
+  },
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "strictIncludeGate": {
+    "includeBranches": [
+      {
+        "type": "follow_ring",
+        "op": "includes",
+        "hubSource": "account",
+        "hub": "fema.monster",
+        "direction": "followers",
+        "sourceFeedId": "follow-ring-feed",
+        "sourceNodeId": "ring-mrr5tb95"
+      }
+    ],
+    "excludeBranches": [],
+    "restrictBranches": []
+  },
+  "strictGateMeta": {
+    "compiledAt": "2026-07-19T07:51:08.473Z",
+    "feedCount": 2,
+    "pathCount": 2,
+    "contributingFeeds": [
+      "follow-ring-feed",
+      "follow-ring-original"
+    ]
+  }
+}

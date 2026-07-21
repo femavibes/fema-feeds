@@ -1,0 +1,69 @@
+{
+  "feedId": "follow-ring-original",
+  "projectId": "follow-ring",
+  "name": "follow-ring-original",
+  "description": "Forked from follow-ring-feed",
+  "enabled": true,
+  "poolScope": "project_only",
+  "match": {
+    "id": "root",
+    "type": "group",
+    "logic": "any",
+    "children": [
+      {
+        "id": "ring-mrr5tb95",
+        "op": "includes",
+        "hub": "fema.monster",
+        "role": "discover",
+        "type": "follow_ring",
+        "direction": "followers",
+        "hubSource": "account",
+        "pollIntervalMinutes": 60
+      }
+    ]
+  },
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-ring-mrr5tb95",
+        "branch": true,
+        "source": "start",
+        "target": "ring-mrr5tb95"
+      },
+      {
+        "id": "e-ring-mrr5tb95-end",
+        "branch": true,
+        "source": "ring-mrr5tb95",
+        "target": "end"
+      }
+    ],
+    "labels": {},
+    "positions": {
+      "end": {
+        "x": 613.3333333333333,
+        "y": 18.16666666666667
+      },
+      "start": {
+        "x": -82,
+        "y": -48.5
+      },
+      "ring-mrr5tb95": {
+        "x": 73.66666666666669,
+        "y": 10.42424519856771
+      }
+    },
+    "nodeSources": {
+      "ring-mrr5tb95": "native",
+      "ring-mrr7139c": "native"
+    },
+    "lockedNodeIds": [],
+    "expandedNodeIds": []
+  },
+  "public": true,
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "published": true,
+  "liveAt": "2026-07-19T02:48:03.887Z",
+  "publishedAt": "2026-07-19T02:47:18.202Z",
+  "publishedUri": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.feed.generator/follow-ring-original",
+  "atprotoRkey": "follow-ring-original"
+}

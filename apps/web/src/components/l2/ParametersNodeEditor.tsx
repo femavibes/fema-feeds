@@ -26,11 +26,14 @@ import {
   type ParamAndBlockInfo,
 } from '@cfb/l2-graph'
 
+import { triggersForControl } from '../../lib/param-triggers-ui'
+
 import { newId } from '../../lib/l2-form'
 import { TermListEditor } from '../TermListEditor'
 import { ToggleRow } from '../ToggleRow'
 import { ToggleSwitch } from '../ToggleSwitch'
 import { ParamNodeBindProps } from './ParamNodeBindProps'
+import { ParamTriggersButton, ParamTriggersModal } from './ParamTriggersModal'
 
 function newBooleanControl(): L2ParamControl {
   const name = `toggle_${newId('p').slice(-4)}`
@@ -553,6 +556,8 @@ export function ParametersNodeEditor({
   node,
   match,
   nodeLabels = {},
+  feedTimezone = 'UTC',
+  onFeedTimezoneChange,
   onChange,
   readOnly = false,
 }: {
@@ -560,6 +565,9 @@ export function ParametersNodeEditor({
   match: L2RuleGroup
   /** Visual custom names keyed by node id. */
   nodeLabels?: Record<string, string>
+  /** IANA timezone for schedule windows on this feed. */
+  feedTimezone?: string
+  onFeedTimezoneChange?: (timezone: string) => void
   onChange: (next: L2ParametersCondition) => void
   readOnly?: boolean
 }) {
@@ -656,6 +664,8 @@ export function ParametersNodeEditor({
           match={match}
           panelId={node.id}
           nodeLabels={nodeLabels}
+          feedTimezone={feedTimezone}
+          onFeedTimezoneChange={onFeedTimezoneChange}
           onChange={(next) => updateControl(index, next)}
           onRemove={() => removeControl(index)}
           onLiveValue={(v) => setLiveValue(control.name, v)}
@@ -673,6 +683,8 @@ function ParamControlCard({
   panelId,
   nodeLabels = {},
   andBlockInfo,
+  feedTimezone,
+  onFeedTimezoneChange,
   onChange,
   onRemove,
   onLiveValue,
@@ -684,6 +696,8 @@ function ParamControlCard({
   panelId: string
   nodeLabels?: Record<string, string>
   andBlockInfo?: ParamAndBlockInfo
+  feedTimezone?: string
+  onFeedTimezoneChange?: (timezone: string) => void
   onChange: (next: L2ParamControl) => void
   onRemove: () => void
   onLiveValue: (value: L2ParamValue) => void
@@ -692,6 +706,7 @@ function ParamControlCard({
   const [copied, setCopied] = useState(false)
   const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [syncHelpOpen, setSyncHelpOpen] = useState(false)
+  const [triggersOpen, setTriggersOpen] = useState(false)
   const patch = (partial: Partial<L2ParamControl>) => onChange({ ...control, ...partial })
   const bindings = normalizeControlBindings(control)
   const targetCount = new Set(bindings.map((b) => b.nodeId).filter(Boolean)).size
@@ -701,6 +716,8 @@ function ParamControlCard({
   const isShared = sharedPanels > 1
   const liveOn = liveValue === true || liveValue === 'true'
   const andBlocked = Boolean(andBlockInfo && liveOn)
+  const triggerCount = triggersForControl(control).length
+  const canSchedule = control.type === 'boolean' || control.type === 'enum'
 
   const linkableIds = useMemo(() => {
     const out: { name: string; label: string; panelTitle: string }[] = []
@@ -786,6 +803,12 @@ function ParamControlCard({
           ) : null}
         </button>
         <div className="l2-param-control-card-head-actions">
+          {canSchedule ? (
+            <ParamTriggersButton
+              scheduleCount={triggerCount}
+              onClick={() => setTriggersOpen(true)}
+            />
+          ) : null}
           {control.type === 'boolean' ? (
             <div className="l2-param-head-live" title="Live value for this feed (same as canvas)">
               <ToggleSwitch
@@ -937,6 +960,19 @@ function ParamControlCard({
             document.body,
           )
         : null}
+
+      <ParamTriggersModal
+        open={triggersOpen}
+        control={control}
+        match={match}
+        nodeLabels={nodeLabels}
+        feedTimezone={feedTimezone ?? 'UTC'}
+        readOnly={readOnly}
+        onChange={(triggers) => patch({ triggers, schedules: undefined })}
+        onFeedTimezoneChange={onFeedTimezoneChange}
+        onClose={() => setTriggersOpen(false)}
+      />
+
       <label className="l2-inspector-field">
         Description
         <BlurCommitInput

@@ -417,6 +417,102 @@ export interface L2ParamTargetBinding {
 /** Live / default / override value for a Parameter control. */
 export type L2ParamValue = boolean | string | string[]
 
+/**
+ * How a schedule window re-applies its active value.
+ * - boundaries: write on window enter/exit only (last write wins between boundaries)
+ * - continuous: re-apply active value every worker tick while inside the window
+ */
+export type L2ParamScheduleEnforce = 'boundaries' | 'continuous'
+
+/** Time-of-day window that sets a Param value when active. */
+export interface L2ParamScheduleWindow {
+  id: string
+  /** Optional label in the UI. */
+  label?: string
+  /** 0=Sun … 6=Sat. Empty = every day. */
+  daysOfWeek?: number[]
+  /** Local feed time HH:mm (inclusive). */
+  startTime: string
+  /** Local feed time HH:mm (exclusive at boundary tick). */
+  endTime: string
+  /** Inclusive calendar start YYYY-MM-DD (feed timezone). */
+  startDate?: string
+  /** Inclusive calendar end YYYY-MM-DD (feed timezone). */
+  endDate?: string
+  /** Value while this window is active. */
+  activeValue: L2ParamValue
+  /** Value written when leaving this window (boundaries mode). Omit = no write on exit. */
+  inactiveValue?: L2ParamValue
+  /** Default boundaries. */
+  enforce?: L2ParamScheduleEnforce
+}
+
+export type L2ParamTriggerKind =
+  | 'time_window'
+  | 'match_rate'
+  | 'staleness'
+  | 'author_post'
+  | 'list_membership'
+
+export interface L2ParamTriggerBase {
+  id: string
+  label?: string
+  activeValue: L2ParamValue
+  inactiveValue?: L2ParamValue
+  enforce?: L2ParamScheduleEnforce
+}
+
+export interface L2ParamTimeWindowTrigger extends L2ParamTriggerBase {
+  kind: 'time_window'
+  daysOfWeek?: number[]
+  startTime: string
+  endTime: string
+  startDate?: string
+  endDate?: string
+}
+
+export type L2ParamListenScope = 'feed' | 'node' | 'any_bound' | 'all_bound'
+
+export interface L2ParamMatchRateTrigger extends L2ParamTriggerBase {
+  kind: 'match_rate'
+  /** What activity to listen to (defaults to feed). */
+  scope: L2ParamListenScope
+  /** When scope is node — graph node id (bound target or other watch node). */
+  nodeId?: string
+  /** Rolling window length in minutes (e.g. 60 = per hour). */
+  windowMinutes: number
+  comparator: 'lt' | 'lte' | 'gt' | 'gte'
+  threshold: number
+}
+
+export interface L2ParamStalenessTrigger extends L2ParamTriggerBase {
+  kind: 'staleness'
+  scope: L2ParamListenScope
+  nodeId?: string
+  /** No matches for this many minutes → active. */
+  staleMinutes: number
+}
+
+export interface L2ParamAuthorPostTrigger extends L2ParamTriggerBase {
+  kind: 'author_post'
+  authorDids?: string[]
+  authorListIds?: string[]
+  lookbackMinutes?: number
+}
+
+export interface L2ParamListMembershipTrigger extends L2ParamTriggerBase {
+  kind: 'list_membership'
+  listId: string
+  event: 'member_added' | 'member_removed' | 'any_change'
+}
+
+export type L2ParamTrigger =
+  | L2ParamTimeWindowTrigger
+  | L2ParamMatchRateTrigger
+  | L2ParamStalenessTrigger
+  | L2ParamAuthorPostTrigger
+  | L2ParamListMembershipTrigger
+
 /** A named control on a Parameter Node (toggle, dropdown, text, or list). */
 export interface L2ParamControl {
   name: string
@@ -437,6 +533,10 @@ export interface L2ParamControl {
   options?: L2ParamEnumOption[]
   /** string / stringList: placeholder shown in the control editor. */
   placeholder?: string
+  /** Time-based auto triggers for this Param (worker applies to live feed values). @deprecated prefer triggers */
+  schedules?: L2ParamScheduleWindow[]
+  /** Native auto triggers (time, match rate, staleness, author, list). */
+  triggers?: L2ParamTrigger[]
 }
 
 /**
@@ -587,6 +687,27 @@ export interface FeedConfig {
   sources?: import('./feed-sources.js').FeedSourcesConfig
   /** Native personalization config — viewer-aware adjustments at serve time. */
   personalization?: import('./personalization.js').NativePersonalizationConfig
+  /**
+   * IANA timezone for Param schedule windows (e.g. America/Los_Angeles).
+   * Stored/computed in UTC internally; schedules interpret start/end in this zone.
+   */
+  timezone?: string
+  /** Worker-only state for schedule boundary detection (not author-edited). @deprecated prefer paramTriggerRuntime */
+  paramScheduleRuntime?: {
+    byParam?: Record<
+      string,
+      {
+        inWindow: boolean
+        windowId?: string
+      }
+    >
+  }
+  /** Worker-only trigger state (boundary + threshold crossings). */
+  paramTriggerRuntime?: {
+    time?: Record<string, { inWindow: boolean; windowId?: string }>
+    /** triggerId → last satisfied state for edge detection */
+    threshold?: Record<string, { satisfied: boolean }>
+  }
 }
 
 /** Engagement metrics — hydrated when available; default 0 at eval time. */

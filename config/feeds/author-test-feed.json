@@ -1,0 +1,91 @@
+{
+  "feedId": "author-test-feed",
+  "projectId": "author-test-project",
+  "name": "AUTHOR TEST FEED",
+  "enabled": true,
+  "poolScope": "project_only",
+  "match": {
+    "id": "root",
+    "type": "group",
+    "logic": "any",
+    "children": [
+      {
+        "id": "author-mrq46h1v",
+        "op": "in_list",
+        "dids": [
+          "did:plc:lptjvw6ut224kwrj7ub3sqbe"
+        ],
+        "role": "discover",
+        "type": "author",
+        "listId": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.graph.list/3mbaeidvdrg2i"
+      }
+    ]
+  },
+  "public": true,
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "published": false,
+  "visualLayout": {
+    "edges": [
+      {
+        "id": "e-start-author-mrq46h1v",
+        "branch": true,
+        "source": "start",
+        "target": "author-mrq46h1v"
+      },
+      {
+        "id": "e-author-mrq46h1v-end",
+        "branch": true,
+        "source": "author-mrq46h1v",
+        "target": "end"
+      }
+    ],
+    "labels": {},
+    "positions": {
+      "end": {
+        "x": 374.66666666666663,
+        "y": 11.333333333333329
+      },
+      "start": {
+        "x": -202.66666666666669,
+        "y": 28.666666666666664
+      },
+      "author-mrq46h1v": {
+        "x": 23.429919755056233,
+        "y": 9.036891886318116
+      }
+    },
+    "nodeSources": {
+      "kw-mrqsdxf3": "native",
+      "sub-mrqsdb56": "native",
+      "tag-mrqscp4g": "native",
+      "tag-mrqse5qx": "native",
+      "tag-mrqseia5": "native",
+      "url-mrqscze8": "native",
+      "url-mrqselsd": "native",
+      "lang-mrqseq1x": "native",
+      "media-mrqrzywj": "native",
+      "regex-mrqsdzn9": "native",
+      "score-mrqsd7rh": "native",
+      "scout-mrqsdpkp": "native",
+      "author-mrq46h1v": "native",
+      "author-mrr4gh8l": "native",
+      "labels-mrqsf1jj": "native"
+    },
+    "lockedNodeIds": [],
+    "expandedNodeIds": []
+  },
+  "authorLists": [
+    {
+      "listId": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.graph.list/3mbaeidvdrg2i",
+      "sources": [
+        {
+          "uri": "at://did:plc:lptjvw6ut224kwrj7ub3sqbe/app.bsky.graph.list/3mbaeidvdrg2i",
+          "type": "bluesky_list",
+          "pollIntervalMinutes": 60
+        }
+      ],
+      "pollIntervalMinutes": 60
+    }
+  ],
+  "liveAt": "2026-07-19T01:48:53.097Z"
+}

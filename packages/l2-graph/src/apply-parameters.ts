@@ -830,6 +830,92 @@ export function collectParamListFieldPreviews(
   return out
 }
 
+export type ParamPropertyFieldPreview = {
+  property: string
+  label: string
+  authoredDisplay: string
+  effectiveDisplay: string
+  /** True when live Param apply changes this property vs the node baseline. */
+  changed: boolean
+}
+
+function formatPropertyPreviewValue(
+  field: ParamBindableField | undefined,
+  value: unknown,
+): string {
+  if (field?.valueKind === 'boolean') {
+    return value === true || value === 'true' ? 'on' : 'off'
+  }
+  const polarity = field ? binaryEnumPolarity(field) : null
+  if (polarity) {
+    return String(value) === polarity.onValue ? polarity.onLabel : polarity.offLabel
+  }
+  if (value === undefined || value === null) return '(unset)'
+  return String(value)
+}
+
+/**
+ * For override_when_on targets: authored vs live bool/enum fields that Params
+ * currently drive. full_control uses locked overlays instead.
+ */
+export function collectParamPropertyFieldPreviews(
+  root: L2RuleGroup,
+  nodeId: string,
+  overrides?: ParamValueMap,
+): ParamPropertyFieldPreview[] {
+  const byId = indexRuleNodesById(root)
+  const authored = byId.get(nodeId)
+  if (!authored || authored.type === 'parameters' || authored.type === 'group') return []
+  if (resolveParamControlMode(authored) === 'full_control') return []
+
+  const driven = new Map<string, ParamBindableField>()
+  const walk = (node: L2RuleNode) => {
+    if (isParametersNode(node)) {
+      for (const control of node.controls ?? []) {
+        const bindings =
+          control.type === 'enum'
+            ? (control.options ?? []).flatMap((o) => normalizeOptionBindings(o))
+            : normalizeControlBindings(control)
+        for (const b of bindings) {
+          if (b.kind !== 'property' || b.nodeId !== nodeId || !b.property) continue
+          const field = resolveBindableField(authored, b)
+          if (!field || field.valueKind === 'string' || field.valueKind === 'stringList') continue
+          if (field.valueKind === 'member') continue
+          driven.set(b.property, field)
+        }
+      }
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  if (driven.size === 0) return []
+
+  const effectiveRoot = applyParametersToMatch(root, { values: overrides })
+  const effective = indexRuleNodesById(effectiveRoot).get(nodeId)
+  if (!effective) return []
+
+  const authRec = asRecord(authored)
+  const effRec = asRecord(effective)
+  const out: ParamPropertyFieldPreview[] = []
+  for (const [property, field] of driven) {
+    const authoredDisplay = formatPropertyPreviewValue(field, authRec[property])
+    const effectiveDisplay = formatPropertyPreviewValue(field, effRec[property])
+    const changed = authoredDisplay !== effectiveDisplay
+    if (!changed) continue
+    out.push({
+      property,
+      label: field.label ?? property,
+      authoredDisplay,
+      effectiveDisplay,
+      changed,
+    })
+  }
+  return out
+}
+
 /**
  * Compile parameters away:
  * 1) apply property patches

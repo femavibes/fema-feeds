@@ -1,7 +1,7 @@
 {
   "projectId": "dev-project",
   "name": "DEV PROJECT",
-  "enabled": true,
+  "enabled": false,
   "prefilterMode": "strict",
   "prefilter": {
     "match": {
@@ -17,7 +17,7 @@
     "restrictBranches": []
   },
   "compiledL1Meta": {
-    "compiledAt": "2026-07-18T20:21:05.350Z",
+    "compiledAt": "2026-07-19T01:32:25.221Z",
     "source": "prefilter"
   },
   "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
@@ -30,6 +30,32 @@
       {
         "type": "all",
         "rules": [
+          {
+            "type": "any",
+            "rules": [
+              {
+                "type": "embed",
+                "field": "has_text_only",
+                "required": true,
+                "sourceFeedId": "dev-feed",
+                "sourceNodeId": "media-mrps47m1"
+              },
+              {
+                "type": "embed",
+                "field": "has_image",
+                "required": true,
+                "sourceFeedId": "dev-feed",
+                "sourceNodeId": "media-mrps47m1"
+              },
+              {
+                "type": "embed",
+                "field": "has_gif",
+                "required": true,
+                "sourceFeedId": "dev-feed",
+                "sourceNodeId": "media-mrps47m1"
+              }
+            ]
+          },
           {
             "type": "hashtag",
             "op": "includes",
@@ -72,6 +98,15 @@
             ],
             "sourceFeedId": "dev-feed",
             "sourceNodeId": "author-mrpsqb0r"
+          },
+          {
+            "type": "mention",
+            "op": "includes",
+            "accounts": [
+              "FEMA.MONSTER"
+            ],
+            "sourceFeedId": "dev-feed",
+            "sourceNodeId": "mention-mrps4ass"
           },
           {
             "type": "author",
@@ -147,9 +182,9 @@
     ]
   },
   "strictGateMeta": {
-    "compiledAt": "2026-07-18T20:28:32.367Z",
+    "compiledAt": "2026-07-19T01:32:25.223Z",
     "feedCount": 1,
-    "pathCount": 1,
+    "pathCount": 4,
     "contributingFeeds": [
       "dev-feed"
     ]

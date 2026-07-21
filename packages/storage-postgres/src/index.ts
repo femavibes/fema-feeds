@@ -322,3 +322,22 @@ export {
   insertEngagementEvent,
   pruneEngagementEvents,
 } from './engagement-events.js'
+export {
+  recordFeedParamMatch,
+  countFeedParamMatches,
+  getFeedParamLastMatchAt,
+  authorPostedRecentlyForFeed,
+  getAuthorListMemberCount,
+  noteListMemberCount,
+  takePendingListEvent,
+  pruneOldParamMatchEvents,
+} from './param-triggers.js'
+export {
+  createFeedApiKey,
+  listFeedApiKeys,
+  revokeFeedApiKey,
+  resolveFeedApiKey,
+  generateFeedApiKey,
+  hashFeedApiKey,
+  type FeedApiKeyRow,
+} from './feed-api-keys.js'

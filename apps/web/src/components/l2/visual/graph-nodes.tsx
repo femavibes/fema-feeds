@@ -1,4 +1,4 @@
-import { type SyntheticEvent, useLayoutEffect, useMemo, useRef } from 'react'
+import { type SyntheticEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { type Node, type NodeProps, Handle, Position } from '@xyflow/react'
 import type { L2NodeProvenance, L2ParametersCondition, L2ParamValue, L2RuleNode } from '@cfb/core-types'
 import {
@@ -7,6 +7,7 @@ import {
   buildParamValueMap,
   collectParamAndBlockers,
   collectParamListFieldPreviews,
+  collectParamPropertyFieldPreviews,
   conditionCollapseMetrics,
   conditionExpandMetrics,
   getConditionExpandBodyHeight,
@@ -18,9 +19,13 @@ import { ingestRoleBadgeFor } from '../../../lib/l2-ingest-badge'
 import {
   collectParamPropertyLocks,
   overlayParamLockedValues,
+  overlayParamOverrideValues,
+  paramLiveOverrideProps,
   paramLockSummary,
   paramLockedPropertySet,
+  paramOverridePropertySet,
   restoreParamLockedValues,
+  restoreParamOverrideValues,
 } from '../../../lib/param-bind-preview'
 import { NodeRoleIcon } from '../NodeRoleIcon'
 import { ToggleRow } from '../../ToggleRow'
@@ -465,8 +470,28 @@ function ConditionExpandProperties({
   const effective = match
     ? indexRuleNodesById(applyParametersToMatch(match)).get(nodeId)
     : undefined
-  const display = overlayParamLockedValues(rule, effective, locks)
   const listPreviews = match ? collectParamListFieldPreviews(match, nodeId) : []
+  const propertyPreviews = match ? collectParamPropertyFieldPreviews(match, nodeId) : []
+  const overrideProps = paramOverridePropertySet(propertyPreviews)
+  const paramValuesKey = match ? JSON.stringify(buildParamValueMap(match)) : ''
+  const pinnedRef = useRef<Set<string>>(new Set())
+  const [pinTick, setPinTick] = useState(0)
+
+  useEffect(() => {
+    pinnedRef.current = new Set()
+    setPinTick((n) => n + 1)
+  }, [nodeId, paramValuesKey])
+
+  const pinnedBaselineProps = pinnedRef.current
+  const paramLiveProps = paramLiveOverrideProps(overrideProps, pinnedBaselineProps)
+  const display = overlayParamOverrideValues(
+    overlayParamLockedValues(rule, effective, locks),
+    effective,
+    propertyPreviews,
+    pinnedBaselineProps,
+  )
+
+  void pinTick
 
   useLayoutEffect(() => {
     const el = bodyRef.current
@@ -491,6 +516,8 @@ function ConditionExpandProperties({
     locks.length,
     listPreviews,
     listPreviews.map((p) => `${p.property}:${p.effective.join(',')}`).join('|'),
+    propertyPreviews,
+    propertyPreviews.map((p) => `${p.property}:${p.effectiveDisplay}`).join('|'),
     readOnly,
   ])
 
@@ -504,7 +531,8 @@ function ConditionExpandProperties({
         node={display}
         onChange={(next) => {
           if (!match || !expandApi?.patchRuleNode) return
-          const authored = restoreParamLockedValues(next, rule, locks)
+          const locked = restoreParamLockedValues(next, rule, locks)
+          const authored = restoreParamOverrideValues(locked, rule, overrideProps, display)
           expandApi.patchRuleNode(nodeId, authored)
         }}
         onRemove={() => undefined}
@@ -514,6 +542,13 @@ function ConditionExpandProperties({
         paramLockedProps={paramLockedPropertySet(locks)}
         paramLockHint={locks.length ? paramLockSummary(locks) : undefined}
         paramListPreviews={listPreviews}
+        paramOverriddenProps={paramLiveProps}
+        baselineNode={rule}
+        onPinParamBaseline={(property) => {
+          if (pinnedRef.current.has(property)) return
+          pinnedRef.current.add(property)
+          setPinTick((n) => n + 1)
+        }}
       />
     </div>
   )

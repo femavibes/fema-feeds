@@ -81,6 +81,12 @@ interface Props {
     effective: string[]
     changed: boolean
   }>
+  /** Props currently showing live Param overrides (for styling). */
+  paramOverriddenProps?: ReadonlySet<string>
+  /** Authored node — baseline writes while display may show Param overlay. */
+  baselineNode?: L2RuleNode
+  /** User edited a Param-overridden field; show baseline until Param changes. */
+  onPinParamBaseline?: (property: string) => void
 }
 
 export function ConditionRow({
@@ -104,6 +110,9 @@ export function ConditionRow({
   paramLockedProps,
   paramLockHint,
   paramListPreviews,
+  paramOverriddenProps,
+  baselineNode,
+  onPinParamBaseline,
 }: Props) {
   const termScroll = useTermListScrollHeight(
     fillHeight && node.type === 'keyword',
@@ -187,10 +196,16 @@ export function ConditionRow({
                 caseSensitive={node.caseSensitive}
                 wholeWord={node.wholeWord}
                 onChange={({ caseSensitive, wholeWord }) =>
-                  onChange({ ...node, caseSensitive, wholeWord })
+                  onChange({
+                    ...(baselineNode ?? node),
+                    caseSensitive,
+                    wholeWord,
+                  } as L2RuleNode)
                 }
                 caseSensitiveReadOnly={locked('caseSensitive')}
                 wholeWordReadOnly={locked('wholeWord')}
+                paramOverriddenProps={paramOverriddenProps}
+                onPinParamBaseline={onPinParamBaseline}
               />
               <SearchFieldPicker
                 fields={node.fields}
@@ -367,8 +382,15 @@ export function ConditionRow({
             <KeywordMatchToggles
               caseSensitive={node.caseSensitive}
               wholeWord={false}
-              onChange={({ caseSensitive }) => onChange({ ...node, caseSensitive })}
+              onChange={({ caseSensitive }) =>
+                onChange({
+                  ...(baselineNode ?? node),
+                  caseSensitive,
+                } as L2RuleNode)
+              }
               caseSensitiveReadOnly={locked('caseSensitive')}
+              paramOverriddenProps={paramOverriddenProps}
+              onPinParamBaseline={onPinParamBaseline}
             />
             <UrlSourcePicker
               sources={node.sources}

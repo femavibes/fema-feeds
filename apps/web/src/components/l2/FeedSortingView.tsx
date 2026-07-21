@@ -9,7 +9,7 @@ import { detectSortMode, sortModeBadge, DEFAULT_ENGAGEMENT_WEIGHTS, detectEngage
 
 interface Props {
   draft: FeedConfig
-  onChange: (next: FeedConfig) => void
+  onChange: (next: FeedConfig | ((prev: FeedConfig) => FeedConfig)) => void
   settingsDirty: boolean
   settingsAutosaveState: 'idle' | 'pending' | 'saving' | 'saved' | 'error'
   settingsSaving: boolean

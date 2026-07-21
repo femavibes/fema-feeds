@@ -7,6 +7,8 @@ interface Props {
   compact?: boolean
   /** On, but another Param AND-blocks the effect. */
   andBlocked?: boolean
+  /** Showing a live Parameter override (override_when_on mode). */
+  paramLive?: boolean
 }
 
 export function ToggleSwitch({
@@ -17,6 +19,7 @@ export function ToggleSwitch({
   readOnly = false,
   compact = true,
   andBlocked = false,
+  paramLive = false,
 }: Props) {
   return (
     <button
@@ -27,7 +30,7 @@ export function ToggleSwitch({
       aria-readonly={readOnly || undefined}
       className={`toggle-switch ${compact ? 'toggle-switch-compact' : ''} ${checked ? 'on' : ''}${
         andBlocked && checked ? ' is-and-blocked' : ''
-      }${readOnly ? ' toggle-switch-readonly' : ''}`}
+      }${paramLive ? ' is-param-live' : ''}${readOnly ? ' toggle-switch-readonly' : ''}`}
       disabled={disabled && !readOnly}
       onClick={() => {
         if (readOnly || disabled) return

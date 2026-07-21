@@ -1142,9 +1142,11 @@ export function L2VisualEditor({
                 readOnly={readOnly}
                 onChange={(next) => {
                   if (!paramModeNodeId) return
+                  const node = findInMatch(match, paramModeNodeId)
+                  if (!node || node.type === 'group' || node.type === 'parameters') return
                   patchMatch(
                     updateInMatch(match, paramModeNodeId, {
-                      ...paramModeNode,
+                      ...node,
                       paramControlMode: next,
                     }),
                   )

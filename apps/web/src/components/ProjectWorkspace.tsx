@@ -79,6 +79,8 @@ export function ProjectWorkspace({
   const [confirmDeleteFeed, setConfirmDeleteFeed] = useState(false)
 
   const settingsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const feedDraftRef = useRef<FeedConfig | null>(null)
+  feedDraftRef.current = feedDraft
   const feedNavigateRef = useRef<((view: FeedWorkspaceView) => Promise<boolean>) | null>(null)
   const prevFeedIdRef = useRef<string | null>(feedId)
   const loadingFeedMeta = feedId ? feeds.find((f) => f.feedId === feedId) : null
@@ -199,24 +201,44 @@ export function ProjectWorkspace({
     setSettingsAutosaveState('pending')
     settingsTimerRef.current = setTimeout(() => {
       settingsTimerRef.current = null
-      if (!feedDraft) return
-      void commitSettingsSave(feedDraft, { silent: true }).catch(() => undefined)
+      const snap = feedDraftRef.current
+      if (!snap) return
+      void commitSettingsSave(snap, { silent: true }).catch(() => undefined)
     }, SETTINGS_AUTOSAVE_MS)
   }, [commitSettingsSave, feedDraft, settingsDirty])
 
-  const handleSettingsChange = (next: FeedConfig) => {
-    setFeedDraft(next)
+  const handleSettingsChange = (
+    next: FeedConfig | ((prev: FeedConfig) => FeedConfig),
+  ) => {
+    setFeedDraft((prev) => {
+      if (!prev) return prev
+      return typeof next === 'function' ? next(prev) : next
+    })
     setSettingsDirty(true)
   }
 
-  const handleSaveSettings = () => {
-    if (!feedDraft || settingsSaving) return
+  const flushSettingsSave = useCallback(async (): Promise<FeedConfig | null> => {
+    const snap = feedDraftRef.current
+    if (!snap || !settingsDirty) return snap
     clearSettingsAutosave()
-    void commitSettingsSave(feedDraft)
+    await commitSettingsSave(snap, { silent: true })
+    return feedDraftRef.current ?? snap
+  }, [commitSettingsSave, settingsDirty])
+
+  const handleSaveSettings = () => {
+    const snap = feedDraftRef.current
+    if (!snap || settingsSaving) return
+    clearSettingsAutosave()
+    void commitSettingsSave(snap)
   }
 
   const handleFeedViewChange = (view: FeedWorkspaceView) => {
     void (async () => {
+      try {
+        await flushSettingsSave()
+      } catch {
+        /* user can retry Save now on the settings tab */
+      }
       const nav = feedNavigateRef.current
       if (nav) {
         const ok = await nav(view)
@@ -247,10 +269,15 @@ export function ProjectWorkspace({
   }, [])
 
   const resolveFeedForSidebarLiveUpdate = useCallback(async () => {
-    if (livePayloadResolverRef.current) return livePayloadResolverRef.current()
-    if (!feedDraft) throw new Error('No feed draft loaded')
-    return feedDraft
-  }, [feedDraft])
+    const snap = await flushSettingsSave()
+    if (!snap) throw new Error('No feed draft loaded')
+    const useEditorPayload =
+      (feedView === 'visual' || feedView === 'json') && livePayloadResolverRef.current
+    if (useEditorPayload) {
+      return livePayloadResolverRef.current!()
+    }
+    return snap
+  }, [feedView, flushSettingsSave])
 
   const confirmAndDeleteFeed = async () => {
     if (!feedDraft) return

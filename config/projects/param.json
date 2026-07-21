@@ -1,0 +1,51 @@
+{
+  "projectId": "param",
+  "name": "PARAM",
+  "enabled": true,
+  "prefilterMode": "strict",
+  "prefilter": {
+    "match": {
+      "type": "group",
+      "id": "prefilter-root",
+      "logic": "any",
+      "children": []
+    }
+  },
+  "ingestGate": {
+    "includeBranches": [],
+    "excludeBranches": [],
+    "restrictBranches": []
+  },
+  "compiledL1Meta": {
+    "compiledAt": "2026-07-19T18:59:48.468Z",
+    "source": "prefilter"
+  },
+  "ownerDid": "did:plc:lptjvw6ut224kwrj7ub3sqbe",
+  "strictIncludeGate": {
+    "includeBranches": [
+      {
+        "type": "url",
+        "op": "includes",
+        "patterns": [],
+        "sources": [
+          "link_card",
+          "facet_link",
+          "bridgy_original"
+        ],
+        "caseSensitive": true,
+        "sourceFeedId": "param-feed",
+        "sourceNodeId": "url-mrs5zwiq"
+      }
+    ],
+    "excludeBranches": [],
+    "restrictBranches": []
+  },
+  "strictGateMeta": {
+    "compiledAt": "2026-07-21T20:19:00.305Z",
+    "feedCount": 1,
+    "pathCount": 1,
+    "contributingFeeds": [
+      "param-feed"
+    ]
+  }
+}

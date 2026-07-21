@@ -1,6 +1,6 @@
-import type { Hono } from 'hono'
+import type { Hono, Context } from 'hono'
 
-import type { FeedConfig, L2EvalInput, PostMetrics, ProjectL1Config } from '@cfb/core-types'
+import type { FeedConfig, L2EvalInput, L2ParamValue, PostMetrics, ProjectL1Config } from '@cfb/core-types'
 
 import { draftsDiffer } from '@cfb/core-types'
 
@@ -27,7 +27,7 @@ import {
 
 import { buildFeedPublishInfo, applyFeedInjector, applyFeedRanker, resolveFeedgenServiceDid } from '@cfb/feedgen'
 
-import { countImportableConditions, importFeedGenRules, resolveFeedMatch } from '@cfb/l2-graph'
+import { countImportableConditions, importFeedGenRules, resolveFeedMatch, collectParamControls, setParamValueAcrossMatch } from '@cfb/l2-graph'
 
 import { loadPostMetrics, loadMentionDidsForFeed, loadFollowRingsForFeed, previewFeedPoolMatches, startBackgroundReeval, getRebuildStatus, clearRebuildStatus, cancelRebuild, seedFollowRingsFromFeeds } from '@cfb/l2-worker'
 import { setPostEngagement } from '@cfb/storage-postgres'
@@ -65,6 +65,14 @@ import {
   saveFeedVersion,
 
   getFeedStats,
+
+  createFeedApiKey,
+
+  listFeedApiKeys,
+
+  revokeFeedApiKey,
+
+  resolveFeedApiKey,
 
 } from '@cfb/storage-postgres'
 
@@ -1543,6 +1551,124 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
     }
   })
 
+  /** Session or per-feed API key (Bearer whi_…). */
+  async function assertFeedWriteAccess(
+    c: Context,
+    feed: FeedConfig,
+  ): Promise<{ ok: true; via: 'session' | 'api_key' } | { ok: false }> {
+    const bearer = c.req.header('Authorization')?.replace(/^Bearer\s+/i, '').trim()
+    if (bearer && pool) {
+      const key = await resolveFeedApiKey(pool, bearer)
+      if (key && key.feedId === feed.feedId) return { ok: true, via: 'api_key' }
+    }
+    const access = assertFeedAccess(feed, getUserDid(c))
+    if (!access.ok) return { ok: false }
+    return { ok: true, via: 'session' }
+  }
+
+  app.patch('/api/feeds/:id/params', async (c) => {
+    const id = c.req.param('id')
+    let live: FeedConfig
+    try {
+      live = await loadFeed(feedsDir, id)
+    } catch {
+      return c.json({ error: 'not found' }, 404)
+    }
+
+    const access = await assertFeedWriteAccess(c, live)
+    if (!access.ok) return c.json({ error: 'not found' }, 404)
+
+    const body =
+      (await c.req.json<{ values?: Record<string, L2ParamValue> }>().catch(() => null)) ?? {}
+    const values = body.values
+    if (!values || typeof values !== 'object') {
+      return c.json({ error: 'values object required' }, 400)
+    }
+
+    const declared = new Set(collectParamControls(live.match).map((ctrl) => ctrl.name))
+    const unknown = Object.keys(values).filter((k) => !declared.has(k))
+    if (unknown.length > 0) {
+      return c.json({ error: 'unknown param ids', unknown }, 400)
+    }
+
+    let match = live.match
+    for (const [name, value] of Object.entries(values)) {
+      match = setParamValueAcrossMatch(match, name, value)
+    }
+
+    const next: FeedConfig = stampFeedForSave(
+      { ...live, match },
+      getUserDid(c) ?? 'api-key',
+    )
+    await saveFeed(feedsDir, next)
+    return c.json({ ok: true, feedId: id, updated: Object.keys(values), via: access.via })
+  })
+
+  app.get('/api/feeds/:id/api-keys', async (c) => {
+    const id = c.req.param('id')
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+
+    let live: FeedConfig
+    try {
+      live = await loadFeed(feedsDir, id)
+    } catch {
+      return c.json({ error: 'not found' }, 404)
+    }
+
+    const access = assertFeedAccess(live, getUserDid(c))
+    if (!access.ok) return c.json({ error: 'not found' }, access.status)
+
+    const keys = await listFeedApiKeys(pool, id)
+    return c.json({ keys })
+  })
+
+  app.post('/api/feeds/:id/api-keys', async (c) => {
+    const id = c.req.param('id')
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'unauthorized' }, 401)
+
+    let live: FeedConfig
+    try {
+      live = await loadFeed(feedsDir, id)
+    } catch {
+      return c.json({ error: 'not found' }, 404)
+    }
+
+    const access = assertFeedAccess(live, userDid)
+    if (!access.ok) return c.json({ error: 'not found' }, access.status)
+
+    const body =
+      (await c.req.json<{ label?: string }>().catch((): { label?: string } => ({}))) ?? {}
+    const { row, rawKey } = await createFeedApiKey(pool, {
+      feedId: id,
+      ownerDid: userDid,
+      label: body.label ?? '',
+    })
+    return c.json({ key: row, rawKey })
+  })
+
+  app.delete('/api/feeds/:id/api-keys/:keyId', async (c) => {
+    const id = c.req.param('id')
+    const keyId = c.req.param('keyId')
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+
+    let live: FeedConfig
+    try {
+      live = await loadFeed(feedsDir, id)
+    } catch {
+      return c.json({ error: 'not found' }, 404)
+    }
+
+    const access = assertFeedAccess(live, getUserDid(c))
+    if (!access.ok) return c.json({ error: 'not found' }, access.status)
+
+    const revoked = await revokeFeedApiKey(pool, id, keyId)
+    if (!revoked) return c.json({ error: 'not found' }, 404)
+    return c.json({ ok: true })
+  })
+
 }
 
 function walkFeedAuthorListIds(feed: FeedConfig): string[] {
@@ -1574,5 +1700,4 @@ function walkFeedAuthorListIds(feed: FeedConfig): string[] {
   return ids
 
 }
-
 

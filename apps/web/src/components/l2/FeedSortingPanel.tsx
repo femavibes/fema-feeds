@@ -22,7 +22,7 @@ import { FORMULA_FIELDS } from '../../lib/formula-parser'
 
 interface Props {
   draft: FeedConfig
-  onChange: (next: FeedConfig) => void
+  onChange: (next: FeedConfig | ((prev: FeedConfig) => FeedConfig)) => void
   layout?: 'main' | 'sidebar'
 }
 
@@ -365,16 +365,17 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
     setExplicitMode(next)
     if (next === 'builder') return
     if (next === 'engagement') {
-      onChange(applySortMode(draft, next, engagementWeights, DEFAULT_SORT_TUNING))
+      onChange((prev) => applySortMode(prev, next, engagementWeights, tuning))
       return
     }
     if (next === 'custom') {
-      if (!draft.rank?.sortKey) {
-        onChange({ ...draft, rank: { sortKey: { type: 'field', field: 'editor_score' } } })
-      }
+      onChange((prev) => {
+        if (prev.rank?.sortKey) return prev
+        return { ...prev, rank: { sortKey: { type: 'field', field: 'editor_score' } } }
+      })
       return
     }
-    onChange(applySortMode(draft, next, undefined, DEFAULT_SORT_TUNING))
+    onChange((prev) => applySortMode(prev, next, undefined, DEFAULT_SORT_TUNING))
   }
 
   const updateWeights = (next: EngagementWeights) => {
@@ -382,7 +383,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
     const safe = anyEnabled ? next : { ...next, likes: { ...next.likes, enabled: true } }
     setEngagementWeights(safe)
     if (mode === 'engagement') {
-      onChange(applySortMode(draft, 'engagement', safe, tuning))
+      onChange((prev) => applySortMode(prev, 'engagement', safe, tuning))
     } else {
       rebuildCustomExpr(safe, tuning)
     }
@@ -391,8 +392,10 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
   const updateTuning = (next: SortTuning) => {
     setTuning(next)
     if (mode === 'engagement') {
-      const updated = applySortMode(draft, 'engagement', engagementWeights, next)
-      onChange({ ...updated, rank: { ...updated.rank, tuning: next } })
+      onChange((prev) => {
+        const updated = applySortMode(prev, 'engagement', engagementWeights, next)
+        return { ...updated, rank: { ...updated.rank, tuning: next } }
+      })
     } else {
       rebuildCustomExpr(engagementWeights, next)
     }
@@ -400,7 +403,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
 
   const rebuildCustomExpr = (weights: EngagementWeights, t: SortTuning) => {
     const expr = applyTuning(engagementExpr(weights), t)
-    onChange({ ...draft, rank: { ...draft.rank, sortKey: expr, tuning: t } })
+    onChange((prev) => ({ ...prev, rank: { ...prev.rank, sortKey: expr, tuning: t } }))
   }
 
   const isMain = layout === 'main'
@@ -615,7 +618,9 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
               onChange={(e) => {
                 try {
                   const parsed = JSON.parse(e.target.value) as L2Expr
-                  if (parsed.type) onChange({ ...draft, rank: { sortKey: parsed } })
+                  if (parsed.type) {
+                    onChange((prev) => ({ ...prev, rank: { ...prev.rank, sortKey: parsed } }))
+                  }
                 } catch { /* ignore parse errors while typing */ }
               }}
             />
@@ -629,7 +634,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
         <div className="feed-sorting-tuning">
           <SortFormulaBuilder
             draft={draft}
-            onChange={(expr) => onChange({ ...draft, rank: { sortKey: expr } })}
+            onChange={(expr) => onChange((prev) => ({ ...prev, rank: { ...prev.rank, sortKey: expr } }))}
           />
         </div>
       )}

@@ -57,3 +57,4 @@ export {
   discoverFromRing,
   type FollowRingDiscoverResult,
 } from './follow-ring-discover.js'
+export { buildParamTriggerContext } from './param-trigger-context.js'

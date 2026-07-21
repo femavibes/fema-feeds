@@ -6,6 +6,7 @@ import { FeedL2Form } from './FeedL2Form'
 import { L2MatchPoolPanel } from './L2MatchPoolPanel'
 import { FeedPublishPanel } from './FeedPublishPanel'
 import { SortTester } from './SortTester'
+import { FeedParamApiKeysPanel } from './FeedParamApiKeysPanel'
 import { BlueskyFeedsModal } from './BlueskyFeedsModal'
 import type { FeedWorkspaceView } from '../../lib/workspace-views'
 
@@ -215,6 +216,7 @@ export function FeedRightSidebar({
               compact
               sidebar
             />
+            <FeedParamApiKeysPanel feedId={feedDraft.feedId} />
             {settingsDirty ? (
               <div className="feed-settings-sidebar-status">
                 <span className="badge badge-warn">Unsaved</span>

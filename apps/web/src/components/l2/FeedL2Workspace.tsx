@@ -45,7 +45,7 @@ interface Props {
   onNotify: (message: string | null, error: string | null) => void
   liveFeed: FeedConfig | null
   hasUnpublishedDraft: boolean
-  onSettingsChange: (next: FeedConfig) => void
+  onSettingsChange: (next: FeedConfig | ((prev: FeedConfig) => FeedConfig)) => void
   settingsDirty: boolean
   settingsAutosaveState: AutosaveState
   settingsSaving: boolean
@@ -201,8 +201,8 @@ export function FeedL2Workspace({
     if (editorDirtyRef.current && editorDraftRef.current) {
       return commitSaveDraft(editorDraftRef.current, { silent: true })
     }
-    return editorDraftRef.current ?? lastCommittedRef.current
-  }, [commitSaveDraft])
+    return draft
+  }, [commitSaveDraft, draft])
 
   const handleUpdateLive = useCallback(async () => {
     if (!onUpdateLive) return
