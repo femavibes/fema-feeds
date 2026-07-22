@@ -617,6 +617,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
     if (body.allowAsInput !== undefined && body.allowAsInput !== live.allowAsInput) settingsFields.allowAsInput = body.allowAsInput
     if (body.isTemplate !== undefined && body.isTemplate !== live.isTemplate) settingsFields.isTemplate = body.isTemplate
     if (body.statsPublic !== undefined && body.statsPublic !== live.statsPublic) settingsFields.statsPublic = body.statsPublic
+    if (body.videoFeed !== undefined && body.videoFeed !== live.videoFeed) settingsFields.videoFeed = body.videoFeed
     if (body.publishedUri !== undefined && body.publishedUri !== live.publishedUri) settingsFields.publishedUri = body.publishedUri
     if (body.atprotoRkey !== undefined && body.atprotoRkey !== live.atprotoRkey) settingsFields.atprotoRkey = body.atprotoRkey
     if (Object.keys(settingsFields).length > 0) {

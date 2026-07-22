@@ -52,6 +52,13 @@ export function FeedL2Form({ draft, onChange, compact = false, sidebar = false }
           onChange={(enabled) => patch({ enabled })}
           ariaLabel="Feed active"
         />
+        <ToggleRow
+          label="Video feed"
+          hint="Bluesky video feed mode — clients only show video posts. Republish after changing."
+          checked={draft.videoFeed ?? false}
+          onChange={(videoFeed) => patch({ videoFeed: videoFeed || undefined })}
+          ariaLabel="Video feed mode"
+        />
         <div className="field-grid">
           <div className="feed-avatar-field">
             <span className="feed-avatar-label">Feed image</span>

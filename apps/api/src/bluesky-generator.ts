@@ -12,6 +12,10 @@ import {
   type AppPasswordLoginResult,
 } from './auth/app-password.js'
 
+/** app.bsky.feed.defs#contentModeVideo — Bluesky native video feed mode. */
+export const BLUESKY_CONTENT_MODE_VIDEO =
+  'app.bsky.feed.defs#contentModeVideo' as const
+
 const BSKY_SERVICE = process.env.BSKY_SERVICE_URL?.trim() || 'https://bsky.social'
 const defaultRoot = resolve(import.meta.dirname, '../../..')
 
@@ -168,6 +172,9 @@ export async function publishBlueskyGeneratorRecord(
     createdAt: new Date().toISOString(),
   }
   if (avatarBlob) record.avatar = avatarBlob
+  if (feed.videoFeed) {
+    record.contentMode = BLUESKY_CONTENT_MODE_VIDEO
+  }
 
   await agent.com.atproto.repo.putRecord({
     repo: userDid,

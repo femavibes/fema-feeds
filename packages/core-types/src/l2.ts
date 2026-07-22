@@ -675,6 +675,11 @@ export interface FeedConfig {
   isTemplate?: boolean
   /** Show DAU and impression stats on the Community page. Default false. */
   statsPublic?: boolean
+  /**
+   * Bluesky video feed mode — sets `contentMode` on the published
+   * app.bsky.feed.generator record so clients treat this as a video feed.
+   */
+  videoFeed?: boolean
   /** ISO timestamp when rules last went live (Update). */
   liveAt?: string
   /** ISO timestamp when first published to Bluesky. */
