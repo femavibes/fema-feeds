@@ -162,7 +162,11 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
               label="Suppress seen posts"
               hint="Push down posts the viewer has already been served."
               checked={config.suppressSeen?.enabled ?? false}
-              onChange={(on) => update({ suppressSeen: { ...config.suppressSeen!, enabled: on } })}
+              onChange={(on) => {
+                const prev = config.suppressSeen ?? DEFAULT_PERSONALIZATION.suppressSeen!
+                const penalty = prev.penalty >= 1 ? 0.5 : prev.penalty
+                update({ suppressSeen: { ...prev, enabled: on, penalty } })
+              }}
               ariaLabel="Suppress seen posts"
             />
             {config.suppressSeen?.enabled && (
@@ -173,11 +177,11 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
                     type="number"
                     step="0.1"
                     min="0"
-                    max="1"
+                    max="0.99"
                     value={config.suppressSeen.penalty}
-                    onChange={(e) => update({ suppressSeen: { enabled: true, penalty: parseFloat(e.target.value) || 0.5, windowHours: config.suppressSeen!.windowHours } })}
+                    onChange={(e) => update({ suppressSeen: { enabled: true, penalty: Math.min(parseFloat(e.target.value) || 0.5, 0.99), windowHours: config.suppressSeen!.windowHours } })}
                   />
-                  <span className="card-hint">0.5 = half score, 0.1 = nearly hidden</span>
+                  <span className="card-hint">Score multiplier for seen posts (0.5 = half score). Must be below 1.</span>
                 </label>
                 <label className="feed-personalization-field">
                   Window (hours)

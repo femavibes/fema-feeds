@@ -55,7 +55,14 @@ export async function loadServedPostsForViewer(
   pool: pg.Pool,
   viewerDid: string,
   feedId: string,
+  servedWindowHours?: number,
 ): Promise<ServedPostRecord[]> {
+  const useHours = servedWindowHours != null
+  const windowParam = useHours
+    ? String(Math.max(1, Math.floor(servedWindowHours)))
+    : String(SERVED_HISTORY_DAYS)
+  const windowUnit = useHours ? 'hours' : 'days'
+
   const res = await pool.query<{
     post_uri: string
     served_at: Date
@@ -65,10 +72,10 @@ export async function loadServedPostsForViewer(
     `SELECT post_uri, served_at, impression_count, seen_at
      FROM feed_served_posts
      WHERE viewer_did = $1 AND feed_id = $2
-       AND served_at >= NOW() - ($3::text || ' days')::interval
+       AND served_at >= NOW() - ($3::text || ' ${windowUnit}')::interval
      ORDER BY served_at DESC
      LIMIT $4`,
-    [viewerDid, feedId, String(SERVED_HISTORY_DAYS), MAX_SERVED_ROWS],
+    [viewerDid, feedId, windowParam, MAX_SERVED_ROWS],
   )
 
   return res.rows.map((r) => ({
@@ -195,11 +202,13 @@ export async function loadViewerContext(
     feedId: string
     candidateAuthorDids: string[]
     fetchFollows: (viewerDid: string) => Promise<string[]>
+    /** When set, limits served-post history to this many hours (personalization window). */
+    servedWindowHours?: number
   },
 ): Promise<ViewerContext> {
   const [followedDids, servedPosts, likedPostUris, repostedPostUris] = await Promise.all([
     resolveViewerFollowedDids(pool, input.viewerDid, input.fetchFollows),
-    loadServedPostsForViewer(pool, input.viewerDid, input.feedId),
+    loadServedPostsForViewer(pool, input.viewerDid, input.feedId, input.servedWindowHours),
     loadViewerInteractionUris(pool, input.viewerDid, 'interactionLike'),
     loadViewerInteractionUris(pool, input.viewerDid, 'interactionRepost'),
   ])

@@ -145,11 +145,18 @@ async function expandRepostSkeletonItems(
   })
 }
 
+function personalizationServedWindowHours(
+  config: NativePersonalizationConfig | undefined,
+): number {
+  return Math.max(1, config?.suppressSeen?.windowHours ?? 48)
+}
+
 async function loadViewerPersonalizationContext(
   pool: pg.Pool,
   feedId: string,
   viewerDid: string,
   candidateAuthorDids: string[],
+  personalization: NativePersonalizationConfig | undefined,
 ): Promise<ViewerPersonalizationContext> {
   const {
     loadViewerContext,
@@ -164,6 +171,7 @@ async function loadViewerPersonalizationContext(
     feedId,
     candidateAuthorDids,
     fetchFollows: fetchViewerFollowedDids,
+    servedWindowHours: personalizationServedWindowHours(personalization),
   })
 
   // Resolve mutuals: intersection of viewer's follows and viewer's followers
@@ -234,7 +242,9 @@ async function buildPersonalizationSession(
     filtered.map((r) => r.post.match(/^at:\/\/([^/]+)\//)?.[1]).filter(Boolean),
   )] as string[]
 
-  const viewerPerCtx = await loadViewerPersonalizationContext(pool, config.feedId, viewerDid, authorDids)
+  const viewerPerCtx = await loadViewerPersonalizationContext(
+    pool, config.feedId, viewerDid, authorDids, config.personalization,
+  )
 
   const personalized = applyNativePersonalization(filtered, config.personalization, viewerPerCtx, sortKeys)
 

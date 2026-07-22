@@ -95,11 +95,18 @@ export function applyNativePersonalization(
       score *= config.boostMutuals.factor
     }
 
-    // Suppress seen
+    // Suppress seen (penalty is a score multiplier; must be < 1 to have any effect)
     if (config.suppressSeen?.enabled) {
-      const seen = viewer.seenPosts.get(post.post)
-      if (seen) {
-        score *= config.suppressSeen.penalty
+      const penalty = config.suppressSeen.penalty
+      if (penalty < 1) {
+        const seen = viewer.seenPosts.get(post.post)
+        if (seen) {
+          const hoursSinceSeen =
+            (Date.now() - seen.servedAt.getTime()) / (1000 * 60 * 60)
+          if (hoursSinceSeen <= config.suppressSeen.windowHours) {
+            score *= penalty
+          }
+        }
       }
     }
 
