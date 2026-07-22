@@ -395,6 +395,27 @@ describe('evaluateFeedL2', () => {
     }
   })
 
+  it('keyword with no search fields never matches includes', () => {
+    const feed: FeedConfig = {
+      ...baseFeed,
+      match: {
+        type: 'group',
+        id: 'root',
+        logic: 'all',
+        children: [
+          {
+            type: 'keyword',
+            id: 'k1',
+            op: 'includes',
+            terms: ['springfield'],
+            fields: [],
+          },
+        ],
+      },
+    }
+    expect(evaluateFeedL2(basePost, feed).matched).toBe(false)
+  })
+
   it('keyword wholeWord rejects partial matches', () => {
     const feed: FeedConfig = {
       ...baseFeed,

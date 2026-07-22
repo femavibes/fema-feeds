@@ -9,6 +9,10 @@ interface Props {
   andBlocked?: boolean
   /** Showing a live Parameter override (override_when_on mode). */
   paramLive?: boolean
+  /** Param value driven by production (trigger or API), not draft. */
+  paramProduction?: boolean
+  /** Direct node baseline (green) — not Param-driven. */
+  nodeAuthored?: boolean
 }
 
 export function ToggleSwitch({
@@ -20,6 +24,8 @@ export function ToggleSwitch({
   compact = true,
   andBlocked = false,
   paramLive = false,
+  paramProduction = false,
+  nodeAuthored = false,
 }: Props) {
   return (
     <button
@@ -30,7 +36,9 @@ export function ToggleSwitch({
       aria-readonly={readOnly || undefined}
       className={`toggle-switch ${compact ? 'toggle-switch-compact' : ''} ${checked ? 'on' : ''}${
         andBlocked && checked ? ' is-and-blocked' : ''
-      }${paramLive ? ' is-param-live' : ''}${readOnly ? ' toggle-switch-readonly' : ''}`}
+      }${paramLive ? ' is-param-live' : ''}${
+        paramProduction ? ' is-param-production' : ''
+      }${nodeAuthored ? ' is-node-authored' : ''}${readOnly ? ' toggle-switch-readonly' : ''}`}
       disabled={disabled && !readOnly}
       onClick={() => {
         if (readOnly || disabled) return

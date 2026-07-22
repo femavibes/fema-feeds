@@ -13,6 +13,8 @@ import type {
 import {
   buildParamValueMap,
   collectParamControls,
+  resolveParamRuntimeMode,
+  resolveTriggerRuntimeMode,
   setParamValueAcrossMatch,
 } from './apply-parameters.js'
 import {
@@ -39,6 +41,34 @@ export type ParamTriggerTickContext = {
   listMembershipEvent: (
     listId: string,
   ) => 'member_added' | 'member_removed' | 'any_change' | null
+}
+
+/** Stub context for editor preview (time triggers; activity triggers stay inactive). */
+export const EMPTY_PARAM_TRIGGER_CTX: ParamTriggerTickContext = {
+  matchCount: () => 0,
+  lastMatchAt: () => null,
+  authorPostedRecently: () => false,
+  listMembershipEvent: () => null,
+}
+
+export { resolveParamRuntimeMode, resolveTriggerRuntimeMode } from './apply-parameters.js'
+
+/** Production worker applies only when both trigger and control are Live. */
+export function triggerAppliesToProduction(
+  trigger: L2ParamTrigger,
+  control: L2ParamControl,
+): boolean {
+  return (
+    resolveTriggerRuntimeMode(trigger) === 'live' && resolveParamRuntimeMode(control) === 'live'
+  )
+}
+
+export function productionTriggersForControl(control: L2ParamControl): L2ParamTrigger[] {
+  return triggersForControl(control).filter((t) => triggerAppliesToProduction(t, control))
+}
+
+export function draftTriggersForControl(control: L2ParamControl): L2ParamTrigger[] {
+  return triggersForControl(control).filter((t) => resolveTriggerRuntimeMode(t) === 'draft')
 }
 
 export type ParamTriggerWrite = {
@@ -324,13 +354,116 @@ export type ParamTriggerTickResult = {
   changed: string[]
 }
 
+export type ParamTriggerSimChange = {
+  paramName: string
+  from: L2ParamValue
+  to: L2ParamValue
+}
+
+/** Evaluate draft triggers without persisting — editor preview (blue). */
+export function previewDraftTriggersForFeed(
+  feed: FeedConfig,
+  ctx: ParamTriggerTickContext = EMPTY_PARAM_TRIGGER_CTX,
+): { valuesAfter: Record<string, L2ParamValue> } {
+  const controls = collectParamControls(feed.match).filter(
+    (c) => draftTriggersForControl(c).length > 0,
+  )
+  if (controls.length === 0) return { valuesAfter: buildParamValueMap(feed.match) }
+
+  const tz = feed.timezone?.trim() || DEFAULT_FEED_TIMEZONE
+  const runtime = feed.paramTriggerRuntime ?? {}
+  const timeState = { ...(runtime.time ?? feed.paramScheduleRuntime?.byParam ?? {}) }
+  const thresholdState = { ...(runtime.threshold ?? {}) }
+
+  let match = feed.match
+
+  for (const control of controls) {
+    const triggers = draftTriggersForControl(control)
+    let write: L2ParamValue | undefined
+    for (const trigger of triggers) {
+      const prev = thresholdState[trigger.id]
+      const prevTime = timeState[control.name]
+      const result = evaluateTrigger({
+        trigger,
+        control,
+        prevSatisfied: prev?.satisfied ?? false,
+        prevTimeInWindow: prevTime?.inWindow,
+        prevTimeWindowId: prevTime?.windowId,
+        currentValue: currentParamValue(match, control.name, control),
+        ctx,
+        timeZone: tz,
+      })
+      thresholdState[trigger.id] = { satisfied: result.satisfied }
+      if (trigger.kind === 'time_window' && result.timeState) {
+        timeState[control.name] = result.timeState
+      }
+      if (result.write !== undefined) write = result.write
+    }
+    if (write !== undefined) {
+      match = setParamValueAcrossMatch(match, control.name, write)
+    }
+  }
+
+  return { valuesAfter: buildParamValueMap(match) }
+}
+
+/** @deprecated Use previewDraftTriggersForFeed for editor; worker uses tickParamTriggersForFeed. */
+export function previewParamTriggersForFeed(
+  feed: FeedConfig,
+  ctx: ParamTriggerTickContext,
+): { changes: ParamTriggerSimChange[]; valuesAfter: Record<string, L2ParamValue> } {
+  const controls = collectParamControls(feed.match).filter(
+    (c) => triggersForControl(c).length > 0,
+  )
+  if (controls.length === 0) return { changes: [], valuesAfter: buildParamValueMap(feed.match) }
+
+  const tz = feed.timezone?.trim() || DEFAULT_FEED_TIMEZONE
+  const runtime = feed.paramTriggerRuntime ?? {}
+  const timeState = { ...(runtime.time ?? feed.paramScheduleRuntime?.byParam ?? {}) }
+  const thresholdState = { ...(runtime.threshold ?? {}) }
+
+  let match = feed.match
+  const changes: ParamTriggerSimChange[] = []
+
+  for (const control of controls) {
+    const triggers = triggersForControl(control)
+    let write: L2ParamValue | undefined
+    const fromValue = currentParamValue(match, control.name, control)
+    for (const trigger of triggers) {
+      const prev = thresholdState[trigger.id]
+      const prevTime = timeState[control.name]
+      const result = evaluateTrigger({
+        trigger,
+        control,
+        prevSatisfied: prev?.satisfied ?? false,
+        prevTimeInWindow: prevTime?.inWindow,
+        prevTimeWindowId: prevTime?.windowId,
+        currentValue: currentParamValue(match, control.name, control),
+        ctx,
+        timeZone: tz,
+      })
+      thresholdState[trigger.id] = { satisfied: result.satisfied }
+      if (trigger.kind === 'time_window' && result.timeState) {
+        timeState[control.name] = result.timeState
+      }
+      if (result.write !== undefined) write = result.write
+    }
+    if (write !== undefined && !valuesEqual(write, fromValue)) {
+      changes.push({ paramName: control.name, from: fromValue, to: write })
+      match = setParamValueAcrossMatch(match, control.name, write)
+    }
+  }
+
+  return { changes, valuesAfter: buildParamValueMap(match) }
+}
+
 /** Apply all native Param triggers for a feed (time + activity + author + list). */
 export function tickParamTriggersForFeed(
   feed: FeedConfig,
   ctx: ParamTriggerTickContext,
 ): ParamTriggerTickResult {
   const controls = collectParamControls(feed.match).filter(
-    (c) => triggersForControl(c).length > 0,
+    (c) => productionTriggersForControl(c).length > 0,
   )
   if (controls.length === 0) return { feed, changed: [] }
 
@@ -343,7 +476,8 @@ export function tickParamTriggersForFeed(
   const changed = new Set<string>()
 
   for (const control of controls) {
-    const triggers = triggersForControl(control)
+    const triggers = productionTriggersForControl(control)
+    if (triggers.length === 0) continue
     let write: L2ParamValue | undefined
     for (const trigger of triggers) {
       const prev = thresholdState[trigger.id]

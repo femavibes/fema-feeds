@@ -12,6 +12,7 @@ import {
   collectExcludedNodeIds,
   applyParametersToMatch,
   indexRuleNodesById,
+  type ParamValueMap,
 } from '@cfb/l2-graph'
 import { findInMatch, findParentId, canDropIntoGroup } from '../../../lib/l2-form'
 import { isTargetOfAnyParam } from '../../../lib/param-bind-preview'
@@ -66,12 +67,13 @@ export function flowGraphToRfNodes(
   feedSources?: import('@cfb/core-types').NativeFeedSource[],
   expandedNodeIds: readonly string[] = [],
   lockedNodeIds: readonly string[] = [],
+  paramOverrides?: ParamValueMap,
 ): Node<GraphNodeData>[] {
   const layout = layoutMatchFlow(normalizeRuleGroup(match), { expandedIds: expandedNodeIds })
   const expandedSet = new Set(expandedNodeIds)
   const lockedSet = new Set(lockedNodeIds)
-  const paramExcluded = collectExcludedNodeIds(match)
-  const effectiveById = indexRuleNodesById(applyParametersToMatch(match))
+  const paramExcluded = collectExcludedNodeIds(match, paramOverrides)
+  const effectiveById = indexRuleNodesById(applyParametersToMatch(match, { values: paramOverrides }))
 
   const nodes: Node<GraphNodeData>[] = layout.nodes.map((box) => {
     const nested = Boolean(box.parentId)
@@ -328,11 +330,12 @@ export function updateRfNodeLabels(
   nodeSources: NodeSources = {},
   expandedNodeIds: readonly string[] = [],
   lockedNodeIds: readonly string[] = [],
+  paramOverrides?: ParamValueMap,
 ): Node<GraphNodeData>[] {
   const expandedSet = new Set(expandedNodeIds)
   const lockedSet = new Set(lockedNodeIds)
-  const paramExcluded = collectExcludedNodeIds(match)
-  const effectiveById = indexRuleNodesById(applyParametersToMatch(match))
+  const paramExcluded = collectExcludedNodeIds(match, paramOverrides)
+  const effectiveById = indexRuleNodesById(applyParametersToMatch(match, { values: paramOverrides }))
   return nodes.map((node) => {
     if (node.type === 'groupFrame') {
       const inMatch = findInMatch(match, node.id)

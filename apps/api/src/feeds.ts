@@ -27,7 +27,7 @@ import {
 
 import { buildFeedPublishInfo, applyFeedInjector, applyFeedRanker, resolveFeedgenServiceDid } from '@cfb/feedgen'
 
-import { countImportableConditions, importFeedGenRules, resolveFeedMatch, collectParamControls, setParamValueAcrossMatch } from '@cfb/l2-graph'
+import { countImportableConditions, importFeedGenRules, resolveFeedMatch, collectParamControls, setParamValueAcrossMatch, resolveParamRuntimeMode } from '@cfb/l2-graph'
 
 import { loadPostMetrics, loadMentionDidsForFeed, loadFollowRingsForFeed, previewFeedPoolMatches, startBackgroundReeval, getRebuildStatus, clearRebuildStatus, cancelRebuild, seedFollowRingsFromFeeds } from '@cfb/l2-worker'
 import { setPostEngagement } from '@cfb/storage-postgres'
@@ -1586,9 +1586,21 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
     }
 
     const declared = new Set(collectParamControls(live.match).map((ctrl) => ctrl.name))
+    const controlsByName = new Map<string, ReturnType<typeof collectParamControls>[number]>()
+    for (const ctrl of collectParamControls(live.match)) {
+      if (ctrl.name) controlsByName.set(ctrl.name, ctrl)
+    }
     const unknown = Object.keys(values).filter((k) => !declared.has(k))
     if (unknown.length > 0) {
       return c.json({ error: 'unknown param ids', unknown }, 400)
+    }
+
+    const notLive = Object.keys(values).filter((k) => {
+      const ctrl = controlsByName.get(k)
+      return ctrl && resolveParamRuntimeMode(ctrl) !== 'live'
+    })
+    if (notLive.length > 0) {
+      return c.json({ error: 'param not live', blocked: notLive }, 400)
     }
 
     let match = live.match

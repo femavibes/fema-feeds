@@ -32,6 +32,7 @@ import { FollowRingCacheHint } from './FollowRingCacheHint'
 import { MentionAccountChips } from './MentionAccountChips'
 import { RegexPatternEditor } from './RegexPatternEditor'
 import { SearchFieldPicker } from './SearchFieldPicker'
+import { paramSearchFieldOverrideSet } from '../../lib/param-bind-preview'
 import { UrlSourcePicker } from './UrlSourcePicker'
 import { IngestDiscoverFilterField, withOpAndIngestRole } from './IngestDiscoverFilterField'
 import { useTermListScrollHeight } from './useTermListScrollHeight'
@@ -83,6 +84,12 @@ interface Props {
   }>
   /** Props currently showing live Param overrides (for styling). */
   paramOverriddenProps?: ReadonlySet<string>
+  /** Props driven by Live runtime Params (teal). */
+  paramProductionProps?: ReadonlySet<string>
+  /** Search fields with Param binds — manual node toggles auto-pin. */
+  paramBoundSearchFields?: ReadonlySet<string>
+  /** Search fields currently pinned to baseline (explicit user override). */
+  pinnedSearchFields?: ReadonlySet<string>
   /** Authored node — baseline writes while display may show Param overlay. */
   baselineNode?: L2RuleNode
   /** User edited a Param-overridden field; show baseline until Param changes. */
@@ -111,6 +118,9 @@ export function ConditionRow({
   paramLockHint,
   paramListPreviews,
   paramOverriddenProps,
+  paramProductionProps,
+  paramBoundSearchFields,
+  pinnedSearchFields,
   baselineNode,
   onPinParamBaseline,
 }: Props) {
@@ -122,6 +132,9 @@ export function ConditionRow({
   )
 
   const locked = (prop: string) => readOnly || Boolean(paramLockedProps?.has(prop))
+
+  const paramSearchFieldOverrides = paramSearchFieldOverrideSet(paramOverriddenProps ?? new Set())
+  const paramSearchFieldProduction = paramSearchFieldOverrideSet(paramProductionProps ?? new Set())
 
   const liveListFor = (property: string) =>
     paramListPreviews?.find((p) => p.property === property && p.changed)
@@ -205,12 +218,21 @@ export function ConditionRow({
                 caseSensitiveReadOnly={locked('caseSensitive')}
                 wholeWordReadOnly={locked('wholeWord')}
                 paramOverriddenProps={paramOverriddenProps}
+                paramProductionProps={paramProductionProps}
                 onPinParamBaseline={onPinParamBaseline}
               />
               <SearchFieldPicker
                 fields={node.fields}
-                onChange={(fields) => onChange({ ...node, fields })}
+                baselineFields={baselineNode?.type === 'keyword' ? baselineNode.fields : undefined}
+                paramBoundFields={paramBoundSearchFields}
+                onChange={(fields) =>
+                  onChange({ ...(baselineNode ?? node), fields } as L2RuleNode)
+                }
                 readOnly={locked('fields')}
+                paramOverriddenFields={paramSearchFieldOverrides}
+                paramProductionFields={paramSearchFieldProduction}
+                pinnedFields={pinnedSearchFields}
+                onPinParamBaseline={(field) => onPinParamBaseline?.(`fields::${field}`)}
               />
             </div>
             <div
@@ -281,8 +303,16 @@ export function ConditionRow({
             </div>
             <SearchFieldPicker
               fields={node.fields}
-              onChange={(fields) => onChange({ ...node, fields })}
+              baselineFields={baselineNode?.type === 'regex' ? baselineNode.fields : undefined}
+              paramBoundFields={paramBoundSearchFields}
+              onChange={(fields) =>
+                onChange({ ...(baselineNode ?? node), fields } as L2RuleNode)
+              }
               readOnly={locked('fields')}
+              paramOverriddenFields={paramSearchFieldOverrides}
+              paramProductionFields={paramSearchFieldProduction}
+              pinnedFields={pinnedSearchFields}
+              onPinParamBaseline={(field) => onPinParamBaseline?.(`fields::${field}`)}
             />
             <RegexPatternEditor
               pattern={node.pattern}
@@ -390,6 +420,7 @@ export function ConditionRow({
               }
               caseSensitiveReadOnly={locked('caseSensitive')}
               paramOverriddenProps={paramOverriddenProps}
+              paramProductionProps={paramProductionProps}
               onPinParamBaseline={onPinParamBaseline}
             />
             <UrlSourcePicker

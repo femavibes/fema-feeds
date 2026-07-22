@@ -20,13 +20,13 @@ export function normalizeRuleNode(node: L2RuleNode): L2RuleNode {
       return {
         ...migrated,
         terms: migrated.terms ?? [],
-        fields: migrated.fields?.length ? migrated.fields : [...DEFAULT_SEARCH_FIELDS],
+        fields: Array.isArray(migrated.fields) ? migrated.fields : [...DEFAULT_SEARCH_FIELDS],
       }
     case 'regex':
       return {
         ...migrated,
         pattern: migrated.pattern ?? '',
-        fields: migrated.fields?.length ? migrated.fields : [...DEFAULT_SEARCH_FIELDS],
+        fields: Array.isArray(migrated.fields) ? migrated.fields : [...DEFAULT_SEARCH_FIELDS],
       }
     case 'hashtag':
       return { ...migrated, tags: migrated.tags ?? [] }

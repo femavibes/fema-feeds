@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type {
   L2ParamControl,
   L2ParamEnumOption,
+  L2ParamRuntimeMode,
   L2ParamTargetBinding,
   L2ParamValue,
   L2ParametersCondition,
@@ -22,6 +23,7 @@ import {
   indexRuleNodesById,
   normalizeControlBindings,
   normalizeOptionBindings,
+  resolveParamRuntimeMode,
   unsupportedInputKeysForNode,
   type ParamAndBlockInfo,
 } from '@cfb/l2-graph'
@@ -557,8 +559,10 @@ export function ParametersNodeEditor({
   match,
   nodeLabels = {},
   feedTimezone = 'UTC',
+  feedId,
   onFeedTimezoneChange,
   onChange,
+  onPatchLiveParamValues,
   readOnly = false,
 }: {
   node: L2ParametersCondition
@@ -567,8 +571,10 @@ export function ParametersNodeEditor({
   nodeLabels?: Record<string, string>
   /** IANA timezone for schedule windows on this feed. */
   feedTimezone?: string
+  feedId?: string
   onFeedTimezoneChange?: (timezone: string) => void
   onChange: (next: L2ParametersCondition) => void
+  onPatchLiveParamValues?: (values: Record<string, L2ParamValue>) => void
   readOnly?: boolean
 }) {
   const controls = node.controls ?? []
@@ -617,9 +623,12 @@ export function ParametersNodeEditor({
   }
 
   const setLiveValue = (name: string, value: L2ParamValue) => {
-    // Keep `default` mirrored to live — one knob; default is only a schema fallback.
     const list = controls.map((c) => (c.name === name ? { ...c, default: value } : c))
     patch({ controls: list, values: { ...values, [name]: value } })
+    const ctrl = list.find((c) => c.name === name)
+    if (ctrl && resolveParamRuntimeMode(ctrl) === 'live') {
+      onPatchLiveParamValues?.({ [name]: value })
+    }
   }
 
   return (
@@ -665,7 +674,9 @@ export function ParametersNodeEditor({
           panelId={node.id}
           nodeLabels={nodeLabels}
           feedTimezone={feedTimezone}
+          feedId={feedId}
           onFeedTimezoneChange={onFeedTimezoneChange}
+          onPatchLiveParamValues={onPatchLiveParamValues}
           onChange={(next) => updateControl(index, next)}
           onRemove={() => removeControl(index)}
           onLiveValue={(v) => setLiveValue(control.name, v)}
@@ -684,7 +695,9 @@ function ParamControlCard({
   nodeLabels = {},
   andBlockInfo,
   feedTimezone,
+  feedId,
   onFeedTimezoneChange,
+  onPatchLiveParamValues,
   onChange,
   onRemove,
   onLiveValue,
@@ -697,7 +710,9 @@ function ParamControlCard({
   nodeLabels?: Record<string, string>
   andBlockInfo?: ParamAndBlockInfo
   feedTimezone?: string
+  feedId?: string
   onFeedTimezoneChange?: (timezone: string) => void
+  onPatchLiveParamValues?: (values: Record<string, L2ParamValue>) => void
   onChange: (next: L2ParamControl) => void
   onRemove: () => void
   onLiveValue: (value: L2ParamValue) => void
@@ -748,6 +763,7 @@ function ParamControlCard({
       placeholder: canonical.placeholder,
       options: canonical.options ? structuredClone(canonical.options) : undefined,
       bindings: canonical.bindings ? structuredClone(canonical.bindings) : [],
+      runtimeMode: canonical.runtimeMode,
       targetNodeIds: undefined,
     })
   }
@@ -815,6 +831,7 @@ function ParamControlCard({
                 checked={liveOn}
                 readOnly={readOnly}
                 andBlocked={andBlocked}
+                paramProduction={resolveParamRuntimeMode(control) === 'live'}
                 ariaLabel={`${control.label || control.name} live value`}
                 onChange={(checked) => onLiveValue(checked)}
               />
@@ -967,11 +984,28 @@ function ParamControlCard({
         match={match}
         nodeLabels={nodeLabels}
         feedTimezone={feedTimezone ?? 'UTC'}
+        paramRuntimeMode={resolveParamRuntimeMode(control)}
         readOnly={readOnly}
         onChange={(triggers) => patch({ triggers, schedules: undefined })}
         onFeedTimezoneChange={onFeedTimezoneChange}
         onClose={() => setTriggersOpen(false)}
       />
+
+      <label className="l2-inspector-field">
+        Runtime mode
+        <select
+          disabled={readOnly}
+          value={resolveParamRuntimeMode(control)}
+          onChange={(e) => patch({ runtimeMode: e.target.value as L2ParamRuntimeMode })}
+        >
+          <option value="draft">Draft — editor preview (blue)</option>
+          <option value="live">Live — writes production (teal)</option>
+        </select>
+        <span className="card-hint">
+          Draft toggles react in the editor only. Live toggles, triggers (when Live), and API write the
+          published feed.
+        </span>
+      </label>
 
       <label className="l2-inspector-field">
         Description

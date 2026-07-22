@@ -1,7 +1,9 @@
 import type {
   L2ParamControl,
   L2ParamEnumOption,
+  L2ParamRuntimeMode,
   L2ParamTargetBinding,
+  L2ParamTrigger,
   L2ParametersCondition,
   L2ParamValue,
   L2RuleGroup,
@@ -20,6 +22,14 @@ import {
 import { resolveParamControlMode } from './param-control-mode.js'
 
 export type ParamValueMap = Record<string, L2ParamValue>
+
+export function resolveParamRuntimeMode(control: L2ParamControl): L2ParamRuntimeMode {
+  return control.runtimeMode === 'live' ? 'live' : 'draft'
+}
+
+export function resolveTriggerRuntimeMode(trigger: L2ParamTrigger): L2ParamRuntimeMode {
+  return trigger.runtimeMode === 'live' ? 'live' : 'draft'
+}
 
 function isParametersNode(node: L2RuleNode): node is L2ParametersCondition {
   return node.type === 'parameters'
@@ -293,6 +303,7 @@ export function syncSharedParamControlFromPanel(
           placeholder: src.placeholder,
           options: src.options ? structuredClone(src.options) : undefined,
           bindings: src.bindings ? structuredClone(src.bindings) : [],
+          runtimeMode: src.runtimeMode,
           targetNodeIds: undefined,
         }
       })
@@ -869,6 +880,9 @@ export function collectParamPropertyFieldPreviews(
   if (resolveParamControlMode(authored) === 'full_control') return []
 
   const driven = new Map<string, ParamBindableField>()
+  const memberProperties = new Set<string>()
+  /** Per-token array binds (search fields, url sources, …) for toggle-level preview. */
+  const memberTokens: { property: string; member: string; label: string }[] = []
   const walk = (node: L2RuleNode) => {
     if (isParametersNode(node)) {
       for (const control of node.controls ?? []) {
@@ -880,7 +894,18 @@ export function collectParamPropertyFieldPreviews(
           if (b.kind !== 'property' || b.nodeId !== nodeId || !b.property) continue
           const field = resolveBindableField(authored, b)
           if (!field || field.valueKind === 'string' || field.valueKind === 'stringList') continue
-          if (field.valueKind === 'member') continue
+          const member = (b.member ?? field.member)?.trim()
+          if (field.valueKind === 'member' || member) {
+            memberProperties.add(b.property)
+            if (member) {
+              memberTokens.push({
+                property: b.property,
+                member,
+                label: field.label ?? member,
+              })
+            }
+            continue
+          }
           driven.set(b.property, field)
         }
       }
@@ -891,7 +916,7 @@ export function collectParamPropertyFieldPreviews(
     }
   }
   walk(root)
-  if (driven.size === 0) return []
+  if (driven.size === 0 && memberProperties.size === 0) return []
 
   const effectiveRoot = applyParametersToMatch(root, { values: overrides })
   const effective = indexRuleNodesById(effectiveRoot).get(nodeId)
@@ -911,6 +936,40 @@ export function collectParamPropertyFieldPreviews(
       authoredDisplay,
       effectiveDisplay,
       changed,
+    })
+  }
+  for (const property of memberProperties) {
+    const field = resolveBindableField(authored, { property })
+    const authoredList = asStringList(authRec[property])
+    const effectiveList = asStringList(effRec[property])
+    const changed =
+      [...authoredList].sort().join('\0') !== [...effectiveList].sort().join('\0')
+    if (changed && memberTokens.length === 0) {
+      out.push({
+        property,
+        label: field?.label ?? property,
+        authoredDisplay: authoredList.length ? authoredList.join(', ') : '(none)',
+        effectiveDisplay: effectiveList.length ? effectiveList.join(', ') : '(none)',
+        changed,
+      })
+    }
+  }
+  const seenMemberKeys = new Set<string>()
+  for (const { property, member, label } of memberTokens) {
+    const key = `${property}::${member}`
+    if (seenMemberKeys.has(key)) continue
+    seenMemberKeys.add(key)
+    const authoredList = asStringList(authRec[property])
+    const effectiveList = asStringList(effRec[property])
+    const authOn = authoredList.includes(member)
+    const effOn = effectiveList.includes(member)
+    if (authOn === effOn) continue
+    out.push({
+      property: key,
+      label,
+      authoredDisplay: authOn ? 'on' : 'off',
+      effectiveDisplay: effOn ? 'on' : 'off',
+      changed: true,
     })
   }
   return out

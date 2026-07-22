@@ -38,13 +38,17 @@ import {
   collectParamPropertyLocks,
   overlayParamLockedValues,
   overlayParamOverrideValues,
-  paramLiveOverrideProps,
   paramLockSummary,
   paramLockedPropertySet,
   paramOverridePropertySet,
+  paramSearchFieldOverrideSet,
+  paramStyleTokensForNode,
+  paramPinResetKey,
+  paramBoundMemberFieldsForNode,
   restoreParamLockedValues,
   restoreParamOverrideValues,
   isTargetOfAnyParam,
+  type EditorParamPreview,
 } from '../../../lib/param-bind-preview'
 import { ConditionRow } from '../ConditionRow'
 import { ParamTargetBadge } from '../ParamControlModeModal'
@@ -89,6 +93,10 @@ interface Props {
   match: L2RuleGroup
 
   draft: FeedConfig
+
+  liveFeed?: FeedConfig | null
+
+  onLiveFeedChange?: (feed: FeedConfig) => void
 
   nodeLabels: NodeLabels
 
@@ -146,6 +154,10 @@ interface Props {
   ) => void
   /** Open Parameter control mode modal for this target node. */
   onOpenParamControlMode?: (nodeId: string) => void
+  /** Write Live Param values to production (session PATCH). */
+  onPatchLiveParamValues?: (values: Record<string, import('@cfb/core-types').L2ParamValue>) => void
+  /** Draft Param preview for bound-node overlays (same as canvas expand). */
+  editorParamPreview?: EditorParamPreview
 }
 
 
@@ -155,6 +167,10 @@ export function L2PropertiesInspector({
   match,
 
   draft,
+
+  liveFeed,
+
+  onLiveFeedChange,
 
   nodeLabels,
 
@@ -189,11 +205,14 @@ export function L2PropertiesInspector({
   onUseLogicBlockHere,
   onInsertLogicBlock,
   onOpenParamControlMode,
+  onPatchLiveParamValues,
+  editorParamPreview,
 }: Props) {
 
   const selected = selectedId ? findInMatch(match, selectedId) : null
+  const paramOverrides = editorParamPreview?.overrides
 
-  const effectiveById = indexRuleNodesById(applyParametersToMatch(match))
+  const effectiveById = indexRuleNodesById(applyParametersToMatch(match, { values: paramOverrides }))
   const paramExcluded = collectExcludedNodeIds(match)
   const effectiveSelected =
     selected && selected.type !== 'group' ? effectiveById.get(selected.id) : undefined
@@ -203,24 +222,37 @@ export function L2PropertiesInspector({
       : []
   const paramListPreviews =
     selected && selected.type !== 'group' && selected.type !== 'parameters'
-      ? collectParamListFieldPreviews(match, selected.id)
+      ? collectParamListFieldPreviews(match, selected.id, paramOverrides)
       : []
   const paramPropertyPreviews =
     selected && selected.type !== 'group' && selected.type !== 'parameters'
-      ? collectParamPropertyFieldPreviews(match, selected.id)
+      ? collectParamPropertyFieldPreviews(match, selected.id, paramOverrides)
       : []
   const paramOverrideProps = paramOverridePropertySet(paramPropertyPreviews)
+  const pinResetKey =
+    selected && selected.type !== 'group' && selected.type !== 'parameters'
+      ? paramPinResetKey(match, selected.id, paramOverrides)
+      : ''
+  const paramBoundSearchFields =
+    selected && selected.type !== 'group' && selected.type !== 'parameters'
+      ? paramBoundMemberFieldsForNode(match, selected.id, 'fields')
+      : new Set<string>()
   const pinnedRef = useRef<Set<string>>(new Set())
   const [pinTick, setPinTick] = useState(0)
-  const paramValuesKey = JSON.stringify(buildParamValueMap(match))
 
   useEffect(() => {
     pinnedRef.current = new Set()
     setPinTick((n) => n + 1)
-  }, [selectedId, paramValuesKey])
+  }, [selectedId, pinResetKey])
 
   const pinnedBaselineProps = pinnedRef.current
-  const paramLiveProps = paramLiveOverrideProps(paramOverrideProps, pinnedBaselineProps)
+  const pinnedSearchFields = paramSearchFieldOverrideSet(pinnedBaselineProps)
+  const styleTokens =
+    selected && selected.type !== 'group' && selected.type !== 'parameters'
+      ? paramStyleTokensForNode(match, selected.id, paramOverrides, pinnedBaselineProps)
+      : { draft: new Set<string>(), live: new Set<string>() }
+  const paramLiveProps = styleTokens.draft
+  const paramProductionProps = styleTokens.live
   const displaySelected =
     selected && selected.type !== 'group' && selected.type !== 'parameters'
       ? overlayParamOverrideValues(
@@ -727,6 +759,7 @@ export function L2PropertiesInspector({
                   node={selected}
                   match={match}
                   nodeLabels={nodeLabels}
+                  feedId={draft.feedId}
                   feedTimezone={draft.timezone ?? 'UTC'}
                   onFeedTimezoneChange={
                     onPatchDraft
@@ -734,6 +767,7 @@ export function L2PropertiesInspector({
                       : undefined
                   }
                   readOnly={readOnly}
+                  onPatchLiveParamValues={onPatchLiveParamValues}
                   onChange={(next) => {
                     const updated = updateInMatch(match, selected.id, next)
                     onChange(syncSharedParamControlFromPanel(updated, selected.id))
@@ -878,10 +912,16 @@ export function L2PropertiesInspector({
 
                   paramListPreviews={paramListPreviews}
                   paramOverriddenProps={paramLiveProps}
+                  paramProductionProps={paramProductionProps}
+                  paramBoundSearchFields={paramBoundSearchFields}
+                  pinnedSearchFields={pinnedSearchFields}
                   baselineNode={selected}
                   onPinParamBaseline={(property) => {
-                    if (pinnedRef.current.has(property)) return
-                    pinnedRef.current.add(property)
+                    if (pinnedRef.current.has(property)) {
+                      pinnedRef.current.delete(property)
+                    } else {
+                      pinnedRef.current.add(property)
+                    }
                     setPinTick((n) => n + 1)
                   }}
 

@@ -201,7 +201,7 @@ function evalKeyword(node: L2KeywordCondition, ctx: L2RuntimeContext): boolean {
   if (terms.length === 0) {
     return node.op === 'includes'
   }
-  const fields = node.fields.length > 0 ? node.fields : (['text'] as const)
+  const fields = node.fields
   const haystack = collectSearchableText(ctx.post, [...fields])
   const hit = textContainsAny(haystack, terms, {
     caseSensitive: node.caseSensitive,
@@ -215,8 +215,7 @@ function evalRegex(node: L2RegexCondition, ctx: L2RuntimeContext): boolean {
   if (!pattern) {
     return true
   }
-  const fields = node.fields.length > 0 ? node.fields : (['text'] as const)
-  const haystack = collectSearchableText(ctx.post, [...fields])
+  const haystack = collectSearchableText(ctx.post, [...node.fields])
   const hit = textMatchesRegex(haystack, pattern, node.caseInsensitive !== false)
   return node.op === 'matches' ? hit : !hit
 }

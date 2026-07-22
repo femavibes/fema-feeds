@@ -21,6 +21,8 @@ type FeedListItem = FeedConfig & { hasUnpublishedDraft?: boolean }
 type SettingsAutosaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 
 const SETTINGS_AUTOSAVE_MS = 2000
+/** Poll live Param values while in the visual editor (triggers / API write live). */
+const LIVE_PARAM_POLL_MS = 15_000
 
 interface Props {
   draft: ProjectL1Config
@@ -132,6 +134,19 @@ export function ProjectWorkspace({
 
   useEffect(() => {
     writeWorkspaceSession({ feedId: feedId ?? null, feedView })
+  }, [feedId, feedView])
+
+  useEffect(() => {
+    if (!feedId || feedView !== 'visual') return
+    const pollLive = () => {
+      void api.getFeed(feedId).then(
+        (res) => setLiveFeed(structuredClone(res.live)),
+        () => undefined,
+      )
+    }
+    pollLive()
+    const timer = setInterval(pollLive, LIVE_PARAM_POLL_MS)
+    return () => clearInterval(timer)
   }, [feedId, feedView])
 
   useEffect(() => {
@@ -369,6 +384,7 @@ export function ProjectWorkspace({
               onSaveDraft={saveFeedDraft}
               onNotify={onNotify}
               liveFeed={liveFeed}
+              onLiveFeedChange={(next) => setLiveFeed(structuredClone(next))}
               hasUnpublishedDraft={hasUnpublishedDraft}
               onSettingsChange={handleSettingsChange}
               settingsDirty={settingsDirty}

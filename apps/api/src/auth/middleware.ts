@@ -35,6 +35,13 @@ const PUBLIC_API_PREFIXES = [
   '/api/global-community/',
 ]
 
+function isFeedParamApiRequest(c: Context): boolean {
+  if (c.req.method !== "PATCH") return false
+  if (!/^\/api\/feeds\/[^/]+\/params$/.test(c.req.path)) return false
+  const bearer = c.req.header("Authorization")?.replace(/^Bearer\s+/i, "").trim()
+  return bearer?.startsWith("whi_") ?? false
+}
+
 function isPublicApiPath(path: string): boolean {
   if (path.endsWith('/avatar') && path.startsWith('/api/feeds/')) return true
   if (path.startsWith('/api/marketplace-assets/')) return true
@@ -58,7 +65,7 @@ export function createAuthMiddleware(pool: Pool | null) {
     c.set('user', user)
     c.set('userDid', user?.did ?? null)
 
-    if (!isLoginRequired() || isPublicApiPath(c.req.path)) {
+    if (!isLoginRequired() || isPublicApiPath(c.req.path) || isFeedParamApiRequest(c)) {
       return next()
     }
 

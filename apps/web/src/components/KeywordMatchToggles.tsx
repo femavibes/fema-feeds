@@ -9,6 +9,8 @@ interface Props extends KeywordMatchOptions {
   wholeWordReadOnly?: boolean
   /** Props showing a live Parameter override (styled, baseline unchanged). */
   paramOverriddenProps?: ReadonlySet<string>
+  /** Props driven by production Params (teal). */
+  paramProductionProps?: ReadonlySet<string>
   onPinParamBaseline?: (property: string) => void
 }
 
@@ -20,6 +22,7 @@ export function KeywordMatchToggles({
   caseSensitiveReadOnly = false,
   wholeWordReadOnly = false,
   paramOverriddenProps,
+  paramProductionProps,
   onPinParamBaseline,
 }: Props) {
   return (
@@ -28,27 +31,37 @@ export function KeywordMatchToggles({
         label="Case sensitive"
         checked={caseSensitive === true}
         onChange={(checked) => {
-          if (paramOverriddenProps?.has('caseSensitive')) {
+          if (paramOverriddenProps?.has('caseSensitive') || paramProductionProps?.has('caseSensitive')) {
             onPinParamBaseline?.('caseSensitive')
           }
           onChange({ caseSensitive: checked, wholeWord })
         }}
         ariaLabel="Case sensitive keyword matching"
         readOnly={readOnly || caseSensitiveReadOnly}
-        paramLive={paramOverriddenProps?.has('caseSensitive')}
+        paramProduction={paramProductionProps?.has('caseSensitive')}
+        paramLive={
+          paramOverriddenProps?.has('caseSensitive') && !paramProductionProps?.has('caseSensitive')
+        }
+        nodeAuthored={
+          !paramOverriddenProps?.has('caseSensitive') && !paramProductionProps?.has('caseSensitive')
+        }
       />
       <ToggleRow
         label="Whole words only"
         checked={wholeWord === true}
         onChange={(checked) => {
-          if (paramOverriddenProps?.has('wholeWord')) {
+          if (paramOverriddenProps?.has('wholeWord') || paramProductionProps?.has('wholeWord')) {
             onPinParamBaseline?.('wholeWord')
           }
           onChange({ caseSensitive, wholeWord: checked })
         }}
         ariaLabel="Match whole words only"
         readOnly={readOnly || wholeWordReadOnly}
-        paramLive={paramOverriddenProps?.has('wholeWord')}
+        paramProduction={paramProductionProps?.has('wholeWord')}
+        paramLive={paramOverriddenProps?.has('wholeWord') && !paramProductionProps?.has('wholeWord')}
+        nodeAuthored={
+          !paramOverriddenProps?.has('wholeWord') && !paramProductionProps?.has('wholeWord')
+        }
       />
     </div>
   )

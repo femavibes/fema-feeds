@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { createPortal } from 'react-dom'
 import { ReactFlowProvider } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import type { FeedConfig, L2NodeProvenance, L2NodeTrace, L2ParamControlMode, L2RuleGroup, AuthorListConfig, LogicBlockPackage } from '@cfb/core-types'
-import type { ListCacheEntry } from '../../../api/client'
+import type { FeedConfig, L2NodeProvenance, L2NodeTrace, L2ParamControlMode, L2ParamValue, L2RuleGroup, AuthorListConfig, LogicBlockPackage } from '@cfb/core-types'
+import { api, type ListCacheEntry } from '../../../api/client'
 import { useVisualEditorHistory, type VisualEditorSnapshot } from '../../../hooks/useVisualEditorHistory'
 import { useVisualEditorRails } from '../../../hooks/useVisualEditorRails'
 import { retainBodyEditorOpen } from '../../../lib/body-editor-open'
@@ -24,7 +24,8 @@ import {
   updateInMatch,
   newId,
 } from '../../../lib/l2-form'
-import { flattenTopLevelMatch, normalizeCanvasFeedStorage, normalizeRuleGroup, resolveParamControlMode, sanitizeCanvasEdges, syncSharedParamControlFromPanel } from '@cfb/l2-graph'
+import { normalizeCanvasFeedStorage, normalizeRuleGroup, resolveParamControlMode, resolveParamRuntimeMode, sanitizeCanvasEdges, syncSharedParamControlFromPanel, buildParamValueMap, setParamValueAcrossMatch } from '@cfb/l2-graph'
+import { buildEditorParamPreview } from '../../../lib/param-bind-preview'
 import { L2CanvasContextMenu, type CanvasContextMenuState } from './L2CanvasContextMenu'
 import { L2GraphCanvas } from './L2GraphCanvas'
 import { L2PropertiesInspector } from './L2NodeInspector'
@@ -64,6 +65,9 @@ function autosaveBadge(state: AutosaveState, dirty: boolean) {
 
 interface Props {
   draft: FeedConfig
+  /** Live feed — Param triggers/API write here; canvas toggles reflect these values. */
+  liveFeed?: FeedConfig | null
+  onLiveFeedChange?: (feed: FeedConfig) => void
   dirty: boolean
   saving?: boolean
   autosaveState?: AutosaveState
@@ -100,6 +104,8 @@ interface Props {
 
 export function L2VisualEditor({
   draft,
+  liveFeed,
+  onLiveFeedChange,
   dirty,
   saving = false,
   autosaveState = 'idle',
@@ -902,6 +908,23 @@ export function L2VisualEditor({
     [match, positions, patchDraft, visualLayout, flash, lockedSet],
   )
 
+  const editorParamPreview = useMemo(() => buildEditorParamPreview(draft), [draft])
+
+  const patchLiveParamValues = useCallback(
+    (values: Record<string, L2ParamValue>) => {
+      const feedId = draft.feedId
+      if (!feedId || !onLiveFeedChange || !liveFeed) return
+      void api.patchFeedParams(feedId, values).then(() => {
+        let nextMatch = liveFeed.match
+        for (const [name, value] of Object.entries(values)) {
+          nextMatch = setParamValueAcrossMatch(nextMatch, name, value)
+        }
+        onLiveFeedChange({ ...liveFeed, match: nextMatch })
+      })
+    },
+    [draft.feedId, liveFeed, onLiveFeedChange],
+  )
+
   const overlay = (
     <VisualEditorNestContext.Provider value={nestContext}>
     <div
@@ -1036,6 +1059,7 @@ export function L2VisualEditor({
         <ReactFlowProvider>
           <L2GraphCanvas
             readOnly={readOnly}
+            editorParamPreview={editorParamPreview}
             match={match}
             positions={positions}
             feedSources={draft.sources?.native}
@@ -1072,7 +1096,6 @@ export function L2VisualEditor({
             onPatchParameterValues={(nodeId, values) => {
               const rule = findInMatch(match, nodeId)
               if (!rule || rule.type !== 'parameters') return
-              // Mirror live → default so schema fallback matches the knob you set.
               const controls = (rule.controls ?? []).map((c) =>
                 Object.prototype.hasOwnProperty.call(values, c.name)
                   ? { ...c, default: values[c.name]! }
@@ -1080,6 +1103,14 @@ export function L2VisualEditor({
               )
               const updated = updateInMatch(match, nodeId, { ...rule, controls, values })
               patchMatch(syncSharedParamControlFromPanel(updated, nodeId))
+              const liveWrites: Record<string, L2ParamValue> = {}
+              for (const c of controls) {
+                if (!Object.prototype.hasOwnProperty.call(values, c.name)) continue
+                if (resolveParamRuntimeMode(c) === 'live') {
+                  liveWrites[c.name] = values[c.name]!
+                }
+              }
+              if (Object.keys(liveWrites).length > 0) patchLiveParamValues(liveWrites)
             }}
             onPatchRuleNode={(nodeId, next) => {
               patchMatch(updateInMatch(match, nodeId, next))
@@ -1183,6 +1214,8 @@ export function L2VisualEditor({
             <L2PropertiesInspector
               match={match}
               draft={draft}
+              liveFeed={liveFeed}
+              onLiveFeedChange={onLiveFeedChange}
               nodeLabels={nodeLabels}
               selectedId={selectedId}
               selectedEdgeId={selectedEdgeId}
@@ -1212,6 +1245,8 @@ export function L2VisualEditor({
               onOpenLogicBlockCompare={setLogicBlockCompare}
               onUseLogicBlockHere={useLogicBlockHere}
               onInsertLogicBlock={insertLogicBlockIntoGroup}
+              onPatchLiveParamValues={patchLiveParamValues}
+              editorParamPreview={editorParamPreview}
             />
           </>
         ) : (

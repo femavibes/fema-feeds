@@ -1,6 +1,8 @@
 import type {
+  FeedConfig,
   L2ParamControl,
   L2ParamTargetBinding,
+  L2ParamValue,
   L2ParametersCondition,
   L2RuleGroup,
   L2RuleNode,
@@ -8,6 +10,8 @@ import type {
 import {
   applyParametersToMatch,
   binaryEnumPolarity,
+  buildParamValueMap,
+  collectParamControls,
   conditionNodeTitle,
   discoverBindableFields,
   indexRuleNodesById,
@@ -15,7 +19,255 @@ import {
   normalizeOptionBindings,
   resolveBindableField,
   resolveParamControlMode,
+  resolveParamRuntimeMode,
+  collectParamPropertyFieldPreviews,
+  type ParamValueMap,
 } from '@cfb/l2-graph'
+
+function paramValuesEqual(a: L2ParamValue | undefined, b: L2ParamValue | undefined): boolean {
+  if (a === b) return true
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((v, i) => v === b[i])
+  }
+  return false
+}
+
+export type EditorParamPreview = {
+  overrides: ParamValueMap
+  /** Param IDs in Live runtime mode (teal on param panel). */
+  productionParams: ReadonlySet<string>
+}
+
+/**
+ * Effective Param values for bound-node preview in the editor.
+ * Always uses draft graph values so Live vs Draft runtime mode behaves the same in the UI;
+ * Live only affects production writes (API/triggers) and teal styling — not stale live-feed reads.
+ */
+export function buildEditorParamPreview(draftFeed: FeedConfig): EditorParamPreview {
+  const overrides = buildParamValueMap(draftFeed.match)
+  const productionParams = new Set<string>()
+
+  for (const control of collectParamControls(draftFeed.match)) {
+    const name = control.name
+    if (!name) continue
+    if (resolveParamRuntimeMode(control) === 'live') {
+      productionParams.add(name)
+    }
+  }
+
+  return { overrides, productionParams }
+}
+
+/**
+ * Property/member tokens actively driven by ON Params (for styling).
+ * Unlike preview diffs, includes cases where baseline already matches the param value.
+ */
+export function collectParamActivePropertyTokens(
+  root: L2RuleGroup,
+  nodeId: string,
+  overrides?: ParamValueMap,
+  runtimeFilter?: 'draft' | 'live',
+): Set<string> {
+  const valueMap = overrides ?? buildParamValueMap(root)
+  const out = new Set<string>()
+  const walk = (node: L2RuleNode) => {
+    if (node.type === 'parameters') {
+      for (const control of node.controls ?? []) {
+        const name = control.name
+        if (!name) continue
+        const runtime = resolveParamRuntimeMode(control)
+        if (runtimeFilter === 'live' && runtime !== 'live') continue
+        if (runtimeFilter === 'draft' && runtime === 'live') continue
+        if (control.type === 'boolean') {
+          const val = valueMap[name] ?? control.default
+          if (val !== true && val !== 'true') continue
+        }
+        const bindings: L2ParamTargetBinding[] =
+          control.type === 'enum'
+            ? (control.options ?? []).flatMap((o) => normalizeOptionBindings(o))
+            : normalizeControlBindings(control)
+        for (const b of bindings) {
+          if (b.kind !== 'property' || b.nodeId !== nodeId || !b.property) continue
+          const member = b.member?.trim()
+          if (member) out.add(`${b.property}::${member}`)
+          else out.add(b.property)
+        }
+      }
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  return out
+}
+
+/** Bound properties driven by Live Params that currently show an override (teal vs blue). */
+export function paramProductionPropertySet(
+  root: L2RuleGroup,
+  nodeId: string,
+  overriddenProps: ReadonlySet<string>,
+  productionParams: ReadonlySet<string>,
+  overrides?: ParamValueMap,
+): Set<string> {
+  if (productionParams.size === 0 || overriddenProps.size === 0) return new Set()
+  const valueMap = overrides ?? buildParamValueMap(root)
+  const out = new Set<string>()
+  const walk = (node: L2RuleNode) => {
+    if (node.type === 'parameters') {
+      for (const control of node.controls ?? []) {
+        const name = control.name
+        if (!name || !productionParams.has(name)) continue
+        if (control.type === 'boolean') {
+          const val = valueMap[name] ?? control.default
+          if (val !== true && val !== 'true') continue
+        }
+        const bindings: L2ParamTargetBinding[] =
+          control.type === 'enum'
+            ? (control.options ?? []).flatMap((o) => normalizeOptionBindings(o))
+            : normalizeControlBindings(control)
+        for (const b of bindings) {
+          if (b.kind !== 'property' || b.nodeId !== nodeId || !b.property) continue
+          const member = b.member?.trim()
+          if (member) {
+            const tokenKey = `${b.property}::${member}`
+            if (overriddenProps.has(tokenKey) || overriddenProps.has(b.property)) out.add(tokenKey)
+          } else if (overriddenProps.has(b.property)) {
+            out.add(b.property)
+          }
+        }
+      }
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  return out
+}
+
+/** Fingerprint Param property binds targeting a node — pin resets when binds change. */
+export function paramBindingsKeyForNode(root: L2RuleGroup, nodeId: string): string {
+  const parts: string[] = []
+  const walk = (node: L2RuleNode) => {
+    if (node.type === 'parameters') {
+      for (const control of node.controls ?? []) {
+        const bindings: L2ParamTargetBinding[] =
+          control.type === 'enum'
+            ? (control.options ?? []).flatMap((o) => normalizeOptionBindings(o))
+            : normalizeControlBindings(control)
+        for (const b of bindings) {
+          if (b.kind !== 'property' || b.nodeId !== nodeId || !b.property) continue
+          parts.push(
+            `${control.name}:${b.property}:${b.member ?? ''}:${String(b.value ?? '')}:${b.listMode ?? ''}`,
+          )
+        }
+      }
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  return parts.sort().join('|')
+}
+
+/** Reset field pins when binds change or a bound Param toggles (reclaim on next ON). */
+export function paramPinResetKey(
+  root: L2RuleGroup,
+  nodeId: string,
+  overrides?: ParamValueMap,
+): string {
+  const bindings = paramBindingsKeyForNode(root, nodeId)
+  const valueMap = overrides ?? buildParamValueMap(root)
+  const paramStates: string[] = []
+  const walk = (node: L2RuleNode) => {
+    if (node.type === 'parameters') {
+      for (const control of node.controls ?? []) {
+        const name = control.name
+        if (!name) continue
+        const controlBindings: L2ParamTargetBinding[] =
+          control.type === 'enum'
+            ? (control.options ?? []).flatMap((o) => normalizeOptionBindings(o))
+            : normalizeControlBindings(control)
+        const bindsNode = controlBindings.some(
+          (b) => b.kind === 'property' && b.nodeId === nodeId,
+        )
+        if (!bindsNode) continue
+        if (control.type === 'boolean') {
+          const val = valueMap[name] ?? control.default
+          paramStates.push(`${name}:${val === true || val === 'true' ? '1' : '0'}`)
+        } else if (control.type === 'enum') {
+          const val =
+            valueMap[name] ?? control.default ?? control.options?.[0]?.value ?? ''
+          paramStates.push(`${name}:${String(val)}`)
+        } else {
+          const val = valueMap[name] ?? control.default
+          paramStates.push(`${name}:${JSON.stringify(val ?? '')}`)
+        }
+      }
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  return `${bindings}|${paramStates.sort().join(',')}`
+}
+
+/** Member tokens (e.g. search fields) with any Param property bind on this node. */
+export function paramBoundMemberFieldsForNode(
+  root: L2RuleGroup,
+  nodeId: string,
+  property = 'fields',
+): Set<string> {
+  const out = new Set<string>()
+  const walk = (node: L2RuleNode) => {
+    if (node.type === 'parameters') {
+      for (const control of node.controls ?? []) {
+        const bindings: L2ParamTargetBinding[] =
+          control.type === 'enum'
+            ? (control.options ?? []).flatMap((o) => normalizeOptionBindings(o))
+            : normalizeControlBindings(control)
+        for (const b of bindings) {
+          if (b.kind !== 'property' || b.nodeId !== nodeId || b.property !== property) continue
+          const member = b.member?.trim()
+          if (member) out.add(member)
+        }
+      }
+      return
+    }
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  walk(root)
+  return out
+}
+
+/** @deprecated Use buildEditorParamPreview. */
+export function liveParamPreviewOverrides(
+  match: L2RuleGroup,
+  liveParamValues?: Record<string, L2ParamValue>,
+  draftEditedParams?: ReadonlySet<string>,
+): ParamValueMap | undefined {
+  if (!liveParamValues) return undefined
+  const draft = buildParamValueMap(match)
+  const overrides: ParamValueMap = {}
+  let any = false
+  for (const [name, liveVal] of Object.entries(liveParamValues)) {
+    if (draftEditedParams?.has(name)) continue
+    if (!paramValuesEqual(draft[name], liveVal)) {
+      overrides[name] = liveVal
+      any = true
+    }
+  }
+  return any ? overrides : undefined
+}
 
 function nodeLabel(node: L2RuleNode | undefined, nodeId: string): string {
   if (!node) return nodeId
@@ -501,7 +753,53 @@ export function restoreParamLockedValues<T extends L2RuleNode>(
 export function paramOverridePropertySet(
   previews: Array<{ property: string; changed: boolean }>,
 ): Set<string> {
-  return new Set(previews.filter((p) => p.changed).map((p) => p.property))
+  return new Set(
+    previews
+      .filter((p) => p.changed && !p.property.includes('::'))
+      .map((p) => p.property),
+  )
+}
+
+/** Per-member Param override keys (e.g. fields::text) for styling / pin. */
+export function paramMemberOverridePropertySet(
+  previews: Array<{ property: string; changed: boolean }>,
+): Set<string> {
+  return new Set(previews.filter((p) => p.changed && p.property.includes('::')).map((p) => p.property))
+}
+
+const SEARCH_FIELD_ORDER = [
+  'text',
+  'image_alt',
+  'video_alt',
+  'link_title',
+  'link_description',
+  'link_uri',
+  'facet_link',
+  'facet_mention',
+  'bridgy_original_text',
+  'bridgy_original_url',
+] as const
+
+/** Merge one array property (fields, sources, …) per-member instead of replacing the whole list. */
+function mergeMemberArrayOverlay(
+  property: string,
+  authoredList: string[],
+  effectiveList: string[],
+  previews: Array<{ property: string; changed: boolean }>,
+  skipProps?: ReadonlySet<string>,
+  order: readonly string[] = SEARCH_FIELD_ORDER,
+): string[] {
+  const auth = new Set(authoredList)
+  const eff = new Set(effectiveList)
+  const out: string[] = []
+  for (const member of order) {
+    const key = `${property}::${member}`
+    const preview = previews.find((p) => p.property === key)
+    const driven = Boolean(preview?.changed && !skipProps?.has(key))
+    if (driven ? eff.has(member) : auth.has(member)) out.push(member)
+  }
+  if (out.length === 0 && order.length > 0) out.push(order[0]!)
+  return out
 }
 
 /**
@@ -517,9 +815,39 @@ export function overlayParamOverrideValues<T extends L2RuleNode>(
   const changed = previews.filter((p) => p.changed && !skipProps?.has(p.property))
   if (!effective || changed.length === 0) return authored
   const out = { ...authored } as T & Record<string, unknown>
+  const auth = authored as unknown as Record<string, unknown>
   const eff = effective as unknown as Record<string, unknown>
+
+  const memberArrayProps = new Set<string>()
   for (const p of changed) {
+    const split = p.property.indexOf('::')
+    if (split >= 0) {
+      memberArrayProps.add(p.property.slice(0, split))
+    }
+  }
+
+  for (const prop of memberArrayProps) {
+    const authList = Array.isArray(auth[prop]) ? (auth[prop] as string[]) : []
+    const effList = Array.isArray(eff[prop]) ? (eff[prop] as string[]) : []
+    out[prop] = mergeMemberArrayOverlay(prop, authList, effList, previews, skipProps)
+  }
+
+  for (const p of changed) {
+    if (p.property.includes('::')) continue
+    if (memberArrayProps.has(p.property)) continue
     if (p.property in eff) out[p.property] = eff[p.property]
+  }
+  return out
+}
+
+/** Search-field toggles currently driven by Params (`fields::text`, …). */
+export function paramSearchFieldOverrideSet(
+  overriddenProps: ReadonlySet<string>,
+): Set<string> {
+  const out = new Set<string>()
+  for (const key of overriddenProps) {
+    if (!key.startsWith('fields::')) continue
+    out.add(key.slice('fields::'.length))
   }
   return out
 }
@@ -527,13 +855,55 @@ export function overlayParamOverrideValues<T extends L2RuleNode>(
 /** Override props actively showing live Param values (excludes user-pinned baseline edits). */
 export function paramLiveOverrideProps(
   overrideProps: ReadonlySet<string>,
+  memberOverrideProps: ReadonlySet<string>,
   pinnedBaselineProps?: ReadonlySet<string>,
 ): Set<string> {
   const out = new Set<string>()
   for (const prop of overrideProps) {
     if (!pinnedBaselineProps?.has(prop)) out.add(prop)
   }
+  for (const prop of memberOverrideProps) {
+    if (!pinnedBaselineProps?.has(prop)) out.add(prop)
+  }
   return out
+}
+
+/** Production (teal) styling — also respects pins so pinned fields stay green. */
+export function paramProductionOverrideProps(
+  productionProps: ReadonlySet<string>,
+  pinnedBaselineProps?: ReadonlySet<string>,
+): Set<string> {
+  const out = new Set<string>()
+  for (const prop of productionProps) {
+    if (!pinnedBaselineProps?.has(prop)) out.add(prop)
+  }
+  return out
+}
+
+/** Draft (blue) vs Live (teal) styling tokens for bound-node forms. */
+export function paramStyleTokensForNode(
+  root: L2RuleGroup,
+  nodeId: string,
+  overrides: ParamValueMap | undefined,
+  pinnedBaselineProps: ReadonlySet<string>,
+): { draft: Set<string>; live: Set<string> } {
+  const previews = collectParamPropertyFieldPreviews(root, nodeId, overrides)
+  const previewDraft = new Set([
+    ...paramOverridePropertySet(previews),
+    ...paramMemberOverridePropertySet(previews),
+  ])
+  const liveActive = collectParamActivePropertyTokens(root, nodeId, overrides, 'live')
+  const draftActive = collectParamActivePropertyTokens(root, nodeId, overrides, 'draft')
+  const draftUnion = new Set([...previewDraft, ...draftActive])
+  const draftOnly = new Set([...draftUnion].filter((t) => !liveActive.has(t)))
+  return {
+    draft: paramLiveOverrideProps(
+      new Set([...draftOnly].filter((t) => !t.includes('::'))),
+      new Set([...draftOnly].filter((t) => t.includes('::'))),
+      pinnedBaselineProps,
+    ),
+    live: paramProductionOverrideProps(liveActive, pinnedBaselineProps),
+  }
 }
 
 /**
@@ -552,6 +922,7 @@ export function restoreParamOverrideValues<T extends L2RuleNode>(
   const disp = displayed as unknown as Record<string, unknown>
   const edit = edited as unknown as Record<string, unknown>
   for (const prop of overrideProps) {
+    if (prop.includes('::')) continue
     if (edit[prop] !== disp[prop]) continue
     if (prop in auth) out[prop] = auth[prop]
     else delete out[prop]

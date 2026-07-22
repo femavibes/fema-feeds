@@ -17,6 +17,7 @@ import {
 } from '@xyflow/react'
 import type { L2NodeTrace, L2RuleGroup } from '@cfb/core-types'
 import { reorderMatchFromLayout } from '../../../lib/l2-form'
+import type { EditorParamPreview } from '../../../lib/param-bind-preview'
 import { graphNodeTypes, type GraphNodeData } from './graph-nodes'
 import { graphEdgeTypes } from './graph-edges'
 import { L2CanvasToolbar } from './L2CanvasToolbar'
@@ -122,6 +123,8 @@ interface Props {
   onRedo?: () => void
   onResetPanels?: () => void
   readOnly?: boolean
+  liveParamValues?: Record<string, import('@cfb/core-types').L2ParamValue>
+  editorParamPreview?: EditorParamPreview
   /**
    * Unique id when multiple canvases share a page (e.g. version compare).
    * Namespaces React Flow markers + edge DOM ids so both panes render wires.
@@ -176,6 +179,8 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     onRedo,
     onResetPanels,
     readOnly = false,
+    liveParamValues,
+    editorParamPreview,
     instanceId,
   },
   ref,
@@ -197,6 +202,8 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
   const lockedKey = lockedNodeIds.join('\0')
   const [layoutTick, setLayoutTick] = useState(0)
 
+  const paramPreviewOverrides = editorParamPreview?.overrides
+
   const expandApi = useMemo(
     () => ({
       toggleExpanded: (nodeId: string) => onToggleNodeExpanded?.(nodeId),
@@ -209,6 +216,9 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
       patchParameterValues: onPatchParameterValues,
       patchRuleNode: onPatchRuleNode,
       match,
+      liveParamValues,
+      paramPreviewOverrides,
+      productionParams: editorParamPreview?.productionParams,
       readOnly,
     }),
     [
@@ -221,6 +231,9 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
       onPatchParameterValues,
       onPatchRuleNode,
       match,
+      liveParamValues,
+      paramPreviewOverrides,
+      editorParamPreview?.productionParams,
       readOnly,
     ],
   )
@@ -268,11 +281,12 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
           feedSources,
           expandedNodeIdsRef.current,
           lockedNodeIdsRef.current,
+          paramPreviewOverrides,
         ),
       ),
     )
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))
-  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, lockedKey, feedSources, layoutTick, lockNodesForReadOnly, setNodes, setEdges])
+  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, lockedKey, feedSources, layoutTick, paramPreviewOverrides, lockNodesForReadOnly, setNodes, setEdges])
 
   useEffect(() => {
     setNodes((nds) =>
@@ -286,12 +300,13 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
             nodeSourcesRef.current,
             expandedNodeIdsRef.current,
             lockedNodeIdsRef.current,
+            paramPreviewOverrides,
           ),
           testTrace,
         ),
       ),
     )
-  }, [match, selectedId, testTrace, nodeLabels, nodeSources, expandedKey, lockedKey, layoutTick, lockNodesForReadOnly, setNodes])
+  }, [match, selectedId, testTrace, nodeLabels, nodeSources, expandedKey, lockedKey, layoutTick, paramPreviewOverrides, lockNodesForReadOnly, setNodes])
 
   useEffect(() => {
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))

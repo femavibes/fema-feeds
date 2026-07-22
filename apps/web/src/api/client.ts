@@ -614,13 +614,13 @@ export const api = {
   patchFeedParams: (
     feedId: string,
     values: Record<string, import('@cfb/core-types').L2ParamValue>,
-    apiKey: string,
+    apiKey?: string,
   ) =>
     apiFetch<{ ok: boolean; feedId: string; updated: string[]; via: string }>(
       `/api/feeds/${feedId}/params`,
       {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${apiKey}` },
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
         body: JSON.stringify({ values }),
       },
     ),

@@ -97,6 +97,8 @@ export {
   formatParamAndBlockHint,
   normalizeControlBindings,
   normalizeOptionBindings,
+  resolveParamRuntimeMode,
+  resolveTriggerRuntimeMode,
   setParamValueAcrossMatch,
   stripParametersAndExcluded,
   syncSharedParamControlFromPanel,
@@ -147,12 +149,19 @@ export {
 } from './param-schedules.js'
 export {
   tickParamTriggersForFeed,
+  previewParamTriggersForFeed,
+  previewDraftTriggersForFeed,
   triggersForControl,
+  productionTriggersForControl,
+  draftTriggersForControl,
+  triggerAppliesToProduction,
+  EMPTY_PARAM_TRIGGER_CTX,
   scheduleWindowToTrigger,
   evaluateTrigger,
   boundNodeIdsForControl,
   type ParamTriggerTickContext,
   type ParamTriggerTickResult,
+  type ParamTriggerSimChange,
   type ParamTriggerWrite,
   type TriggerEvalResult,
 } from './param-triggers.js'

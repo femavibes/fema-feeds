@@ -454,12 +454,17 @@ export type L2ParamTriggerKind =
   | 'author_post'
   | 'list_membership'
 
+/** Whether a Param control or trigger writes production or editor preview only. */
+export type L2ParamRuntimeMode = 'draft' | 'live'
+
 export interface L2ParamTriggerBase {
   id: string
   label?: string
   activeValue: L2ParamValue
   inactiveValue?: L2ParamValue
   enforce?: L2ParamScheduleEnforce
+  /** `live` = worker may apply flips (requires control `runtimeMode` live). Default `draft`. */
+  runtimeMode?: L2ParamRuntimeMode
 }
 
 export interface L2ParamTimeWindowTrigger extends L2ParamTriggerBase {
@@ -537,6 +542,11 @@ export interface L2ParamControl {
   schedules?: L2ParamScheduleWindow[]
   /** Native auto triggers (time, match rate, staleness, author, list). */
   triggers?: L2ParamTrigger[]
+  /**
+   * `live` = manual flips and API writes affect production immediately.
+   * `draft` = editor preview only (blue). Default `draft`.
+   */
+  runtimeMode?: L2ParamRuntimeMode
 }
 
 /**
@@ -692,6 +702,8 @@ export interface FeedConfig {
    * Stored/computed in UTC internally; schedules interpret start/end in this zone.
    */
   timezone?: string
+  /** When true, param-triggers worker skips this feed (test rules without live flips). */
+  paramTriggersPaused?: boolean
   /** Worker-only state for schedule boundary detection (not author-edited). @deprecated prefer paramTriggerRuntime */
   paramScheduleRuntime?: {
     byParam?: Record<

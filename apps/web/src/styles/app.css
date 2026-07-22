@@ -2417,12 +2417,85 @@ body {
 }
 
 .toggle-row.is-param-live .toggle-row-label > span:first-child::after {
-  content: ' · Param';
+  content: ' · Draft';
   font-size: 0.62rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--accent, #3b82f6);
   opacity: 0.9;
+}
+
+/* Production Param value (trigger or API) — distinct from override_when_on blue */
+.toggle-switch.is-param-production.on {
+  background: color-mix(in srgb, #14b8a6 22%, transparent);
+  border-color: color-mix(in srgb, #14b8a6 65%, var(--border));
+}
+
+.toggle-switch.is-param-production.on .toggle-knob {
+  background: #14b8a6;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #14b8a6 28%, transparent);
+}
+
+.toggle-switch.is-param-production:not(.on) {
+  border-color: color-mix(in srgb, #14b8a6 45%, var(--border));
+  background: color-mix(in srgb, #14b8a6 8%, var(--bg));
+}
+
+.toggle-row.is-param-production .toggle-row-label > span:first-child::after {
+  content: ' · Live';
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #14b8a6;
+  opacity: 0.9;
+}
+
+.toggle-switch.is-node-authored.on {
+  background: color-mix(in srgb, #22c55e 18%, transparent);
+  border-color: color-mix(in srgb, #22c55e 55%, var(--border));
+}
+
+.toggle-switch.is-node-authored.on .toggle-knob {
+  background: #22c55e;
+}
+
+.toggle-row.is-node-authored .toggle-row-label > span:first-child::after {
+  content: ' · Node';
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #22c55e;
+  opacity: 0.9;
+}
+
+.l2-param-trigger-runtime {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.75rem;
+  min-width: 8rem;
+}
+
+.l2-param-trigger-runtime select {
+  font-size: 0.75rem;
+}
+
+.toggle-switch-compact.is-param-production.on {
+  background: color-mix(in srgb, #14b8a6 22%, transparent);
+  border-color: color-mix(in srgb, #14b8a6 65%, var(--border));
+}
+
+.toggle-switch-compact.is-param-production.on .toggle-knob {
+  background: #14b8a6;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #14b8a6 28%, transparent);
+}
+
+.toggle-switch-compact.is-param-production:not(.on) {
+  border-color: color-mix(in srgb, #14b8a6 45%, var(--border));
+  background: color-mix(in srgb, #14b8a6 8%, var(--bg));
+}
+
+.toggle-switch.on.is-param-production .toggle-knob {
+  box-shadow: 0 0 0 1px color-mix(in srgb, #14b8a6 40%, transparent);
 }
 
 .l2-param-live-field {

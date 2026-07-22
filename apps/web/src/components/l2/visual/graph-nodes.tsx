@@ -20,10 +20,13 @@ import {
   collectParamPropertyLocks,
   overlayParamLockedValues,
   overlayParamOverrideValues,
-  paramLiveOverrideProps,
   paramLockSummary,
   paramLockedPropertySet,
   paramOverridePropertySet,
+  paramSearchFieldOverrideSet,
+  paramStyleTokensForNode,
+  paramPinResetKey,
+  paramBoundMemberFieldsForNode,
   restoreParamLockedValues,
   restoreParamOverrideValues,
 } from '../../../lib/param-bind-preview'
@@ -238,6 +241,14 @@ function TextBodyLines({ lines }: { lines: string[] }) {
 }
 
 /** Interactive toggles / dropdowns on an expanded Parameter Node. */
+function paramValuesEqual(a: L2ParamValue | undefined, b: L2ParamValue | undefined): boolean {
+  if (a === b) return true
+  if (Array.isArray(a) && Array.isArray(b)) {
+    return a.length === b.length && a.every((v, i) => v === b[i])
+  }
+  return false
+}
+
 function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
   const expandApi = useNodeExpand()
   const controls = rule.controls ?? []
@@ -246,6 +257,7 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
     () => (expandApi?.match ? buildParamValueMap(expandApi.match) : values),
     [expandApi?.match, values],
   )
+  const productionParams = expandApi?.productionParams
   const andBlockers = useMemo(
     () => (expandApi?.match ? collectParamAndBlockers(expandApi.match) : new Map()),
     [expandApi?.match],
@@ -260,23 +272,36 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
     expandApi?.patchParameterValues?.(rule.id, { ...values, [name]: value })
   }
 
+  /** Param panel knobs edit draft values; Live runtime mode only affects production writes + teal styling. */
+  const displayValue = (control: (typeof controls)[number]): L2ParamValue =>
+    sharedValues[control.name] ?? values[control.name] ?? control.default
+
+  const displayHint = (control: (typeof controls)[number]): string | undefined => {
+    const parts: string[] = []
+    if (control.description) parts.push(control.description)
+    if (productionParams?.has(control.name)) parts.push('Live')
+    return parts.length ? parts.join(' · ') : undefined
+  }
+
   return (
     <div
       className="l2-flow-parameters-controls nodrag nopan"
       onMouseDown={stopNodeGesture}
     >
       {controls.map((control) => {
-        const live = sharedValues[control.name] ?? values[control.name] ?? control.default
+        const draftVal = sharedValues[control.name] ?? values[control.name] ?? control.default
+        const display = displayValue(control)
         if (control.type === 'boolean') {
-          const on = live === true || live === 'true'
+          const on = display === true || display === 'true'
           const blockInfo = andBlockers.get(control.name)
           return (
             <div key={control.name} className="l2-flow-parameters-control-row">
               <ToggleRow
                 label={control.label || control.name}
-                hint={control.description || undefined}
+                hint={displayHint(control)}
                 checked={on}
                 readOnly={readOnly}
+                paramProduction={productionParams?.has(control.name)}
                 andBlocked={Boolean(blockInfo)}
                 ariaLabel={`${control.label || control.name} parameter`}
                 onChange={(checked) => setValue(control.name, checked)}
@@ -288,13 +313,13 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
           return (
             <div key={control.name} className="l2-flow-parameters-control-row l2-flow-parameters-enum-row">
               <label className="l2-flow-parameters-enum-head">
-                <span className="l2-flow-parameters-enum-label" title={control.description || control.name}>
+                <span className="l2-flow-parameters-enum-label" title={displayHint(control) || control.description || control.name}>
                   {control.label || control.name}
                 </span>
                 <input
                   className="nodrag nopan"
                   disabled={readOnly}
-                  value={String(live ?? '')}
+                  value={String(display ?? '')}
                   placeholder={control.placeholder || ''}
                   onMouseDown={stopNodeGesture}
                   onChange={(e) => {
@@ -307,7 +332,7 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
           )
         }
         if (control.type === 'stringList') {
-          const list = Array.isArray(live) ? live : []
+          const list = Array.isArray(display) ? display : []
           return (
             <div key={control.name} className="l2-flow-parameters-control-row">
               <span className="l2-flow-parameters-enum-label" title={control.description || control.name}>
@@ -324,13 +349,13 @@ function ParametersExpandControls({ rule }: { rule: L2ParametersCondition }) {
         return (
           <div key={control.name} className="l2-flow-parameters-control-row l2-flow-parameters-enum-row">
             <label className="l2-flow-parameters-enum-head">
-              <span className="l2-flow-parameters-enum-label" title={control.description || control.name}>
+              <span className="l2-flow-parameters-enum-label" title={displayHint(control) || control.description || control.name}>
                 {control.label || control.name}
               </span>
               <select
                 className="nodrag nopan"
                 disabled={readOnly}
-                value={String(live)}
+                value={String(display)}
                 onMouseDown={stopNodeGesture}
                 onChange={(e) => {
                   stopNodeGesture(e)
@@ -464,26 +489,35 @@ function ConditionExpandProperties({
   const expandApi = useNodeExpand()
   const bodyRef = useRef<HTMLDivElement>(null)
   const match = expandApi?.match
+  const paramOverrides = expandApi?.paramPreviewOverrides
   const readOnly = Boolean(expandApi?.readOnly) || !expandApi?.patchRuleNode
 
   const locks = match ? collectParamPropertyLocks(match, nodeId) : []
   const effective = match
-    ? indexRuleNodesById(applyParametersToMatch(match)).get(nodeId)
+    ? indexRuleNodesById(applyParametersToMatch(match, { values: paramOverrides })).get(nodeId)
     : undefined
-  const listPreviews = match ? collectParamListFieldPreviews(match, nodeId) : []
-  const propertyPreviews = match ? collectParamPropertyFieldPreviews(match, nodeId) : []
+  const listPreviews = match ? collectParamListFieldPreviews(match, nodeId, paramOverrides) : []
+  const propertyPreviews = match ? collectParamPropertyFieldPreviews(match, nodeId, paramOverrides) : []
   const overrideProps = paramOverridePropertySet(propertyPreviews)
-  const paramValuesKey = match ? JSON.stringify(buildParamValueMap(match)) : ''
+  const pinResetKey = match ? paramPinResetKey(match, nodeId, paramOverrides) : ''
+  const paramBoundSearchFields = match
+    ? paramBoundMemberFieldsForNode(match, nodeId, 'fields')
+    : new Set<string>()
   const pinnedRef = useRef<Set<string>>(new Set())
   const [pinTick, setPinTick] = useState(0)
 
   useEffect(() => {
     pinnedRef.current = new Set()
     setPinTick((n) => n + 1)
-  }, [nodeId, paramValuesKey])
+  }, [nodeId, pinResetKey])
 
   const pinnedBaselineProps = pinnedRef.current
-  const paramLiveProps = paramLiveOverrideProps(overrideProps, pinnedBaselineProps)
+  const pinnedSearchFields = paramSearchFieldOverrideSet(pinnedBaselineProps)
+  const styleTokens = match
+    ? paramStyleTokensForNode(match, nodeId, paramOverrides, pinnedBaselineProps)
+    : { draft: new Set<string>(), live: new Set<string>() }
+  const paramLiveProps = styleTokens.draft
+  const paramProductionProps = styleTokens.live
   const display = overlayParamOverrideValues(
     overlayParamLockedValues(rule, effective, locks),
     effective,
@@ -543,10 +577,16 @@ function ConditionExpandProperties({
         paramLockHint={locks.length ? paramLockSummary(locks) : undefined}
         paramListPreviews={listPreviews}
         paramOverriddenProps={paramLiveProps}
+        paramProductionProps={paramProductionProps}
+        paramBoundSearchFields={paramBoundSearchFields}
+        pinnedSearchFields={pinnedSearchFields}
         baselineNode={rule}
         onPinParamBaseline={(property) => {
-          if (pinnedRef.current.has(property)) return
-          pinnedRef.current.add(property)
+          if (pinnedRef.current.has(property)) {
+            pinnedRef.current.delete(property)
+          } else {
+            pinnedRef.current.add(property)
+          }
           setPinTick((n) => n + 1)
         }}
       />
@@ -567,7 +607,9 @@ function ConditionTeaserBody({
   // Show live Param-applied lists on the teaser (merge/replace), not just authored baseline.
   const teaserRule =
     expandApi?.match
-      ? indexRuleNodesById(applyParametersToMatch(expandApi.match)).get(nodeId) ?? rule
+      ? indexRuleNodesById(
+          applyParametersToMatch(expandApi.match, { values: expandApi.paramPreviewOverrides }),
+        ).get(nodeId) ?? rule
       : rule
   const metrics = conditionCollapseMetrics(teaserRule)
   if (metrics.textLines.length === 0 && metrics.profileRows === 0) return null

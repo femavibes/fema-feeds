@@ -76,8 +76,9 @@ export function FeedParamApiKeysPanel({ feedId }: { feedId: string }) {
     <div className="feed-param-api-panel">
       <h3 className="feed-param-api-title">Param API</h3>
       <p className="card-hint">
-        Per-feed keys can PATCH declared Param IDs on the live feed — no graph rebuild. Only Param
-        names defined in your graph are accepted.
+        Per-feed keys authenticate <code>PATCH /api/feeds/:id/params</code> — flip declared Param
+        values on the <strong>live</strong> feed without a graph rebuild. Keys cannot edit rules,
+        drafts, or other feeds. Treat them like passwords: revoke any key you suspect is leaked.
       </p>
 
       {error ? <p className="form-error">{error}</p> : null}

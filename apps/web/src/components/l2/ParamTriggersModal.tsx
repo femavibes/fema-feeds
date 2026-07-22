@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom'
 import { useMemo, useState } from 'react'
 import type {
   L2ParamControl,
+  L2ParamRuntimeMode,
   L2ParamScheduleEnforce,
   L2ParamTrigger,
   L2ParamTriggerKind,
@@ -123,6 +124,30 @@ function EnforceSelect({
   )
 }
 
+function TriggerRuntimeModeSelect({
+  value,
+  readOnly,
+  onChange,
+}: {
+  value: L2ParamRuntimeMode
+  readOnly?: boolean
+  onChange: (mode: L2ParamRuntimeMode) => void
+}) {
+  return (
+    <label className="l2-param-trigger-runtime">
+      <span>Mode</span>
+      <select
+        disabled={readOnly}
+        value={value}
+        onChange={(e) => onChange(e.target.value as L2ParamRuntimeMode)}
+      >
+        <option value="draft">Draft (blue preview)</option>
+        <option value="live">Live (teal production)</option>
+      </select>
+    </label>
+  )
+}
+
 export function ParamTriggersModal({
   open,
   control,
@@ -133,6 +158,7 @@ export function ParamTriggersModal({
   onChange,
   onFeedTimezoneChange,
   onClose,
+  paramRuntimeMode = 'draft',
 }: {
   open: boolean
   control: L2ParamControl
@@ -143,6 +169,8 @@ export function ParamTriggersModal({
   onChange: (triggers: L2ParamTrigger[]) => void
   onFeedTimezoneChange?: (tz: string) => void
   onClose: () => void
+  /** Parent control runtime — Live triggers need Live param to write production. */
+  paramRuntimeMode?: L2ParamRuntimeMode
 }) {
   const [tab, setTab] = useState<L2ParamTriggerKind>('time_window')
 
@@ -280,9 +308,11 @@ export function ParamTriggersModal({
       >
         <h3 id="param-triggers-title">Param triggers</h3>
         <p className="card-hint">
-          <strong>Controls</strong> (targets on this Param) change the graph when the value flips.{' '}
-          <strong>Triggers</strong> here listen for activity and flip <strong>{control.label || control.name}</strong>{' '}
-          automatically — they can watch the same node, a different node, or the whole feed.
+          <strong>Draft</strong> triggers preview in the editor (blue). <strong>Live</strong> triggers write
+          production (teal) when this Param is also Live.
+          {paramRuntimeMode !== 'live' ? (
+            <> This Param is Draft — Live triggers will not write production until you set the Param to Live.</>
+          ) : null}
         </p>
 
         <label className="l2-inspector-field">
@@ -361,6 +391,11 @@ export function ParamTriggersModal({
                           ✕
                         </button>
                       ) : null}
+                      <TriggerRuntimeModeSelect
+                        value={w.runtimeMode === 'live' ? 'live' : 'draft'}
+                        readOnly={readOnly}
+                        onChange={(runtimeMode) => updateTrigger(w.id, { runtimeMode })}
+                      />
                     </div>
                     <div className="l2-param-schedule-days">
                       {DAY_LABELS.map((label, day) => {
@@ -489,6 +524,11 @@ export function ParamTriggersModal({
                           ✕
                         </button>
                       ) : null}
+                      <TriggerRuntimeModeSelect
+                        value={t.runtimeMode === 'live' ? 'live' : 'draft'}
+                        readOnly={readOnly}
+                        onChange={(runtimeMode) => updateTrigger(t.id, { runtimeMode })}
+                      />
                     </div>
                     <div className="l2-param-schedule-values">
                       <ParamTriggerListenSelect
@@ -593,6 +633,11 @@ export function ParamTriggersModal({
                           ✕
                         </button>
                       ) : null}
+                      <TriggerRuntimeModeSelect
+                        value={t.runtimeMode === 'live' ? 'live' : 'draft'}
+                        readOnly={readOnly}
+                        onChange={(runtimeMode) => updateTrigger(t.id, { runtimeMode })}
+                      />
                     </div>
                     <div className="l2-param-schedule-values">
                       <ParamTriggerListenSelect
@@ -671,6 +716,11 @@ export function ParamTriggersModal({
                           ✕
                         </button>
                       ) : null}
+                      <TriggerRuntimeModeSelect
+                        value={t.runtimeMode === 'live' ? 'live' : 'draft'}
+                        readOnly={readOnly}
+                        onChange={(runtimeMode) => updateTrigger(t.id, { runtimeMode })}
+                      />
                     </div>
                     <div className="l2-param-schedule-values">
                       <label>
@@ -773,6 +823,11 @@ export function ParamTriggersModal({
                           ✕
                         </button>
                       ) : null}
+                      <TriggerRuntimeModeSelect
+                        value={t.runtimeMode === 'live' ? 'live' : 'draft'}
+                        readOnly={readOnly}
+                        onChange={(runtimeMode) => updateTrigger(t.id, { runtimeMode })}
+                      />
                     </div>
                     <div className="l2-param-schedule-values">
                       <label>

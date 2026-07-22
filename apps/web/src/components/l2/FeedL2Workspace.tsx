@@ -44,6 +44,7 @@ interface Props {
   onSaveDraft: (feed: FeedConfig) => Promise<FeedConfig>
   onNotify: (message: string | null, error: string | null) => void
   liveFeed: FeedConfig | null
+  onLiveFeedChange?: (feed: FeedConfig) => void
   hasUnpublishedDraft: boolean
   onSettingsChange: (next: FeedConfig | ((prev: FeedConfig) => FeedConfig)) => void
   settingsDirty: boolean
@@ -75,6 +76,7 @@ export function FeedL2Workspace({
   onSaveDraft,
   onNotify,
   liveFeed,
+  onLiveFeedChange,
   hasUnpublishedDraft,
   onSettingsChange,
   settingsDirty,
@@ -445,6 +447,8 @@ export function FeedL2Workspace({
       {view === 'visual' && editorDraft && (
         <L2VisualEditor
           draft={editorDraft}
+          liveFeed={liveFeed}
+          onLiveFeedChange={onLiveFeedChange}
           dirty={editorDirty}
           saving={saving}
           autosaveState={autosaveState}

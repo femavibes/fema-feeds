@@ -12,6 +12,9 @@ interface Props {
   andBlocked?: boolean
   /** Showing a live Parameter override (override_when_on mode). */
   paramLive?: boolean
+  /** Param value driven by production (trigger or API), not draft. */
+  paramProduction?: boolean
+  nodeAuthored?: boolean
 }
 
 export function ToggleRow({
@@ -24,11 +27,15 @@ export function ToggleRow({
   readOnly,
   andBlocked,
   paramLive,
+  paramProduction,
+  nodeAuthored,
 }: Props) {
   return (
     <div
       className={`toggle-row${andBlocked && checked ? ' is-and-blocked' : ''}${
         paramLive ? ' is-param-live' : ''
+      }${paramProduction ? ' is-param-production' : ''}${
+        nodeAuthored ? ' is-node-authored' : ''
       }`}
     >
       <div className="toggle-row-label">
@@ -43,6 +50,8 @@ export function ToggleRow({
         readOnly={readOnly}
         andBlocked={andBlocked}
         paramLive={paramLive}
+        paramProduction={paramProduction}
+        nodeAuthored={nodeAuthored}
       />
     </div>
   )

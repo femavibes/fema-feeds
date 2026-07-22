@@ -10,7 +10,7 @@
     "logic": "any",
     "children": [
       {
-        "id": "params-mrv0l2k1",
+        "id": "params-mrviiny5",
         "type": "parameters",
         "title": "Parameters",
         "values": {
@@ -22,57 +22,223 @@
             "type": "boolean",
             "label": "Enabled",
             "default": true,
-            "triggers": [
+            "bindings": [
               {
-                "id": "time_mrv0m197_cp9zw",
-                "kind": "time_window",
-                "label": "",
-                "endTime": "10:00",
-                "enforce": "boundaries",
-                "startTime": "06:00",
-                "daysOfWeek": [
-                  1,
-                  2,
-                  3,
-                  4,
-                  5
-                ],
-                "activeValue": true,
-                "inactiveValue": false
+                "kind": "property",
+                "value": true,
+                "member": "link_description",
+                "nodeId": "kw-mrsh7x0x",
+                "property": "fields"
               },
               {
-                "id": "rate_mrv0ml6m_acip0",
-                "kind": "match_rate",
-                "scope": "node",
-                "enforce": "boundaries",
-                "threshold": 10,
-                "comparator": "gte",
-                "activeValue": true,
-                "inactiveValue": false,
-                "windowMinutes": 60
+                "kind": "property",
+                "value": true,
+                "member": "image_alt",
+                "nodeId": "kw-mrsh7x0x",
+                "property": "fields"
               },
               {
-                "id": "stale_mrv0n6kq_r2pa7",
-                "kind": "staleness",
-                "scope": "node",
-                "enforce": "boundaries",
-                "activeValue": true,
-                "staleMinutes": 60,
-                "inactiveValue": false
+                "kind": "property",
+                "value": true,
+                "member": "facet_link",
+                "nodeId": "kw-mrsh7x0x",
+                "property": "fields"
               },
               {
-                "id": "author_mrv0nbf7_zbts7",
-                "kind": "author_post",
-                "enforce": "boundaries",
-                "authorDids": [],
-                "activeValue": true,
-                "authorListIds": [],
-                "inactiveValue": false,
-                "lookbackMinutes": 5
+                "kind": "property",
+                "value": true,
+                "member": "facet_mention",
+                "nodeId": "kw-mrsh7x0x",
+                "property": "fields"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "bridgy_original_url",
+                "nodeId": "kw-mrsh7x0x",
+                "property": "fields"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "bridgy_original_text",
+                "nodeId": "kw-mrsh7x0x",
+                "property": "fields"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "nodeId": "kw-mrsh7x0x",
+                "property": "wholeWord"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "nodeId": "kw-mrsh7x0x",
+                "property": "caseSensitive"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "link_title",
+                "nodeId": "kw-mrsh7x0x",
+                "property": "fields"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "link_uri",
+                "nodeId": "kw-mrsh7x0x",
+                "property": "fields"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "text",
+                "nodeId": "kw-mrsh7x0x",
+                "property": "fields"
+              },
+              {
+                "kind": "property",
+                "value": true,
+                "member": "video_alt",
+                "nodeId": "kw-mrsh7x0x",
+                "property": "fields"
               }
             ],
-            "description": "Turn off to disable the target nodes (paste node ids below).",
-            "targetNodeIds": []
+            "description": "Turn off to disable the target nodes (paste node ids below)."
+          }
+        ]
+      },
+      {
+        "id": "group-mrv5827u",
+        "type": "group",
+        "logic": "any",
+        "children": [
+          {
+            "id": "url-mrs5zwiq",
+            "op": "includes",
+            "type": "url",
+            "sources": [
+              "link_card"
+            ],
+            "patterns": [
+              "fema.com"
+            ],
+            "runAtIngest": false,
+            "caseSensitive": false
+          },
+          {
+            "id": "kw-mrsh7x0x",
+            "op": "includes",
+            "type": "keyword",
+            "terms": [
+              "GOGOG"
+            ],
+            "fields": [
+              "image_alt"
+            ]
+          },
+          {
+            "id": "params-mrvkv7aj",
+            "type": "parameters",
+            "title": "Parameters",
+            "values": {
+              "search-fields": true
+            },
+            "controls": [
+              {
+                "name": "search-fields",
+                "type": "boolean",
+                "label": "search",
+                "default": true,
+                "bindings": [
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "member": "link_description",
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "fields"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "member": "image_alt",
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "fields"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "member": "facet_link",
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "fields"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "member": "facet_mention",
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "fields"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "member": "bridgy_original_url",
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "fields"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "member": "bridgy_original_text",
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "fields"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "wholeWord"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "caseSensitive"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "member": "link_title",
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "fields"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "member": "link_uri",
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "fields"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "member": "text",
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "fields"
+                  },
+                  {
+                    "kind": "property",
+                    "value": true,
+                    "member": "video_alt",
+                    "nodeId": "kw-mrsh7x0x",
+                    "property": "fields"
+                  }
+                ],
+                "description": "Turn off to disable the target nodes (paste node ids below)."
+              }
+            ]
           }
         ]
       },
@@ -81,22 +247,15 @@
         "type": "parameters",
         "title": "Parameters",
         "values": {
-          "cat": false,
-          "mode_zcys": "a"
+          "cat": false
         },
         "controls": [
           {
             "name": "cat",
             "type": "boolean",
             "label": "CAT",
-            "default": true,
+            "default": false,
             "bindings": [
-              {
-                "kind": "property",
-                "value": true,
-                "nodeId": "url-mrs5zwiq",
-                "property": "caseSensitive"
-              },
               {
                 "kind": "property",
                 "value": "includes",
@@ -113,12 +272,6 @@
               {
                 "kind": "property",
                 "value": true,
-                "nodeId": "url-mrs5zwiq",
-                "property": "runAtIngest"
-              },
-              {
-                "kind": "property",
-                "value": true,
                 "member": "facet_link",
                 "nodeId": "url-mrs5zwiq",
                 "property": "sources"
@@ -129,81 +282,46 @@
                 "member": "bridgy_original",
                 "nodeId": "url-mrs5zwiq",
                 "property": "sources"
-              }
-            ],
-            "triggers": [
-              {
-                "id": "list_mrv0o7tm_n5g86",
-                "kind": "list_membership",
-                "event": "any_change",
-                "listId": "",
-                "enforce": "boundaries",
-                "activeValue": true,
-                "inactiveValue": false
-              }
-            ],
-            "description": "Turn off to disable the target nodes (paste node ids below)."
-          },
-          {
-            "name": "mode_zcys",
-            "label": "Mode",
-            "description": "",
-            "type": "enum",
-            "default": "a",
-            "options": [
-              {
-                "value": "a",
-                "label": "Option A",
-                "targetNodeIds": [],
-                "bindings": []
               },
               {
-                "value": "b",
-                "label": "Option B",
-                "targetNodeIds": [],
-                "bindings": []
+                "kind": "property",
+                "value": true,
+                "nodeId": "url-mrs5zwiq",
+                "property": "caseSensitive"
               }
             ],
             "triggers": [
               {
+                "id": "time_mrv62bsb_j1t9s",
                 "kind": "time_window",
-                "id": "time_mrv37t92_u7pa3",
                 "label": "",
+                "endTime": "10:00",
+                "enforce": "boundaries",
+                "startTime": "15:15",
                 "daysOfWeek": [
+                  0,
                   1,
                   2,
                   3,
                   4,
-                  5
+                  5,
+                  6
                 ],
-                "startTime": "06:00",
-                "endTime": "10:00",
-                "activeValue": "a",
-                "inactiveValue": "a",
-                "enforce": "boundaries"
+                "activeValue": true,
+                "inactiveValue": false
               }
-            ]
+            ],
+            "description": "Turn off to disable the target nodes (paste node ids below).",
+            "runtimeMode": "draft"
           }
         ]
-      },
-      {
-        "id": "url-mrs5zwiq",
-        "op": "includes",
-        "type": "url",
-        "sources": [
-          "link_card"
-        ],
-        "patterns": [],
-        "runAtIngest": false,
-        "caseSensitive": true
       },
       {
         "id": "params-mrsarm5m",
         "type": "parameters",
         "title": "Parameters",
         "values": {
-          "potato": true,
-          "mode_ejeu": "a"
+          "potato": true
         },
         "controls": [
           {
@@ -213,10 +331,6 @@
             "default": true,
             "bindings": [
               {
-                "kind": "presence",
-                "nodeId": "url-mrs5zwiq"
-              },
-              {
                 "kind": "property",
                 "value": "includes",
                 "nodeId": "url-mrs5zwiq",
@@ -231,7 +345,7 @@
               {
                 "kind": "property",
                 "value": true,
-                "member": "link_card",
+                "member": "facet_link",
                 "nodeId": "url-mrs5zwiq",
                 "property": "sources"
               },
@@ -244,40 +358,12 @@
               {
                 "kind": "property",
                 "value": true,
-                "member": "facet_link",
-                "nodeId": "url-mrs5zwiq",
-                "property": "sources"
-              },
-              {
-                "kind": "property",
-                "value": true,
                 "member": "bridgy_original",
                 "nodeId": "url-mrs5zwiq",
                 "property": "sources"
               }
             ],
             "description": "Turn off to disable the target nodes (paste node ids below)."
-          },
-          {
-            "name": "mode_ejeu",
-            "type": "enum",
-            "label": "Mode",
-            "default": "a",
-            "options": [
-              {
-                "label": "Option A",
-                "value": "a",
-                "bindings": [],
-                "targetNodeIds": []
-              },
-              {
-                "label": "Option B",
-                "value": "b",
-                "bindings": [],
-                "targetNodeIds": []
-              }
-            ],
-            "description": ""
           }
         ]
       },
@@ -296,10 +382,6 @@
             "default": true,
             "bindings": [
               {
-                "kind": "presence",
-                "nodeId": "url-mrs5zwiq"
-              },
-              {
                 "kind": "property",
                 "value": "includes",
                 "nodeId": "url-mrs5zwiq",
@@ -314,7 +396,7 @@
               {
                 "kind": "property",
                 "value": true,
-                "member": "link_card",
+                "member": "facet_link",
                 "nodeId": "url-mrs5zwiq",
                 "property": "sources"
               },
@@ -323,13 +405,6 @@
                 "value": true,
                 "nodeId": "url-mrs5zwiq",
                 "property": "caseSensitive"
-              },
-              {
-                "kind": "property",
-                "value": true,
-                "member": "facet_link",
-                "nodeId": "url-mrs5zwiq",
-                "property": "sources"
               },
               {
                 "kind": "property",
@@ -355,63 +430,6 @@
             "description": "Turn off to disable the target nodes (paste node ids below)."
           }
         ]
-      },
-      {
-        "id": "kw-mrsh7x0x",
-        "op": "includes",
-        "type": "keyword",
-        "terms": [
-          "GOGOG"
-        ],
-        "fields": [
-          "text"
-        ]
-      },
-      {
-        "id": "params-mrsf5tf3",
-        "type": "parameters",
-        "title": "Parameters",
-        "values": {
-          "list_9tn7": [
-            "gsdfdsfdsf",
-            "das",
-            "dddd"
-          ],
-          "text_73vv": "ffasdads"
-        },
-        "controls": [
-          {
-            "name": "text_73vv",
-            "type": "string",
-            "label": "Text",
-            "default": "dff",
-            "bindings": [
-              {
-                "kind": "presence",
-                "nodeId": "kw-mrsh7x0x"
-              }
-            ],
-            "description": "",
-            "placeholder": ""
-          },
-          {
-            "name": "list_9tn7",
-            "type": "stringList",
-            "label": "List",
-            "default": [
-              "ddddddddddddddd",
-              "aaaaaaaa"
-            ],
-            "bindings": [
-              {
-                "kind": "presence",
-                "nodeId": "kw-mrsh7x0x"
-              }
-            ],
-            "description": "",
-            "placeholder": "term"
-          }
-        ]
       }
     ]
   },
@@ -421,15 +439,15 @@
   "visualLayout": {
     "edges": [
       {
-        "id": "e-start-url-mrs5zwiq",
+        "id": "e-start-group-mrv5827u",
         "branch": true,
         "source": "start",
-        "target": "url-mrs5zwiq"
+        "target": "group-mrv5827u"
       },
       {
-        "id": "e-url-mrs5zwiq-end",
+        "id": "e-group-mrv5827u-end",
         "branch": true,
-        "source": "url-mrs5zwiq",
+        "source": "group-mrv5827u",
         "target": "end"
       }
     ],
@@ -438,40 +456,36 @@
     },
     "positions": {
       "end": {
-        "x": 834.4587236353249,
-        "y": -42.045382626148225
+        "x": 1355.139715118934,
+        "y": 456.30076739971906
       },
       "start": {
         "x": -201.99999999999997,
         "y": 36.00000000000001
       },
-      "kw-mrsh7x0x": {
-        "x": 644.7725035856387,
-        "y": -1031.7959661716577
-      },
-      "url-mrs5zwiq": {
-        "x": 197.29090982816442,
-        "y": -147.17725186662477
+      "group-mrv5827u": {
+        "x": 264.767205109033,
+        "y": -69.2717591436254
       },
       "params-mrsarm5m": {
-        "x": 348.3899055406492,
-        "y": -490.17779877249205
+        "x": 545.3796754501703,
+        "y": -177.84181283558863
       },
       "params-mrscgpbd": {
-        "x": 10.204210102861254,
-        "y": -563.9706962962061
+        "x": 295.78178827652704,
+        "y": -246.0514628664017
       },
       "params-mrsdfc22": {
-        "x": 352.6254567328097,
-        "y": -630.0850070017938
+        "x": 549.3035072783355,
+        "y": -280.3446244821056
       },
-      "params-mrsf5tf3": {
-        "x": 652.2820270855024,
-        "y": -1276.726266256219
+      "params-mrviiny5": {
+        "x": -93.2973319159347,
+        "y": -115.84286531012923
       },
-      "params-mrv0l2k1": {
-        "x": -348.7024816914211,
-        "y": -1183.2842166272405
+      "params-mrvkv7aj": {
+        "x": 929.9890658064747,
+        "y": 943.5044984111129
       }
     },
     "nodeSources": {
@@ -485,6 +499,8 @@
       "ring-mrs9tc3d": "native",
       "group-mrs5ucet": "native",
       "group-mrs5uix5": "native",
+      "group-mrv580en": "native",
+      "group-mrv5827u": "native",
       "media-mrs9t2wg": "native",
       "params-mrs5uugv": "native",
       "params-mrs5wvwo": "native",
@@ -496,58 +512,131 @@
       "params-mrsf5r2t": "native",
       "params-mrsf5tf3": "native",
       "params-mrv0l2k1": "native",
+      "params-mrviiny5": "native",
+      "params-mrvkv7aj": "native",
       "mention-mrs9t76v": "native",
       "mention-mrs9tdoa": "native"
     },
     "lockedNodeIds": [],
     "expandedNodeIds": [
-      "url-mrs5zwiq",
       "params-mrsarm5m",
       "params-mrscgpbd",
       "params-mrsdfc22",
+      "url-mrs5zwiq",
       "kw-mrsh7x0x",
-      "params-mrsf5tf3"
+      "params-mrviiny5",
+      "params-mrvkv7aj"
     ]
   },
-  "liveAt": "2026-07-21T20:19:00.284Z",
-  "paramTriggerRuntime": {
-    "time": {
-      "enabled": {
-        "inWindow": false
+  "liveAt": "2026-07-22T04:30:07.755Z",
+  "rank": {
+    "tuning": {
+      "scoreCap": 0,
+      "decayMode": "exponential",
+      "mediaBonus": {
+        "image": {
+          "weight": 0,
+          "enabled": false
+        },
+        "video": {
+          "weight": 0,
+          "enabled": false
+        },
+        "linkCard": {
+          "weight": 0,
+          "enabled": false
+        }
       },
-      "mode_zcys": {
-        "inWindow": false
-      }
+      "scoreFloor": 0,
+      "maxAgeHours": 0,
+      "ratioSignals": {
+        "quoteRatio": {
+          "weight": 0,
+          "enabled": false
+        },
+        "replyRatio": {
+          "weight": 0,
+          "enabled": false
+        },
+        "engagementRate": {
+          "weight": 0,
+          "enabled": false
+        }
+      },
+      "authorFairness": "off",
+      "contentSignals": {
+        "linkCount": {
+          "weight": 0,
+          "enabled": false
+        },
+        "replyBonus": {
+          "weight": 0,
+          "enabled": false
+        },
+        "textLength": {
+          "weight": 0,
+          "enabled": false
+        },
+        "authorPosts": {
+          "weight": 0,
+          "enabled": false
+        },
+        "altTextBonus": {
+          "weight": 0,
+          "enabled": false
+        },
+        "hashtagCount": {
+          "weight": 0,
+          "enabled": false
+        },
+        "mentionCount": {
+          "weight": 0,
+          "enabled": false
+        },
+        "rootPostBonus": {
+          "weight": 0,
+          "enabled": false
+        },
+        "quotePostBonus": {
+          "weight": 0,
+          "enabled": false
+        },
+        "authorFollowers": {
+          "weight": 0,
+          "enabled": false
+        }
+      },
+      "editorScoreWeight": 0,
+      "decayHalfLifeHours": 24
     },
-    "threshold": {
-      "time_mrv0m197_cp9zw": {
-        "satisfied": false
+    "sortKey": {
+      "op": "*",
+      "left": {
+        "type": "field",
+        "field": "like_count"
       },
-      "rate_mrv0ml6m_acip0": {
-        "satisfied": false
-      },
-      "stale_mrv0n6kq_r2pa7": {
-        "satisfied": true
-      },
-      "author_mrv0nbf7_zbts7": {
-        "satisfied": false
-      },
-      "list_mrv0o7tm_n5g86": {
-        "satisfied": false
-      },
-      "time_mrv37t92_u7pa3": {
-        "satisfied": false
+      "type": "binary",
+      "right": {
+        "op": "**",
+        "left": {
+          "type": "literal",
+          "value": 0.5
+        },
+        "type": "binary",
+        "right": {
+          "op": "/",
+          "left": {
+            "type": "field",
+            "field": "post_age_hours"
+          },
+          "type": "binary",
+          "right": {
+            "type": "literal",
+            "value": 24
+          }
+        }
       }
     }
   },
-  "paramScheduleRuntime": {
-    "byParam": {
-      "enabled": {
-        "inWindow": false
-      },
-      "mode_zcys": {
-        "inWindow": false
-      }
-    }
-  }
+  "timezone": "America/Los_Angeles"
 }

@@ -21,6 +21,11 @@ export type NodeExpandApi = {
   patchRuleNode?: (nodeId: string, next: L2RuleNode) => void
   /** Current authored match — used to preview Parameter bind effects on canvas. */
   match?: L2RuleGroup
+  /** Live feed Param values (triggers / API write here). */
+  liveParamValues?: Record<string, L2ParamValue>
+  /** Overrides for applyParametersToMatch (draft + live merged). */
+  paramPreviewOverrides?: Record<string, L2ParamValue>
+  productionParams?: ReadonlySet<string>
   readOnly?: boolean
 }
 

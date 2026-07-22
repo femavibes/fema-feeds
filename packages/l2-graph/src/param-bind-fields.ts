@@ -97,7 +97,7 @@ function searchFieldBindables(): ParamBindableField[] {
   return KEYWORD_SEARCH_FIELDS.map(({ field, label }) => ({
     key: `fields:${field}`,
     label,
-    valueKind: 'boolean' as const,
+    valueKind: 'member' as const,
     property: 'fields',
     member: field,
   }))
