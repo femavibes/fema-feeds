@@ -126,6 +126,7 @@ import { resolvePostInput } from '@cfb/post-resolve'
 import { resolveListMemberProfiles, resolveActorProfiles } from './list-members.js'
 import { registerGlobalCommunityRoutes, resolveCommunityFeeds, syncLocalFeedsToGlobalRegistry } from './global-community-registry.js'
 import { registerIntelligenceRoutes } from './feed-intelligence.js'
+import { getIngestDesiredRunning, setIngestDesiredRunning } from './ingest-desired-state.js'
 import { avatarPublicUrl } from './feed-avatar.js'
 import { existsSync } from 'node:fs'
 import { getFeedStats } from '@cfb/storage-postgres'
@@ -163,6 +164,7 @@ export function createApp(options?: {
   const startedAt = new Date().toISOString()
   const dir = options?.projectsDir ?? projectsDir
   const feedDir = options?.feedsDir ?? feedsDir
+  const configDir = resolve(dir, '..')
   const pool = options?.pool !== undefined ? options.pool : (process.env.DATABASE_URL ? createPool() : null)
   const ingest =
     options?.ingest ??
@@ -253,6 +255,18 @@ export function createApp(options?: {
     void bootstrapDeploymentFromEnv(pool)
     void bootstrapMasterFromEnv(pool)
   }
+
+  void (async () => {
+    try {
+      const desired = await getIngestDesiredRunning(pool, configDir)
+      if (desired) {
+        await ingest.start()
+        console.error('[api] ingest auto-started from persisted desired state')
+      }
+    } catch (err) {
+      console.error('[api] ingest auto-start failed', err)
+    }
+  })()
 
   /** VPS provisioning: register slug + IP → stable https://slug.feeds.example.com (DNS broker, not HTTP proxy). */
   app.post('/api/cfb/deployments/register', async (c) => {
@@ -656,6 +670,7 @@ export function createApp(options?: {
     }
     try {
       const status = await ingest.start()
+      await setIngestDesiredRunning(pool, configDir, true)
       return c.json({
         ...status,
         lastSmokeTest: await resolveLastSmokeTest(),
@@ -672,6 +687,7 @@ export function createApp(options?: {
     if (!('ok' in gate)) return gate
 
     const status = await ingest.stop()
+    await setIngestDesiredRunning(pool, configDir, false)
     return c.json({
       ...status,
       lastSmokeTest: await resolveLastSmokeTest(),

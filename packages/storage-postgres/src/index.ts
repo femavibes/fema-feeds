@@ -69,6 +69,7 @@ export {
   type ServedFeedItem,
 } from './viewer-context.js'
 export { getEnrichmentSettings, saveEnrichmentSettings } from './enrichment-settings.js'
+export { getIngestSettings, saveIngestSettings, type IngestSettings } from './ingest-settings.js'
 export {
   getFeedgenSettings,
   saveFeedgenSettings,
