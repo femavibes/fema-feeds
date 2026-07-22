@@ -54,6 +54,17 @@ function postKindLabel(kind: string): string {
   }
 }
 
+/** Rank score for match rows — enough precision to see decay effects on small scores. */
+function formatSortScore(value: number): string {
+  if (!Number.isFinite(value)) return '—'
+  const abs = Math.abs(value)
+  if (abs >= 1000) return Math.round(value).toLocaleString()
+  if (abs >= 100) return value.toFixed(1)
+  if (abs >= 10) return value.toFixed(2)
+  if (abs >= 1) return value.toFixed(3)
+  return value.toFixed(4)
+}
+
 function postKindTitle(kind: string): string | undefined {
   switch (kind) {
     case 'reply':
@@ -361,13 +372,25 @@ export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey
         ) : null}
 
         <div className="l2-match-pool-meta-row">
-          <span className="l2-match-pool-meta">
-            {formatWhen(sample.indexedAt)}
-            {sortKey != null && ` · sort ${Math.round(sortKey)}`}
-          </span>
-          {editorScore != null && editorScore > 0 ? (
-            <span className="l2-match-pool-score" title={`Editor score: ${editorScore}`}>
-              +{editorScore}
+          <span className="l2-match-pool-meta">{formatWhen(sample.indexedAt)}</span>
+          {matched && (sortKey != null || (editorScore != null && editorScore > 0)) ? (
+            <span className="l2-match-pool-scores">
+              {sortKey != null ? (
+                <span
+                  className="l2-match-pool-score l2-match-pool-score-total"
+                  title="Total rank score — full sort formula (engagement, decay, editor boost, etc.)"
+                >
+                  Σ {formatSortScore(sortKey)}
+                </span>
+              ) : null}
+              {editorScore != null && editorScore > 0 ? (
+                <span
+                  className="l2-match-pool-score l2-match-pool-score-editor"
+                  title={`Editor score from Score nodes (+1 floor). Only affects rank when editor score boost is enabled in sorting.`}
+                >
+                  +{editorScore}
+                </span>
+              ) : null}
             </span>
           ) : null}
           {onSortTest ? (
