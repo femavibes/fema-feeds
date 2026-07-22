@@ -17,6 +17,7 @@ import { ToggleRow } from '../ToggleRow'
 import {
   DISCOVER_MODE_OPTIONS,
   matchOpSelectOptions,
+  memberArrayWhenOnLabels,
   ParamOwnedSelect,
   polarityPairOptions,
   sortNodeSettingFields,
@@ -275,8 +276,7 @@ export function ParamNodeBindProps({
                   value={
                     existing?.value === false || existing?.value === 'false' ? 'off' : 'on'
                   }
-                  onLabel="Include in list"
-                  offLabel="Exclude from list"
+                  {...memberArrayWhenOnLabels(field)}
                   onChange={(whenOn) =>
                     setFieldBinding(field, {
                       member: existing?.member ?? '',
@@ -359,7 +359,6 @@ export function ParamNodeBindProps({
       )
     }
 
-    const fixedMember = Boolean(field.member)
     return (
       <div key={field.key} className="l2-param-bind-member">
         <ToggleRow
@@ -379,8 +378,7 @@ export function ParamNodeBindProps({
           <WhenControlOnSelect
             readOnly={readOnly}
             value={existing?.value === false || existing?.value === 'false' ? 'off' : 'on'}
-            onLabel={fixedMember ? 'Include' : 'On'}
-            offLabel={fixedMember ? 'Exclude' : 'Off'}
+            {...memberArrayWhenOnLabels(field)}
             onChange={(whenOn) => setFieldBinding(field, { value: whenOn === 'on' })}
           />
         ) : null}

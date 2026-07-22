@@ -1,5 +1,18 @@
 import type { ParamBindableField } from '@cfb/l2-graph'
 
+/** Member-array binds (search fields, URL sources, …) use On/Off — not Include/Exclude. */
+export function memberArrayWhenOnLabels(
+  field: Pick<ParamBindableField, 'property' | 'valueKind' | 'member'>,
+): { onLabel: string; offLabel: string } {
+  if (field.property === 'fields' || field.property === 'sources' || field.property === 'kinds') {
+    return { onLabel: 'On', offLabel: 'Off' }
+  }
+  if (field.valueKind === 'member' && !field.member) {
+    return { onLabel: 'Include in list', offLabel: 'Exclude from list' }
+  }
+  return { onLabel: 'On', offLabel: 'Off' }
+}
+
 /** Pick the property value when the Parameter control is ON (OFF gets the inverse). */
 export function WhenControlOnSelect({
   readOnly,

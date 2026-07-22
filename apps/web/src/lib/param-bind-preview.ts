@@ -320,6 +320,15 @@ function formatForcedValue(
   if (binding.member) {
     const mode = target ? resolveParamControlMode(target) : 'override_when_on'
     const includeWhenActive = !(binding.value === false || binding.value === 'false')
+    const arrayMember =
+      binding.property === 'fields' ||
+      binding.property === 'sources' ||
+      binding.property === 'kinds'
+    if (arrayMember) {
+      const enabled = active ? includeWhenActive : mode === 'full_control' ? !includeWhenActive : null
+      if (enabled === null) return '→ node baseline'
+      return enabled ? '= on' : '= off'
+    }
     if (mode === 'full_control') {
       const include = active ? includeWhenActive : !includeWhenActive
       return include ? `add “${binding.member}”` : `remove “${binding.member}”`
