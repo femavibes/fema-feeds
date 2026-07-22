@@ -188,7 +188,9 @@ export function L2MatchPoolPanel({
             <>
               <h4 className="l2-match-pool-section-title">{postsSectionTitle}</h4>
               <p className="card-hint">
-                Ordered as they'd appear in the live feed, before personalization.
+                {result.previewSource === 'candidates'
+                  ? 'Same order as the live Bluesky feed (indexed candidates), before personalization.'
+                  : 'Formula preview from a full pool scan — use Update Live to refresh the live feed index.'}
               </p>
               <ul className="l2-match-pool-list">
                 {result.posts.map((post) => (

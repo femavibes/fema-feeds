@@ -1416,7 +1416,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
       (await c.req
 
-        .json<{ feed?: FeedConfig; limit?: number; scanLimit?: number; rejectLimit?: number }>()
+        .json<{ feed?: FeedConfig; limit?: number; scanLimit?: number; rejectLimit?: number; previewMode?: 'live' | 'formula' }>()
 
         .catch(() => null)) ?? {}
 
@@ -1459,6 +1459,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
       limit: body.limit,
       scanLimit: body.scanLimit,
       rejectLimit: body.rejectLimit,
+      previewMode: body.previewMode,
     })
 
     return c.json(result)

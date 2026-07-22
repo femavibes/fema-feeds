@@ -70,6 +70,32 @@ export async function countFeedCandidates(pool: pg.Pool, feedId: string): Promis
   return Number(res.rows[0]?.count ?? 0)
 }
 
+export interface FeedCandidateRow {
+  postUri: string
+  sortKey: number
+  postIndexedAt: string | null
+}
+
+/** Top-N indexed candidates — same ordering as getFeedSkeleton. */
+export async function listFeedCandidateRows(
+  pool: pg.Pool,
+  feedId: string,
+  limit: number,
+): Promise<FeedCandidateRow[]> {
+  const res = await pool.query<{ post_uri: string; sort_key: string; post_indexed_at: Date | null }>(
+    `SELECT post_uri, sort_key, post_indexed_at FROM feed_candidates
+     WHERE feed_id = $1 AND (expires_at IS NULL OR expires_at > NOW())
+     ORDER BY sort_key DESC, post_indexed_at DESC NULLS LAST
+     LIMIT $2`,
+    [feedId, limit],
+  )
+  return res.rows.map((r) => ({
+    postUri: r.post_uri,
+    sortKey: Number(r.sort_key),
+    postIndexedAt: r.post_indexed_at ? new Date(r.post_indexed_at).toISOString() : null,
+  }))
+}
+
 /** Get post URIs from active feed candidates that have stale engagement data. */
 export async function getStaleFeedCandidateUris(
   pool: pg.Pool,

@@ -1,17 +1,18 @@
-import type { FeedConfig, L2NodeTrace, PostMetrics } from '@cfb/core-types'
+import type { FeedConfig, PostMetrics } from '@cfb/core-types'
 import { applyParametersToMatch, resolveFeedMatch } from '@cfb/l2-graph'
 import { evaluateFeedL2 } from '@cfb/l2-eval'
 import type pg from 'pg'
 import {
   countAllPoolPosts,
+  countFeedCandidates,
   countPoolPostsFiltered,
   countPostsForProject,
   getAuthorProfilesByDids,
   getIngestedPost,
   getPostEngagementBatch,
   getProjectIdsForPostsBatch,
-  getSubstitutionTargets,
   listAllPoolPosts,
+  listFeedCandidateRows,
   listPoolPostsFiltered,
   listPostsForProject,
   normalizedPostFromRow,
@@ -30,7 +31,8 @@ import {
   type PoolMatchSample,
 } from './pool-match-sample.js'
 import { extractPoolPreFilter } from './pool-prefilter.js'
-import { collectSubstituteNodes } from './substitution.js'
+
+export type PoolMatchPreviewMode = 'live' | 'formula'
 
 export type {
   PoolMatchAuthor,
@@ -49,6 +51,8 @@ export interface PoolMatchResult {
   posts: PoolMatchItem[]
   rejects: PoolMatchSample[]
   truncated: boolean
+  /** Where ranked matches came from — candidates matches the Bluesky skeleton. */
+  previewSource?: 'candidates' | 'scan'
 }
 
 /** Live-feed ordering: sort_key DESC, then indexed_at DESC (matches the skeleton query). */
@@ -125,11 +129,141 @@ async function hydrateKeptRepost(
 export async function previewFeedPoolMatches(
   pool: pg.Pool,
   feed: FeedConfig,
-  options: { limit?: number; scanLimit?: number; rejectLimit?: number } = {},
+  options: {
+    limit?: number
+    scanLimit?: number
+    rejectLimit?: number
+    /** live = indexed feed_candidates (Bluesky skeleton). formula = full pool re-eval. */
+    previewMode?: PoolMatchPreviewMode
+  } = {},
 ): Promise<PoolMatchResult> {
   const limit = Math.min(Math.max(options.limit ?? 30, 1), 100)
   const scanLimit = Math.min(Math.max(options.scanLimit ?? 500, 1), 250_000)
   const rejectLimit = Math.min(Math.max(options.rejectLimit ?? 8, 0), 50)
+  const previewMode = options.previewMode ?? 'live'
+  const hasSortFormula = Boolean(feed.rank?.sortKey || feed.rank?.packRef)
+
+  if (hasSortFormula && previewMode === 'live') {
+    const candidateCount = await countFeedCandidates(pool, feed.feedId)
+    if (candidateCount > 0) {
+      return previewMatchesFromCandidates(pool, feed, {
+        limit,
+        scanLimit,
+        rejectLimit,
+        candidateCount,
+      })
+    }
+  }
+
+  return previewMatchesFromScan(pool, feed, { limit, scanLimit, rejectLimit, hasSortFormula })
+}
+
+async function previewMatchesFromCandidates(
+  pool: pg.Pool,
+  feed: FeedConfig,
+  options: { limit: number; scanLimit: number; rejectLimit: number; candidateCount: number },
+): Promise<PoolMatchResult> {
+  const { limit, scanLimit, rejectLimit, candidateCount } = options
+  const preFilter = extractPoolPreFilter(feed)
+  const poolTotal =
+    feed.poolScope === 'global'
+      ? preFilter
+        ? await countPoolPostsFiltered(pool, preFilter.where, preFilter.params)
+        : await countAllPoolPosts(pool)
+      : await countPostsForProject(pool, feed.projectId)
+
+  const candidateRows = await listFeedCandidateRows(pool, feed.feedId, limit)
+  const remoteBudget = { left: 12 }
+  const matches: PoolMatchItem[] = []
+
+  for (const row of candidateRows) {
+    const ingested = await getIngestedPost(pool, row.postUri)
+    if (!ingested) continue
+    const post = normalizedPostFromRow(ingested)
+    const display = await hydrateKeptRepost(pool, post, remoteBudget)
+    matches.push({
+      ...buildPoolMatchSample(display, []),
+      sortKey: row.sortKey,
+      editorScore: 0,
+    })
+  }
+
+  const rejects = await samplePoolRejects(pool, feed, {
+    scanLimit: Math.min(scanLimit, 5000),
+    rejectLimit,
+    collectMatches: false,
+  })
+
+  const allSamples = [...matches, ...rejects.rejects]
+  await enrichPoolMatchPreviews(allSamples)
+  await enrichPoolMatchAuthors(pool, allSamples)
+
+  return {
+    poolTotal,
+    scanned: rejects.scanned,
+    matchCount: candidateCount,
+    rejectCount: rejects.rejectCount,
+    substitutedCount: 0,
+    posts: matches,
+    rejects: rejects.rejects,
+    truncated: false,
+    previewSource: 'candidates',
+  }
+}
+
+async function previewMatchesFromScan(
+  pool: pg.Pool,
+  feed: FeedConfig,
+  options: { limit: number; scanLimit: number; rejectLimit: number; hasSortFormula: boolean },
+): Promise<PoolMatchResult> {
+  const { limit, scanLimit, rejectLimit, hasSortFormula } = options
+  const result = await samplePoolRejects(pool, feed, {
+    scanLimit,
+    rejectLimit,
+    collectMatches: true,
+    matchLimit: limit,
+    hasSortFormula,
+  })
+
+  const allSamples = [...result.matches, ...result.rejects]
+  await enrichPoolMatchPreviews(allSamples)
+  await enrichPoolMatchAuthors(pool, allSamples)
+
+  return {
+    poolTotal: result.poolTotal,
+    scanned: result.scanned,
+    matchCount: result.matchCount,
+    rejectCount: result.rejectCount,
+    substitutedCount: 0,
+    posts: result.matches,
+    rejects: result.rejects,
+    truncated: result.truncated,
+    previewSource: 'scan',
+  }
+}
+
+async function samplePoolRejects(
+  pool: pg.Pool,
+  feed: FeedConfig,
+  options: {
+    scanLimit: number
+    rejectLimit: number
+    collectMatches: boolean
+    matchLimit?: number
+    hasSortFormula?: boolean
+  },
+): Promise<{
+  poolTotal: number
+  scanned: number
+  matchCount: number
+  rejectCount: number
+  matches: PoolMatchItem[]
+  rejects: PoolMatchSample[]
+  truncated: boolean
+}> {
+  const { scanLimit, rejectLimit, collectMatches } = options
+  const matchLimit = options.matchLimit ?? 0
+  const hasSortFormula = options.hasSortFormula ?? Boolean(feed.rank?.sortKey || feed.rank?.packRef)
 
   const preFilter = extractPoolPreFilter(feed)
 
@@ -146,8 +280,7 @@ export async function previewFeedPoolMatches(
       scanned: 0,
       matchCount: 0,
       rejectCount: 0,
-      substitutedCount: 0,
-      posts: [],
+      matches: [],
       rejects: [],
       truncated: false,
     }
@@ -164,14 +297,12 @@ export async function previewFeedPoolMatches(
     followRings,
   })
   const resolvedMatch = applyParametersToMatch(resolveFeedMatch(feed))
-  const hasSortFormula = Boolean(feed.rank?.sortKey || feed.rank?.packRef)
   const matches: PoolMatchItem[] = []
   const rejects: PoolMatchSample[] = []
 
-  // Keep the top-N matches by live-feed order rather than the first N in scan
-  // order, so the preview reflects what the real feed would serve.
   const pushMatch = (item: PoolMatchItem) => {
-    if (matches.length < limit) {
+    if (!collectMatches || matchLimit <= 0) return
+    if (matches.length < matchLimit) {
       matches.push(item)
       return
     }
@@ -181,22 +312,24 @@ export async function previewFeedPoolMatches(
     }
     if (compareFeedOrder(item, matches[worst]!) < 0) matches[worst] = item
   }
-  const allMatchedUris = new Set<string>()
+
   let scanned = 0
   let matchCount = 0
   let rejectCount = 0
   let cursor: string | undefined
   const batchSize = 200
-  // Never HTTP-hydrate every scanned repost — that froze Matches on "Scanning…".
-  // Only fill subject text for rows we actually return (budgeted remote).
   const remoteBudget = { left: 12 }
 
   while (scanned < scanLimit) {
-    // Early termination only for feeds without a sort formula: scan order is
-    // already feed order (newest first), so the first N matches are the feed.
-    // Formula feeds must keep scanning — a high-scoring post can sit deep in
-    // the pool.
-    if (!hasSortFormula && matches.length >= limit && rejects.length >= rejectLimit) break
+    if (!collectMatches && rejects.length >= rejectLimit) break
+    if (
+      !hasSortFormula &&
+      collectMatches &&
+      matches.length >= matchLimit &&
+      rejects.length >= rejectLimit
+    ) {
+      break
+    }
 
     let rows: IngestedPostRow[]
     if (preFilter) {
@@ -211,13 +344,11 @@ export async function previewFeedPoolMatches(
     if (rows.length === 0) break
 
     const posts = rows.map(normalizedPostFromRow)
-    // Update cursor to the last row's indexedAt for next batch
     cursor = posts[posts.length - 1]!.indexedAt
 
     const postUris = posts.map((p) => p.uri)
     const authorDids = [...new Set(posts.map((p) => p.authorDid))]
 
-    // Batch-load all metrics in 3 queries instead of 2*N
     const [engagementMap, projectIdsMap, authorProfiles] = await Promise.all([
       getPostEngagementBatch(pool, postUris),
       feed.poolScope === 'global' && !preFilter
@@ -250,7 +381,6 @@ export async function previewFeedPoolMatches(
         authorPostsCount: profile?.postsCount ?? 0,
       }
 
-      // Eval against stored row (ingest already hydrates matched reposts before persist).
       const result = evaluateFeedL2(
         post,
         { ...feed, match: resolvedMatch },
@@ -267,89 +397,28 @@ export async function previewFeedPoolMatches(
       }
 
       matchCount++
-      allMatchedUris.add(post.uri)
-      const display = await hydrateKeptRepost(pool, post, remoteBudget)
-      pushMatch({
-        ...buildPoolMatchSample(display, result.trace),
-        sortKey: result.sortKey ?? null,
-        editorScore: result.editorScore,
-      })
+      if (collectMatches) {
+        const display = await hydrateKeptRepost(pool, post, remoteBudget)
+        pushMatch({
+          ...buildPoolMatchSample(display, result.trace),
+          sortKey: result.sortKey ?? null,
+          editorScore: result.editorScore,
+        })
+      }
     }
 
     if (rows.length < batchSize) break
   }
 
-  const poolScanned = scanned
+  if (collectMatches) matches.sort(compareFeedOrder)
 
-  // --- Substitution: evaluate promoted targets as scanned posts ---
-  const subNodes = collectSubstituteNodes(feed)
-  let substitutedCount = 0
-  if (subNodes.length > 0) {
-    const targetUris = new Set<string>()
-
-    for (const node of subNodes) {
-      const targets = await getSubstitutionTargets(
-        pool, node.projectId, node.feedId, node.pathwayId,
-        node.threshold, node.timeWindowHours || undefined,
-      )
-      for (const t of targets) {
-        if (!allMatchedUris.has(t.targetUri)) targetUris.add(t.targetUri)
-      }
-    }
-
-    for (const uri of targetUris) {
-      const row = await getIngestedPost(pool, uri)
-      if (!row) continue
-      const post = normalizedPostFromRow(row)
-      scanned++
-
-      const engagement = (await getPostEngagementBatch(pool, [uri])).get(uri)
-      const metrics: PostMetrics = {
-        likeCount: engagement?.likeCount ?? 0,
-        repostCount: engagement?.repostCount ?? 0,
-        replyCount: engagement?.replyCount ?? 0,
-        quoteCount: engagement?.quoteCount ?? 0,
-        bookmarkCount: engagement?.bookmarkCount ?? 0,
-        authorFollowerCount: 0,
-        authorFollowsCount: 0,
-        authorPostsCount: 0,
-      }
-
-      const result = evaluateFeedL2(
-        post,
-        { ...feed, match: resolvedMatch },
-        { ...evalInput, metrics, preview: true, skipDiscovery: true },
-      )
-
-      if (result.matched) {
-        substitutedCount++
-        matchCount++
-        allMatchedUris.add(uri)
-        const trace: L2NodeTrace[] = [
-          { nodeId: '__substitution__', nodeType: 'substitute', outcome: 'pass', detail: 'Promoted via substitution' },
-          ...result.trace,
-        ]
-        pushMatch({
-          ...buildPoolMatchSample(post, trace),
-          sortKey: result.sortKey ?? null,
-          editorScore: result.editorScore,
-        })
-      } else {
-        rejectCount++
-        if (rejects.length < rejectLimit) {
-          rejects.push(buildPoolMatchSample(post, result.trace))
-        }
-      }
-    }
+  return {
+    poolTotal,
+    scanned,
+    matchCount,
+    rejectCount,
+    matches,
+    rejects,
+    truncated: scanned >= scanLimit && scanned < poolTotal,
   }
-
-  matches.sort(compareFeedOrder)
-
-  const allSamples = [...matches, ...rejects]
-  await enrichPoolMatchPreviews(allSamples)
-  await enrichPoolMatchAuthors(pool, allSamples)
-
-  const truncated = poolScanned >= scanLimit && poolScanned < poolTotal
-
-  return { poolTotal, scanned, matchCount, rejectCount, substitutedCount, posts: matches, rejects, truncated }
 }

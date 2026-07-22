@@ -137,6 +137,7 @@ export {
   deleteFeedCandidatesForFeed,
   deleteFeedCandidatesForFeeds,
   countFeedCandidates,
+  listFeedCandidateRows,
   getStaleFeedCandidateUris,
   countStaleFeedCandidates,
   getFeedSkeleton,
@@ -146,6 +147,7 @@ export {
   purgeOutOfScopeCandidates,
   bumpAudienceEngagement,
   type FeedCandidateInput,
+  type FeedCandidateRow,
   type FeedCandidateWindowRow,
   type SkeletonPost,
 } from './feed-candidates.js'

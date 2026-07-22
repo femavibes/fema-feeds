@@ -261,6 +261,7 @@ export interface PoolMatchResult {
   posts: Array<PoolMatchSample & { sortKey: number | null; editorScore: number }>
   rejects: PoolMatchSample[]
   truncated: boolean
+  previewSource?: 'candidates' | 'scan'
 }
 
 export interface PublishChecklistItem {
@@ -634,7 +635,13 @@ export const api = {
     }),
   matchFeedPool: (
     id: string,
-    body?: { feed?: FeedConfig; limit?: number; scanLimit?: number; rejectLimit?: number },
+    body?: {
+      feed?: FeedConfig
+      limit?: number
+      scanLimit?: number
+      rejectLimit?: number
+      previewMode?: 'live' | 'formula'
+    },
   ) =>
     apiFetch<PoolMatchResult>(`/api/feeds/${id}/match-pool`, {
       method: 'POST',
