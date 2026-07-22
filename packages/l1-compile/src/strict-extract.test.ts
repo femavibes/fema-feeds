@@ -57,7 +57,7 @@ describe('extractStrictIncludePaths with logic blocks', () => {
       name: 'Logic block discovery',
       enabled: true,
       prefilterMode: 'strict' as const,
-      prefilter: { type: 'group', id: 'pf', logic: 'any', children: [] },
+      prefilter: { match: { type: 'group' as const, id: 'pf', logic: 'any' as const, children: [] } },
     }
     const result = compileStrictGate(project, [feed], () => blockRoot)
     expect(result.strictGateMeta.pathCount).toBeGreaterThan(0)
