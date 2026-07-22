@@ -13,7 +13,7 @@ import {
   seedAuthorListsFromProjects,
 } from '@cfb/list-cache'
 import { loadAllProjects } from '@cfb/project-config'
-import { createPool, persistL1Matches, getGlobalPrefilter, getGlobalPurgeSettings, runPurgeSweep, listDeploymentCatalog, type Pool } from '@cfb/storage-postgres'
+import { createPool, persistL1Matches, getGlobalPrefilter, getGlobalPurgeSettings, runPurgeSweep, type Pool } from '@cfb/storage-postgres'
 import {
   loadEnrichmentSettings,
   maybeEnrichAuthor,
@@ -24,7 +24,19 @@ import {
 } from './enrich.js'
 import { backfillPostEngagement, startEngagementRefresh, type EngagementRefreshStats } from './engagement-backfill.js'
 import type { EnrichmentSettings, FeedConfig } from '@cfb/core-types'
-import { matchedProjectIdsFromL1, processPostForFeeds, processSubstitution, resolveTargetPost, reevalPostInPool, seedFollowRingsFromFeeds, seedFollowRingsFromProjects, loadL1FollowRingsForProjects, loadIngestGateExtrasForProjects, hydrateRepostSubject } from '@cfb/l2-worker'
+import {
+  matchedProjectIdsFromL1,
+  processPostForFeeds,
+  processSubstitution,
+  resolveTargetPost,
+  reevalPostInPool,
+  seedFollowRingsFromFeeds,
+  seedFollowRingsFromProjects,
+  loadL1FollowRingsForProjects,
+  loadIngestGateExtrasForProjects,
+  hydrateRepostSubject,
+  loadLogicBlockPackagesForFeeds,
+} from '@cfb/l2-worker'
 import { createScoutHandler, type ScoutHandler, type ScoutHandlerStats } from './scout-handler.js'
 import { startFollowRingDiscoverPoll, type DiscoverPollStats } from './discover-poll.js'
 import { FeedIntelligence } from '@cfb/feed-intelligence'
@@ -220,7 +232,9 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
     }
     compileAllProjects(configs)
     const hasStrictProjects = configs.some((c) => c.prefilterMode === 'strict' && c.enabled)
-    const logicBlockPkgs = hasStrictProjects && pool ? await listDeploymentCatalog(pool).catch(() => []) : []
+    const logicBlockPkgs = hasStrictProjects && pool
+      ? await loadLogicBlockPackagesForFeeds(pool, feeds).catch(() => [])
+      : []
     strictGateState = buildStrictGates(configs, feeds, logicBlockPkgs)
     // Reload scout handler with updated configs
     scoutHandler?.reload(configs)

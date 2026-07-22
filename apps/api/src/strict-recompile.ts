@@ -1,6 +1,7 @@
 import { loadProject, saveProject } from '@cfb/project-config'
 import { loadAllFeeds } from '@cfb/feed-config'
-import { compileStrictGate, applyStrictGate } from '@cfb/l1-compile'
+import type { Pool } from '@cfb/storage-postgres'
+import { applyStrictGateForProject } from '@cfb/l2-worker'
 
 /**
  * Recompile strict gate for a project if it is in strict mode.
@@ -10,16 +11,18 @@ export function recompileStrictGateIfNeeded(
   projectsDir: string,
   feedsDir: string,
   projectId: string,
+  pool: Pool | null,
 ): void {
+  if (!pool) return
   void (async () => {
     try {
       const project = await loadProject(projectsDir, projectId)
       if (project.prefilterMode !== 'strict') return
       const allFeeds = await loadAllFeeds(feedsDir)
-      const updated = applyStrictGate(project, compileStrictGate(project, allFeeds))
+      const updated = await applyStrictGateForProject(pool, project, allFeeds)
       await saveProject(projectsDir, updated)
-    } catch {
-      // non-critical — next config reload (60s) will pick it up
+    } catch (err) {
+      console.error('[strict-recompile] failed for', projectId, err)
     }
   })()
 }

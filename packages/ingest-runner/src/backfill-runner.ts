@@ -14,7 +14,7 @@ import { loadProject } from '@cfb/project-config'
 import { loadHydratedProjects } from '@cfb/list-cache'
 import { mapJetstreamCreateEvent } from '@cfb/ingest-jetstream'
 import { normalizeJetstreamPost, type JetstreamPostEvent } from '@cfb/post-normalize'
-import { matchedProjectIdsFromL1, processPostForFeeds } from '@cfb/l2-worker'
+import { matchedProjectIdsFromL1, processPostForFeeds, loadLogicBlockPackagesForFeeds } from '@cfb/l2-worker'
 import { buildStrictGates, postPassesStrictGate } from './strict-gate.js'
 
 /** In-memory tracking of active backfill jobs. */
@@ -61,8 +61,8 @@ export async function startBackfillJob(
     compileAllProjects([project])
     const feeds = (await loadAllFeeds(feedsDir)).filter(f => f.projectId === job.projectId && f.enabled)
 
-    // Build strict gate so backfill applies the same keyword filtering as live ingest
-    const strictState = buildStrictGates([project], feeds)
+    const logicBlockPkgs = await loadLogicBlockPackagesForFeeds(pool, feeds).catch(() => [])
+    const strictState = buildStrictGates([project], feeds, logicBlockPkgs)
 
     const isCancelled = () => cancelled
     const limitReached = () =>

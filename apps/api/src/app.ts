@@ -7,7 +7,8 @@ import { cors } from 'hono/cors'
 import { registerStaticServing } from './static-serve.js'
 import { config as loadEnv } from 'dotenv'
 import type { ProjectL1Config, NormalizedPost } from '@cfb/core-types'
-import { compileAllProjects, finalizeProjectForSave, emptyPrefilter, normalizePrefilter, compileProjectPrefilter, compileStrictGate, applyStrictGate } from '@cfb/l1-compile'
+import { compileAllProjects, finalizeProjectForSave, emptyPrefilter, normalizePrefilter, compileProjectPrefilter } from '@cfb/l1-compile'
+import { applyStrictGateForProject } from '@cfb/l2-worker'
 import { evaluateProjectL1 } from '@cfb/l1-eval'
 import {
   loadAllProjects,
@@ -911,9 +912,9 @@ export function createApp(options?: {
       getUserDid(c),
     )
     // Compile strict gate if in strict mode
-    if (project.prefilterMode === 'strict') {
+    if (project.prefilterMode === 'strict' && pool) {
       const allFeeds = await loadAllFeeds(feedDir)
-      project = applyStrictGate(project, compileStrictGate(project, allFeeds))
+      project = await applyStrictGateForProject(pool, project, allFeeds)
     }
     await saveProject(dir, project)
     if (pool) {

@@ -5,17 +5,28 @@ import {
   collectMentionBranches,
   compileStrictGate,
 } from '@cfb/l1-compile'
+import {
+  buildStrictGateLogicBlockResolver,
+  loadLogicBlockPackagesForFeeds,
+} from './strict-gate-logic-blocks.js'
 import { getAuthorListCache } from '@cfb/storage-postgres'
 import type pg from 'pg'
 import { followRingCacheListId, loadFollowRingsForFeed } from './follow-ring-cache.js'
 import { getCachedDidList, setCachedDidList } from './did-list-mem-cache.js'
 import { resolveMentionNodeDids } from './mention-accounts.js'
 
-function gateForExtras(project: ProjectL1Config, feeds: FeedConfig[]): CompiledIngestGate | null {
-  // Strict projects: always compile from *enabled* feeds so extras match
-  // buildStrictGates / postPassesStrictGate (not a stale/empty ingestGate).
+async function gateForExtras(
+  pool: pg.Pool,
+  project: ProjectL1Config,
+  feeds: FeedConfig[],
+): Promise<CompiledIngestGate | null> {
   if (project.prefilterMode === 'strict') {
-    return compileStrictGate(project, feeds).strictIncludeGate
+    const projectFeeds = feeds.filter((f) => f.projectId === project.projectId && f.enabled)
+    const packages = await loadLogicBlockPackagesForFeeds(pool, projectFeeds)
+    const resolver = packages.length > 0
+      ? buildStrictGateLogicBlockResolver(packages, projectFeeds)
+      : undefined
+    return compileStrictGate(project, feeds, resolver).strictIncludeGate
   }
   if (project.ingestGate) return project.ingestGate
   return null
@@ -37,7 +48,7 @@ export async function loadIngestGateExtrasForProject(
   const authorListDids: Record<string, Set<string>> = {}
   const mentionDids: Record<string, Set<string>> = {}
 
-  const gate = gateForExtras(project, feeds)
+  const gate = await gateForExtras(pool, project, feeds)
   if (!gate) return { followRingDids, authorListDids, mentionDids }
 
   for (const branch of collectFollowRingBranches(gate.includeBranches)) {

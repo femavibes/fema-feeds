@@ -13,6 +13,12 @@ export {
 } from './follow-ring-cache.js'
 export { loadIngestGateExtrasForProjects } from './ingest-gate-extras.js'
 export {
+  applyStrictGateForProject,
+  buildStrictGateLogicBlockResolver,
+  compileStrictGateForProject,
+  loadLogicBlockPackagesForFeeds,
+} from './strict-gate-logic-blocks.js'
+export {
   processPostForFeeds,
   type ProcessPostOptions,
   matchedProjectIdsFromL1,

@@ -370,7 +370,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     }
 
-    recompileStrictGateIfNeeded(projectsDir, feedsDir, shell.projectId)
+    recompileStrictGateIfNeeded(projectsDir, feedsDir, shell.projectId, pool)
     return c.json({ feed: shell }, 201)
 
   })
@@ -708,7 +708,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
       feedId: id,
     })
 
-    recompileStrictGateIfNeeded(projectsDir, feedsDir, nextLive.projectId)
+    recompileStrictGateIfNeeded(projectsDir, feedsDir, nextLive.projectId, pool)
     return c.json({
       feed: nextLive,
       live: nextLive,
@@ -1283,7 +1283,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     }
 
-    if (feedProjectId) recompileStrictGateIfNeeded(projectsDir, feedsDir, feedProjectId)
+    if (feedProjectId) recompileStrictGateIfNeeded(projectsDir, feedsDir, feedProjectId, pool)
     return c.json({ ok: true, feedId: id })
 
   })
