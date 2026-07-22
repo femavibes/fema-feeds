@@ -10839,6 +10839,44 @@ body.l2-visual-open #root {
   border: 1px solid color-mix(in srgb, #f59e0b 30%, var(--border));
 }
 
+.l2-match-pool-score-btn {
+  cursor: pointer;
+  font: inherit;
+}
+
+.l2-match-pool-score-btn:hover {
+  background: color-mix(in srgb, #38bdf8 22%, var(--surface-1));
+  border-color: color-mix(in srgb, #38bdf8 45%, var(--border));
+}
+
+.sort-score-breakdown-modal {
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: min(85vh, 40rem);
+  overflow: auto;
+}
+
+.sort-score-breakdown-link {
+  display: block;
+  margin: 0.35rem 0 0.75rem;
+  font-size: 0.72rem;
+  word-break: break-all;
+}
+
+.sort-tester-formula {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.sort-tester-row-highlight .sort-tester-field {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.sort-tester-row-highlight .sort-tester-value {
+  color: #38bdf8;
+}
+
 .l2-match-pool-trace-toggle {
   flex-shrink: 0;
   display: inline-flex;

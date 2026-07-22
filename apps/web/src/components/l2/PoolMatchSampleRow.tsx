@@ -9,6 +9,7 @@ import { bskyWebHref } from '../../lib/bsky-web-url'
 import { useNsfwBlur, isNsfwPost } from '../../lib/nsfw-blur'
 import { formatTraceHighlight, L2TraceList } from './L2TraceList'
 import type { TraceSelectHandler } from './visual/L2PreviewRail'
+import { formatSortScore } from '../../lib/sort-test-display'
 
 function postBskyUrl(uri: string): string {
   return bskyWebHref(uri)
@@ -52,17 +53,6 @@ function postKindLabel(kind: string): string {
     default:
       return 'Post'
   }
-}
-
-/** Rank score for match rows — enough precision to see decay effects on small scores. */
-function formatSortScore(value: number): string {
-  if (!Number.isFinite(value)) return '—'
-  const abs = Math.abs(value)
-  if (abs >= 1000) return Math.round(value).toLocaleString()
-  if (abs >= 100) return value.toFixed(1)
-  if (abs >= 10) return value.toFixed(2)
-  if (abs >= 1) return value.toFixed(3)
-  return value.toFixed(4)
 }
 
 function postKindTitle(kind: string): string | undefined {
@@ -257,9 +247,18 @@ interface Props {
   editorScore?: number
   onSelectNode?: TraceSelectHandler
   onSortTest?: (postUri: string) => void
+  onScoreBreakdown?: (postUri: string) => void
 }
 
-export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey, editorScore, onSelectNode, onSortTest }: Props) {
+export function PoolMatchSampleRow({
+  sample: rawSample,
+  matched = false,
+  sortKey,
+  editorScore,
+  onSelectNode,
+  onSortTest,
+  onScoreBreakdown,
+}: Props) {
   const sample = normalizePoolMatchSample(rawSample)
   const { blurNsfw } = useNsfwBlur()
   const selectTraceNode = onSelectNode
@@ -376,12 +375,23 @@ export function PoolMatchSampleRow({ sample: rawSample, matched = false, sortKey
           {matched && (sortKey != null || (editorScore != null && editorScore > 0)) ? (
             <span className="l2-match-pool-scores">
               {sortKey != null ? (
-                <span
-                  className="l2-match-pool-score l2-match-pool-score-total"
-                  title="Total rank score — full sort formula (engagement, decay, editor boost, etc.)"
-                >
-                  Σ {formatSortScore(sortKey)}
-                </span>
+                onScoreBreakdown ? (
+                  <button
+                    type="button"
+                    className="l2-match-pool-score l2-match-pool-score-total l2-match-pool-score-btn"
+                    onClick={() => onScoreBreakdown(sample.uri)}
+                    title="Total rank score — click for full breakdown"
+                  >
+                    Σ {formatSortScore(sortKey)}
+                  </button>
+                ) : (
+                  <span
+                    className="l2-match-pool-score l2-match-pool-score-total"
+                    title="Total rank score — full sort formula (engagement, decay, editor boost, etc.)"
+                  >
+                    Σ {formatSortScore(sortKey)}
+                  </span>
+                )
               ) : null}
               {editorScore != null && editorScore > 0 ? (
                 <span

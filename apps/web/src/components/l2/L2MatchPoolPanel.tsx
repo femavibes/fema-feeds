@@ -3,6 +3,7 @@ import type { FeedConfig, L2RuleGroup } from '@cfb/core-types'
 import { api, type PoolMatchResult } from '../../api/client'
 import { normalizePoolMatchResult } from '../../lib/pool-match-sample'
 import { PoolMatchSampleRow } from './PoolMatchSampleRow'
+import { SortScoreBreakdownModal } from './SortScoreBreakdownModal'
 import type { TraceSelectHandler } from './visual/L2PreviewRail'
 
 interface Props {
@@ -40,6 +41,7 @@ export function L2MatchPoolPanel({
   const [scanLimit, setScanLimit] = useState(50000)
   const [matchLimit, setMatchLimit] = useState(compact ? 20 : 30)
   const [rejectLimit, setRejectLimit] = useState(6)
+  const [breakdownUri, setBreakdownUri] = useState<string | null>(null)
   const runSeq = useRef(0)
   const scannedForKey = useRef<string | null>(null)
   const matchKey = useMemo(() => JSON.stringify(match), [match])
@@ -50,6 +52,11 @@ export function L2MatchPoolPanel({
   )
   const feedRef = useRef(feedForScan)
   feedRef.current = feedForScan
+  const canScoreBreakdown = Boolean(feedForScan.rank?.sortKey)
+  const breakdownSortKey =
+    breakdownUri != null
+      ? result?.posts.find((post) => post.uri === breakdownUri)?.sortKey ?? null
+      : null
 
   const run = useCallback(async () => {
     const seq = ++runSeq.current
@@ -193,6 +200,7 @@ export function L2MatchPoolPanel({
                     editorScore={post.editorScore}
                     onSelectNode={onSelectNode}
                     onSortTest={onSortTest}
+                    onScoreBreakdown={canScoreBreakdown ? setBreakdownUri : undefined}
                   />
                 ))}
               </ul>
@@ -232,6 +240,14 @@ export function L2MatchPoolPanel({
           ) : null}
         </div>
       )}
+
+      <SortScoreBreakdownModal
+        open={breakdownUri != null}
+        feed={feedForScan}
+        postUri={breakdownUri}
+        previewSortKey={breakdownSortKey}
+        onClose={() => setBreakdownUri(null)}
+      />
     </section>
   )
 }

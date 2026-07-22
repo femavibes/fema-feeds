@@ -1,21 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { FeedConfig } from '@cfb/core-types'
 import { api, type SortTestResult } from '../../api/client'
-
-function atUriToBskyUrl(uri: string): string {
-  const m = uri.match(/^at:\/\/([^/]+)\/app\.bsky\.feed\.post\/([^/]+)$/)
-  if (!m) return uri
-  return `https://bsky.app/profile/${m[1]}/post/${m[2]}`
-}
+import { atUriToBskyUrl } from '../../lib/sort-test-display'
+import { SortTestBreakdown } from './SortTestBreakdown'
 
 interface Props {
   draft: FeedConfig
   testUri?: string | null
   onTestUriConsumed?: () => void
-}
-
-function fieldLabel(field: string): string {
-  return field.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 export function SortTester({ draft, testUri, onTestUriConsumed }: Props) {
@@ -40,7 +32,6 @@ export function SortTester({ draft, testUri, onTestUriConsumed }: Props) {
     }
   }
 
-  // When testUri prop changes, auto-run
   useEffect(() => {
     if (testUri) {
       const bskyUrl = atUriToBskyUrl(testUri)
@@ -49,8 +40,6 @@ export function SortTester({ draft, testUri, onTestUriConsumed }: Props) {
       onTestUriConsumed?.()
     }
   }, [testUri])
-
-  const nonZeroFields = result?.fields ?? []
 
   return (
     <div className="sort-tester">
@@ -62,7 +51,9 @@ export function SortTester({ draft, testUri, onTestUriConsumed }: Props) {
           placeholder="https://bsky.app/profile/.../post/..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && !loading) void test() }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !loading) void test()
+          }}
         />
         <button
           type="button"
@@ -75,32 +66,7 @@ export function SortTester({ draft, testUri, onTestUriConsumed }: Props) {
       </div>
 
       {error ? <p className="field-error">{error}</p> : null}
-
-      {result ? (
-        <div className="sort-tester-result">
-          <div className="sort-tester-score">
-            <span className="sort-tester-score-label">Sort score:</span>
-            <span className="sort-tester-score-value">{result.sortKey.toFixed(2)}</span>
-          </div>
-
-          <div className="sort-tester-breakdown">
-            <p className="sort-tester-breakdown-title">Field values:</p>
-            <table className="sort-tester-table">
-              <tbody>
-                {nonZeroFields.map((f) => (
-                  <tr key={f.field}>
-                    <td className="sort-tester-field">{fieldLabel(f.field)}</td>
-                    <td className="sort-tester-value">{f.value.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {nonZeroFields.length === 0 ? (
-              <p className="card-hint">All field values are 0 for this post.</p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      {result ? <SortTestBreakdown result={result} feed={draft} /> : null}
     </div>
   )
 }
