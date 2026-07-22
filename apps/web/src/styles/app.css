@@ -10841,7 +10841,10 @@ body.l2-visual-open #root {
 
 .l2-match-pool-score-btn {
   cursor: pointer;
-  font: inherit;
+  appearance: none;
+  margin: 0;
+  min-height: 0;
+  vertical-align: baseline;
 }
 
 .l2-match-pool-score-btn:hover {
