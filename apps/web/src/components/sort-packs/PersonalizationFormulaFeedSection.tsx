@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FeedConfig, SortPackPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
+import { useCurrentUserDid } from '../../hooks/useCurrentUserDid'
 import { applyPersonalizationFormulaPack } from '../../lib/feed-personalization'
+import { excludeOwnFromSubscribed } from '../../lib/feed-subscriptions'
 import { FeedFormulaPackGrid } from './FeedFormulaPackGrid'
 
 interface Props {
@@ -16,6 +18,7 @@ function isPersonalizationPack(pkg: SortPackPackage): boolean {
 }
 
 export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey = 0 }: Props) {
+  const userDid = useCurrentUserDid()
   const [subscriptions, setSubscriptions] = useState<
     Awaited<ReturnType<typeof api.listSortPackSubscriptions>>['subscriptions']
   >([])
@@ -41,10 +44,13 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
 
   const subscribedPackages = useMemo(
     () =>
-      [...subscriptions]
-        .map((s) => s.package)
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [subscriptions],
+      excludeOwnFromSubscribed(
+        [...subscriptions]
+          .map((s) => s.package)
+          .sort((a, b) => a.name.localeCompare(b.name)),
+        { userDid, collectionPackageIds: collection.map((p) => p.id) },
+      ),
+    [subscriptions, userDid, collection],
   )
 
   const collectionPackages = useMemo(

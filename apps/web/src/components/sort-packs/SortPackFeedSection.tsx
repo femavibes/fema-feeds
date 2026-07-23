@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FeedConfig, L2Expr, SortPackPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
+import { useCurrentUserDid } from '../../hooks/useCurrentUserDid'
+import { excludeOwnFromSubscribed } from '../../lib/feed-subscriptions'
 import {
   applySortPack,
   hasSortPackRef,
@@ -21,6 +23,7 @@ export function SortPackFeedSection({
   onPackExprResolved,
   refreshKey = 0,
 }: Props) {
+  const userDid = useCurrentUserDid()
   const [subscriptions, setSubscriptions] = useState<
     Awaited<ReturnType<typeof api.listSortPackSubscriptions>>['subscriptions']
   >([])
@@ -75,10 +78,13 @@ export function SortPackFeedSection({
 
   const subscribedPackages = useMemo(
     () =>
-      [...sortingSubscriptions]
-        .map((s) => s.package)
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [sortingSubscriptions],
+      excludeOwnFromSubscribed(
+        [...sortingSubscriptions]
+          .map((s) => s.package)
+          .sort((a, b) => a.name.localeCompare(b.name)),
+        { userDid, collectionPackageIds: collection.map((p) => p.id) },
+      ),
+    [sortingSubscriptions, userDid, collection],
   )
 
   const collectionPackages = useMemo(

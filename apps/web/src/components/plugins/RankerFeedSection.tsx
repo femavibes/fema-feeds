@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { FeedConfig, PluginPackage, RankerRef } from '@cfb/core-types'
 
 import { api } from '../../api/client'
+import { useCurrentUserDid } from '../../hooks/useCurrentUserDid'
+import { excludeOwnFromSubscribed } from '../../lib/feed-subscriptions'
 import { FeedPluginPackGrid } from './FeedPluginPackGrid'
 
 interface Props {
@@ -19,6 +21,7 @@ function defaultRankerRef(pkg: PluginPackage, versionPin: string): RankerRef {
 }
 
 export function RankerFeedSection({ draft, onChange }: Props) {
+  const userDid = useCurrentUserDid()
   const [subscriptions, setSubscriptions] = useState<
     Awaited<ReturnType<typeof api.listPluginSubscriptions>>['subscriptions']
   >([])
@@ -34,16 +37,21 @@ export function RankerFeedSection({ draft, onChange }: Props) {
 
   const packages = useMemo(
     () =>
-      [...subscriptions]
-        .map((s) => s.package)
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [subscriptions],
+      excludeOwnFromSubscribed(
+        [...subscriptions]
+          .map((s) => s.package)
+          .sort((a, b) => a.name.localeCompare(b.name)),
+        { userDid },
+      ),
+    [subscriptions, userDid],
   )
 
-  const versionPins = useMemo(
-    () => new Map(subscriptions.map((s) => [s.packageId, s.versionPin])),
-    [subscriptions],
-  )
+  const versionPins = useMemo(() => {
+    const visibleIds = new Set(packages.map((p) => p.id))
+    return new Map(
+      subscriptions.filter((s) => visibleIds.has(s.packageId)).map((s) => [s.packageId, s.versionPin]),
+    )
+  }, [subscriptions, packages])
 
   const applyRanker = (pkg: PluginPackage, versionPin: string) => {
     onChange({
