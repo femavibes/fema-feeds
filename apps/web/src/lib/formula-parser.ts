@@ -30,9 +30,15 @@ export const PERSONALIZATION_FIELDS: Record<string, L2NumericField | string> = {
   base_score: 'base_score',
   is_followed: 'is_followed',
   is_mutual: 'is_mutual',
-  times_seen: 'times_seen',
-  hours_since_seen: 'hours_since_seen',
+  times_served: 'times_served',
+  hours_since_served: 'hours_since_served',
+  was_viewed: 'was_viewed',
+  times_viewed: 'times_viewed',
+  hours_since_viewed: 'hours_since_viewed',
   hours_since_last_open: 'hours_since_last_open',
+  // Legacy aliases (served, not client-confirmed view)
+  times_seen: 'times_served',
+  hours_since_seen: 'hours_since_served',
   // Feed-scoped affinity (interactions via this feed)
   feed_affinity: 'feed_affinity',
   feed_affinity_likes: 'feed_affinity_likes',

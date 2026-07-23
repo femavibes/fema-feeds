@@ -81,8 +81,8 @@ export async function loadServedPostsForViewer(
   return res.rows.map((r) => ({
     postUri: r.post_uri,
     servedAt: new Date(r.served_at).toISOString(),
-    impressionCount: Number(r.impression_count),
-    seenConfirmed: r.seen_at != null,
+    serveCount: Number(r.impression_count),
+    viewedAt: r.seen_at ? new Date(r.seen_at).toISOString() : null,
   }))
 }
 
@@ -273,6 +273,7 @@ export async function applyFeedInteractionEvents(
 ): Promise<void> {
   for (const interaction of interactions) {
     if (interaction.event === 'interactionSeen') {
+      // Client-confirmed view (interactionSeen) — distinct from skeleton serve count.
       await pool.query(
         `UPDATE feed_served_posts SET seen_at = COALESCE(seen_at, NOW())
          WHERE viewer_did = $1 AND post_uri = $2

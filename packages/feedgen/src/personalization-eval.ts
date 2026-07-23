@@ -120,15 +120,46 @@ function resolvePersonalizationField(
     case 'is_mutual':
       return authorDid && viewer.mutualDids.has(authorDid) ? 1 : 0
 
-    case 'times_seen': {
-      const seen = viewer.seenPosts.get(post.postUri)
-      return seen?.impressionCount ?? 0
+    // Served in skeleton (getFeedSkeleton responses)
+    case 'times_served': {
+      const served = viewer.servedPosts.get(post.postUri)
+      return served?.serveCount ?? 0
     }
 
+    case 'hours_since_served': {
+      const served = viewer.servedPosts.get(post.postUri)
+      if (!served) return 0
+      return Math.max(0, (Date.now() - served.servedAt.getTime()) / (1000 * 60 * 60))
+    }
+
+    // Client-confirmed view (interactionSeen via sendInteractions)
+    case 'was_viewed': {
+      const served = viewer.servedPosts.get(post.postUri)
+      return served?.viewedAt != null ? 1 : 0
+    }
+
+    case 'times_viewed': {
+      const served = viewer.servedPosts.get(post.postUri)
+      return served?.viewedAt != null ? 1 : 0
+    }
+
+    case 'hours_since_viewed': {
+      const served = viewer.servedPosts.get(post.postUri)
+      if (!served?.viewedAt) return 0
+      return Math.max(0, (Date.now() - served.viewedAt.getTime()) / (1000 * 60 * 60))
+    }
+
+    /** @deprecated Use times_served */
+    case 'times_seen': {
+      const served = viewer.servedPosts.get(post.postUri)
+      return served?.serveCount ?? 0
+    }
+
+    /** @deprecated Use hours_since_served */
     case 'hours_since_seen': {
-      const seen = viewer.seenPosts.get(post.postUri)
-      if (!seen) return 0
-      return Math.max(0, (Date.now() - seen.servedAt.getTime()) / (1000 * 60 * 60))
+      const served = viewer.servedPosts.get(post.postUri)
+      if (!served) return 0
+      return Math.max(0, (Date.now() - served.servedAt.getTime()) / (1000 * 60 * 60))
     }
 
     case 'hours_since_last_open':

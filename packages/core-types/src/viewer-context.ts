@@ -3,7 +3,7 @@ export interface ViewerContext {
   viewerDid: string
   /** Author DIDs from the viewer's follow graph (cached; may be a subset). */
   followedAuthorDids: string[]
-  /** Recently served posts for this feed (demotion / unseen boost). */
+  /** Recently served posts for this feed (serve/view history for personalization). */
   servedPosts: ServedPostRecord[]
   /** Post URIs the viewer liked (from sendInteractions). */
   likedPostUris: string[]
@@ -13,9 +13,12 @@ export interface ViewerContext {
 
 export interface ServedPostRecord {
   postUri: string
+  /** ISO timestamp — last time this post appeared in a skeleton response. */
   servedAt: string
-  impressionCount: number
-  seenConfirmed: boolean
+  /** Times returned in getFeedSkeleton for this viewer+feed (DB: impression_count). */
+  serveCount: number
+  /** ISO timestamp — first client-reported interactionSeen, if any (DB: seen_at). */
+  viewedAt: string | null
 }
 
 /** Bluesky feed interaction events we persist from sendInteractions. */

@@ -1,6 +1,6 @@
 import type { FeedConfig, NativePersonalizationConfig, ProjectL1Config } from '@cfb/core-types'
 
-import { isFeedPubliclyServed, PERSONALIZATION_DEPTH_DEFAULT, PERSONALIZATION_DEPTH_MAX } from '@cfb/core-types'
+import { isFeedPubliclyServed, PERSONALIZATION_DEPTH_DEFAULT, PERSONALIZATION_DEPTH_MAX, personalizationServedWindowHours, resolveSuppressServed } from '@cfb/core-types'
 
 import type pg from 'pg'
 
@@ -90,7 +90,7 @@ function personalizationActive(config: NativePersonalizationConfig | undefined):
   return Boolean(
     config.boostFollowed?.enabled ||
     config.boostMutuals?.enabled ||
-    config.suppressSeen?.enabled ||
+    resolveSuppressServed(config)?.enabled ||
     config.authorDiversity?.enabled ||
     config.affinityBoost?.enabled,
   )
@@ -145,12 +145,6 @@ async function expandRepostSkeletonItems(
   })
 }
 
-function personalizationServedWindowHours(
-  config: NativePersonalizationConfig | undefined,
-): number {
-  return Math.max(1, config?.suppressSeen?.windowHours ?? 48)
-}
-
 async function loadViewerPersonalizationContext(
   pool: pg.Pool,
   feedId: string,
@@ -194,12 +188,13 @@ async function loadViewerPersonalizationContext(
   // Record this open (fire and forget)
   void recordViewerFeedOpen(pool, viewerDid, feedId).catch(() => {})
 
-  // Build seen posts map with impression count + served time
-  const seenPosts = new Map<string, { impressionCount: number; servedAt: Date }>()
+  // Build serve/view map for personalization formulas and suppress-served toggle
+  const servedPosts = new Map<string, { serveCount: number; servedAt: Date; viewedAt: Date | null }>()
   for (const sp of viewerCtx.servedPosts) {
-    seenPosts.set(sp.postUri, {
-      impressionCount: sp.impressionCount,
+    servedPosts.set(sp.postUri, {
+      serveCount: sp.serveCount,
       servedAt: new Date(sp.servedAt),
+      viewedAt: sp.viewedAt ? new Date(sp.viewedAt) : null,
     })
   }
 
@@ -207,7 +202,7 @@ async function loadViewerPersonalizationContext(
     viewerDid,
     followedDids: new Set(viewerCtx.followedAuthorDids),
     mutualDids,
-    seenPosts,
+    servedPosts,
     affinityCounts,
     hoursSinceLastOpen,
   }

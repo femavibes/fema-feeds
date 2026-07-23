@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FeedConfig, L2Expr, NativePersonalizationConfig } from '@cfb/core-types'
-import { DEFAULT_PERSONALIZATION, PERSONALIZATION_DEPTH_DEFAULT, PERSONALIZATION_DEPTH_MAX } from '@cfb/core-types'
+import { DEFAULT_PERSONALIZATION, PERSONALIZATION_DEPTH_DEFAULT, PERSONALIZATION_DEPTH_MAX, resolveSuppressServed } from '@cfb/core-types'
 import { PERSONALIZATION_FIELDS } from '../../lib/formula-parser'
 import { ToggleRow } from '../ToggleRow'
 import { SortFormulaBuilder, type FormulaTemplate, type FormulaFieldGroup } from './SortFormulaBuilder'
@@ -15,12 +15,12 @@ type PersonalizationMode = 'toggles' | 'formula'
 const PERSONALIZATION_TEMPLATES: FormulaTemplate[] = [
   { name: 'Follow boost', formula: 'base_score * if(is_followed > 0, 1.3, 1)' },
   { name: 'Mutual priority', formula: 'base_score * if(is_mutual > 0, 1.5, if(is_followed > 0, 1.2, 1))' },
-  { name: 'Suppress seen', formula: 'base_score - times_seen * 50' },
+  { name: 'Serve fatigue', formula: 'base_score / (times_served + 1)' },
+  { name: 'View fatigue', formula: 'base_score / (was_viewed * 2 + times_served + 1)' },
   { name: 'Affinity blend', formula: 'base_score + feed_affinity * 10' },
-  { name: 'Full personalization', formula: 'base_score * if(is_followed > 0, 1.3, 1) + feed_affinity * 10 - times_seen * 30' },
+  { name: 'Full personalization', formula: 'base_score * if(is_followed > 0, 1.3, 1) + feed_affinity * 10 - times_served * 30' },
   { name: 'Freshness recovery', formula: 'base_score + if(hours_since_last_open > 24, 100, 0)' },
   { name: 'Social proximity', formula: 'base_score * (1 + is_followed * 0.3 + is_mutual * 0.5) + feed_affinity * 5' },
-  { name: 'Seen decay', formula: 'base_score / (times_seen + 1)' },
   { name: 'Engagement + social', formula: 'base_score + likes * if(is_followed > 0, 2, 1) + feed_affinity * 8' },
   { name: 'Interaction recency', formula: 'base_score * if(days_since_interaction < 7, 1.4, if(days_since_interaction < 30, 1.1, 1))' },
 ]
@@ -28,7 +28,15 @@ const PERSONALIZATION_TEMPLATES: FormulaTemplate[] = [
 const PERSONALIZATION_FIELD_GROUPS: FormulaFieldGroup[] = [
   {
     label: 'Viewer signals',
-    fields: ['base_score', 'is_followed', 'is_mutual', 'times_seen', 'hours_since_seen', 'hours_since_last_open', 'days_since_interaction'],
+    fields: ['base_score', 'is_followed', 'is_mutual', 'hours_since_last_open', 'days_since_interaction'],
+  },
+  {
+    label: 'Served (in skeleton response)',
+    fields: ['times_served', 'hours_since_served'],
+  },
+  {
+    label: 'Viewed (client reported)',
+    fields: ['was_viewed', 'times_viewed', 'hours_since_viewed'],
   },
   {
     label: 'Feed affinity (interactions via this feed)',
@@ -46,6 +54,7 @@ const PERSONALIZATION_FIELD_GROUPS: FormulaFieldGroup[] = [
 
 export function FeedPersonalizationPanel({ draft, onChange }: Props) {
   const config = draft.personalization ?? DEFAULT_PERSONALIZATION
+  const suppressServed = resolveSuppressServed(config) ?? DEFAULT_PERSONALIZATION.suppressServed!
   const [mode, setMode] = useState<PersonalizationMode>(
     config.formulaEnabled ? 'formula' : 'toggles',
   )
@@ -159,17 +168,17 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
 
           <section className="feed-personalization-section">
             <ToggleRow
-              label="Suppress seen posts"
-              hint="Push down posts the viewer has already been served."
-              checked={config.suppressSeen?.enabled ?? false}
+              label="Suppress served posts"
+              hint="Push down posts recently returned in skeleton responses (offered in feed, not necessarily viewed)."
+              checked={suppressServed.enabled ?? false}
               onChange={(on) => {
-                const prev = config.suppressSeen ?? DEFAULT_PERSONALIZATION.suppressSeen!
+                const prev = suppressServed
                 const penalty = prev.penalty >= 1 ? 0.5 : prev.penalty
-                update({ suppressSeen: { ...prev, enabled: on, penalty } })
+                update({ suppressServed: { ...prev, enabled: on, penalty } })
               }}
-              ariaLabel="Suppress seen posts"
+              ariaLabel="Suppress served posts"
             />
-            {config.suppressSeen?.enabled && (
+            {suppressServed.enabled && (
               <>
                 <label className="feed-personalization-field">
                   Penalty
@@ -178,10 +187,10 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
                     step="0.1"
                     min="0"
                     max="0.99"
-                    value={config.suppressSeen.penalty}
-                    onChange={(e) => update({ suppressSeen: { enabled: true, penalty: Math.min(parseFloat(e.target.value) || 0.5, 0.99), windowHours: config.suppressSeen!.windowHours } })}
+                    value={suppressServed.penalty}
+                    onChange={(e) => update({ suppressServed: { enabled: true, penalty: Math.min(parseFloat(e.target.value) || 0.5, 0.99), windowHours: suppressServed.windowHours } })}
                   />
-                  <span className="card-hint">Score multiplier for seen posts (0.5 = half score). Must be below 1.</span>
+                  <span className="card-hint">Score multiplier for served posts (0.5 = half score). Must be below 1.</span>
                 </label>
                 <label className="feed-personalization-field">
                   Window (hours)
@@ -189,10 +198,10 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
                     type="number"
                     step="1"
                     min="1"
-                    value={config.suppressSeen.windowHours}
-                    onChange={(e) => update({ suppressSeen: { enabled: true, penalty: config.suppressSeen!.penalty, windowHours: parseInt(e.target.value) || 48 } })}
+                    value={suppressServed.windowHours}
+                    onChange={(e) => update({ suppressServed: { enabled: true, penalty: suppressServed.penalty, windowHours: parseInt(e.target.value) || 48 } })}
                   />
-                  <span className="card-hint">How long to remember seen posts</span>
+                  <span className="card-hint">How long to remember served posts (not permanent)</span>
                 </label>
               </>
             )}
@@ -281,8 +290,11 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
                 <dt>base_score</dt><dd>Sort key from Sorting tab (the starting score)</dd>
                 <dt>is_followed</dt><dd>1 if viewer follows post author, 0 if not</dd>
                 <dt>is_mutual</dt><dd>1 if mutual follow, 0 if not</dd>
-                <dt>times_seen</dt><dd>Times this post was served to this viewer</dd>
-                <dt>hours_since_seen</dt><dd>Hours since last served (0 if never)</dd>
+                <dt>times_served</dt><dd>Times this post was returned in getFeedSkeleton</dd>
+                <dt>hours_since_served</dt><dd>Hours since last skeleton serve (0 if never)</dd>
+                <dt>was_viewed</dt><dd>1 if client reported interactionSeen, else 0</dd>
+                <dt>times_viewed</dt><dd>1 if viewed (0/1 until repeat views are tracked)</dd>
+                <dt>hours_since_viewed</dt><dd>Hours since client-reported view (0 if never)</dd>
                 <dt>hours_since_last_open</dt><dd>Hours since viewer last opened this feed</dd>
                 <dt>days_since_interaction</dt><dd>Days since last interaction with this author</dd>
                 <dt>feed_affinity</dt><dd>Total interactions with author via this feed</dd>

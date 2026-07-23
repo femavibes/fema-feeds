@@ -1,13 +1,24 @@
 import type { NativePersonalizationConfig } from '@cfb/core-types'
+import { resolveSuppressServed } from '@cfb/core-types'
 import type { AuthorAffinityRecord, SkeletonPost } from '@cfb/storage-postgres'
 import { evalPersonalizationFormula, type PersonalizationPostContext } from './personalization-eval.js'
+
+/** Per-post serve/view history for one viewer on one feed. */
+export interface ViewerServedPostRecord {
+  /** Times this post was returned in getFeedSkeleton (impression_count). */
+  serveCount: number
+  /** Last skeleton serve time. */
+  servedAt: Date
+  /** First client-reported interactionSeen time, if any. */
+  viewedAt: Date | null
+}
 
 export interface ViewerPersonalizationContext {
   viewerDid: string
   followedDids: Set<string>
   mutualDids: Set<string>
-  /** Post URI → served record (impression count + last served time). */
-  seenPosts: Map<string, { impressionCount: number; servedAt: Date }>
+  /** Post URI → serve/view record for this viewer+feed. */
+  servedPosts: Map<string, ViewerServedPostRecord>
   /** Author DID → feed-scoped affinity breakdown. */
   affinityCounts: Map<string, AuthorAffinityRecord>
   /** Hours since this viewer last opened this feed (null if never). */
@@ -81,6 +92,7 @@ export function applyNativePersonalization(
   }
 
   // Toggle mode: apply individual toggles
+  const suppressServed = resolveSuppressServed(config)
   const scored = posts.map((post, originalIdx) => {
     let score = baseScoreOf(post, originalIdx)
     const authorDid = extractAuthorDid(post.post)
@@ -95,15 +107,15 @@ export function applyNativePersonalization(
       score *= config.boostMutuals.factor
     }
 
-    // Suppress seen (penalty is a score multiplier; must be < 1 to have any effect)
-    if (config.suppressSeen?.enabled) {
-      const penalty = config.suppressSeen.penalty
+    // Suppress recently served (penalty is a score multiplier; must be < 1 to have any effect)
+    if (suppressServed?.enabled) {
+      const penalty = suppressServed.penalty
       if (penalty < 1) {
-        const seen = viewer.seenPosts.get(post.post)
-        if (seen) {
-          const hoursSinceSeen =
-            (Date.now() - seen.servedAt.getTime()) / (1000 * 60 * 60)
-          if (hoursSinceSeen <= config.suppressSeen.windowHours) {
+        const served = viewer.servedPosts.get(post.post)
+        if (served) {
+          const hoursSinceServed =
+            (Date.now() - served.servedAt.getTime()) / (1000 * 60 * 60)
+          if (hoursSinceServed <= suppressServed.windowHours) {
             score *= penalty
           }
         }
