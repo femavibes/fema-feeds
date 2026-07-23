@@ -253,7 +253,7 @@ async function loadViewerPersonalizationContext(
   let mutualDids = new Set<string>()
   if (needs.mutuals) {
     const followedSet = new Set(followedDids)
-    mutualDids = new Set(viewerFollowers.filter((did) => followedSet.has(did)))
+    mutualDids = new Set(viewerFollowers.filter((did: string) => followedSet.has(did)))
   }
 
   void recordViewerFeedOpen(pool, viewerDid, feedId).catch(() => {})
