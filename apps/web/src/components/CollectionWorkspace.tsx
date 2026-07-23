@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import type { L2RuleGroup, LogicBlockPackage, PluginPackage, PublisherVerificationStatus, SortPackPackage } from '@cfb/core-types'
 import type { CollectionWorkspaceView, MarketplaceProductScope } from '../lib/workspace-views'
-import { isCustomCodeProduct, marketplaceProduct } from '../lib/marketplace-products'
+import { isCustomCodeOnlyProduct, marketplaceProduct, productTierBadgeLabel } from '../lib/marketplace-products'
 
 
 
@@ -22,6 +22,8 @@ import { LogicBlocksCollectionView } from './logic-blocks/LogicBlocksCollectionV
 import { SortPackDetailPanel } from './sort-packs/SortPackDetailPanel'
 
 import { SortPacksCollectionView } from './sort-packs/SortPacksCollectionView'
+
+import { PersonalizationFormulasCollectionView } from './sort-packs/PersonalizationFormulasCollectionView'
 
 import { CustomCodeCreateDialog } from './plugins/CustomCodeCreateDialog'
 
@@ -63,8 +65,8 @@ function clearCollectionSelection(
     return
   }
   if (kind !== 'logic_blocks') setters.setSelectedLogic(null)
-  if (kind !== 'sort_packs') setters.setSelectedSort(null)
-  setters.setSelectedPlugin(null)
+  if (kind !== 'sort_packs' && kind !== 'rankers') setters.setSelectedSort(null)
+  if (kind !== 'injectors' && kind !== 'rankers' && kind !== 'enrichers') setters.setSelectedPlugin(null)
 }
 
 
@@ -460,7 +462,7 @@ export function CollectionWorkspace() {
                 My collection · {scopeLabel}
                 {product ? (
                   <span className="marketplace-product-tier">
-                    {product.tier === 'native' ? 'Native' : 'Custom code'}
+                    {productTierBadgeLabel(product)}
                   </span>
                 ) : null}
               </h2>
@@ -477,7 +479,19 @@ export function CollectionWorkspace() {
                 >
                   New logic block
                 </button>
-              ) : collectionScope !== 'all' && isCustomCodeProduct(collectionScope) ? (
+              ) : collectionScope === 'rankers' ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={creating}
+                  onClick={() => {
+                    setError(null)
+                    setShowCustomCodeDialog(true)
+                  }}
+                >
+                  New custom code plugin
+                </button>
+              ) : collectionScope !== 'all' && isCustomCodeOnlyProduct(collectionScope) ? (
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
@@ -495,7 +509,7 @@ export function CollectionWorkspace() {
 
             <p className="card-hint">
               {collectionScope === 'all'
-                ? 'Your packages across logic blocks, sort packs, injectors, and personalization plugins. Pick a category in the sidebar to focus or create new items.'
+                ? 'Your packages across logic blocks, sorting formulas, personalization, injectors, and enrichers. Pick a category in the sidebar to focus or create new items.'
                 : product!.collectionHint}
             </p>
             {product ? (
@@ -574,13 +588,13 @@ export function CollectionWorkspace() {
 
               />
 
-            ) : (
+            ) : collectionScope === 'enrichers' ? (
 
               <PluginsCollectionView
 
-                key={`${refreshKey}-ranker`}
+                key={`${refreshKey}-enricher`}
 
-                kind="ranker"
+                kind="enricher"
 
                 selectedId={selectedPlugin?.id ?? null}
 
@@ -588,7 +602,48 @@ export function CollectionWorkspace() {
 
               />
 
-            )}
+            ) : collectionScope === 'rankers' ? (
+
+              <div className="collection-stacked-sections">
+
+                <PersonalizationFormulasCollectionView
+
+                  key={`${refreshKey}-personalization`}
+
+                  selectedId={selectedSort?.packKind === 'personalization' ? selectedSort.id : null}
+
+                  onSelect={(pkg) => {
+
+                    setSelectedSort(pkg)
+
+                    setSelectedPlugin(null)
+
+                  }}
+
+                />
+
+                <PluginsCollectionView
+
+                  key={`${refreshKey}-ranker`}
+
+                  kind="ranker"
+                  sectionTitle="Custom code plugins"
+
+                  selectedId={selectedPlugin?.id ?? null}
+
+                  onSelect={(pkg) => {
+
+                    setSelectedPlugin(pkg)
+
+                    setSelectedSort(null)
+
+                  }}
+
+                />
+
+              </div>
+
+            ) : null}
 
           </div>
 
@@ -825,11 +880,45 @@ export function CollectionWorkspace() {
 
             />
 
-          ) : collectionScope === 'injectors' || collectionScope === 'rankers' ? (
+          ) : collectionScope === 'rankers' && selectedSort?.packKind === 'personalization' ? (
+
+            <SortPackDetailPanel
+
+              variant="collection"
+
+              pkg={selectedSort}
+
+              userDid={userDid}
+
+              onPublished={handlePublishedSort}
+
+              onEditListing={
+                isSortOwner && selectedSort
+                  ? () => setListingEditor({ productKind: 'sort_pack', pkg: selectedSort })
+                  : undefined
+              }
+
+              onMetadataSaved={(pkg) => {
+
+                setSelectedSort(pkg)
+
+                bumpRefresh()
+
+              }}
+
+            />
+
+          ) : collectionScope === 'injectors' || collectionScope === 'rankers' || collectionScope === 'enrichers' ? (
 
             <InjectorDetailPanel
 
-              kind={collectionScope === 'injectors' ? 'injector' : 'ranker'}
+              kind={
+                collectionScope === 'injectors'
+                  ? 'injector'
+                  : collectionScope === 'enrichers'
+                    ? 'enricher'
+                    : 'ranker'
+              }
 
               variant="collection"
 
@@ -859,7 +948,12 @@ export function CollectionWorkspace() {
                 selectedPlugin && userDid && selectedPlugin.ownerDid === userDid
                   ? () =>
                       setListingEditor({
-                        productKind: collectionScope === 'injectors' ? 'injector' : 'ranker',
+                        productKind:
+                          collectionScope === 'injectors'
+                            ? 'injector'
+                            : collectionScope === 'enrichers'
+                              ? 'enricher'
+                              : 'ranker',
                         pkg: selectedPlugin,
                       })
                   : undefined

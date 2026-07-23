@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FeedConfig, L2Expr, SortPackPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
@@ -22,6 +22,10 @@ export function SortPackFeedSection({ draft, onChange, onPackExprResolved }: Pro
 
   const packRef = draft.rank?.packRef
   const usingPack = hasSortPackRef(draft.rank)
+  const sortingSubscriptions = useMemo(
+    () => subscriptions.filter((sub) => (sub.package.packKind ?? 'sort') === 'sort'),
+    [subscriptions],
+  )
 
   useEffect(() => {
     void api.listSortPackSubscriptions().then((res) => setSubscriptions(res.subscriptions)).catch(() => {})
@@ -33,9 +37,9 @@ export function SortPackFeedSection({ draft, onChange, onPackExprResolved }: Pro
       onPackExprResolved(null)
       return
     }
-    const match = subscriptions.find((s) => s.packageId === packRef.packageId)
+    const match = sortingSubscriptions.find((s) => s.packageId === packRef.packageId)
     onPackExprResolved(match?.package?.sortKey ?? null)
-  }, [packRef?.packageId, subscriptions, onPackExprResolved])
+  }, [packRef?.packageId, sortingSubscriptions, onPackExprResolved])
 
   useEffect(() => {
     if (!draft.feedId) return
@@ -77,7 +81,7 @@ export function SortPackFeedSection({ draft, onChange, onPackExprResolved }: Pro
           {packRef.updatePolicy ? ` (${packRef.updatePolicy})` : ''}.
         </p>
       ) : (
-        <p className="card-hint">Apply a subscribed sort pack, or save your current formula to My collection.</p>
+        <p className="card-hint">Apply a subscribed sorting formula, or save your current formula to My collection.</p>
       )}
 
       {upgradeHint ? (
@@ -94,9 +98,9 @@ export function SortPackFeedSection({ draft, onChange, onPackExprResolved }: Pro
         </div>
       ) : null}
 
-      {subscriptions.length > 0 ? (
+      {sortingSubscriptions.length > 0 ? (
         <ul className="logic-blocks-catalog-list feed-sorting-pack-list">
-          {subscriptions.map((sub) => (
+          {sortingSubscriptions.map((sub) => (
             <li key={sub.packageId}>
               <button
                 type="button"
@@ -110,7 +114,7 @@ export function SortPackFeedSection({ draft, onChange, onPackExprResolved }: Pro
           ))}
         </ul>
       ) : (
-        <p className="card-hint">Subscribe to sort packs in Marketplace → Browse.</p>
+        <p className="card-hint">Subscribe to sorting formulas in Marketplace → Browse.</p>
       )}
     </div>
   )

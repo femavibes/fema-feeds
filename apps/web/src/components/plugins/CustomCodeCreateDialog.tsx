@@ -23,7 +23,7 @@ interface Props {
 const KIND_OPTIONS: { id: PluginKind; label: string; hint: string }[] = [
   {
     id: 'ranker',
-    label: 'Personalization',
+    label: 'Personalization plugin',
     hint: 'Reorders feed pages at serve time (`onSort`). Use for custom sorting beyond native formulas.',
   },
   {

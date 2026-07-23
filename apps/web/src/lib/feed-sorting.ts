@@ -459,7 +459,7 @@ export function sortModeBadge(mode: SortMode, weights: EngagementWeights): strin
     case 'engagement':
       return 'Engagement'
     case 'pack':
-      return 'Sort pack'
+      return 'Sorting formula'
     case 'builder':
       return 'Formula builder'
     case 'custom':

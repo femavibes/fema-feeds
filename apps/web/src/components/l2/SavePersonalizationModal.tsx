@@ -20,18 +20,19 @@ export function SavePersonalizationModal({ draft, open, onClose }: Props) {
   const isFormula = draft.personalization?.formulaEnabled && formula
 
   const save = async () => {
-    if (!isFormula) {
+    if (!isFormula || !formula) {
       setError('Switch to Formula mode and write a formula first.')
       return
     }
     setBusy(true)
     setError(null)
     try {
-      await api.createPlugin({
-        kind: 'ranker',
-        runtime: 'native',
+      await api.createSortPack({
         name: name.trim() || 'Custom personalization',
         description: `Personalization formula saved from ${draft.name}`,
+        sortKey: formula,
+        visibility: 'collection',
+        packKind: 'personalization',
       })
       setName('')
       onClose()
@@ -47,7 +48,8 @@ export function SavePersonalizationModal({ draft, open, onClose }: Props) {
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
         <h3>Save personalization to collection</h3>
         <p className="card-hint">
-          Save your current personalization formula as a reusable package in My Collection.
+          Save your current personalization formula as a reusable package in My Collection
+          (Personalization category).
         </p>
         {!isFormula && (
           <p className="field-error">

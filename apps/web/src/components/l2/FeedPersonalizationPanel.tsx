@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { FeedConfig, L2Expr, NativePersonalizationConfig } from '@cfb/core-types'
 import { DEFAULT_PERSONALIZATION, PERSONALIZATION_DEPTH_DEFAULT, PERSONALIZATION_DEPTH_MAX, resolveSuppressServed } from '@cfb/core-types'
+import { clearPersonalizationFormulaPackRef } from '../../lib/feed-personalization'
 import { PERSONALIZATION_FIELDS } from '../../lib/formula-parser'
 import { ToggleRow } from '../ToggleRow'
 import { SortFormulaBuilder, type FormulaTemplate, type FormulaFieldGroup } from './SortFormulaBuilder'
+import { PersonalizationFormulaFeedSection } from '../sort-packs/PersonalizationFormulaFeedSection'
 
 interface Props {
   draft: FeedConfig
@@ -74,7 +76,12 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
   }
 
   const handleFormulaChange = (expr: L2Expr) => {
-    update({ formula: expr, formulaEnabled: true })
+    onChange(
+      clearPersonalizationFormulaPackRef({
+        ...draft,
+        personalization: { ...config, formula: expr, formulaEnabled: true },
+      }),
+    )
   }
 
   return (
@@ -271,6 +278,7 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
 
       {mode === 'formula' && (
         <div className="feed-personalization-formula">
+          <PersonalizationFormulaFeedSection draft={draft} onChange={onChange} />
           <div className="feed-personalization-formula-head">
             <p className="card-hint">
               Write a formula that scores each post for this viewer. Higher scores appear first.

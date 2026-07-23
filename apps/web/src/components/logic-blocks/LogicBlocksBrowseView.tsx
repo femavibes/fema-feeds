@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { LogicBlockPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
-import type { MarketplaceCatalogScope, MarketplaceCatalogSort, MarketplaceCategoryFilter } from '../../lib/marketplace-catalog'
-import { sortMarketplacePackages, filterByCategory } from '../../lib/marketplace-catalog'
+import type { MarketplaceCatalogScope, MarketplaceCatalogSort, MarketplaceCategoryFilter, MarketplaceTierFilter } from '../../lib/marketplace-catalog'
+import { sortMarketplacePackages, filterByCategory, filterByTier } from '../../lib/marketplace-catalog'
 import { MarketplaceCatalogCard } from '../marketplace/MarketplaceCatalogCard'
 
 const REGISTRY_ROLE_HINT: Record<'registry' | 'consumer' | 'embedded', string> = {
@@ -33,6 +33,7 @@ interface Props {
   catalogScope: MarketplaceCatalogScope
   catalogSort: MarketplaceCatalogSort
   catalogCategory?: MarketplaceCategoryFilter
+  catalogTier?: MarketplaceTierFilter
   selectedId: string | null
   subscribedIds: Set<string>
   onSelect: (pkg: LogicBlockPackage) => void
@@ -42,6 +43,7 @@ export function LogicBlocksBrowseView({
   catalogScope,
   catalogSort,
   catalogCategory = 'all',
+  catalogTier = 'all',
   selectedId,
   subscribedIds,
   onSelect,
@@ -53,10 +55,10 @@ export function LogicBlocksBrowseView({
     null,
   )
 
-  const sortedPackages = useMemo(
-    () => filterByCategory(sortMarketplacePackages(packages, catalogSort), catalogCategory),
-    [packages, catalogSort, catalogCategory],
-  )
+  const sortedPackages = useMemo(() => {
+    const tierFiltered = filterByTier(packages, catalogTier, () => 'native')
+    return filterByCategory(sortMarketplacePackages(tierFiltered, catalogSort), catalogCategory)
+  }, [packages, catalogSort, catalogCategory, catalogTier])
 
   useEffect(() => {
     setLoading(true)
@@ -97,7 +99,11 @@ export function LogicBlocksBrowseView({
 
       {loading && <p className="card-hint">Loading catalog…</p>}
       {!loading && sortedPackages.length === 0 && (
-        <p className="card-hint">{EMPTY_HINT[catalogScope]}</p>
+        <p className="card-hint">
+          {catalogTier === 'custom_code'
+            ? 'Custom code logic blocks are not available yet. Logic blocks are native JSON rule groups today.'
+            : EMPTY_HINT[catalogScope]}
+        </p>
       )}
       <div className="marketplace-catalog-grid">
         {sortedPackages.map((pkg) => (
@@ -113,6 +119,7 @@ export function LogicBlocksBrowseView({
             updatedAt={pkg.updatedAt}
             productKind="logic_block"
             ownerDid={pkg.ownerDid}
+            executionTier="native"
             subscribed={subscribedIds.has(pkg.id)}
             selected={selectedId === pkg.id}
             onClick={() => onSelect(pkg)}

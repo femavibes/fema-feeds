@@ -9,12 +9,19 @@ interface Props {
   kind: PluginKind
   selectedId: string | null
   onSelect: (pkg: PluginPackage) => void
+  sectionTitle?: string
 }
 
-export function PluginsCollectionView({ kind, selectedId, onSelect }: Props) {
+function pluginProductScope(kind: PluginKind): 'injectors' | 'rankers' | 'enrichers' {
+  if (kind === 'injector') return 'injectors'
+  if (kind === 'enricher') return 'enrichers'
+  return 'rankers'
+}
+
+export function PluginsCollectionView({ kind, selectedId, onSelect, sectionTitle }: Props) {
   const [packages, setPackages] = useState<PluginPackage[]>([])
   const [loading, setLoading] = useState(true)
-  const product = marketplaceProduct(kind === 'injector' ? 'injectors' : 'rankers')
+  const product = marketplaceProduct(pluginProductScope(kind))
 
   useEffect(() => {
     setLoading(true)
@@ -27,6 +34,7 @@ export function PluginsCollectionView({ kind, selectedId, onSelect }: Props) {
 
   return (
     <div className="logic-blocks-collection">
+      {sectionTitle ? <h3 className="collection-section-title">{sectionTitle}</h3> : null}
       {loading && <p className="card-hint">Loading {product.label.toLowerCase()}…</p>}
       {!loading && packages.length === 0 && (
         <p className="card-hint">
@@ -47,6 +55,7 @@ export function PluginsCollectionView({ kind, selectedId, onSelect }: Props) {
             listing={pkg.listing}
             updatedAt={pkg.updatedAt}
             productKind={kind}
+            executionTier="custom_code"
             subtitle={pkg.runtime}
             selected={selectedId === pkg.id}
             onClick={() => onSelect(pkg)}

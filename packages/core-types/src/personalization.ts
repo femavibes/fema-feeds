@@ -21,6 +21,8 @@ export interface NativePersonalizationConfig {
    */
   formulaEnabled?: boolean
   formula?: import('./l2.js').L2Expr
+  /** Optional saved formula package — formula is copied inline; ref tracks source for UI. */
+  formulaPackRef?: import('./sort-packs.js').SortPackRef
   /**
    * How many top-sorted candidates personalization may reorder.
    * Sorting already surfaced the best posts, so this needn't cover the

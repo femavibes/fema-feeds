@@ -4,7 +4,7 @@ import type { LogicBlockPackage, PluginPackage, SortPackPackage } from '@cfb/cor
 
 import type { MarketplaceWorkspaceView, MarketplaceProductScope } from '../lib/workspace-views'
 import { marketplaceProduct } from '../lib/marketplace-products'
-import type { MarketplaceCatalogScope, MarketplaceCatalogSort, MarketplaceCategoryFilter } from '../lib/marketplace-catalog'
+import type { MarketplaceCatalogScope, MarketplaceCatalogSort, MarketplaceCategoryFilter, MarketplaceTierFilter } from '../lib/marketplace-catalog'
 
 
 
@@ -22,6 +22,8 @@ import { MarketplaceTaxonomyPanel } from './marketplace/MarketplaceTaxonomyPanel
 import { MarketplaceCatalogControls } from './marketplace/MarketplaceCatalogControls'
 
 import { SortPacksBrowseView } from './sort-packs/SortPacksBrowseView'
+
+import { PersonalizationFormulasBrowseView } from './sort-packs/PersonalizationFormulasBrowseView'
 
 import { SortPacksInstalledView } from './sort-packs/SortPacksInstalledView'
 
@@ -42,7 +44,7 @@ const VIEW_COPY: Record<MarketplaceWorkspaceView, { title: string; hint: string 
 
     title: 'Browse',
 
-    hint: 'Subscribe to logic blocks, sort packs, injectors, and personalization plugins published on this deployment or the global marketplace.',
+    hint: 'Subscribe to logic blocks, sorting formulas, personalization, injectors, and enrichers published on this deployment or the global marketplace.',
 
   },
 
@@ -50,7 +52,7 @@ const VIEW_COPY: Record<MarketplaceWorkspaceView, { title: string; hint: string 
 
     title: 'Subscriptions',
 
-    hint: 'Logic blocks go in the feed visual editor; sort packs, personalization, and injectors go on the feed Sorting tab.',
+    hint: 'Logic blocks go in the feed visual editor; sorting and personalization formulas and plugins go on the feed Sorting and Personalization tabs.',
 
   },
 
@@ -89,6 +91,8 @@ type Selection =
 
   | { kind: 'ranker'; pkg: PluginPackage }
 
+  | { kind: 'enricher'; pkg: PluginPackage }
+
   | null
 
 
@@ -122,6 +126,7 @@ export function MarketplaceWorkspace() {
   const [catalogScope, setCatalogScope] = useState<MarketplaceCatalogScope>('all')
   const [catalogSort, setCatalogSort] = useState<MarketplaceCatalogSort>('updated_desc')
   const [catalogCategory, setCatalogCategory] = useState<MarketplaceCategoryFilter>('all')
+  const [catalogTier, setCatalogTier] = useState<MarketplaceTierFilter>('all')
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
 
 
@@ -142,11 +147,11 @@ export function MarketplaceWorkspace() {
   const pageHint =
     view === 'browse'
       ? productScope === 'all'
-        ? 'Browse logic blocks, sort packs, injectors, and personalization plugins from this deployment and the global marketplace.'
+        ? 'Browse logic blocks, sorting formulas, personalization, injectors, and enrichers from this deployment and the global marketplace.'
         : marketplaceProduct(productScope).browseHint
       : view === 'installed'
         ? productScope === 'all'
-          ? 'Everything you subscribe to across product types. Pins apply per feed — logic blocks in the visual editor; sort packs, personalization, and injectors on the Sorting tab.'
+          ? 'Everything you subscribe to across product types. Pins apply per feed — logic blocks in the visual editor; sorting and personalization on their feed tabs; injectors on Sorting.'
           : `Pinned versions appear on feeds — ${marketplaceProduct(productScope).summary}`
         : copy.hint
   const showProductMeta =
@@ -306,6 +311,14 @@ export function MarketplaceWorkspace() {
         onMarketplaceProductKindChange={(kind) => {
           setProductScope(kind)
           setSelection(null)
+          if (kind !== 'all') {
+            const product = marketplaceProduct(kind)
+            setCatalogTier((current) => {
+              if (current === 'native' && !product.supportsNative) return 'custom_code'
+              if (current === 'custom_code' && !product.supportsCustomCode) return 'native'
+              return current
+            })
+          }
         }}
       />
 
@@ -326,9 +339,12 @@ export function MarketplaceWorkspace() {
                   scope={catalogScope}
                   sort={catalogSort}
                   category={catalogCategory}
+                  tier={catalogTier}
+                  productKind={productScope}
                   onScopeChange={setCatalogScope}
                   onSortChange={setCatalogSort}
                   onCategoryChange={setCatalogCategory}
+                  onTierChange={setCatalogTier}
                 />
               ) : null}
 
@@ -358,6 +374,7 @@ export function MarketplaceWorkspace() {
                 catalogScope={catalogScope}
                 catalogSort={catalogSort}
                 catalogCategory={catalogCategory}
+                catalogTier={catalogTier}
                 selection={selection}
                 logicSubscribedIds={logicSubscribedIds}
                 sortSubscribedIds={sortSubscribedIds}
@@ -376,6 +393,7 @@ export function MarketplaceWorkspace() {
                 catalogScope={catalogScope}
                 catalogSort={catalogSort}
                 catalogCategory={catalogCategory}
+                catalogTier={catalogTier}
                 selectedId={selection?.kind === 'logic_block' ? selection.pkg.id : null}
 
                 subscribedIds={logicSubscribedIds}
@@ -395,11 +413,37 @@ export function MarketplaceWorkspace() {
                 catalogScope={catalogScope}
                 catalogSort={catalogSort}
                 catalogCategory={catalogCategory}
+                catalogTier={catalogTier}
                 selectedId={selection?.kind === 'sort_pack' ? selection.pkg.id : null}
 
                 subscribedIds={sortSubscribedIds}
 
                 onSelect={(pkg) => setSelection({ kind: 'sort_pack', pkg })}
+
+              />
+
+            )}
+
+            {view === 'browse' && productScope === 'rankers' && (
+
+              <PersonalizationFormulasBrowseView
+
+                key={refreshKey}
+
+                catalogScope={catalogScope}
+                catalogSort={catalogSort}
+                catalogCategory={catalogCategory}
+                catalogTier={catalogTier}
+                selectedSortId={
+                  selection?.kind === 'sort_pack' && selection.pkg.packKind === 'personalization'
+                    ? selection.pkg.id
+                    : null
+                }
+                selectedPluginId={selection?.kind === 'ranker' ? selection.pkg.id : null}
+                sortSubscribedIds={sortSubscribedIds}
+                rankerSubscribedIds={rankerSubscribedIds}
+                onSelectFormula={(pkg) => setSelection({ kind: 'sort_pack', pkg })}
+                onSelectPlugin={(pkg) => setSelection({ kind: 'ranker', pkg })}
 
               />
 
@@ -416,6 +460,7 @@ export function MarketplaceWorkspace() {
                 catalogScope={catalogScope}
                 catalogSort={catalogSort}
                 catalogCategory={catalogCategory}
+                catalogTier={catalogTier}
                 selectedId={selection?.kind === 'injector' ? selection.pkg.id : null}
 
                 subscribedIds={injectorSubscribedIds}
@@ -426,22 +471,23 @@ export function MarketplaceWorkspace() {
 
             )}
 
-            {view === 'browse' && productScope === 'rankers' && (
+            {view === 'browse' && productScope === 'enrichers' && (
 
               <InjectorsBrowseView
 
                 key={refreshKey}
 
-                kind="ranker"
+                kind="enricher"
 
                 catalogScope={catalogScope}
                 catalogSort={catalogSort}
                 catalogCategory={catalogCategory}
-                selectedId={selection?.kind === 'ranker' ? selection.pkg.id : null}
+                catalogTier={catalogTier}
+                selectedId={selection?.kind === 'enricher' ? selection.pkg.id : null}
 
-                subscribedIds={rankerSubscribedIds}
+                subscribedIds={new Set()}
 
-                onSelect={(pkg) => setSelection({ kind: 'ranker', pkg })}
+                onSelect={(pkg) => setSelection({ kind: 'enricher', pkg })}
 
               />
 
@@ -449,8 +495,8 @@ export function MarketplaceWorkspace() {
 
             {view === 'installed' && productScope === 'all' && (
               <div className="marketplace-featured-sections">
-                <section className="marketplace-featured-section" aria-label="Logic blocks">
-                  <h3 className="marketplace-featured-section-title">Logic blocks</h3>
+                <section className="marketplace-featured-section" aria-label={marketplaceProduct('logic_blocks').label}>
+                  <h3 className="marketplace-featured-section-title">{marketplaceProduct('logic_blocks').label}</h3>
                   <LogicBlocksInstalledView
                     key={`${refreshKey}-logic`}
                     selectedId={selection?.kind === 'logic_block' ? selection.pkg.id : null}
@@ -458,8 +504,8 @@ export function MarketplaceWorkspace() {
                     onChanged={bumpRefresh}
                   />
                 </section>
-                <section className="marketplace-featured-section" aria-label="Sort packs">
-                  <h3 className="marketplace-featured-section-title">Sort packs</h3>
+                <section className="marketplace-featured-section" aria-label={marketplaceProduct('sort_packs').label}>
+                  <h3 className="marketplace-featured-section-title">{marketplaceProduct('sort_packs').label}</h3>
                   <SortPacksInstalledView
                     key={`${refreshKey}-sort`}
                     selectedId={selection?.kind === 'sort_pack' ? selection.pkg.id : null}
@@ -467,8 +513,18 @@ export function MarketplaceWorkspace() {
                     onChanged={bumpRefresh}
                   />
                 </section>
-                <section className="marketplace-featured-section" aria-label="Injectors">
-                  <h3 className="marketplace-featured-section-title">Injectors</h3>
+                <section className="marketplace-featured-section" aria-label={marketplaceProduct('rankers').label}>
+                  <h3 className="marketplace-featured-section-title">{marketplaceProduct('rankers').label}</h3>
+                  <InjectorsInstalledView
+                    key={`${refreshKey}-ranker`}
+                    kind="ranker"
+                    selectedId={selection?.kind === 'ranker' ? selection.pkg.id : null}
+                    onSelect={(pkg) => setSelection({ kind: 'ranker', pkg })}
+                    onChanged={bumpRefresh}
+                  />
+                </section>
+                <section className="marketplace-featured-section" aria-label={marketplaceProduct('injectors').label}>
+                  <h3 className="marketplace-featured-section-title">{marketplaceProduct('injectors').label}</h3>
                   <InjectorsInstalledView
                     key={`${refreshKey}-injector`}
                     kind="injector"
@@ -477,13 +533,13 @@ export function MarketplaceWorkspace() {
                     onChanged={bumpRefresh}
                   />
                 </section>
-                <section className="marketplace-featured-section" aria-label="Personalization">
-                  <h3 className="marketplace-featured-section-title">Personalization</h3>
+                <section className="marketplace-featured-section" aria-label={marketplaceProduct('enrichers').label}>
+                  <h3 className="marketplace-featured-section-title">{marketplaceProduct('enrichers').label}</h3>
                   <InjectorsInstalledView
-                    key={`${refreshKey}-ranker`}
-                    kind="ranker"
-                    selectedId={selection?.kind === 'ranker' ? selection.pkg.id : null}
-                    onSelect={(pkg) => setSelection({ kind: 'ranker', pkg })}
+                    key={`${refreshKey}-enricher`}
+                    kind="enricher"
+                    selectedId={selection?.kind === 'enricher' ? selection.pkg.id : null}
+                    onSelect={(pkg) => setSelection({ kind: 'enricher', pkg })}
                     onChanged={bumpRefresh}
                   />
                 </section>
@@ -558,6 +614,24 @@ export function MarketplaceWorkspace() {
 
             )}
 
+            {view === 'installed' && productScope === 'enrichers' && (
+
+              <InjectorsInstalledView
+
+                key={refreshKey}
+
+                kind="enricher"
+
+                selectedId={selection?.kind === 'enricher' ? selection.pkg.id : null}
+
+                onSelect={(pkg) => setSelection({ kind: 'enricher', pkg })}
+
+                onChanged={bumpRefresh}
+
+              />
+
+            )}
+
             {view === 'verify' && (
 
               <PublisherVerifyPanel
@@ -615,7 +689,9 @@ export function MarketplaceWorkspace() {
                     ? injectorPins.get(selection.pkg.id) ?? null
                     : selection?.kind === 'ranker'
                       ? rankerPins.get(selection.pkg.id) ?? null
-                      : null
+                      : selection?.kind === 'enricher'
+                        ? null
+                        : null
             }
             onSubscriptionChanged={() => {
               refreshSubscriptions()

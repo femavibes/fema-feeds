@@ -9,14 +9,14 @@ interface Props {
   onSelect: (pkg: SortPackPackage) => void
 }
 
-export function SortPacksCollectionView({ selectedId, onSelect }: Props) {
+export function PersonalizationFormulasCollectionView({ selectedId, onSelect }: Props) {
   const [packages, setPackages] = useState<SortPackPackage[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
     void api
-      .listSortPackCollection('sort')
+      .listSortPackCollection('personalization')
       .then((res) => setPackages(res.packages))
       .catch(() => setPackages([]))
       .finally(() => setLoading(false))
@@ -24,10 +24,12 @@ export function SortPacksCollectionView({ selectedId, onSelect }: Props) {
 
   return (
     <div className="logic-blocks-collection">
-      {loading && <p className="card-hint">Loading sorting formulas…</p>}
+      <h3 className="collection-section-title">Native formulas</h3>
+      {loading && <p className="card-hint">Loading personalization formulas…</p>}
       {!loading && packages.length === 0 && (
         <p className="card-hint">
-          No sorting formulas saved yet. Use <strong>Save to collection</strong> on a feed&apos;s Sorting tab.
+          No personalization formulas saved yet. Use <strong>Save to collection</strong> on a
+          feed&apos;s Personalization tab (Formula mode).
         </p>
       )}
       <div className="marketplace-catalog-grid">
@@ -42,7 +44,7 @@ export function SortPacksCollectionView({ selectedId, onSelect }: Props) {
             trustTier={pkg.trustTier}
             listing={pkg.listing}
             updatedAt={pkg.updatedAt}
-            productKind="sort_pack"
+            productKind="ranker"
             selected={selectedId === pkg.id}
             onClick={() => onSelect(pkg)}
           />

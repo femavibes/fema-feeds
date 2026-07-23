@@ -1,5 +1,6 @@
 import type {
   L2Expr,
+  SortPackKind,
   SortPackPackage,
   SortPackSubscription,
   SortPackTrustTier,
@@ -22,6 +23,7 @@ function rowFromVersionJoin(row: {
   slug: string
   visibility: SortPackVisibility
   trust_tier: SortPackTrustTier
+  pack_kind?: SortPackKind
   listing_meta?: unknown
   updated_at: Date
   version: string
@@ -39,6 +41,7 @@ function rowFromVersionJoin(row: {
     description: row.description ?? undefined,
     visibility: row.visibility,
     trustTier: row.trust_tier,
+    packKind: row.pack_kind ?? 'sort',
     sortKey: row.sort_key,
     listing: parseListingMeta(row.listing_meta),
     createdAt: row.created_at.toISOString(),
@@ -55,6 +58,7 @@ function rowToPackage(row: {
   description: string | null
   visibility: SortPackVisibility
   trust_tier: SortPackTrustTier
+  pack_kind?: SortPackKind
   sort_key: L2Expr
   listing_meta?: unknown
   created_at: Date
@@ -69,6 +73,7 @@ function rowToPackage(row: {
     description: row.description ?? undefined,
     visibility: row.visibility,
     trustTier: row.trust_tier,
+    packKind: row.pack_kind ?? 'sort',
     sortKey: row.sort_key,
     listing: parseListingMeta(row.listing_meta),
     createdAt: row.created_at.toISOString(),
@@ -93,7 +98,7 @@ export async function getSortPackPackageById(
     return row ? rowToPackage(row) : null
   }
   const res = await pool.query(
-    `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.listing_meta, p.updated_at,
+    `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.pack_kind, p.listing_meta, p.updated_at,
             v.version, v.sort_key, v.name, v.description, v.created_at
      FROM sort_pack_packages p
      INNER JOIN sort_pack_package_versions v
@@ -113,7 +118,7 @@ export async function getSortPackPackagesByRefs(
   const ids = refs.map((r) => r.packageId)
   const versions = refs.map((r) => r.versionPin)
   const res = await pool.query(
-    `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.listing_meta, p.updated_at,
+    `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.pack_kind, p.listing_meta, p.updated_at,
             v.version, v.sort_key, v.name, v.description, v.created_at
      FROM sort_pack_packages p
      INNER JOIN UNNEST($1::uuid[], $2::text[]) AS r(id, version)
@@ -128,13 +133,19 @@ export async function getSortPackPackagesByRefs(
 export async function listSortPackCollection(
   pool: pg.Pool,
   ownerDid: string,
+  packKind?: SortPackKind,
 ): Promise<SortPackPackage[]> {
   const res = await pool.query(
-    `SELECT DISTINCT ON (slug) *
-     FROM sort_pack_packages
-     WHERE owner_did = $1
-     ORDER BY slug, updated_at DESC`,
-    [ownerDid],
+    packKind
+      ? `SELECT DISTINCT ON (slug) *
+         FROM sort_pack_packages
+         WHERE owner_did = $1 AND pack_kind = $2
+         ORDER BY slug, updated_at DESC`
+      : `SELECT DISTINCT ON (slug) *
+         FROM sort_pack_packages
+         WHERE owner_did = $1
+         ORDER BY slug, updated_at DESC`,
+    packKind ? [ownerDid, packKind] : [ownerDid],
   )
   return res.rows.map(rowToPackage)
 }
@@ -145,7 +156,7 @@ export async function listSortPackSubscriptions(
 ): Promise<Array<SortPackSubscription & { package: SortPackPackage }>> {
   const res = await pool.query(
     `SELECT s.owner_did, s.package_id, s.version_pin, s.update_policy, s.subscribed_at,
-            p.id, p.owner_did AS pkg_owner_did, p.slug, p.visibility, p.trust_tier, p.listing_meta,
+            p.id, p.owner_did AS pkg_owner_did, p.slug, p.visibility, p.trust_tier, p.pack_kind, p.listing_meta,
             p.updated_at, v.version, v.sort_key, v.name, v.description, v.created_at
      FROM sort_pack_subscriptions s
      JOIN sort_pack_packages p ON p.id = s.package_id
@@ -167,6 +178,7 @@ export async function listSortPackSubscriptions(
       slug: row.slug,
       visibility: row.visibility,
       trust_tier: row.trust_tier,
+      pack_kind: row.pack_kind,
       listing_meta: row.listing_meta,
       updated_at: row.updated_at,
       version: row.version,
@@ -185,6 +197,7 @@ export interface CreateSortPackInput {
   description?: string
   sortKey: L2Expr
   visibility?: SortPackVisibility
+  packKind?: SortPackKind
 }
 
 export async function getLatestSortPackPackagesByIds(
@@ -278,11 +291,12 @@ export async function createSortPackPackage(
   input: CreateSortPackInput,
 ): Promise<SortPackPackage> {
   const visibility = input.visibility ?? 'collection'
+  const packKind = input.packKind ?? 'sort'
   const existing = await pool.query<{ id: string; version: string }>(
     `SELECT id, version FROM sort_pack_packages
-     WHERE owner_did = $1 AND slug = $2
+     WHERE owner_did = $1 AND slug = $2 AND pack_kind = $3
      ORDER BY created_at DESC LIMIT 1`,
-    [input.ownerDid, input.slug],
+    [input.ownerDid, input.slug, packKind],
   )
   if (existing.rows[0]) {
     const updated = await updateSortPackPackage(pool, existing.rows[0].id, input.ownerDid, {
@@ -304,8 +318,8 @@ export async function createSortPackPackage(
   const version = '1.0.0'
   const res = await pool.query(
     `INSERT INTO sort_pack_packages
-       (owner_did, slug, version, name, description, visibility, sort_key)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+       (owner_did, slug, version, name, description, visibility, sort_key, pack_kind)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
      RETURNING *`,
     [
       input.ownerDid,
@@ -315,6 +329,7 @@ export async function createSortPackPackage(
       input.description ?? null,
       visibility,
       JSON.stringify(input.sortKey),
+      packKind,
     ],
   )
   let pkg = rowToPackage(res.rows[0])
@@ -445,7 +460,7 @@ export async function listSortPackPackageVersions(
   packageId: string,
 ): Promise<SortPackPackage[]> {
   const res = await pool.query(
-    `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.listing_meta, p.updated_at,
+    `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.pack_kind, p.listing_meta, p.updated_at,
             v.version, v.sort_key, v.name, v.description, v.created_at
      FROM sort_pack_package_versions v
      INNER JOIN sort_pack_packages p ON p.id = v.package_id
@@ -467,8 +482,8 @@ export async function upsertSortPackRegistryMirror(
   await ensureRegistryPublisherUser(pool, pkg.ownerDid)
   const res = await pool.query(
     `INSERT INTO sort_pack_packages
-       (id, owner_did, slug, version, name, description, visibility, trust_tier, sort_key)
-     VALUES ($1, $2, $3, $4, $5, $6, 'global', $7, $8::jsonb)
+       (id, owner_did, slug, version, name, description, visibility, trust_tier, sort_key, pack_kind)
+     VALUES ($1, $2, $3, $4, $5, $6, 'global', $7, $8::jsonb, $9)
      ON CONFLICT (id) DO UPDATE
        SET owner_did = EXCLUDED.owner_did,
            slug = EXCLUDED.slug,
@@ -489,6 +504,7 @@ export async function upsertSortPackRegistryMirror(
       pkg.description ?? null,
       pkg.trustTier,
       JSON.stringify(pkg.sortKey),
+      pkg.packKind ?? 'sort',
     ],
   )
   const mirrored = rowToPackage(res.rows[0])

@@ -25,7 +25,7 @@ export function SortPacksInstalledView({ selectedId, onSelect, onChanged }: Prop
       api.listSortPackCatalog('all').catch(() => ({ packages: [] as SortPackPackage[] })),
     ])
       .then(([subsRes, catalogRes]) => {
-        setSubscriptions(subsRes.subscriptions)
+        setSubscriptions(subsRes.subscriptions.filter((s) => (s.package.packKind ?? 'sort') === 'sort'))
         const latest = new Map<string, string>()
         for (const pkg of catalogRes.packages) latest.set(pkg.id, pkg.version)
         setLatestById(latest)
@@ -57,7 +57,7 @@ export function SortPacksInstalledView({ selectedId, onSelect, onChanged }: Prop
       {loading && <p className="card-hint">Loading subscriptions…</p>}
       {!loading && subscriptions.length === 0 && (
         <p className="card-hint">
-          No sort packs subscribed yet. Browse the marketplace or save from a feed&apos;s Sorting tab.
+          No sorting formulas subscribed yet. Browse the marketplace or save from a feed&apos;s Sorting tab.
         </p>
       )}
       <ul className="logic-blocks-catalog-list">

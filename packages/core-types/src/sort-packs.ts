@@ -6,6 +6,8 @@ import type { RankerRef } from './plugins.js'
 export type SortPackVisibility = LogicBlockVisibility
 export type SortPackTrustTier = LogicBlockTrustTier
 export type SortPackUpdatePolicy = LogicBlockUpdatePolicy
+/** Stored formula purpose — sort uses post metrics; personalization uses viewer signals. */
+export type SortPackKind = 'sort' | 'personalization'
 
 export interface SortPackRef {
   packageId: string
@@ -23,6 +25,7 @@ export interface SortPackPackage {
   description?: string
   visibility: SortPackVisibility
   trustTier: SortPackTrustTier
+  packKind: SortPackKind
   sortKey: L2Expr
   createdAt: string
   updatedAt: string

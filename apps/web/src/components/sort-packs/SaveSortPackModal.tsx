@@ -45,8 +45,8 @@ export function SaveSortPackModal({ draft, open, onClose }: Props) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-        <h3>Save sort to collection</h3>
-        <p className="card-hint">Save your current sort formula as a reusable sort pack in My Collection.</p>
+        <h3>Save sorting formula to collection</h3>
+        <p className="card-hint">Save your current sort formula as a reusable package in My Collection.</p>
         <label className="field-label">
           Name
           <input

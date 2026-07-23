@@ -4,6 +4,26 @@ export type MarketplaceCatalogSort = 'name_asc' | 'name_desc' | 'updated_desc' |
 
 export type MarketplaceCategoryFilter = string | 'all'
 
+export type MarketplaceTierFilter = 'all' | 'native' | 'custom_code'
+
+export const MARKETPLACE_TIER_FILTER_OPTIONS: {
+  value: MarketplaceTierFilter
+  label: string
+}[] = [
+  { value: 'all', label: 'All tiers' },
+  { value: 'native', label: 'Native' },
+  { value: 'custom_code', label: 'Custom code' },
+]
+
+export function filterByTier<T>(
+  items: T[],
+  tier: MarketplaceTierFilter,
+  resolveTier: (item: T) => 'native' | 'custom_code',
+): T[] {
+  if (tier === 'all') return items
+  return items.filter((item) => resolveTier(item) === tier)
+}
+
 export const MARKETPLACE_CATALOG_SCOPE_OPTIONS: {
   value: MarketplaceCatalogScope
   label: string

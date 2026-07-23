@@ -13,6 +13,7 @@ export type MarketplaceProductSelection =
   | { kind: 'sort_pack'; pkg: SortPackPackage }
   | { kind: 'injector'; pkg: PluginPackage }
   | { kind: 'ranker'; pkg: PluginPackage }
+  | { kind: 'enricher'; pkg: PluginPackage }
 
 interface Props {
   selection: MarketplaceProductSelection | null
@@ -105,7 +106,13 @@ export function MarketplaceProductSidebar({
           />
         ) : (
           <InjectorDetailPanel
-            kind={selection.kind}
+            kind={
+              selection.kind === 'enricher'
+                ? 'enricher'
+                : selection.kind === 'ranker'
+                  ? 'ranker'
+                  : 'injector'
+            }
             variant="marketplace"
             pkg={selection.pkg}
             subscribedVersionPin={subscribedPin}

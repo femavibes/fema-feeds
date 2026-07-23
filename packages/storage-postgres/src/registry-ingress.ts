@@ -77,8 +77,8 @@ export async function stageSortPackForIngress(
   await ensurePublisherUser(pool, pkg.ownerDid)
   const res = await pool.query(
     `INSERT INTO sort_pack_packages
-       (id, owner_did, slug, version, name, description, visibility, trust_tier, sort_key)
-     VALUES ($1, $2, $3, $4, $5, $6, 'collection', 'none', $7::jsonb)
+       (id, owner_did, slug, version, name, description, visibility, trust_tier, sort_key, pack_kind)
+     VALUES ($1, $2, $3, $4, $5, $6, 'collection', 'none', $7::jsonb, $8)
      ON CONFLICT (id) DO UPDATE
        SET slug = EXCLUDED.slug,
            version = EXCLUDED.version,
@@ -95,6 +95,7 @@ export async function stageSortPackForIngress(
       pkg.name,
       pkg.description ?? null,
       JSON.stringify(pkg.sortKey),
+      pkg.packKind ?? 'sort',
     ],
   )
   const row = res.rows[0]
@@ -107,6 +108,7 @@ export async function stageSortPackForIngress(
     description: row.description ?? undefined,
     visibility: row.visibility,
     trustTier: row.trust_tier,
+    packKind: row.pack_kind ?? 'sort',
     sortKey: row.sort_key,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),

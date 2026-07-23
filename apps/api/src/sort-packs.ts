@@ -64,7 +64,10 @@ export function registerSortPackRoutes(app: Hono, pool: Pool | null): void {
     if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
     const userDid = getUserDid(c)
     if (!userDid) return c.json({ error: 'login_required' }, 401)
-    const packages = await listSortPackCollection(pool, userDid)
+    const packKindRaw = c.req.query('packKind')
+    const packKind =
+      packKindRaw === 'personalization' || packKindRaw === 'sort' ? packKindRaw : undefined
+    const packages = await listSortPackCollection(pool, userDid, packKind)
     return c.json({ packages })
   })
 
@@ -130,6 +133,7 @@ export function registerSortPackRoutes(app: Hono, pool: Pool | null): void {
           description?: string
           sortKey?: L2Expr
           visibility?: SortPackVisibility
+          packKind?: 'sort' | 'personalization'
         }>()
         .catch(() => null)) ?? {}
     const name = body.name?.trim()
@@ -138,6 +142,7 @@ export function registerSortPackRoutes(app: Hono, pool: Pool | null): void {
     if (!name || !slug || !sortKey) {
       return c.json({ error: 'name, slug, and sortKey required' }, 400)
     }
+    const packKind = body.packKind === 'personalization' ? 'personalization' : 'sort'
     const pkg = await createSortPackPackage(pool, {
       ownerDid: userDid,
       slug,
@@ -145,6 +150,7 @@ export function registerSortPackRoutes(app: Hono, pool: Pool | null): void {
       description: body.description?.trim() || undefined,
       sortKey,
       visibility: body.visibility ?? 'collection',
+      packKind,
     })
     return c.json({ package: pkg }, 201)
   })

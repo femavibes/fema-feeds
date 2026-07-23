@@ -966,8 +966,10 @@ export const api = {
       `/api/marketplace/publish-requests/${id}/review`,
       { method: 'POST', body: JSON.stringify(body) },
     ),
-  listSortPackCollection: () =>
-    apiFetch<{ packages: import('@cfb/core-types').SortPackPackage[] }>('/api/sort-packs/collection'),
+  listSortPackCollection: (packKind?: import('@cfb/core-types').SortPackKind) =>
+    apiFetch<{ packages: import('@cfb/core-types').SortPackPackage[] }>(
+      packKind ? `/api/sort-packs/collection?packKind=${packKind}` : '/api/sort-packs/collection',
+    ),
   listSortPackCatalog: (scope: 'deployment' | 'global' | 'all' = 'all') =>
     apiFetch<{
       packages: import('@cfb/core-types').SortPackPackage[]
@@ -1006,6 +1008,7 @@ export const api = {
     description?: string
     sortKey: import('@cfb/core-types').L2Expr
     visibility?: import('@cfb/core-types').SortPackVisibility
+    packKind?: import('@cfb/core-types').SortPackKind
   }) =>
     apiFetch<{ package: import('@cfb/core-types').SortPackPackage }>('/api/sort-packs', {
       method: 'POST',

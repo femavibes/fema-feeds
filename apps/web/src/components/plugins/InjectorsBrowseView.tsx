@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { PluginKind, PluginPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
-import type { MarketplaceCatalogScope, MarketplaceCatalogSort, MarketplaceCategoryFilter } from '../../lib/marketplace-catalog'
-import { sortMarketplacePackages, filterByCategory } from '../../lib/marketplace-catalog'
+import type { MarketplaceCatalogScope, MarketplaceCatalogSort, MarketplaceCategoryFilter, MarketplaceTierFilter } from '../../lib/marketplace-catalog'
+import { sortMarketplacePackages, filterByCategory, filterByTier } from '../../lib/marketplace-catalog'
 import { MarketplaceCatalogCard } from '../marketplace/MarketplaceCatalogCard'
 
 interface Props {
@@ -11,6 +11,7 @@ interface Props {
   catalogScope: MarketplaceCatalogScope
   catalogSort: MarketplaceCatalogSort
   catalogCategory?: MarketplaceCategoryFilter
+  catalogTier?: MarketplaceTierFilter
   selectedId: string | null
   subscribedIds: Set<string>
   onSelect: (pkg: PluginPackage) => void
@@ -32,7 +33,7 @@ const KIND_HINT: Record<
   },
   ranker: {
     intro:
-      "Personalization plugins reorder skeleton pages at serve time. Subscribe here, then apply on a feed's Sorting tab.",
+      "Custom code personalization plugins reorder skeleton pages at serve time (WASM or remote). Native formulas are listed separately in this category when you filter by tier.",
     empty: {
       all: 'No personalization plugins yet. Operator instances may seed demo listings on this deployment.',
       deployment: 'No deployment personalization plugins yet. Operator instances seed a demo pinned-URI plugin.',
@@ -55,6 +56,7 @@ export function InjectorsBrowseView({
   catalogScope,
   catalogSort,
   catalogCategory = 'all',
+  catalogTier = 'all',
   selectedId,
   subscribedIds,
   onSelect,
@@ -62,10 +64,10 @@ export function InjectorsBrowseView({
   const [packages, setPackages] = useState<PluginPackage[]>([])
   const [loading, setLoading] = useState(true)
 
-  const sortedPackages = useMemo(
-    () => filterByCategory(sortMarketplacePackages(packages, catalogSort), catalogCategory),
-    [packages, catalogSort, catalogCategory],
-  )
+  const sortedPackages = useMemo(() => {
+    const tierFiltered = filterByTier(packages, catalogTier, () => 'custom_code')
+    return filterByCategory(sortMarketplacePackages(tierFiltered, catalogSort), catalogCategory)
+  }, [packages, catalogSort, catalogCategory, catalogTier])
 
   useEffect(() => {
     setLoading(true)
@@ -100,6 +102,7 @@ export function InjectorsBrowseView({
             updatedAt={pkg.updatedAt}
             productKind={kind}
             ownerDid={pkg.ownerDid}
+            executionTier="custom_code"
             subtitle={pkg.runtime}
             subscribed={subscribedIds.has(pkg.id)}
             selected={selectedId === pkg.id}

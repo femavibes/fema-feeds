@@ -51,11 +51,11 @@ const KIND_LABEL: Record<ProductKind, string> = {
 
   logic_blocks: 'Logic block',
 
-  sort_packs: 'Sort pack',
+  sort_packs: 'Sorting formula',
 
   injectors: 'Injector',
 
-  rankers: 'Personalization',
+  rankers: 'Personalization formula',
 
 }
 
@@ -79,7 +79,7 @@ const REQUEST_KIND_LABEL: Record<MarketplaceProductKind, string> = {
 
   logic_block: 'Logic block',
 
-  sort_pack: 'Sort pack',
+  sort_pack: 'Sorting formula',
 
   plugin: 'Plugin',
 

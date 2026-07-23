@@ -19,6 +19,7 @@ interface Props {
   productKind: MarketplaceListingKind
   ownerDid?: string
   subtitle?: string
+  executionTier?: 'native' | 'custom_code'
   subscribed?: boolean
   selected?: boolean
   sources?: string[]
@@ -37,6 +38,7 @@ export function MarketplaceCatalogCard({
   productKind,
   ownerDid,
   subtitle,
+  executionTier,
   subscribed,
   selected,
   sources,
@@ -72,6 +74,7 @@ export function MarketplaceCatalogCard({
         <p className="marketplace-catalog-card-desc">{presentation.description}</p>
         <p className="marketplace-catalog-card-sub">
           v{version}
+          {executionTier ? ` · ${executionTier === 'native' ? 'Native' : 'Custom code'}` : ''}
           {subtitle ? ` · ${subtitle}` : ''}
           {subscribed ? ' · Subscribed' : ''}
           {updatedLabel ? ` · ${updatedLabel}` : ''}
