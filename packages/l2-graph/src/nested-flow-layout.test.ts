@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { layoutMatchFlow } from './nested-flow-layout.js'
+import { layoutMatchFlow, countGroupDescendantNodes } from './nested-flow-layout.js'
 
 
 
@@ -311,6 +311,42 @@ describe('layoutMatchFlow', () => {
     const frameCollapsed = layoutMatchFlow(match).nodes.find((n) => n.id === 'g')!
     const frameExpanded = layoutMatchFlow(match, { expandedIds: ['kw'] }).nodes.find((n) => n.id === 'g')!
     expect(frameExpanded.height).toBeGreaterThan(frameCollapsed.height)
+  })
+
+  it('collapses group frames to a compact node-count teaser', () => {
+    const match = {
+      type: 'group' as const,
+      id: 'root',
+      logic: 'all' as const,
+      children: [
+        {
+          type: 'group' as const,
+          id: 'g',
+          logic: 'any' as const,
+          children: [
+            {
+              type: 'keyword' as const,
+              id: 'kw',
+              op: 'includes' as const,
+              terms: ['alpha'],
+              fields: ['text' as const],
+            },
+            {
+              type: 'keyword' as const,
+              id: 'kw2',
+              op: 'includes' as const,
+              terms: ['beta'],
+              fields: ['text' as const],
+            },
+          ],
+        },
+      ],
+    }
+    const expanded = layoutMatchFlow(match).nodes.find((n) => n.id === 'g')!
+    const collapsed = layoutMatchFlow(match, { collapsedGroupFrameIds: ['g'] }).nodes.find((n) => n.id === 'g')!
+    expect(collapsed.height).toBeLessThan(expanded.height)
+    expect(layoutMatchFlow(match, { collapsedGroupFrameIds: ['g'] }).nodes.some((n) => n.id === 'kw')).toBe(false)
+    expect(countGroupDescendantNodes(match.children[0] as import('@cfb/core-types').L2RuleGroup)).toBe(2)
   })
 
 })

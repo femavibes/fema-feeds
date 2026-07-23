@@ -43,6 +43,7 @@ const H_GAP = 36
 const V_GAP = 10
 const FRAME_PAD = 16
 const FRAME_HEADER = 36
+const FRAME_COLLAPSED_BODY = 22
 
 export const NESTED_COND_H = COND_H
 export const NESTED_V_GAP = V_GAP
@@ -52,6 +53,8 @@ export const NESTED_FRAME_PAD = FRAME_PAD
 export type LayoutMatchFlowOptions = {
   /** Leaf ids whose canvas body is expanded (default: all collapsed). */
   expandedIds?: ReadonlySet<string> | readonly string[]
+  /** Group frame ids collapsed to header + node count (default: all expanded). */
+  collapsedGroupFrameIds?: ReadonlySet<string> | readonly string[]
 }
 
 function isExpandedId(id: string, opts?: LayoutMatchFlowOptions): boolean {
@@ -59,6 +62,30 @@ function isExpandedId(id: string, opts?: LayoutMatchFlowOptions): boolean {
   if (!ids) return false
   if (ids instanceof Set) return ids.has(id)
   return (ids as readonly string[]).includes(id)
+}
+
+function isGroupFrameCollapsed(id: string, opts?: LayoutMatchFlowOptions): boolean {
+  const ids = opts?.collapsedGroupFrameIds
+  if (!ids) return false
+  if (ids instanceof Set) return ids.has(id)
+  return (ids as readonly string[]).includes(id)
+}
+
+/** Count every node nested inside a group (conditions, parameters, nested groups, …). */
+export function countGroupDescendantNodes(group: L2RuleGroup): number {
+  let count = 0
+  const walk = (node: L2RuleNode) => {
+    count += 1
+    if (node.type === 'group') {
+      for (const child of node.children ?? []) walk(child)
+    }
+  }
+  for (const child of group.children ?? []) walk(child)
+  return count
+}
+
+function collapsedGroupFrameHeight(): number {
+  return FRAME_HEADER + FRAME_PAD + FRAME_COLLAPSED_BODY + FRAME_PAD
 }
 
 function heightFor(rule: L2RuleNode, opts?: LayoutMatchFlowOptions): number {
@@ -122,6 +149,12 @@ function isHorizontalAndOfGroups(group: L2RuleGroup): boolean {
 
 /** @param parentSlotW When nested, total frame width must fit this slot (parent inner width). */
 function measureGroup(group: L2RuleGroup, parentSlotW = 0, opts?: LayoutMatchFlowOptions): Measured {
+  if (isGroupFrameCollapsed(group.id, opts)) {
+    let width = MIN_FRAME_W
+    if (parentSlotW > 0) width = parentSlotW
+    return { width, height: collapsedGroupFrameHeight() }
+  }
+
   const children = group.children ?? []
   let innerH = FRAME_HEADER + FRAME_PAD
   let innerW = Math.max(MIN_FRAME_W - FRAME_PAD * 2, 0)
@@ -174,6 +207,25 @@ function layoutGroup(
   parentSlotW = 0,
 ): Measured {
   const opts = ctx.opts
+  if (isGroupFrameCollapsed(group.id, opts)) {
+    const size = measureGroup(group, parentSlotW, opts)
+    ctx.nodes.push({
+      id: group.id,
+      kind: 'group-frame',
+      x,
+      y,
+      width: size.width,
+      height: size.height,
+      parentId,
+      logic: group.logic,
+      label: groupNodeTitle(group.logic, group.minPass),
+      subtitle: undefined,
+      topLevel,
+      groupId: group.id,
+    })
+    return size
+  }
+
   const size = measureGroup(group, parentSlotW, opts)
   const innerW = size.width - FRAME_PAD * 2
   const groupChildren = group.children ?? []

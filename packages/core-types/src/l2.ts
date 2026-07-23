@@ -640,9 +640,11 @@ export interface L2VisualLayout {
   nodeSources?: Record<string, L2NodeProvenance>
   /**
    * Leaf nodes whose canvas body is expanded. Default is collapsed (type + op only).
-   * Group frames are never listed — use group collapse/expand-all to toggle descendants.
+   * Group frame bodies use {@link collapsedGroupFrameIds}.
    */
   expandedNodeIds?: string[]
+  /** AND/OR/NO group frames collapsed to a node-count teaser. Default is expanded. */
+  collapsedGroupFrameIds?: string[]
   /**
    * Nodes locked on the canvas: pin position, immune to group expand/collapse-all,
    * and cannot be deleted / extracted / reparented. Direct expand and property edits still work.

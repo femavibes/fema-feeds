@@ -2,6 +2,7 @@ import type { Connection, Edge, Node } from '@xyflow/react'
 import type { L2GroupLogic, L2NodeProvenance, L2NodeTrace, L2RuleGroup, L2RuleNode } from '@cfb/core-types'
 import {
   layoutMatchFlow,
+  countGroupDescendantNodes,
   conditionNodeTitle,
   groupNodeTitle,
   edgesWouldCycle,
@@ -23,6 +24,13 @@ export type NodePositions = Record<string, { x: number; y: number }>
 export type NodeLabels = Record<string, string>
 export type NodeSources = Record<string, L2NodeProvenance>
 export type CanvasEdge = { id: string; source: string; target: string; branch?: boolean }
+
+function layoutOpts(
+  expandedNodeIds: readonly string[],
+  collapsedGroupFrameIds: readonly string[] = [],
+) {
+  return { expandedIds: expandedNodeIds, collapsedGroupFrameIds }
+}
 
 export function matchStructureKey(match: L2RuleGroup): string {
   const root = normalizeRuleGroup(match)
@@ -68,9 +76,11 @@ export function flowGraphToRfNodes(
   expandedNodeIds: readonly string[] = [],
   lockedNodeIds: readonly string[] = [],
   paramOverrides?: ParamValueMap,
+  collapsedGroupFrameIds: readonly string[] = [],
 ): Node<GraphNodeData>[] {
-  const layout = layoutMatchFlow(normalizeRuleGroup(match), { expandedIds: expandedNodeIds })
+  const layout = layoutMatchFlow(normalizeRuleGroup(match), layoutOpts(expandedNodeIds, collapsedGroupFrameIds))
   const expandedSet = new Set(expandedNodeIds)
+  const collapsedGroupSet = new Set(collapsedGroupFrameIds)
   const lockedSet = new Set(lockedNodeIds)
   const paramExcluded = collectExcludedNodeIds(match, paramOverrides)
   const effectiveById = indexRuleNodesById(applyParametersToMatch(match, { values: paramOverrides }))
@@ -160,6 +170,9 @@ export function flowGraphToRfNodes(
           inMatch?.type === 'group' ? inMatch.label?.trim() || undefined : undefined
         const leafIds = collectDescendantLeafIds(match, box.id)
         const locked = lockedSet.has(box.id)
+        const inGroup = findInMatch(match, box.id)
+        const childNodeCount =
+          inGroup?.type === 'group' ? countGroupDescendantNodes(inGroup) : 0
         return {
           ...base,
           type: 'groupFrame' as const,
@@ -175,6 +188,8 @@ export function flowGraphToRfNodes(
             locked,
             hasExpandableContents: leafIds.length > 0,
             contentsExpanded: leafIds.some((id) => expandedSet.has(id)),
+            expanded: !collapsedGroupSet.has(box.id),
+            childNodeCount,
           },
           style: { width: box.width, height: box.height },
         }
@@ -331,8 +346,10 @@ export function updateRfNodeLabels(
   expandedNodeIds: readonly string[] = [],
   lockedNodeIds: readonly string[] = [],
   paramOverrides?: ParamValueMap,
+  collapsedGroupFrameIds: readonly string[] = [],
 ): Node<GraphNodeData>[] {
   const expandedSet = new Set(expandedNodeIds)
+  const collapsedGroupSet = new Set(collapsedGroupFrameIds)
   const lockedSet = new Set(lockedNodeIds)
   const paramExcluded = collectExcludedNodeIds(match, paramOverrides)
   const effectiveById = indexRuleNodesById(applyParametersToMatch(match, { values: paramOverrides }))
@@ -346,6 +363,8 @@ export function updateRfNodeLabels(
         inMatch?.type === 'group' ? inMatch.label?.trim() || undefined : undefined
       const leafIds = collectDescendantLeafIds(match, node.id)
       const locked = lockedSet.has(node.id)
+      const childNodeCount =
+        inMatch?.type === 'group' ? countGroupDescendantNodes(inMatch) : 0
       return {
         ...node,
         selected: node.id === selectedId,
@@ -365,6 +384,8 @@ export function updateRfNodeLabels(
           locked,
           hasExpandableContents: leafIds.length > 0,
           contentsExpanded: leafIds.some((id) => expandedSet.has(id)),
+          expanded: !collapsedGroupSet.has(node.id),
+          childNodeCount,
         },
       }
     }
@@ -460,9 +481,11 @@ export function applyNestedLayoutPositions(
   nodes: Node<GraphNodeData>[],
   match: L2RuleGroup,
   expandedNodeIds: readonly string[] = [],
+  collapsedGroupFrameIds: readonly string[] = [],
 ): Node<GraphNodeData>[] {
-  const layout = layoutMatchFlow(normalizeRuleGroup(match), { expandedIds: expandedNodeIds })
+  const layout = layoutMatchFlow(normalizeRuleGroup(match), layoutOpts(expandedNodeIds, collapsedGroupFrameIds))
   const expandedSet = new Set(expandedNodeIds)
+  const collapsedGroupSet = new Set(collapsedGroupFrameIds)
   const byId = new Map(layout.nodes.map((box) => [box.id, box]))
   let changed = false
   const next = nodes.map((node) => {
@@ -496,7 +519,11 @@ export function applyNestedLayoutPositions(
     const prevW = typeof node.style?.width === 'number' ? node.style.width : undefined
     const prevH = typeof node.style?.height === 'number' ? node.style.height : undefined
     const expanded =
-      node.type === 'condition' || node.type === 'score' ? expandedSet.has(node.id) : undefined
+      node.type === 'condition' || node.type === 'score'
+        ? expandedSet.has(node.id)
+        : node.type === 'groupFrame'
+          ? !collapsedGroupSet.has(node.id)
+          : undefined
     if (
       samePos &&
       prevW === width &&

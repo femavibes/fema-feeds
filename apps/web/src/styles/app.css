@@ -10211,13 +10211,35 @@ body.l2-visual-open #root {
 
 .l2-group-frame-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.45rem;
   min-height: 1.35rem;
   padding: 0.35rem 0.5rem;
   border-bottom: 1px dashed var(--border);
   pointer-events: auto;
   cursor: pointer;
+}
+
+.l2-group-frame-header .l2-flow-condition-expand {
+  flex-shrink: 0;
+}
+
+.l2-group-frame-teaser {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0.15rem 0.5rem 0.35rem;
+  pointer-events: auto;
+}
+
+.l2-group-frame-teaser-count {
+  font-size: 0.68rem;
+  line-height: 1.2;
+  color: var(--text-muted);
+}
+
+.l2-group-frame.is-frame-collapsed .l2-group-frame-header {
+  border-bottom: none;
 }
 
 .l2-group-frame-logic {

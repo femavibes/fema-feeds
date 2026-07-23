@@ -1,6 +1,7 @@
 export { layoutMatchTree, type NestedLayoutBox } from './nested-layout.js'
 export {
   layoutMatchFlow,
+  countGroupDescendantNodes,
   nestedConditionSlotY,
   snapNestedConditionPosition,
   NESTED_COND_H,

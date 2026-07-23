@@ -219,6 +219,7 @@ export function L2VisualEditor({
   const nodeLabels = draft.visualLayout?.labels ?? {}
   const nodeSources = draft.visualLayout?.nodeSources ?? {}
   const expandedNodeIds = draft.visualLayout?.expandedNodeIds ?? []
+  const collapsedGroupFrameIds = draft.visualLayout?.collapsedGroupFrameIds ?? []
   const lockedNodeIds = draft.visualLayout?.lockedNodeIds ?? []
   const lockedSet = useMemo(() => new Set(lockedNodeIds), [lockedNodeIds])
   const [contextMenu, setContextMenu] = useState<CanvasContextMenuState>(null)
@@ -251,6 +252,7 @@ export function L2VisualEditor({
       labels?: NodeLabels
       nodeSources?: NodeSources
       expandedNodeIds?: string[]
+      collapsedGroupFrameIds?: string[]
       lockedNodeIds?: string[]
     }) => ({
       positions: patch.positions ?? positions,
@@ -258,9 +260,10 @@ export function L2VisualEditor({
       labels: patch.labels ?? nodeLabels,
       nodeSources: patch.nodeSources ?? nodeSources,
       expandedNodeIds: patch.expandedNodeIds ?? expandedNodeIds,
+      collapsedGroupFrameIds: patch.collapsedGroupFrameIds ?? collapsedGroupFrameIds,
       lockedNodeIds: patch.lockedNodeIds ?? lockedNodeIds,
     }),
-    [positions, canvasEdges, nodeLabels, nodeSources, expandedNodeIds, lockedNodeIds],
+    [positions, canvasEdges, nodeLabels, nodeSources, expandedNodeIds, collapsedGroupFrameIds, lockedNodeIds],
   )
 
   const patchDraft = useCallback(
@@ -316,12 +319,20 @@ export function L2VisualEditor({
 
   const toggleNodeExpanded = useCallback(
     (nodeId: string) => {
+      const node = findInMatch(match, nodeId)
+      if (node?.type === 'group') {
+        const set = new Set<string>(collapsedGroupFrameIds)
+        if (set.has(nodeId)) set.delete(nodeId)
+        else set.add(nodeId)
+        patchDraft({ visualLayout: visualLayout({ collapsedGroupFrameIds: [...set] }) })
+        return
+      }
       const set = new Set<string>(expandedNodeIds)
       if (set.has(nodeId)) set.delete(nodeId)
       else set.add(nodeId)
       patchDraft({ visualLayout: visualLayout({ expandedNodeIds: [...set] }) })
     },
-    [expandedNodeIds, patchDraft, visualLayout],
+    [collapsedGroupFrameIds, expandedNodeIds, match, patchDraft, visualLayout],
   )
 
   const toggleNodeLocked = useCallback(
@@ -1081,6 +1092,7 @@ export function L2VisualEditor({
             nodeLabels={nodeLabels}
             nodeSources={nodeSources}
             expandedNodeIds={expandedNodeIds}
+            collapsedGroupFrameIds={collapsedGroupFrameIds}
             lockedNodeIds={lockedNodeIds}
             onToggleNodeExpanded={toggleNodeExpanded}
             onToggleNodeLocked={toggleNodeLocked}

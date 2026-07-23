@@ -80,6 +80,7 @@ interface Props {
   nodeLabels?: NodeLabels
   nodeSources?: NodeSources
   expandedNodeIds?: string[]
+  collapsedGroupFrameIds?: string[]
   lockedNodeIds?: string[]
   onToggleNodeExpanded?: (nodeId: string) => void
   onToggleNodeLocked?: (nodeId: string) => void
@@ -148,6 +149,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     nodeLabels = {},
     nodeSources = {},
     expandedNodeIds = [],
+    collapsedGroupFrameIds = [],
     lockedNodeIds = [],
     onToggleNodeExpanded,
     onToggleNodeLocked,
@@ -194,11 +196,14 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
   nodeSourcesRef.current = nodeSources
   const expandedNodeIdsRef = useRef(expandedNodeIds)
   expandedNodeIdsRef.current = expandedNodeIds
+  const collapsedGroupFrameIdsRef = useRef(collapsedGroupFrameIds)
+  collapsedGroupFrameIdsRef.current = collapsedGroupFrameIds
   const lockedNodeIdsRef = useRef(lockedNodeIds)
   lockedNodeIdsRef.current = lockedNodeIds
   const edgesRef = useRef(canvasEdges)
   edgesRef.current = canvasEdges
   const expandedKey = expandedNodeIds.join('\0')
+  const collapsedGroupKey = collapsedGroupFrameIds.join('\0')
   const lockedKey = lockedNodeIds.join('\0')
   const [layoutTick, setLayoutTick] = useState(0)
 
@@ -282,11 +287,12 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
           expandedNodeIdsRef.current,
           lockedNodeIdsRef.current,
           paramPreviewOverrides,
+          collapsedGroupFrameIdsRef.current,
         ),
       ),
     )
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))
-  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, lockedKey, feedSources, layoutTick, paramPreviewOverrides, lockNodesForReadOnly, setNodes, setEdges])
+  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, collapsedGroupKey, lockedKey, feedSources, layoutTick, paramPreviewOverrides, lockNodesForReadOnly, setNodes, setEdges])
 
   useEffect(() => {
     setNodes((nds) =>
@@ -301,12 +307,13 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
             expandedNodeIdsRef.current,
             lockedNodeIdsRef.current,
             paramPreviewOverrides,
+            collapsedGroupFrameIdsRef.current,
           ),
           testTrace,
         ),
       ),
     )
-  }, [match, selectedId, testTrace, nodeLabels, nodeSources, expandedKey, lockedKey, layoutTick, paramPreviewOverrides, lockNodesForReadOnly, setNodes])
+  }, [match, selectedId, testTrace, nodeLabels, nodeSources, expandedKey, collapsedGroupKey, lockedKey, layoutTick, paramPreviewOverrides, lockNodesForReadOnly, setNodes])
 
   useEffect(() => {
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))
@@ -358,6 +365,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
         withDragged,
         layoutMatch,
         expandedNodeIdsRef.current,
+        collapsedGroupFrameIdsRef.current,
       )
       if (laidOut !== withDragged) setNodes(laidOut)
       onPositionsChange(extractPositions(laidOut))

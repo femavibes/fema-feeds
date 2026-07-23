@@ -73,6 +73,8 @@ export type GraphNodeData = {
   contentsExpanded?: boolean
   /** Group: has at least one leaf that can expand. */
   hasExpandableContents?: boolean
+  /** Group: total nested nodes (for collapsed teaser). */
+  childNodeCount?: number
 }
 
 function stopNodeGesture(e: SyntheticEvent) {
@@ -177,13 +179,17 @@ export function GroupFrameNode({ data }: NodeProps<Node<GraphNodeData>>) {
   const title = data.title ?? data.label
   const customName = data.customName?.trim()
   const groupId = data.nodeId
+  const frameExpanded = data.expanded !== false
   const contentsExpanded = Boolean(data.contentsExpanded)
+  const canToggleFrame = Boolean(expandApi && !expandApi.readOnly)
   const showFold =
+    frameExpanded &&
     Boolean(expandApi && !expandApi.readOnly && data.hasExpandableContents)
+  const childCount = data.childNodeCount ?? 0
 
   return (
     <div
-      className={`l2-group-frame ${logicClass} ${data.isRoot ? 'l2-group-frame-root' : ''} ${data.topLevel ? 'l2-group-frame-top' : ''} ${data.draggableFrame ? 'l2-group-frame-draggable' : ''} ${data.dropTarget ? 'l2-group-frame-drop-target' : ''} ${data.selected ? 'selected' : ''} ${data.extracting ? 'l2-node-extracting' : ''} ${data.paramDisabled ? 'is-param-disabled' : ''} ${traceClass}`}
+      className={`l2-group-frame ${logicClass} ${frameExpanded ? '' : 'is-frame-collapsed'} ${data.isRoot ? 'l2-group-frame-root' : ''} ${data.topLevel ? 'l2-group-frame-top' : ''} ${data.draggableFrame ? 'l2-group-frame-draggable' : ''} ${data.dropTarget ? 'l2-group-frame-drop-target' : ''} ${data.selected ? 'selected' : ''} ${data.extracting ? 'l2-node-extracting' : ''} ${data.paramDisabled ? 'is-param-disabled' : ''} ${traceClass}`}
       style={{ width: '100%', height: '100%' }}
     >
       {data.showPorts && (
@@ -193,6 +199,22 @@ export function GroupFrameNode({ data }: NodeProps<Node<GraphNodeData>>) {
         </>
       )}
       <div className="l2-group-frame-header">
+        {canToggleFrame ? (
+          <button
+            type="button"
+            className="l2-flow-condition-expand nodrag nopan"
+            title={frameExpanded ? 'Collapse group' : 'Expand group'}
+            aria-expanded={frameExpanded}
+            aria-label={frameExpanded ? 'Collapse group' : 'Expand group'}
+            onMouseDown={stopNodeGesture}
+            onClick={(e) => {
+              stopNodeGesture(e)
+              expandApi?.toggleExpanded(groupId)
+            }}
+          >
+            {frameExpanded ? '▾' : '▸'}
+          </button>
+        ) : null}
         <span className="l2-group-frame-logic">{title}</span>
         <span className={`l2-group-frame-name${customName ? ' has-name' : ''}`}>
           {customName ?? '\u00A0'}
@@ -223,6 +245,13 @@ export function GroupFrameNode({ data }: NodeProps<Node<GraphNodeData>>) {
           ) : null}
         </span>
       </div>
+      {!frameExpanded ? (
+        <div className="l2-group-frame-teaser">
+          <span className="l2-group-frame-teaser-count">
+            {childCount} {childCount === 1 ? 'node' : 'nodes'} inside
+          </span>
+        </div>
+      ) : null}
     </div>
   )
 }
