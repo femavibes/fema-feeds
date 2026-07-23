@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FeedConfig, L2Expr, SortPackPackage, SortPackRef } from '@cfb/core-types'
+import type { FeedConfig, SortPackPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
-import {
-  applyPersonalizationFormulaPack,
-  personalizationFormulasMatch,
-} from '../../lib/feed-personalization'
+import { applyPersonalizationFormulaPack } from '../../lib/feed-personalization'
+import { FeedFormulaPackGrid } from './FeedFormulaPackGrid'
 
 interface Props {
   draft: FeedConfig
@@ -15,41 +13,6 @@ interface Props {
 
 function isPersonalizationPack(pkg: SortPackPackage): boolean {
   return (pkg.packKind ?? 'sort') === 'personalization'
-}
-
-function FormulaPackList({
-  items,
-  packRef,
-  activeFormula,
-  onApply,
-}: {
-  items: SortPackPackage[]
-  packRef?: SortPackRef
-  activeFormula?: L2Expr
-  onApply: (pkg: SortPackPackage) => void
-}) {
-  if (items.length === 0) return null
-  return (
-    <ul className="logic-blocks-catalog-list feed-sorting-pack-list">
-      {items.map((pkg) => {
-        const selected =
-          packRef?.packageId === pkg.id ||
-          (!packRef && personalizationFormulasMatch(activeFormula, pkg.sortKey))
-        return (
-          <li key={pkg.id}>
-            <button
-              type="button"
-              className={`logic-blocks-catalog-item${selected ? ' logic-blocks-catalog-item-active' : ''}`}
-              onClick={() => onApply(pkg)}
-            >
-              <span className="logic-blocks-catalog-name">{pkg.name}</span>
-              <span className="logic-blocks-catalog-sub">v{pkg.version}</span>
-            </button>
-          </li>
-        )
-      })}
-    </ul>
-  )
 }
 
 export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey = 0 }: Props) {
@@ -118,11 +81,11 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
       {collectionPackages.length > 0 ? (
         <>
           <p className="feed-formula-pack-group-label">My collection</p>
-          <FormulaPackList
-            items={collectionPackages}
-            packRef={packRef}
-            activeFormula={activeFormula}
-            onApply={applyPack}
+          <FeedFormulaPackGrid
+            packages={collectionPackages}
+            selectedPackageId={packRef?.packageId}
+            matchFormula={packRef ? undefined : activeFormula}
+            onSelect={applyPack}
           />
         </>
       ) : null}
@@ -130,11 +93,12 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
       {subscribedPackages.length > 0 ? (
         <>
           <p className="feed-formula-pack-group-label">Subscribed</p>
-          <FormulaPackList
-            items={subscribedPackages}
-            packRef={packRef}
-            activeFormula={activeFormula}
-            onApply={applyPack}
+          <FeedFormulaPackGrid
+            packages={subscribedPackages}
+            selectedPackageId={packRef?.packageId}
+            matchFormula={packRef ? undefined : activeFormula}
+            subscribed
+            onSelect={applyPack}
           />
         </>
       ) : null}

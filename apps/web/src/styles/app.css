@@ -12075,6 +12075,10 @@ body.l2-visual-open #root {
   margin: 0.75rem 0 0.35rem;
 }
 
+.feed-formula-pack-grid {
+  margin-top: 0.35rem;
+}
+
 /* --- Native Injector Panel --- */
 
 .native-injector-panel {

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FeedConfig, PluginPackage, RankerRef } from '@cfb/core-types'
 
 import { api } from '../../api/client'
+import { FeedPluginPackGrid } from './FeedPluginPackGrid'
 
 interface Props {
   draft: FeedConfig
@@ -30,6 +31,19 @@ export function RankerFeedSection({ draft, onChange }: Props) {
       .then((res) => setSubscriptions(res.subscriptions))
       .catch(() => setSubscriptions([]))
   }, [])
+
+  const packages = useMemo(
+    () =>
+      [...subscriptions]
+        .map((s) => s.package)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [subscriptions],
+  )
+
+  const versionPins = useMemo(
+    () => new Map(subscriptions.map((s) => [s.packageId, s.versionPin])),
+    [subscriptions],
+  )
 
   const applyRanker = (pkg: PluginPackage, versionPin: string) => {
     onChange({
@@ -93,23 +107,18 @@ export function RankerFeedSection({ draft, onChange }: Props) {
         </p>
       )}
 
-      {subscriptions.length > 0 ? (
-        <ul className="logic-blocks-catalog-list feed-sorting-pack-list">
-          {subscriptions.map((sub) => (
-            <li key={sub.packageId}>
-              <button
-                type="button"
-                className="logic-blocks-catalog-item"
-                onClick={() => applyRanker(sub.package, sub.versionPin)}
-              >
-                <span className="logic-blocks-catalog-name">{sub.package.name}</span>
-                <span className="logic-blocks-catalog-sub">
-                  v{sub.versionPin} · {sub.package.runtime}
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+      {packages.length > 0 ? (
+        <>
+          <p className="feed-formula-pack-group-label">Subscribed</p>
+          <FeedPluginPackGrid
+            packages={packages}
+            versionPins={versionPins}
+            productKind="ranker"
+            selectedPackageId={rankerRef?.packageId}
+            subscribed
+            onSelect={applyRanker}
+          />
+        </>
       ) : (
         <p className="card-hint">Subscribe in Marketplace → Browse → Personalization.</p>
       )}

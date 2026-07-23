@@ -1,45 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FeedConfig, L2Expr, SortPackPackage, SortPackRef } from '@cfb/core-types'
+import type { FeedConfig, L2Expr, SortPackPackage } from '@cfb/core-types'
 
 import { api } from '../../api/client'
 import {
   applySortPack,
   hasSortPackRef,
 } from '../../lib/feed-sorting'
+import { FeedFormulaPackGrid } from './FeedFormulaPackGrid'
 
 interface Props {
   draft: FeedConfig
   onChange: (next: FeedConfig) => void
   onPackExprResolved?: (expr: L2Expr | null) => void
   refreshKey?: number
-}
-
-function SortPackList({
-  items,
-  packRef,
-  onApply,
-}: {
-  items: SortPackPackage[]
-  packRef?: SortPackRef
-  onApply: (pkg: SortPackPackage) => void
-}) {
-  if (items.length === 0) return null
-  return (
-    <ul className="logic-blocks-catalog-list feed-sorting-pack-list">
-      {items.map((pkg) => (
-        <li key={pkg.id}>
-          <button
-            type="button"
-            className={`logic-blocks-catalog-item${packRef?.packageId === pkg.id ? ' logic-blocks-catalog-item-active' : ''}`}
-            onClick={() => onApply(pkg)}
-          >
-            <span className="logic-blocks-catalog-name">{pkg.name}</span>
-            <span className="logic-blocks-catalog-sub">v{pkg.version}</span>
-          </button>
-        </li>
-      ))}
-    </ul>
-  )
 }
 
 export function SortPackFeedSection({
@@ -164,14 +137,23 @@ export function SortPackFeedSection({
       {collectionPackages.length > 0 ? (
         <>
           <p className="feed-formula-pack-group-label">My collection</p>
-          <SortPackList items={collectionPackages} packRef={packRef} onApply={applyPack} />
+          <FeedFormulaPackGrid
+            packages={collectionPackages}
+            selectedPackageId={packRef?.packageId}
+            onSelect={applyPack}
+          />
         </>
       ) : null}
 
       {subscribedPackages.length > 0 ? (
         <>
           <p className="feed-formula-pack-group-label">Subscribed</p>
-          <SortPackList items={subscribedPackages} packRef={packRef} onApply={applyPack} />
+          <FeedFormulaPackGrid
+            packages={subscribedPackages}
+            selectedPackageId={packRef?.packageId}
+            subscribed
+            onSelect={applyPack}
+          />
         </>
       ) : null}
 
