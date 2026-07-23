@@ -4,7 +4,11 @@ import { DEFAULT_PERSONALIZATION, PERSONALIZATION_DEPTH_DEFAULT, PERSONALIZATION
 import { clearPersonalizationFormulaPackRef } from '../../lib/feed-personalization'
 import { PERSONALIZATION_FIELDS } from '../../lib/formula-parser'
 import { ToggleRow } from '../ToggleRow'
-import { SortFormulaBuilder, type FormulaTemplate, type FormulaFieldGroup } from './SortFormulaBuilder'
+import { SortFormulaBuilder } from './SortFormulaBuilder'
+import {
+  PERSONALIZATION_FIELD_GROUPS,
+  PERSONALIZATION_TEMPLATES,
+} from './feed-personalization-presets'
 
 interface Props {
   draft: FeedConfig
@@ -12,46 +16,6 @@ interface Props {
 }
 
 type PersonalizationMode = 'toggles' | 'formula'
-
-const PERSONALIZATION_TEMPLATES: FormulaTemplate[] = [
-  { name: 'Follow boost', formula: 'base_score * if(is_followed > 0, 1.3, 1)' },
-  { name: 'Mutual priority', formula: 'base_score * if(is_mutual > 0, 1.5, if(is_followed > 0, 1.2, 1))' },
-  { name: 'Serve fatigue', formula: 'base_score / (times_served + 1)' },
-  { name: 'View fatigue', formula: 'base_score / (was_viewed * 2 + times_served + 1)' },
-  { name: 'Affinity blend', formula: 'base_score + feed_affinity * 10' },
-  { name: 'Full personalization', formula: 'base_score * if(is_followed > 0, 1.3, 1) + feed_affinity * 10 - times_served * 30' },
-  { name: 'Freshness recovery', formula: 'base_score + if(hours_since_last_open > 24, 100, 0)' },
-  { name: 'Social proximity', formula: 'base_score * (1 + is_followed * 0.3 + is_mutual * 0.5) + feed_affinity * 5' },
-  { name: 'Engagement + social', formula: 'base_score + likes * if(is_followed > 0, 2, 1) + feed_affinity * 8' },
-  { name: 'Interaction recency', formula: 'base_score * if(days_since_interaction < 7, 1.4, if(days_since_interaction < 30, 1.1, 1))' },
-]
-
-const PERSONALIZATION_FIELD_GROUPS: FormulaFieldGroup[] = [
-  {
-    label: 'Viewer signals',
-    fields: ['base_score', 'is_followed', 'is_mutual', 'hours_since_last_open', 'days_since_interaction'],
-  },
-  {
-    label: 'Served (in skeleton response)',
-    fields: ['times_served', 'hours_since_served'],
-  },
-  {
-    label: 'Viewed (client reported)',
-    fields: ['was_viewed', 'times_viewed', 'hours_since_viewed'],
-  },
-  {
-    label: 'Feed affinity (interactions via this feed)',
-    fields: ['feed_affinity', 'feed_affinity_likes', 'feed_affinity_reposts', 'feed_affinity_replies', 'feed_affinity_quotes'],
-  },
-  {
-    label: 'Post metrics',
-    fields: ['likes', 'reposts', 'replies', 'quotes', 'bookmarks', 'followers', 'follows', 'posts'],
-  },
-  {
-    label: 'Content',
-    fields: ['text_len', 'images', 'video_size', 'hashtags', 'links', 'mentions', 'editor_score', 'age_hours'],
-  },
-]
 
 export function FeedPersonalizationPanel({ draft, onChange }: Props) {
   const config = draft.personalization ?? DEFAULT_PERSONALIZATION
@@ -95,11 +59,11 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
           ariaLabel="Toggle-based personalization"
         />
         <ToggleRow
-          label="Formula"
+          label="Formula builder"
           hint="Write a math formula using viewer signals (base_score, is_followed, affinity, etc.)."
           checked={mode === 'formula'}
           onChange={(on) => { if (on) handleModeChange('formula') }}
-          ariaLabel="Formula-based personalization"
+          ariaLabel="Formula builder personalization"
         />
       </div>
 

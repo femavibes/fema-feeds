@@ -9,6 +9,7 @@ import {
   hasSortPackRef,
 } from '../../lib/feed-sorting'
 import { FeedFormulaPackGrid } from './FeedFormulaPackGrid'
+import { FeedFormulaPreviewPanel } from '../l2/FeedFormulaPreviewPanel'
 
 interface Props {
   draft: FeedConfig
@@ -32,7 +33,10 @@ export function SortPackFeedSection({
   const [upgradeHint, setUpgradeHint] = useState<string | null>(null)
 
   const packRef = draft.rank?.packRef
+  const appliedPackageId = packRef?.packageId ?? null
   const usingPack = hasSortPackRef(draft.rank)
+  const [previewPackageId, setPreviewPackageId] = useState<string | null>(appliedPackageId)
+
   const sortingSubscriptions = useMemo(
     () => subscriptions.filter((sub) => (sub.package.packKind ?? 'sort') === 'sort'),
     [subscriptions],
@@ -51,30 +55,8 @@ export function SortPackFeedSection({
   }, [refreshKey])
 
   useEffect(() => {
-    if (!onPackExprResolved) return
-    if (!packRef?.packageId) {
-      onPackExprResolved(null)
-      return
-    }
-    const match = sortingSubscriptions.find((s) => s.packageId === packRef.packageId)
-    const collectionMatch = collection.find((p) => p.id === packRef.packageId)
-    onPackExprResolved(match?.package?.sortKey ?? collectionMatch?.sortKey ?? null)
-  }, [packRef?.packageId, sortingSubscriptions, collection, onPackExprResolved])
-
-  useEffect(() => {
-    if (!draft.feedId) return
-    void api
-      .getFeedSortPackUpgrade(draft.feedId)
-      .then((res) => {
-        const u = res.upgrade
-        if (!u) {
-          setUpgradeHint(null)
-          return
-        }
-        setUpgradeHint(`Sort pack “${u.packageName}” has v${u.latestVersion} (pinned v${u.pinnedVersion}).`)
-      })
-      .catch(() => setUpgradeHint(null))
-  }, [draft.feedId, packRef?.versionPin])
+    setPreviewPackageId(appliedPackageId)
+  }, [appliedPackageId, refreshKey])
 
   const subscribedPackages = useMemo(
     () =>
@@ -91,6 +73,36 @@ export function SortPackFeedSection({
     () => [...collection].sort((a, b) => a.name.localeCompare(b.name)),
     [collection],
   )
+
+  const allPackages = useMemo(
+    () => [...collectionPackages, ...subscribedPackages],
+    [collectionPackages, subscribedPackages],
+  )
+
+  const previewPackage = useMemo(
+    () => allPackages.find((pkg) => pkg.id === previewPackageId) ?? null,
+    [allPackages, previewPackageId],
+  )
+
+  useEffect(() => {
+    if (!onPackExprResolved) return
+    onPackExprResolved(previewPackage?.sortKey ?? null)
+  }, [previewPackage, onPackExprResolved])
+
+  useEffect(() => {
+    if (!draft.feedId) return
+    void api
+      .getFeedSortPackUpgrade(draft.feedId)
+      .then((res) => {
+        const u = res.upgrade
+        if (!u) {
+          setUpgradeHint(null)
+          return
+        }
+        setUpgradeHint(`Sort pack “${u.packageName}” has v${u.latestVersion} (pinned v${u.pinnedVersion}).`)
+      })
+      .catch(() => setUpgradeHint(null))
+  }, [draft.feedId, packRef?.versionPin])
 
   const applyPack = (pkg: SortPackPackage) => {
     onChange(applySortPack(draft, pkg, 'pinned'))
@@ -109,6 +121,7 @@ export function SortPackFeedSection({
   }
 
   const hasAny = collectionPackages.length > 0 || subscribedPackages.length > 0
+  const previewIsApplied = previewPackageId != null && previewPackageId === appliedPackageId
 
   return (
     <div className="feed-sorting-packs">
@@ -116,13 +129,11 @@ export function SortPackFeedSection({
       {usingPack && packRef ? (
         <p className="card-hint">
           Using <strong>{packRef.label ?? 'sort pack'}</strong> v{packRef.versionPin}
-          {packRef.updatePolicy ? ` (${packRef.updatePolicy})` : ''}. Pick another formula below or switch to
-          Create to edit inline.
+          {packRef.updatePolicy ? ` (${packRef.updatePolicy})` : ''}. Preview others below, then apply when ready.
         </p>
       ) : (
         <p className="card-hint">
-          Apply a formula from My collection or a marketplace subscription. Switch to Create to build a new sort
-          from scratch.
+          Preview a formula from My collection or a marketplace subscription. Apply only when you want it on this feed.
         </p>
       )}
 
@@ -145,8 +156,9 @@ export function SortPackFeedSection({
           <p className="feed-formula-pack-group-label">My collection</p>
           <FeedFormulaPackGrid
             packages={collectionPackages}
-            selectedPackageId={packRef?.packageId}
-            onSelect={applyPack}
+            previewPackageId={previewPackageId}
+            appliedPackageId={appliedPackageId}
+            onPreview={(pkg) => setPreviewPackageId(pkg.id)}
           />
         </>
       ) : null}
@@ -156,9 +168,10 @@ export function SortPackFeedSection({
           <p className="feed-formula-pack-group-label">Subscribed</p>
           <FeedFormulaPackGrid
             packages={subscribedPackages}
-            selectedPackageId={packRef?.packageId}
+            previewPackageId={previewPackageId}
+            appliedPackageId={appliedPackageId}
             subscribed
-            onSelect={applyPack}
+            onPreview={(pkg) => setPreviewPackageId(pkg.id)}
           />
         </>
       ) : null}
@@ -168,6 +181,25 @@ export function SortPackFeedSection({
           Nothing saved yet. On <strong>Create</strong>, configure a sort and use <strong>Save to collection</strong>,
           or subscribe in Marketplace → Sorting formulas.
         </p>
+      ) : null}
+
+      {previewPackage ? (
+        <div className="feed-formula-preview-wrap">
+          <div className="feed-formula-preview-actions">
+            <p className="card-hint">
+              Previewing <strong>{previewPackage.name}</strong> v{previewPackage.version}
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={previewIsApplied}
+              onClick={() => applyPack(previewPackage)}
+            >
+              {previewIsApplied ? 'In use on this feed' : 'Use on this feed'}
+            </button>
+          </div>
+          <FeedFormulaPreviewPanel expr={previewPackage.sortKey} variant="sort" />
+        </div>
       ) : null}
     </div>
   )

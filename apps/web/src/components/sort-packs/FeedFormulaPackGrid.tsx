@@ -1,32 +1,28 @@
-import type { L2Expr, SortPackPackage } from '@cfb/core-types'
+import type { SortPackPackage } from '@cfb/core-types'
 
-import { personalizationFormulasMatch } from '../../lib/feed-personalization'
 import { MarketplaceCatalogCard } from '../marketplace/MarketplaceCatalogCard'
 
 interface Props {
   packages: SortPackPackage[]
-  selectedPackageId?: string | null
-  matchFormula?: L2Expr
+  previewPackageId?: string | null
+  appliedPackageId?: string | null
   subscribed?: boolean
-  onSelect: (pkg: SortPackPackage) => void
+  onPreview: (pkg: SortPackPackage) => void
 }
 
 export function FeedFormulaPackGrid({
   packages,
-  selectedPackageId,
-  matchFormula,
+  previewPackageId,
+  appliedPackageId,
   subscribed = false,
-  onSelect,
+  onPreview,
 }: Props) {
   if (packages.length === 0) return null
 
   return (
     <div className="marketplace-catalog-grid feed-formula-pack-grid">
       {packages.map((pkg) => {
-        const selected =
-          selectedPackageId === pkg.id ||
-          (!selectedPackageId && matchFormula != null && personalizationFormulasMatch(matchFormula, pkg.sortKey))
-
+        const inUse = appliedPackageId === pkg.id
         return (
           <MarketplaceCatalogCard
             key={pkg.id}
@@ -42,8 +38,9 @@ export function FeedFormulaPackGrid({
             ownerDid={pkg.ownerDid}
             executionTier="native"
             subscribed={subscribed}
-            selected={selected}
-            onClick={() => onSelect(pkg)}
+            selected={previewPackageId === pkg.id}
+            subtitle={inUse ? 'In use on this feed' : undefined}
+            onClick={() => onPreview(pkg)}
           />
         )
       })}

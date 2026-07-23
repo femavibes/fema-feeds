@@ -31,6 +31,8 @@ interface Props {
   templates?: FormulaTemplate[]
   /** Placeholder text for the formula editor. */
   placeholder?: string
+  /** Preview mode — show builder UI without editing or persisting changes. */
+  readOnly?: boolean
 }
 
 const SORT_FIELD_GROUPS: FormulaFieldGroup[] = [
@@ -67,7 +69,7 @@ const SORT_TEMPLATES: FormulaTemplate[] = [
   { name: 'Audience-first', formula: 'audience_likes * 10 + audience_reposts * 15 + log(likes + 1) * 5' },
 ]
 
-export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, placeholder }: Props) {
+export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, placeholder, readOnly = false }: Props) {
   const fieldMap = fields ?? FORMULA_FIELDS
   const groups = fieldGroups ?? SORT_FIELD_GROUPS
   const templateList = templates ?? SORT_TEMPLATES
@@ -92,22 +94,22 @@ export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, field
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const blockActionsRef = useRef<FormulaBlockActions | null>(null)
 
-  const compile = useCallback((formula: string) => {
+  const compile = useCallback((formula: string, propagate = !readOnly) => {
     const result = parseFormula(formula, fieldMap)
     if (result.ok) {
       setError(null)
       setErrorPos(null)
       setCompiledExpr(result.expr)
-      onChange(result.expr)
+      if (propagate) onChange(result.expr)
     } else {
       setError(result.error.message)
       setErrorPos(result.error.pos)
       setCompiledExpr(null)
     }
-  }, [onChange, fieldMap])
+  }, [onChange, fieldMap, readOnly])
 
   useEffect(() => {
-    compile(text)
+    compile(text, false)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (value: string) => {
@@ -179,7 +181,7 @@ export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, field
   }
 
   return (
-    <div className="formula-editor">
+    <div className={`formula-editor${readOnly ? ' formula-editor-readonly' : ''}`}>
       {/* Editor */}
       <section className="formula-editor-main">
         <textarea
@@ -190,6 +192,7 @@ export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, field
           onChange={(e) => handleChange(e.target.value)}
           placeholder={placeholderText}
           spellCheck={false}
+          readOnly={readOnly}
         />
         {error && (
           <p className="formula-editor-error">
@@ -201,104 +204,117 @@ export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, field
 
       {/* Visual blocks */}
       <section className="formula-editor-blocks">
-        <p className="sidebar-block-title">Blocks <span className="sfb-hint">(drag to reorder, click to edit)</span></p>
-        <FormulaBlocks expr={compiledExpr} formulaText={text} error={error} onUpdate={handleChange} actionsRef={blockActionsRef} fields={fieldMap} />
+        <p className="sidebar-block-title">
+          Blocks {!readOnly ? <span className="sfb-hint">(drag to reorder, click to edit)</span> : null}
+        </p>
+        <FormulaBlocks
+          expr={compiledExpr}
+          formulaText={text}
+          error={error}
+          onUpdate={readOnly ? () => undefined : handleChange}
+          actionsRef={blockActionsRef}
+          fields={fieldMap}
+        />
       </section>
 
-      {/* Fields reference */}
-      <section className="formula-editor-ref">
-        <p className="sidebar-block-title">Fields <span className="sfb-hint">(click to add block)</span></p>
-        {groups.map((group) => (
-          <div key={group.label} className="formula-editor-field-group">
-            <p className="formula-editor-field-group-label">{group.label}</p>
+      {!readOnly ? (
+        <>
+          {/* Fields reference */}
+          <section className="formula-editor-ref">
+            <p className="sidebar-block-title">Fields <span className="sfb-hint">(click to add block)</span></p>
+            {groups.map((group) => (
+              <div key={group.label} className="formula-editor-field-group">
+                <p className="formula-editor-field-group-label">{group.label}</p>
+                <div className="formula-editor-chips">
+                  {group.fields.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      className="formula-editor-chip"
+                      onClick={() => blockActionsRef.current?.insertBlockAfter(name)}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </section>
+
+          {/* Numbers & comparisons */}
+          <section className="formula-editor-ref">
+            <p className="sidebar-block-title">Numbers & values <span className="sfb-hint">(click to add block)</span></p>
             <div className="formula-editor-chips">
-              {group.fields.map((name) => (
+              {['0', '0.5', '1', '2', '3', '10', '50', '100'].map((n) => (
                 <button
-                  key={name}
+                  key={n}
                   type="button"
                   className="formula-editor-chip"
-                  onClick={() => blockActionsRef.current?.insertBlockAfter(name)}
+                  onClick={() => blockActionsRef.current?.insertBlockAfter(n)}
                 >
-                  {name}
+                  {n}
                 </button>
               ))}
             </div>
-          </div>
-        ))}
-      </section>
+          </section>
 
-      {/* Numbers & comparisons */}
-      <section className="formula-editor-ref">
-        <p className="sidebar-block-title">Numbers & values <span className="sfb-hint">(click to add block)</span></p>
-        <div className="formula-editor-chips">
-          {['0', '0.5', '1', '2', '3', '10', '50', '100'].map((n) => (
-            <button
-              key={n}
-              type="button"
-              className="formula-editor-chip"
-              onClick={() => blockActionsRef.current?.insertBlockAfter(n)}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      </section>
+          {/* Functions reference */}
+          <section className="formula-editor-ref">
+            <p className="sidebar-block-title">Functions <span className="sfb-hint">(click to wrap selected block)</span></p>
+            <div className="formula-editor-chips">
+              {FORMULA_FUNCTIONS.filter((fn) => fn !== 'if').map((fn) => (
+                <button
+                  key={fn}
+                  type="button"
+                  className="formula-editor-chip formula-editor-chip-fn"
+                  onClick={() => blockActionsRef.current?.wrapSelectedWith(fn)}
+                >
+                  {fn}()
+                </button>
+              ))}
+            </div>
+            <p className="card-hint">
+              Select a block, then click a function to wrap it.
+            </p>
+          </section>
 
-      {/* Functions reference */}
-      <section className="formula-editor-ref">
-        <p className="sidebar-block-title">Functions <span className="sfb-hint">(click to wrap selected block)</span></p>
-        <div className="formula-editor-chips">
-          {FORMULA_FUNCTIONS.filter((fn) => fn !== 'if').map((fn) => (
-            <button
-              key={fn}
-              type="button"
-              className="formula-editor-chip formula-editor-chip-fn"
-              onClick={() => blockActionsRef.current?.wrapSelectedWith(fn)}
-            >
-              {fn}()
-            </button>
-          ))}
-        </div>
-        <p className="card-hint">
-          Select a block, then click a function to wrap it.
-        </p>
-      </section>
+          {/* Templates */}
+          <section className="formula-editor-ref">
+            <p className="sidebar-block-title">Templates <span className="sfb-hint">(click to apply)</span></p>
+            <div className="formula-editor-templates">
+              {templateList.map((t) => (
+                <button
+                  key={t.name}
+                  type="button"
+                  className="formula-editor-template"
+                  onClick={() => applyTemplate(t.formula)}
+                >
+                  <span className="formula-editor-template-name">{t.name}</span>
+                  <code className="formula-editor-template-code">{t.formula}</code>
+                </button>
+              ))}
+            </div>
+          </section>
 
-      {/* Templates */}
-      <section className="formula-editor-ref">
-        <p className="sidebar-block-title">Templates <span className="sfb-hint">(click to apply)</span></p>
-        <div className="formula-editor-templates">
-          {templateList.map((t) => (
-            <button
-              key={t.name}
-              type="button"
-              className="formula-editor-template"
-              onClick={() => applyTemplate(t.formula)}
-            >
-              <span className="formula-editor-template-name">{t.name}</span>
-              <code className="formula-editor-template-code">{t.formula}</code>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Raw JSON output */}
-      <section className="formula-editor-ref">
-        <div className="feed-sorting-custom-header">
-          <p className="sidebar-block-title">Compiled expression</p>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={copyExpr} disabled={!compiledExpr}>
-            {copied ? 'Copied!' : 'Copy JSON'}
-          </button>
-        </div>
-        {compiledExpr && (
-          <textarea
-            className="feed-sorting-custom-expr"
-            rows={5}
-            value={JSON.stringify(compiledExpr, null, 2)}
-            readOnly
-          />
-        )}
-      </section>
+          {/* Raw JSON output */}
+          <section className="formula-editor-ref">
+            <div className="feed-sorting-custom-header">
+              <p className="sidebar-block-title">Compiled expression</p>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={copyExpr} disabled={!compiledExpr}>
+                {copied ? 'Copied!' : 'Copy JSON'}
+              </button>
+            </div>
+            {compiledExpr && (
+              <textarea
+                className="feed-sorting-custom-expr"
+                rows={5}
+                value={JSON.stringify(compiledExpr, null, 2)}
+                readOnly
+              />
+            )}
+          </section>
+        </>
+      ) : null}
     </div>
   )
 }

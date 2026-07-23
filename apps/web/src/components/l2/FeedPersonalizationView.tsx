@@ -46,7 +46,7 @@ export function FeedPersonalizationView({
           ? 'Saved formula'
           : 'Library'
       : draft.personalization?.formulaEnabled
-        ? 'Formula'
+        ? 'Formula builder'
         : 'Toggles'
 
   return (

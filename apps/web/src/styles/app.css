@@ -12079,6 +12079,26 @@ body.l2-visual-open #root {
   margin-top: 0.35rem;
 }
 
+.feed-formula-preview-wrap {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border, #333);
+}
+
+.feed-formula-preview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.formula-editor-readonly .formula-editor-input {
+  opacity: 0.95;
+  cursor: default;
+}
+
 /* --- Native Injector Panel --- */
 
 .native-injector-panel {

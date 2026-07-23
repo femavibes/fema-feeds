@@ -6,6 +6,7 @@ import { useCurrentUserDid } from '../../hooks/useCurrentUserDid'
 import { applyPersonalizationFormulaPack } from '../../lib/feed-personalization'
 import { excludeOwnFromSubscribed } from '../../lib/feed-subscriptions'
 import { FeedFormulaPackGrid } from './FeedFormulaPackGrid'
+import { FeedFormulaPreviewPanel } from '../l2/FeedFormulaPreviewPanel'
 
 interface Props {
   draft: FeedConfig
@@ -25,7 +26,8 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
   const [collection, setCollection] = useState<SortPackPackage[]>([])
 
   const packRef = draft.personalization?.formulaPackRef
-  const activeFormula = draft.personalization?.formula
+  const appliedPackageId = packRef?.packageId ?? null
+  const [previewPackageId, setPreviewPackageId] = useState<string | null>(appliedPackageId)
 
   useEffect(() => {
     void Promise.all([
@@ -41,6 +43,10 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
         setCollection([])
       })
   }, [refreshKey])
+
+  useEffect(() => {
+    setPreviewPackageId(appliedPackageId)
+  }, [appliedPackageId, refreshKey])
 
   const subscribedPackages = useMemo(
     () =>
@@ -58,29 +64,34 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
     [collection],
   )
 
+  const allPackages = useMemo(
+    () => [...collectionPackages, ...subscribedPackages],
+    [collectionPackages, subscribedPackages],
+  )
+
+  const previewPackage = useMemo(
+    () => allPackages.find((pkg) => pkg.id === previewPackageId) ?? null,
+    [allPackages, previewPackageId],
+  )
+
   const applyPack = (pkg: SortPackPackage) => {
     onChange(applyPersonalizationFormulaPack(draft, pkg))
   }
 
   const hasAny = collectionPackages.length > 0 || subscribedPackages.length > 0
+  const previewIsApplied = previewPackageId != null && previewPackageId === appliedPackageId
 
   return (
     <div className="feed-sorting-packs feed-personalization-formula-packs">
       <p className="sidebar-block-title">Native personalization formulas</p>
       {packRef ? (
         <p className="card-hint">
-          Using <strong>{packRef.label ?? 'saved formula'}</strong> v{packRef.versionPin}. Pick another
-          formula below or switch to Create to edit inline.
-        </p>
-      ) : activeFormula ? (
-        <p className="card-hint">
-          Custom formula on this feed. Pick a saved formula below to replace it, or stay on Create to keep
-          editing.
+          Using <strong>{packRef.label ?? 'saved formula'}</strong> v{packRef.versionPin}. Preview others below, then
+          apply when ready.
         </p>
       ) : (
         <p className="card-hint">
-          Apply a formula from My collection or a marketplace subscription. Switch to Create to write a new
-          one from scratch.
+          Preview a formula from My collection or a marketplace subscription. Apply only when you want it on this feed.
         </p>
       )}
 
@@ -89,9 +100,9 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
           <p className="feed-formula-pack-group-label">My collection</p>
           <FeedFormulaPackGrid
             packages={collectionPackages}
-            selectedPackageId={packRef?.packageId}
-            matchFormula={packRef ? undefined : activeFormula}
-            onSelect={applyPack}
+            previewPackageId={previewPackageId}
+            appliedPackageId={appliedPackageId}
+            onPreview={(pkg) => setPreviewPackageId(pkg.id)}
           />
         </>
       ) : null}
@@ -101,10 +112,10 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
           <p className="feed-formula-pack-group-label">Subscribed</p>
           <FeedFormulaPackGrid
             packages={subscribedPackages}
-            selectedPackageId={packRef?.packageId}
-            matchFormula={packRef ? undefined : activeFormula}
+            previewPackageId={previewPackageId}
+            appliedPackageId={appliedPackageId}
             subscribed
-            onSelect={applyPack}
+            onPreview={(pkg) => setPreviewPackageId(pkg.id)}
           />
         </>
       ) : null}
@@ -114,6 +125,25 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
           Nothing saved yet. On <strong>Create</strong>, write a formula and use <strong>Save to collection</strong>,
           or subscribe in Marketplace → Personalization formulas.
         </p>
+      ) : null}
+
+      {previewPackage ? (
+        <div className="feed-formula-preview-wrap">
+          <div className="feed-formula-preview-actions">
+            <p className="card-hint">
+              Previewing <strong>{previewPackage.name}</strong> v{previewPackage.version}
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={previewIsApplied}
+              onClick={() => applyPack(previewPackage)}
+            >
+              {previewIsApplied ? 'In use on this feed' : 'Use on this feed'}
+            </button>
+          </div>
+          <FeedFormulaPreviewPanel expr={previewPackage.sortKey} variant="personalization" />
+        </div>
       ) : null}
     </div>
   )
