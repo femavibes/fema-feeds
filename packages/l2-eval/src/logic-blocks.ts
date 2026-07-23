@@ -1,13 +1,18 @@
 import type { LogicBlockPackage, LogicBlockRef, L2RuleGroup, L2RuleNode } from '@cfb/core-types'
-import { peelLogicBlockEditorShell, resolveFeedMatch } from '@cfb/l2-graph'
+import { peelLogicBlockEditorShell } from '@cfb/l2-graph'
 
+/**
+ * Effective rule tree for a logic block package.
+ *
+ * Packages persist nested groups in `root`. `visualLayout` is editor chrome only
+ * (see logicBlockToFeedDraft — it ignores saved edges when reopening the canvas).
+ * Do not run resolveFeedMatch here: stale/incomplete canvas wires would drop the
+ * authored tree and break strict-gate extraction + L2 eval.
+ */
 export function resolveLogicBlockRoot(
   pkg: Pick<LogicBlockPackage, 'root' | 'visualLayout'>,
 ): L2RuleGroup {
-  return resolveFeedMatch({
-    match: peelLogicBlockEditorShell(pkg.root),
-    visualLayout: pkg.visualLayout,
-  })
+  return peelLogicBlockEditorShell(pkg.root)
 }
 
 export function logicBlockCacheKey(ref: LogicBlockRef): string {

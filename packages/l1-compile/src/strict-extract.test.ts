@@ -64,4 +64,25 @@ describe('extractStrictIncludePaths with logic blocks', () => {
     expect(result.strictGateMeta.contributingFeeds).toContain('logic-block-discovery-feed')
     expect(result.strictIncludeGate.includeBranches.some((b) => b.type === 'keyword')).toBe(true)
   })
+
+  it('extracts paths from nested block roots with stale canvas layout', () => {
+    const nestedBlock: L2RuleGroup = {
+      type: 'group',
+      id: 'block-root',
+      logic: 'all',
+      children: [
+        {
+          type: 'keyword',
+          id: 'kw-urban',
+          op: 'includes',
+          terms: ['urbanism'],
+          fields: ['text'],
+        },
+      ],
+    }
+    const resolver = () => nestedBlock
+    const paths = extractStrictIncludePaths(feed, resolver)
+    expect(paths.length).toBeGreaterThan(0)
+    expect(paths[0]?.some((b) => b.type === 'keyword' && b.terms.includes('urbanism'))).toBe(true)
+  })
 })
