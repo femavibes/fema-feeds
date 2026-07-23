@@ -1,4 +1,5 @@
 import type { L2Expr, NativePersonalizationConfig } from '@cfb/core-types'
+import { resolveSuppressServed } from '@cfb/core-types'
 
 const AFFINITY_FIELDS = new Set([
   'feed_affinity',
@@ -8,6 +9,26 @@ const AFFINITY_FIELDS = new Set([
   'feed_affinity_quotes',
   'days_since_interaction',
 ])
+
+const SERVED_HISTORY_FIELDS = new Set([
+  'times_served',
+  'hours_since_served',
+  'was_viewed',
+  'times_viewed',
+  'hours_since_viewed',
+  'times_seen',
+  'hours_since_seen',
+])
+
+export interface PersonalizationDataNeeds {
+  follows: boolean
+  mutuals: boolean
+  affinity: boolean
+  servedHistory: boolean
+  lastOpen: boolean
+  /** Hours of serve history to load when servedHistory is true. */
+  servedWindowHours: number
+}
 
 function formulaUsesField(formula: L2Expr, field: string): boolean {
   switch (formula.type) {
@@ -72,18 +93,45 @@ function formulaUsesAnyField(formula: L2Expr, fields: Set<string>): boolean {
   }
 }
 
-export function personalizationNeedsMutuals(config: NativePersonalizationConfig): boolean {
-  if (config.boostMutuals?.enabled) return true
+/** Which viewer data sources a feed's personalization config actually uses. */
+export function analyzePersonalizationNeeds(
+  config: NativePersonalizationConfig,
+): PersonalizationDataNeeds {
+  const suppressServed = resolveSuppressServed(config)
+  let follows = Boolean(config.boostFollowed?.enabled)
+  let mutuals = Boolean(config.boostMutuals?.enabled)
+  let affinity = Boolean(config.affinityBoost?.enabled)
+  let servedHistory = Boolean(suppressServed?.enabled)
+  let lastOpen = false
+  let servedWindowHours = Math.max(1, suppressServed?.windowHours ?? 48)
+
   if (config.formulaEnabled && config.formula) {
-    return formulaUsesField(config.formula, 'is_mutual')
+    follows ||= formulaUsesField(config.formula, 'is_followed')
+    mutuals ||= formulaUsesField(config.formula, 'is_mutual')
+    affinity ||= formulaUsesAnyField(config.formula, AFFINITY_FIELDS)
+    servedHistory ||= formulaUsesAnyField(config.formula, SERVED_HISTORY_FIELDS)
+    lastOpen ||= formulaUsesField(config.formula, 'hours_since_last_open')
+    if (formulaUsesAnyField(config.formula, new Set(['hours_since_viewed', 'was_viewed']))) {
+      servedWindowHours = Math.max(servedWindowHours, 48)
+    }
   }
-  return false
+
+  if (mutuals) follows = true
+
+  return {
+    follows,
+    mutuals,
+    affinity,
+    servedHistory,
+    lastOpen,
+    servedWindowHours,
+  }
+}
+
+export function personalizationNeedsMutuals(config: NativePersonalizationConfig): boolean {
+  return analyzePersonalizationNeeds(config).mutuals
 }
 
 export function personalizationNeedsAffinity(config: NativePersonalizationConfig): boolean {
-  if (config.affinityBoost?.enabled) return true
-  if (config.formulaEnabled && config.formula) {
-    return formulaUsesAnyField(config.formula, AFFINITY_FIELDS)
-  }
-  return false
+  return analyzePersonalizationNeeds(config).affinity
 }

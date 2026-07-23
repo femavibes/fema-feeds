@@ -29,10 +29,19 @@ export interface NativePersonalizationConfig {
    * whole pool — it bounds serve-time cost.
    */
   depth?: number
+  /**
+   * On first open, personalize a smaller window first (for snappy TTFB), then
+   * expand to `depth` in the background while the viewer reads page 1.
+   * Defaults to true when unset.
+   */
+  quickFirstOpen?: boolean
 }
 
 export const PERSONALIZATION_DEPTH_DEFAULT = 200
 export const PERSONALIZATION_DEPTH_MAX = 2000
+/** First-open quick window: enough for several pages before background expand finishes. */
+export const PERSONALIZATION_QUICK_DEPTH_MIN = 80
+export const PERSONALIZATION_QUICK_DEPTH_PAGE_FACTOR = 4
 
 export const DEFAULT_PERSONALIZATION: NativePersonalizationConfig = {
   boostFollowed: { enabled: false, factor: 1.3 },

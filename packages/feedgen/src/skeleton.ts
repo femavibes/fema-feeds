@@ -1,6 +1,12 @@
 import type { FeedConfig, NativePersonalizationConfig, ProjectL1Config } from '@cfb/core-types'
 
-import { isFeedPubliclyServed, PERSONALIZATION_DEPTH_DEFAULT, PERSONALIZATION_DEPTH_MAX, personalizationServedWindowHours, resolveSuppressServed } from '@cfb/core-types'
+import {
+  isFeedPubliclyServed,
+  PERSONALIZATION_DEPTH_DEFAULT,
+  PERSONALIZATION_DEPTH_MAX,
+  PERSONALIZATION_QUICK_DEPTH_MIN,
+  PERSONALIZATION_QUICK_DEPTH_PAGE_FACTOR,
+} from '@cfb/core-types'
 
 import type pg from 'pg'
 
@@ -16,6 +22,7 @@ import { applyNativePersonalization, type ViewerPersonalizationContext } from '.
 import { encodeFeedContext, newSkeletonReqId } from './feed-context.js'
 
 import { applyViewerFollowRingFilter } from './skeleton-viewer-ring.js'
+import { analyzePersonalizationNeeds } from './personalization-needs.js'
 
 export interface SkeletonFeedItem {
   post: string
@@ -59,16 +66,30 @@ interface PersonalizationSession {
   viewerDid: string
   uris: string[]
   expiresAt: number
+  expandComplete: boolean
+  expandPromise?: Promise<void>
 }
 
 const PERSONALIZATION_SESSION_TTL_MS = 10 * 60 * 1000
 const personalizationSessions = new Map<string, PersonalizationSession>()
+
+const viewerPersonalizationContextCache = new Map<
+  string,
+  { ctx: ViewerPersonalizationContext; expiresAt: number }
+>()
 
 function prunePersonalizationSessions(): void {
   const now = Date.now()
   for (const [key, session] of personalizationSessions) {
     if (session.expiresAt < now) personalizationSessions.delete(key)
   }
+  for (const [key, entry] of viewerPersonalizationContextCache) {
+    if (entry.expiresAt < now) viewerPersonalizationContextCache.delete(key)
+  }
+}
+
+function viewerContextCacheKey(feedId: string, viewerDid: string): string {
+  return `${feedId}::${viewerDid}`
 }
 
 const PERSONALIZED_CURSOR_PREFIX = 'p::'
@@ -87,18 +108,25 @@ function parsePersonalizedCursor(cursor: string): { sessionId: string; offset: n
 function personalizationActive(config: NativePersonalizationConfig | undefined): boolean {
   if (!config) return false
   if (config.formulaEnabled && config.formula) return true
-  return Boolean(
-    config.boostFollowed?.enabled ||
-    config.boostMutuals?.enabled ||
-    resolveSuppressServed(config)?.enabled ||
-    config.authorDiversity?.enabled ||
-    config.affinityBoost?.enabled,
-  )
+  const needs = analyzePersonalizationNeeds(config)
+  return needs.follows || needs.mutuals || needs.servedHistory || needs.affinity || needs.lastOpen ||
+    Boolean(config.authorDiversity?.enabled)
 }
 
 function personalizationDepth(config: NativePersonalizationConfig, limit: number): number {
   const depth = config.depth ?? PERSONALIZATION_DEPTH_DEFAULT
   return Math.max(limit, Math.min(depth, PERSONALIZATION_DEPTH_MAX))
+}
+
+function quickPersonalizationDepth(fullDepth: number, limit: number): number {
+  return Math.min(
+    fullDepth,
+    Math.max(limit * PERSONALIZATION_QUICK_DEPTH_PAGE_FACTOR, PERSONALIZATION_QUICK_DEPTH_MIN),
+  )
+}
+
+function quickFirstOpenEnabled(config: NativePersonalizationConfig): boolean {
+  return config.quickFirstOpen !== false
 }
 
 /** Map stored repost URIs → subject post + reasonRepost for AppView hydration. */
@@ -149,51 +177,48 @@ async function loadViewerPersonalizationContext(
   pool: pg.Pool,
   feedId: string,
   viewerDid: string,
-  candidateAuthorDids: string[],
   personalization: NativePersonalizationConfig,
 ): Promise<ViewerPersonalizationContext> {
+  const cacheKey = viewerContextCacheKey(feedId, viewerDid)
+  const cached = viewerPersonalizationContextCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.ctx
+  }
+
+  const needs = analyzePersonalizationNeeds(personalization)
   const {
-    loadViewerContext,
+    loadServedPostsForViewer,
     loadViewerAffinityCounts,
     loadViewerLastFeedOpen,
     recordViewerFeedOpen,
+    resolveViewerFollowedDids,
     resolveViewerFollowerDids,
   } = await import('@cfb/storage-postgres')
   const { fetchViewerFollowedDids, fetchActorFollowersDids } = await import('@cfb/viewer-graph')
-  const { personalizationNeedsAffinity, personalizationNeedsMutuals } = await import(
-    './personalization-needs.js'
-  )
 
-  const needsMutuals = personalizationNeedsMutuals(personalization)
-  const needsAffinity = personalizationNeedsAffinity(personalization)
   const affinityWindowDays = personalization.affinityBoost?.windowDays ?? 30
 
-  const viewerCtxPromise = loadViewerContext(pool, {
-    viewerDid,
-    feedId,
-    candidateAuthorDids,
-    fetchFollows: fetchViewerFollowedDids,
-    servedWindowHours: personalizationServedWindowHours(personalization),
-    includeInteractionUris: false,
-  })
-  const affinityPromise = needsAffinity
-    ? loadViewerAffinityCounts(pool, viewerDid, feedId, affinityWindowDays)
-    : Promise.resolve(new Map())
-  const lastOpenPromise = loadViewerLastFeedOpen(pool, viewerDid, feedId)
-  const mutualsPromise = needsMutuals
-    ? resolveViewerFollowerDids(pool, viewerDid, fetchActorFollowersDids).catch(() => [] as string[])
-    : Promise.resolve([] as string[])
-
-  const viewerCtx = await viewerCtxPromise
-  const [affinityCounts, lastOpen, viewerFollowers] = await Promise.all([
-    affinityPromise,
-    lastOpenPromise,
-    mutualsPromise,
+  const [followedDids, servedRows, affinityCounts, lastOpen, viewerFollowers] = await Promise.all([
+    needs.follows || needs.mutuals
+      ? resolveViewerFollowedDids(pool, viewerDid, fetchViewerFollowedDids)
+      : Promise.resolve([] as string[]),
+    needs.servedHistory
+      ? loadServedPostsForViewer(pool, viewerDid, feedId, needs.servedWindowHours)
+      : Promise.resolve([]),
+    needs.affinity
+      ? loadViewerAffinityCounts(pool, viewerDid, feedId, affinityWindowDays)
+      : Promise.resolve(new Map()),
+    needs.lastOpen
+      ? loadViewerLastFeedOpen(pool, viewerDid, feedId)
+      : Promise.resolve(null),
+    needs.mutuals
+      ? resolveViewerFollowerDids(pool, viewerDid, fetchActorFollowersDids).catch(() => [] as string[])
+      : Promise.resolve([] as string[]),
   ])
 
   let mutualDids = new Set<string>()
-  if (needsMutuals) {
-    const followedSet = new Set(viewerCtx.followedAuthorDids)
+  if (needs.mutuals) {
+    const followedSet = new Set(followedDids)
     mutualDids = new Set(viewerFollowers.filter((did) => followedSet.has(did)))
   }
 
@@ -204,7 +229,7 @@ async function loadViewerPersonalizationContext(
     : null
 
   const servedPosts = new Map<string, { serveCount: number; servedAt: Date; viewedAt: Date | null }>()
-  for (const sp of viewerCtx.servedPosts) {
+  for (const sp of servedRows) {
     servedPosts.set(sp.postUri, {
       serveCount: sp.serveCount,
       servedAt: new Date(sp.servedAt),
@@ -212,14 +237,76 @@ async function loadViewerPersonalizationContext(
     })
   }
 
-  return {
+  const ctx: ViewerPersonalizationContext = {
     viewerDid,
-    followedDids: new Set(viewerCtx.followedAuthorDids),
+    followedDids: new Set(followedDids),
     mutualDids,
     servedPosts,
     affinityCounts,
     hoursSinceLastOpen,
   }
+
+  viewerPersonalizationContextCache.set(cacheKey, {
+    ctx,
+    expiresAt: Date.now() + PERSONALIZATION_SESSION_TTL_MS,
+  })
+
+  return ctx
+}
+
+async function computePersonalizedUris(
+  pool: pg.Pool,
+  config: FeedConfig,
+  project: ProjectL1Config | undefined,
+  viewerDid: string,
+  depth: number,
+): Promise<string[]> {
+  const personalization = config.personalization!
+
+  const [window, viewerPerCtx] = await Promise.all([
+    getFeedCandidateWindow(pool, config.feedId, depth),
+    loadViewerPersonalizationContext(pool, config.feedId, viewerDid, personalization),
+  ])
+
+  const sortKeys = new Map(window.map((r) => [r.post, r.sortKey]))
+
+  const filtered = await applyViewerFollowRingFilter(
+    pool,
+    config,
+    project,
+    window.map((r) => ({ post: r.post })),
+    viewerDid,
+  )
+
+  const personalized = applyNativePersonalization(filtered, personalization, viewerPerCtx, sortKeys)
+  return personalized.map((r) => r.post)
+}
+
+function expandPersonalizationSessionInBackground(
+  pool: pg.Pool,
+  config: FeedConfig,
+  project: ProjectL1Config | undefined,
+  viewerDid: string,
+  sessionId: string,
+  fullDepth: number,
+): Promise<void> {
+  return computePersonalizedUris(pool, config, project, viewerDid, fullDepth)
+    .then((uris) => {
+      const session = personalizationSessions.get(sessionId)
+      if (
+        !session ||
+        session.feedId !== config.feedId ||
+        session.viewerDid !== viewerDid ||
+        session.expiresAt < Date.now()
+      ) {
+        return
+      }
+      session.uris = uris
+      session.expandComplete = true
+    })
+    .catch((err) => {
+      console.error('[personalization] background expand failed', config.feedId, sessionId, err)
+    })
 }
 
 /**
@@ -235,34 +322,32 @@ async function buildPersonalizationSession(
   limit: number,
   sessionId: string,
 ): Promise<PersonalizationSession> {
-  const depth = personalizationDepth(config.personalization!, limit)
-  const window = await getFeedCandidateWindow(pool, config.feedId, depth)
-  const sortKeys = new Map(window.map((r) => [r.post, r.sortKey]))
+  const personalization = config.personalization!
+  const fullDepth = personalizationDepth(personalization, limit)
+  const useQuick = quickFirstOpenEnabled(personalization) && fullDepth > quickPersonalizationDepth(fullDepth, limit)
+  const initialDepth = useQuick ? quickPersonalizationDepth(fullDepth, limit) : fullDepth
 
-  const filtered = await applyViewerFollowRingFilter(
-    pool,
-    config,
-    project,
-    window.map((r) => ({ post: r.post })),
-    viewerDid,
-  )
-
-  const authorDids = [...new Set(
-    filtered.map((r) => r.post.match(/^at:\/\/([^/]+)\//)?.[1]).filter(Boolean),
-  )] as string[]
-
-  const viewerPerCtx = await loadViewerPersonalizationContext(
-    pool, config.feedId, viewerDid, authorDids, config.personalization!,
-  )
-
-  const personalized = applyNativePersonalization(filtered, config.personalization, viewerPerCtx, sortKeys)
+  const uris = await computePersonalizedUris(pool, config, project, viewerDid, initialDepth)
 
   const session: PersonalizationSession = {
     feedId: config.feedId,
     viewerDid,
-    uris: personalized.map((r) => r.post),
+    uris,
     expiresAt: Date.now() + PERSONALIZATION_SESSION_TTL_MS,
+    expandComplete: !useQuick,
   }
+
+  if (useQuick) {
+    session.expandPromise = expandPersonalizationSessionInBackground(
+      pool,
+      config,
+      project,
+      viewerDid,
+      sessionId,
+      fullDepth,
+    )
+  }
+
   prunePersonalizationSessions()
   personalizationSessions.set(sessionId, session)
   return session
@@ -310,6 +395,10 @@ export async function handleGetFeedSkeleton(
       session = await buildPersonalizationSession(
         pool, config, params.project, params.viewerDid!, limit, sessionId,
       )
+    }
+
+    if (offset + limit > session.uris.length && session.expandPromise) {
+      await session.expandPromise.catch(() => undefined)
     }
 
     pageRows = session.uris.slice(offset, offset + limit).map((post) => ({ post }))
