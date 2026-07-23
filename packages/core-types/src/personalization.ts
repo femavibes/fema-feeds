@@ -31,7 +31,7 @@ export interface NativePersonalizationConfig {
   depth?: number
 }
 
-export const PERSONALIZATION_DEPTH_DEFAULT = 500
+export const PERSONALIZATION_DEPTH_DEFAULT = 200
 export const PERSONALIZATION_DEPTH_MAX = 2000
 
 export const DEFAULT_PERSONALIZATION: NativePersonalizationConfig = {

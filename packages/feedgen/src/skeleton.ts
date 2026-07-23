@@ -150,45 +150,59 @@ async function loadViewerPersonalizationContext(
   feedId: string,
   viewerDid: string,
   candidateAuthorDids: string[],
-  personalization: NativePersonalizationConfig | undefined,
+  personalization: NativePersonalizationConfig,
 ): Promise<ViewerPersonalizationContext> {
   const {
     loadViewerContext,
     loadViewerAffinityCounts,
     loadViewerLastFeedOpen,
     recordViewerFeedOpen,
+    resolveViewerFollowerDids,
   } = await import('@cfb/storage-postgres')
   const { fetchViewerFollowedDids, fetchActorFollowersDids } = await import('@cfb/viewer-graph')
+  const { personalizationNeedsAffinity, personalizationNeedsMutuals } = await import(
+    './personalization-needs.js'
+  )
 
-  const viewerCtx = await loadViewerContext(pool, {
+  const needsMutuals = personalizationNeedsMutuals(personalization)
+  const needsAffinity = personalizationNeedsAffinity(personalization)
+  const affinityWindowDays = personalization.affinityBoost?.windowDays ?? 30
+
+  const viewerCtxPromise = loadViewerContext(pool, {
     viewerDid,
     feedId,
     candidateAuthorDids,
     fetchFollows: fetchViewerFollowedDids,
     servedWindowHours: personalizationServedWindowHours(personalization),
+    includeInteractionUris: false,
   })
+  const affinityPromise = needsAffinity
+    ? loadViewerAffinityCounts(pool, viewerDid, feedId, affinityWindowDays)
+    : Promise.resolve(new Map())
+  const lastOpenPromise = loadViewerLastFeedOpen(pool, viewerDid, feedId)
+  const mutualsPromise = needsMutuals
+    ? resolveViewerFollowerDids(pool, viewerDid, fetchActorFollowersDids).catch(() => [] as string[])
+    : Promise.resolve([] as string[])
 
-  // Resolve mutuals: intersection of viewer's follows and viewer's followers
+  const viewerCtx = await viewerCtxPromise
+  const [affinityCounts, lastOpen, viewerFollowers] = await Promise.all([
+    affinityPromise,
+    lastOpenPromise,
+    mutualsPromise,
+  ])
+
   let mutualDids = new Set<string>()
-  try {
-    const viewerFollowers = await fetchActorFollowersDids(viewerDid)
+  if (needsMutuals) {
     const followedSet = new Set(viewerCtx.followedAuthorDids)
     mutualDids = new Set(viewerFollowers.filter((did) => followedSet.has(did)))
-  } catch { /* follower fetch may fail — degrade gracefully */ }
+  }
 
-  // Load feed-scoped affinity (per-author interaction breakdown)
-  const affinityCounts = await loadViewerAffinityCounts(pool, viewerDid, feedId, 30)
+  void recordViewerFeedOpen(pool, viewerDid, feedId).catch(() => {})
 
-  // Load hours since last open
-  const lastOpen = await loadViewerLastFeedOpen(pool, viewerDid, feedId)
   const hoursSinceLastOpen = lastOpen
     ? (Date.now() - lastOpen.getTime()) / (1000 * 60 * 60)
     : null
 
-  // Record this open (fire and forget)
-  void recordViewerFeedOpen(pool, viewerDid, feedId).catch(() => {})
-
-  // Build serve/view map for personalization formulas and suppress-served toggle
   const servedPosts = new Map<string, { serveCount: number; servedAt: Date; viewedAt: Date | null }>()
   for (const sp of viewerCtx.servedPosts) {
     servedPosts.set(sp.postUri, {
@@ -238,7 +252,7 @@ async function buildPersonalizationSession(
   )] as string[]
 
   const viewerPerCtx = await loadViewerPersonalizationContext(
-    pool, config.feedId, viewerDid, authorDids, config.personalization,
+    pool, config.feedId, viewerDid, authorDids, config.personalization!,
   )
 
   const personalized = applyNativePersonalization(filtered, config.personalization, viewerPerCtx, sortKeys)
@@ -330,16 +344,14 @@ export async function handleGetFeedSkeleton(
   }))
 
   if (params.viewerDid && reqId) {
-    try {
-      await recordFeedServedPosts(pool, {
-        viewerDid: params.viewerDid,
-        feedId: config.feedId,
-        reqId,
-        items: feed.map((row, position) => ({ postUri: row.post, position })),
-      })
-    } catch {
+    void recordFeedServedPosts(pool, {
+      viewerDid: params.viewerDid,
+      feedId: config.feedId,
+      reqId,
+      items: feed.map((row, position) => ({ postUri: row.post, position })),
+    }).catch(() => {
       /* impression log failure must not break skeleton serve */
-    }
+    })
   }
 
   // Record impression (all requests, including anonymous)

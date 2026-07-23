@@ -14,6 +14,7 @@ import {
 import {
   loadRankerCandidates,
   resolveViewerFollowedDids,
+  resolveViewerFollowerDids,
   type SkeletonPost,
 } from '@cfb/storage-postgres'
 import type pg from 'pg'
@@ -38,7 +39,7 @@ async function resolveViewerDirectionRing(
     dids = await resolveViewerFollowedDids(pool, viewerDid, fetchActorFollowsDids)
   } else {
     try {
-      dids = await fetchActorFollowersDids(viewerDid)
+      dids = await resolveViewerFollowerDids(pool, viewerDid, fetchActorFollowersDids)
     } catch {
       dids = []
     }

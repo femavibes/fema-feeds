@@ -34,6 +34,51 @@ export async function saveViewerFollowCache(
   )
 }
 
+export async function getCachedViewerFollowers(
+  pool: pg.Pool | pg.PoolClient,
+  viewerDid: string,
+): Promise<string[] | null> {
+  const res = await pool.query<{ follower_dids: string[] }>(
+    `SELECT follower_dids FROM viewer_follower_cache
+     WHERE viewer_did = $1 AND expires_at > NOW()`,
+    [viewerDid],
+  )
+  return res.rows[0]?.follower_dids ?? null
+}
+
+export async function saveViewerFollowerCache(
+  pool: pg.Pool | pg.PoolClient,
+  viewerDid: string,
+  followerDids: string[],
+): Promise<void> {
+  await pool.query(
+    `INSERT INTO viewer_follower_cache (viewer_did, follower_dids, fetched_at, expires_at)
+     VALUES ($1, $2, NOW(), NOW() + ($3::text || ' hours')::interval)
+     ON CONFLICT (viewer_did) DO UPDATE SET
+       follower_dids = EXCLUDED.follower_dids,
+       fetched_at = NOW(),
+       expires_at = EXCLUDED.expires_at`,
+    [viewerDid, followerDids, String(FOLLOW_CACHE_TTL_HOURS)],
+  )
+}
+
+export async function resolveViewerFollowerDids(
+  pool: pg.Pool,
+  viewerDid: string,
+  fetchFollowers: (viewerDid: string) => Promise<string[]>,
+): Promise<string[]> {
+  const cached = await getCachedViewerFollowers(pool, viewerDid)
+  if (cached) return cached
+
+  try {
+    const followers = await fetchFollowers(viewerDid)
+    await saveViewerFollowerCache(pool, viewerDid, followers)
+    return followers
+  } catch {
+    return []
+  }
+}
+
 export async function resolveViewerFollowedDids(
   pool: pg.Pool,
   viewerDid: string,
@@ -204,13 +249,20 @@ export async function loadViewerContext(
     fetchFollows: (viewerDid: string) => Promise<string[]>
     /** When set, limits served-post history to this many hours (personalization window). */
     servedWindowHours?: number
+    /** Ranker uses liked/reposted URIs; personalization does not. */
+    includeInteractionUris?: boolean
   },
 ): Promise<ViewerContext> {
+  const includeInteractions = input.includeInteractionUris !== false
   const [followedDids, servedPosts, likedPostUris, repostedPostUris] = await Promise.all([
     resolveViewerFollowedDids(pool, input.viewerDid, input.fetchFollows),
     loadServedPostsForViewer(pool, input.viewerDid, input.feedId, input.servedWindowHours),
-    loadViewerInteractionUris(pool, input.viewerDid, 'interactionLike'),
-    loadViewerInteractionUris(pool, input.viewerDid, 'interactionRepost'),
+    includeInteractions
+      ? loadViewerInteractionUris(pool, input.viewerDid, 'interactionLike')
+      : Promise.resolve([]),
+    includeInteractions
+      ? loadViewerInteractionUris(pool, input.viewerDid, 'interactionRepost')
+      : Promise.resolve([]),
   ])
 
   const authorSet = new Set(input.candidateAuthorDids)
@@ -244,19 +296,21 @@ export async function recordFeedServedPosts(
 ): Promise<void> {
   if (input.items.length === 0) return
 
-  for (const item of input.items) {
-    await pool.query(
-      `INSERT INTO feed_served_posts
-         (viewer_did, feed_id, post_uri, req_id, position, served_at, impression_count)
-       VALUES ($1, $2, $3, $4, $5, NOW(), 1)
-       ON CONFLICT (viewer_did, feed_id, post_uri) DO UPDATE SET
-         req_id = EXCLUDED.req_id,
-         position = EXCLUDED.position,
-         served_at = NOW(),
-         impression_count = feed_served_posts.impression_count + 1`,
-      [input.viewerDid, input.feedId, item.postUri, input.reqId, item.position],
-    )
-  }
+  const postUris = input.items.map((item) => item.postUri)
+  const positions = input.items.map((item) => item.position)
+
+  await pool.query(
+    `INSERT INTO feed_served_posts
+       (viewer_did, feed_id, post_uri, req_id, position, served_at, impression_count)
+     SELECT $1, $2, u.post_uri, $3, u.position, NOW(), 1
+     FROM unnest($4::text[], $5::int[]) AS u(post_uri, position)
+     ON CONFLICT (viewer_did, feed_id, post_uri) DO UPDATE SET
+       req_id = EXCLUDED.req_id,
+       position = EXCLUDED.position,
+       served_at = NOW(),
+       impression_count = feed_served_posts.impression_count + 1`,
+    [input.viewerDid, input.feedId, input.reqId, postUris, positions],
+  )
 }
 
 export interface FeedInteractionInput {

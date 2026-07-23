@@ -64,6 +64,7 @@ export {
   recordViewerFeedOpen,
   recordFeedServedPosts,
   resolveViewerFollowedDids,
+  resolveViewerFollowerDids,
   type AuthorAffinityRecord,
   type FeedInteractionInput,
   type ServedFeedItem,
