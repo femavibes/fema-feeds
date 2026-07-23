@@ -133,7 +133,7 @@ function personalizationActive(config: NativePersonalizationConfig | undefined):
   if (!config) return false
   if (config.formulaEnabled && config.formula) return true
   const needs = analyzePersonalizationNeeds(config)
-  return needs.follows || needs.mutuals || needs.servedHistory || needs.affinity || needs.lastOpen ||
+  return needs.follows || needs.followers || needs.mutuals || needs.servedHistory || needs.affinity || needs.lastOpen ||
     Boolean(config.authorDiversity?.enabled)
 }
 
@@ -244,11 +244,15 @@ async function loadViewerPersonalizationContext(
     needs.lastOpen
       ? loadViewerLastFeedOpen(pool, viewerDid, feedId)
       : Promise.resolve(null),
-    needs.mutuals
+    needs.followers || needs.mutuals
       ? resolveViewerFollowerDids(pool, viewerDid, serveFetchFollowers, SERVE_GRAPH_RESOLVE_OPTS)
           .catch(() => [] as string[])
       : Promise.resolve([] as string[]),
   ])
+
+  const followerDids = new Set(
+    needs.followers || needs.mutuals ? viewerFollowers : [],
+  )
 
   let mutualDids = new Set<string>()
   if (needs.mutuals) {
@@ -274,6 +278,7 @@ async function loadViewerPersonalizationContext(
   const ctx: ViewerPersonalizationContext = {
     viewerDid,
     followedDids: new Set(followedDids),
+    followerDids,
     mutualDids,
     servedPosts,
     affinityCounts,

@@ -269,7 +269,8 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
               <dl className="formula-field-legend">
                 <dt>base_score</dt><dd>Sort key from Sorting tab (the starting score)</dd>
                 <dt>is_followed</dt><dd>1 if viewer follows post author, 0 if not</dd>
-                <dt>is_mutual</dt><dd>1 if mutual follow, 0 if not</dd>
+                <dt>is_follower</dt><dd>1 if post author follows the viewer, 0 if not</dd>
+                <dt>is_mutual</dt><dd>1 if mutual follow (both follow each other), 0 if not</dd>
                 <dt>times_served</dt><dd>Times this post was returned in getFeedSkeleton</dd>
                 <dt>hours_since_served</dt><dd>Hours since last skeleton serve (0 if never)</dd>
                 <dt>was_viewed</dt><dd>1 if client reported interactionSeen, else 0</dd>

@@ -29,6 +29,7 @@ export const PERSONALIZATION_FIELDS: Record<string, L2NumericField | string> = {
   // Viewer-relative fields
   base_score: 'base_score',
   is_followed: 'is_followed',
+  is_follower: 'is_follower',
   is_mutual: 'is_mutual',
   times_served: 'times_served',
   hours_since_served: 'hours_since_served',

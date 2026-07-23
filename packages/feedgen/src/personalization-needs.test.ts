@@ -65,6 +65,16 @@ describe('analyzePersonalizationNeeds', () => {
     expect(needs.lastOpen).toBe(false)
   })
 
+  it('detects is_follower in formula', () => {
+    const needs = analyzePersonalizationNeeds({
+      formulaEnabled: true,
+      formula: { type: 'field', field: 'is_follower' } as unknown as import('@cfb/core-types').L2Expr,
+    })
+    expect(needs.followers).toBe(true)
+    expect(needs.follows).toBe(false)
+    expect(needs.mutuals).toBe(false)
+  })
+
   it('requires follows when mutuals are needed', () => {
     const needs = analyzePersonalizationNeeds({
       formulaEnabled: true,

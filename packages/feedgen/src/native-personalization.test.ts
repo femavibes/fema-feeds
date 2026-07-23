@@ -13,6 +13,7 @@ function viewerWithServed(
   return {
     viewerDid: 'did:plc:viewer',
     followedDids: new Set(),
+    followerDids: new Set(),
     mutualDids: new Set(),
     servedPosts: new Map([
       [postUri, {
@@ -94,6 +95,36 @@ describe('applyNativePersonalization suppressServed', () => {
 
     const result = applyNativePersonalization(posts, config, viewer, sortKeys)
     expect(result[0]?.post).toBe(posts[0]!.post)
+  })
+})
+
+describe('personalization formula viewer graph fields', () => {
+  it('is_follower is distinct from is_followed and is_mutual', async () => {
+    const { evalPersonalizationFormula } = await import('./personalization-eval.js')
+    const postUri = 'at://did:plc:author/app.bsky.feed.post/abc'
+    const viewer: import('./native-personalization.js').ViewerPersonalizationContext = {
+      viewerDid: 'did:plc:viewer',
+      followedDids: new Set(['did:plc:author', 'did:plc:both']),
+      followerDids: new Set(['did:plc:fan', 'did:plc:both']),
+      mutualDids: new Set(['did:plc:both']),
+      servedPosts: new Map(),
+      affinityCounts: new Map(),
+      hoursSinceLastOpen: null,
+    }
+    const authorPost = { postUri, authorDid: 'did:plc:author', baseScore: 1 }
+    const fanPost = { postUri: 'at://did:plc:fan/app.bsky.feed.post/x', authorDid: 'did:plc:fan', baseScore: 1 }
+    const mutualPost = { postUri: 'at://did:plc:both/app.bsky.feed.post/y', authorDid: 'did:plc:both', baseScore: 1 }
+
+    expect(evalPersonalizationFormula({ type: 'field', field: 'is_followed' as never }, viewer, authorPost)).toBe(1)
+    expect(evalPersonalizationFormula({ type: 'field', field: 'is_follower' as never }, viewer, authorPost)).toBe(0)
+    expect(evalPersonalizationFormula({ type: 'field', field: 'is_mutual' as never }, viewer, authorPost)).toBe(0)
+
+    expect(evalPersonalizationFormula({ type: 'field', field: 'is_follower' as never }, viewer, fanPost)).toBe(1)
+    expect(evalPersonalizationFormula({ type: 'field', field: 'is_followed' as never }, viewer, fanPost)).toBe(0)
+
+    expect(evalPersonalizationFormula({ type: 'field', field: 'is_mutual' as never }, viewer, mutualPost)).toBe(1)
+    expect(evalPersonalizationFormula({ type: 'field', field: 'is_follower' as never }, viewer, mutualPost)).toBe(1)
+    expect(evalPersonalizationFormula({ type: 'field', field: 'is_followed' as never }, viewer, mutualPost)).toBe(1)
   })
 })
 

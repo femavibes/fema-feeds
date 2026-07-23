@@ -2,6 +2,7 @@ import type { FormulaFieldGroup, FormulaTemplate } from './SortFormulaBuilder'
 
 export const PERSONALIZATION_TEMPLATES: FormulaTemplate[] = [
   { name: 'Follow boost', formula: 'base_score * if(is_followed > 0, 1.3, 1)' },
+  { name: 'Follower boost', formula: 'base_score * if(is_follower > 0, 1.2, 1)' },
   { name: 'Mutual priority', formula: 'base_score * if(is_mutual > 0, 1.5, if(is_followed > 0, 1.2, 1))' },
   { name: 'Serve fatigue', formula: 'base_score / (times_served + 1)' },
   { name: 'View fatigue', formula: 'base_score / (was_viewed * 2 + times_served + 1)' },
@@ -16,7 +17,7 @@ export const PERSONALIZATION_TEMPLATES: FormulaTemplate[] = [
 export const PERSONALIZATION_FIELD_GROUPS: FormulaFieldGroup[] = [
   {
     label: 'Viewer signals',
-    fields: ['base_score', 'is_followed', 'is_mutual', 'hours_since_last_open', 'days_since_interaction'],
+    fields: ['base_score', 'is_followed', 'is_follower', 'is_mutual', 'hours_since_last_open', 'days_since_interaction'],
   },
   {
     label: 'Served (in skeleton response)',

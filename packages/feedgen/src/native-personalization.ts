@@ -16,6 +16,8 @@ export interface ViewerServedPostRecord {
 export interface ViewerPersonalizationContext {
   viewerDid: string
   followedDids: Set<string>
+  /** Accounts that follow the viewer (getFollowers). */
+  followerDids: Set<string>
   mutualDids: Set<string>
   /** Post URI → serve/view record for this viewer+feed. */
   servedPosts: Map<string, ViewerServedPostRecord>

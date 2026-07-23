@@ -22,6 +22,8 @@ const SERVED_HISTORY_FIELDS = new Set([
 
 export interface PersonalizationDataNeeds {
   follows: boolean
+  /** Load viewer follower list (getFollowers) — for is_follower and/or is_mutual. */
+  followers: boolean
   mutuals: boolean
   affinity: boolean
   servedHistory: boolean
@@ -99,6 +101,7 @@ export function analyzePersonalizationNeeds(
 ): PersonalizationDataNeeds {
   const suppressServed = resolveSuppressServed(config)
   let follows = Boolean(config.boostFollowed?.enabled)
+  let followers = false
   let mutuals = Boolean(config.boostMutuals?.enabled)
   let affinity = Boolean(config.affinityBoost?.enabled)
   let servedHistory = Boolean(suppressServed?.enabled)
@@ -107,6 +110,7 @@ export function analyzePersonalizationNeeds(
 
   if (config.formulaEnabled && config.formula) {
     follows ||= formulaUsesField(config.formula, 'is_followed')
+    followers ||= formulaUsesField(config.formula, 'is_follower')
     mutuals ||= formulaUsesField(config.formula, 'is_mutual')
     affinity ||= formulaUsesAnyField(config.formula, AFFINITY_FIELDS)
     servedHistory ||= formulaUsesAnyField(config.formula, SERVED_HISTORY_FIELDS)
@@ -116,10 +120,14 @@ export function analyzePersonalizationNeeds(
     }
   }
 
-  if (mutuals) follows = true
+  if (mutuals) {
+    follows = true
+    followers = true
+  }
 
   return {
     follows,
+    followers,
     mutuals,
     affinity,
     servedHistory,

@@ -117,6 +117,9 @@ function resolvePersonalizationField(
     case 'is_followed':
       return authorDid && viewer.followedDids.has(authorDid) ? 1 : 0
 
+    case 'is_follower':
+      return authorDid && viewer.followerDids.has(authorDid) ? 1 : 0
+
     case 'is_mutual':
       return authorDid && viewer.mutualDids.has(authorDid) ? 1 : 0
 
