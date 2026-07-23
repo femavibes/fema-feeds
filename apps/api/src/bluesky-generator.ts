@@ -170,6 +170,8 @@ export async function publishBlueskyGeneratorRecord(
     displayName: feed.name.trim().slice(0, 24) || rkey,
     description: feed.description?.trim().slice(0, 300) || undefined,
     createdAt: new Date().toISOString(),
+    /** Required for Bluesky clients to send interactionSeen / sendInteractions. */
+    acceptsInteractions: true,
   }
   if (avatarBlob) record.avatar = avatarBlob
   if (feed.videoFeed) {

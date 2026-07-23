@@ -273,7 +273,7 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
                 <dt>is_mutual</dt><dd>1 if mutual follow (both follow each other), 0 if not</dd>
                 <dt>times_served</dt><dd>Times this post was returned in getFeedSkeleton</dd>
                 <dt>hours_since_served</dt><dd>Hours since last skeleton serve (0 if never)</dd>
-                <dt>was_viewed</dt><dd>1 if client reported interactionSeen, else 0</dd>
+                <dt>was_viewed</dt><dd>1 if client reported interactionSeen, else 0 (requires acceptsInteractions on Bluesky publish)</dd>
                 <dt>times_viewed</dt><dd>1 if viewed (0/1 until repeat views are tracked)</dd>
                 <dt>hours_since_viewed</dt><dd>Hours since client-reported view (0 if never)</dd>
                 <dt>hours_since_last_open</dt><dd>Hours since viewer last opened this feed</dd>

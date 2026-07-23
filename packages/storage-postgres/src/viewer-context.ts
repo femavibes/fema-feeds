@@ -409,12 +409,23 @@ export async function applyFeedInteractionEvents(
   for (const interaction of interactions) {
     if (interaction.event === 'interactionSeen') {
       // Client-confirmed view (interactionSeen) — distinct from skeleton serve count.
-      await pool.query(
-        `UPDATE feed_served_posts SET seen_at = COALESCE(seen_at, NOW())
-         WHERE viewer_did = $1 AND post_uri = $2
-           AND ($3::text IS NULL OR feed_id = $3)`,
-        [viewerDid, interaction.postUri, interaction.feedId ?? null],
-      )
+      if (interaction.feedId) {
+        await pool.query(
+          `INSERT INTO feed_served_posts
+             (viewer_did, feed_id, post_uri, req_id, position, served_at, impression_count, seen_at)
+           VALUES ($1, $2, $3, COALESCE($4, ''), 0, NOW(), 0, NOW())
+           ON CONFLICT (viewer_did, feed_id, post_uri) DO UPDATE SET
+             seen_at = COALESCE(feed_served_posts.seen_at, NOW()),
+             req_id = COALESCE(NULLIF(EXCLUDED.req_id, ''), feed_served_posts.req_id)`,
+          [viewerDid, interaction.feedId, interaction.postUri, interaction.reqId ?? null],
+        )
+      } else {
+        await pool.query(
+          `UPDATE feed_served_posts SET seen_at = COALESCE(seen_at, NOW())
+           WHERE viewer_did = $1 AND post_uri = $2`,
+          [viewerDid, interaction.postUri],
+        )
+      }
       continue
     }
 
