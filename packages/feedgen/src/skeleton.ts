@@ -4,13 +4,28 @@ import {
   isFeedPubliclyServed,
   PERSONALIZATION_DEPTH_DEFAULT,
   PERSONALIZATION_DEPTH_MAX,
+  PERSONALIZATION_PAGE_DEPTH_BUFFER,
+  PERSONALIZATION_PAGE_DEPTH_MIN,
   PERSONALIZATION_QUICK_DEPTH_MIN,
   PERSONALIZATION_QUICK_DEPTH_PAGE_FACTOR,
 } from '@cfb/core-types'
 
 import type pg from 'pg'
 
-import { getFeedSkeleton, getFeedCandidateWindow, recordFeedServedPosts, incrementFeedImpression } from '@cfb/storage-postgres'
+import {
+  getFeedSkeleton,
+  getFeedCandidateWindow,
+  loadServedPostsForViewer,
+  loadViewerAffinityCounts,
+  loadViewerLastFeedOpen,
+  recordFeedServedPosts,
+  recordViewerFeedOpen,
+  incrementFeedImpression,
+  resolveViewerFollowedDids,
+  resolveViewerFollowerDids,
+} from '@cfb/storage-postgres'
+
+import { fetchActorFollowersDidsWithMeta, fetchActorFollowsDidsWithMeta } from '@cfb/viewer-graph'
 
 import { resolveFeedByUri } from './uri.js'
 
@@ -93,6 +108,15 @@ function viewerContextCacheKey(feedId: string, viewerDid: string): string {
 }
 
 const PERSONALIZED_CURSOR_PREFIX = 'p::'
+const SERVE_GRAPH_RESOLVE_OPTS = { serveTime: true } as const
+
+function serveFetchFollows(viewerDid: string, options?: { maxMs?: number }) {
+  return fetchActorFollowsDidsWithMeta(viewerDid, options)
+}
+
+function serveFetchFollowers(viewerDid: string, options?: { maxMs?: number }) {
+  return fetchActorFollowersDidsWithMeta(viewerDid, options)
+}
 
 function parsePersonalizedCursor(cursor: string): { sessionId: string; offset: number } | null {
   if (!cursor.startsWith(PERSONALIZED_CURSOR_PREFIX)) return null
@@ -123,6 +147,25 @@ function quickPersonalizationDepth(fullDepth: number, limit: number): number {
     fullDepth,
     Math.max(limit * PERSONALIZATION_QUICK_DEPTH_PAGE_FACTOR, PERSONALIZATION_QUICK_DEPTH_MIN),
   )
+}
+
+function pagePersonalizationDepth(fullDepth: number, limit: number): number {
+  return Math.min(
+    fullDepth,
+    Math.max(limit + PERSONALIZATION_PAGE_DEPTH_BUFFER, PERSONALIZATION_PAGE_DEPTH_MIN),
+  )
+}
+
+function personalizationExpandStages(fullDepth: number, limit: number, useQuick: boolean): number[] {
+  if (!useQuick || fullDepth <= pagePersonalizationDepth(fullDepth, limit)) {
+    return [fullDepth]
+  }
+  const stages = [
+    pagePersonalizationDepth(fullDepth, limit),
+    quickPersonalizationDepth(fullDepth, limit),
+    fullDepth,
+  ]
+  return [...new Set(stages)]
 }
 
 function quickFirstOpenEnabled(config: NativePersonalizationConfig): boolean {
@@ -186,21 +229,11 @@ async function loadViewerPersonalizationContext(
   }
 
   const needs = analyzePersonalizationNeeds(personalization)
-  const {
-    loadServedPostsForViewer,
-    loadViewerAffinityCounts,
-    loadViewerLastFeedOpen,
-    recordViewerFeedOpen,
-    resolveViewerFollowedDids,
-    resolveViewerFollowerDids,
-  } = await import('@cfb/storage-postgres')
-  const { fetchViewerFollowedDids, fetchActorFollowersDids } = await import('@cfb/viewer-graph')
-
   const affinityWindowDays = personalization.affinityBoost?.windowDays ?? 30
 
   const [followedDids, servedRows, affinityCounts, lastOpen, viewerFollowers] = await Promise.all([
     needs.follows || needs.mutuals
-      ? resolveViewerFollowedDids(pool, viewerDid, fetchViewerFollowedDids)
+      ? resolveViewerFollowedDids(pool, viewerDid, serveFetchFollows, SERVE_GRAPH_RESOLVE_OPTS)
       : Promise.resolve([] as string[]),
     needs.servedHistory
       ? loadServedPostsForViewer(pool, viewerDid, feedId, needs.servedWindowHours)
@@ -212,7 +245,8 @@ async function loadViewerPersonalizationContext(
       ? loadViewerLastFeedOpen(pool, viewerDid, feedId)
       : Promise.resolve(null),
     needs.mutuals
-      ? resolveViewerFollowerDids(pool, viewerDid, fetchActorFollowersDids).catch(() => [] as string[])
+      ? resolveViewerFollowerDids(pool, viewerDid, serveFetchFollowers, SERVE_GRAPH_RESOLVE_OPTS)
+          .catch(() => [] as string[])
       : Promise.resolve([] as string[]),
   ])
 
@@ -288,10 +322,12 @@ function expandPersonalizationSessionInBackground(
   project: ProjectL1Config | undefined,
   viewerDid: string,
   sessionId: string,
-  fullDepth: number,
+  stages: number[],
 ): Promise<void> {
-  return computePersonalizedUris(pool, config, project, viewerDid, fullDepth)
-    .then((uris) => {
+  const run = async () => {
+    for (const depth of stages.slice(1)) {
+      viewerPersonalizationContextCache.delete(viewerContextCacheKey(config.feedId, viewerDid))
+      const uris = await computePersonalizedUris(pool, config, project, viewerDid, depth)
       const session = personalizationSessions.get(sessionId)
       if (
         !session ||
@@ -302,11 +338,14 @@ function expandPersonalizationSessionInBackground(
         return
       }
       session.uris = uris
-      session.expandComplete = true
-    })
-    .catch((err) => {
-      console.error('[personalization] background expand failed', config.feedId, sessionId, err)
-    })
+    }
+    const session = personalizationSessions.get(sessionId)
+    if (session) session.expandComplete = true
+  }
+
+  return run().catch((err) => {
+    console.error('[personalization] background expand failed', config.feedId, sessionId, err)
+  })
 }
 
 /**
@@ -324,8 +363,9 @@ async function buildPersonalizationSession(
 ): Promise<PersonalizationSession> {
   const personalization = config.personalization!
   const fullDepth = personalizationDepth(personalization, limit)
-  const useQuick = quickFirstOpenEnabled(personalization) && fullDepth > quickPersonalizationDepth(fullDepth, limit)
-  const initialDepth = useQuick ? quickPersonalizationDepth(fullDepth, limit) : fullDepth
+  const useQuick = quickFirstOpenEnabled(personalization) && fullDepth > pagePersonalizationDepth(fullDepth, limit)
+  const stages = personalizationExpandStages(fullDepth, limit, useQuick)
+  const initialDepth = stages[0]!
 
   const uris = await computePersonalizedUris(pool, config, project, viewerDid, initialDepth)
 
@@ -334,17 +374,17 @@ async function buildPersonalizationSession(
     viewerDid,
     uris,
     expiresAt: Date.now() + PERSONALIZATION_SESSION_TTL_MS,
-    expandComplete: !useQuick,
+    expandComplete: stages.length === 1,
   }
 
-  if (useQuick) {
+  if (stages.length > 1) {
     session.expandPromise = expandPersonalizationSessionInBackground(
       pool,
       config,
       project,
       viewerDid,
       sessionId,
-      fullDepth,
+      stages,
     )
   }
 

@@ -42,6 +42,9 @@ export const PERSONALIZATION_DEPTH_MAX = 2000
 /** First-open quick window: enough for several pages before background expand finishes. */
 export const PERSONALIZATION_QUICK_DEPTH_MIN = 80
 export const PERSONALIZATION_QUICK_DEPTH_PAGE_FACTOR = 4
+/** Smallest first-paint reorder window (page 1 + buffer). */
+export const PERSONALIZATION_PAGE_DEPTH_MIN = 50
+export const PERSONALIZATION_PAGE_DEPTH_BUFFER = 20
 
 export const DEFAULT_PERSONALIZATION: NativePersonalizationConfig = {
   boostFollowed: { enabled: false, factor: 1.3 },

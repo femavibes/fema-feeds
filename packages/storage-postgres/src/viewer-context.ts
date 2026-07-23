@@ -3,19 +3,47 @@ import { bumpAudienceEngagement } from './feed-candidates.js'
 import type pg from 'pg'
 
 const FOLLOW_CACHE_TTL_HOURS = 6
+const SERVE_GRAPH_BUDGET_MS = 800
 const SERVED_HISTORY_DAYS = 7
 const MAX_SERVED_ROWS = 500
+
+export interface ViewerGraphResolveOptions {
+  /** Serve-time path: prefer stale cache and cap live AppView graph latency. */
+  serveTime?: boolean
+}
+
+type GraphFetchFn = (
+  viewerDid: string,
+  options?: { maxMs?: number },
+) => Promise<string[] | { dids: string[]; partial?: boolean }>
+
+interface CachedGraphRow {
+  dids: string[]
+  fresh: boolean
+}
+
+async function normalizeGraphFetch(
+  result: string[] | { dids: string[]; partial?: boolean },
+): Promise<{ dids: string[]; partial: boolean }> {
+  if (Array.isArray(result)) return { dids: result, partial: false }
+  return { dids: result.dids, partial: Boolean(result.partial) }
+}
 
 export async function getCachedViewerFollows(
   pool: pg.Pool | pg.PoolClient,
   viewerDid: string,
-): Promise<string[] | null> {
-  const res = await pool.query<{ followed_dids: string[] }>(
-    `SELECT followed_dids FROM viewer_follow_cache
-     WHERE viewer_did = $1 AND expires_at > NOW()`,
+  options?: { allowStale?: boolean },
+): Promise<CachedGraphRow | null> {
+  const res = await pool.query<{ followed_dids: string[]; expires_at: Date }>(
+    options?.allowStale
+      ? `SELECT followed_dids, expires_at FROM viewer_follow_cache WHERE viewer_did = $1`
+      : `SELECT followed_dids, expires_at FROM viewer_follow_cache
+         WHERE viewer_did = $1 AND expires_at > NOW()`,
     [viewerDid],
   )
-  return res.rows[0]?.followed_dids ?? null
+  const row = res.rows[0]
+  if (!row) return null
+  return { dids: row.followed_dids, fresh: row.expires_at > new Date() }
 }
 
 export async function saveViewerFollowCache(
@@ -37,13 +65,18 @@ export async function saveViewerFollowCache(
 export async function getCachedViewerFollowers(
   pool: pg.Pool | pg.PoolClient,
   viewerDid: string,
-): Promise<string[] | null> {
-  const res = await pool.query<{ follower_dids: string[] }>(
-    `SELECT follower_dids FROM viewer_follower_cache
-     WHERE viewer_did = $1 AND expires_at > NOW()`,
+  options?: { allowStale?: boolean },
+): Promise<CachedGraphRow | null> {
+  const res = await pool.query<{ follower_dids: string[]; expires_at: Date }>(
+    options?.allowStale
+      ? `SELECT follower_dids, expires_at FROM viewer_follower_cache WHERE viewer_did = $1`
+      : `SELECT follower_dids, expires_at FROM viewer_follower_cache
+         WHERE viewer_did = $1 AND expires_at > NOW()`,
     [viewerDid],
   )
-  return res.rows[0]?.follower_dids ?? null
+  const row = res.rows[0]
+  if (!row) return null
+  return { dids: row.follower_dids, fresh: row.expires_at > new Date() }
 }
 
 export async function saveViewerFollowerCache(
@@ -62,37 +95,85 @@ export async function saveViewerFollowerCache(
   )
 }
 
+async function refreshViewerFollowersInBackground(
+  pool: pg.Pool,
+  viewerDid: string,
+  fetchFollowers: GraphFetchFn,
+): Promise<void> {
+  try {
+    const { dids: followers } = await normalizeGraphFetch(await fetchFollowers(viewerDid))
+    await saveViewerFollowerCache(pool, viewerDid, followers)
+  } catch {
+    /* background refresh must not throw */
+  }
+}
+
+async function refreshViewerFollowsInBackground(
+  pool: pg.Pool,
+  viewerDid: string,
+  fetchFollows: GraphFetchFn,
+): Promise<void> {
+  try {
+    const { dids: followed } = await normalizeGraphFetch(await fetchFollows(viewerDid))
+    await saveViewerFollowCache(pool, viewerDid, followed)
+  } catch {
+    /* background refresh must not throw */
+  }
+}
+
 export async function resolveViewerFollowerDids(
   pool: pg.Pool,
   viewerDid: string,
-  fetchFollowers: (viewerDid: string) => Promise<string[]>,
+  fetchFollowers: GraphFetchFn,
+  options?: ViewerGraphResolveOptions,
 ): Promise<string[]> {
-  const cached = await getCachedViewerFollowers(pool, viewerDid)
-  if (cached) return cached
+  const cached = await getCachedViewerFollowers(pool, viewerDid, { allowStale: options?.serveTime })
+  if (cached?.fresh) return cached.dids
+  if (cached && options?.serveTime) {
+    void refreshViewerFollowersInBackground(pool, viewerDid, fetchFollowers)
+    return cached.dids
+  }
 
   try {
-    const followers = await fetchFollowers(viewerDid)
+    const fetchOpts = options?.serveTime ? { maxMs: SERVE_GRAPH_BUDGET_MS } : undefined
+    const { dids: followers, partial } = await normalizeGraphFetch(
+      await fetchFollowers(viewerDid, fetchOpts),
+    )
     await saveViewerFollowerCache(pool, viewerDid, followers)
+    if (options?.serveTime && partial) {
+      void refreshViewerFollowersInBackground(pool, viewerDid, fetchFollowers)
+    }
     return followers
   } catch {
-    return []
+    return cached?.dids ?? []
   }
 }
 
 export async function resolveViewerFollowedDids(
   pool: pg.Pool,
   viewerDid: string,
-  fetchFollows: (viewerDid: string) => Promise<string[]>,
+  fetchFollows: GraphFetchFn,
+  options?: ViewerGraphResolveOptions,
 ): Promise<string[]> {
-  const cached = await getCachedViewerFollows(pool, viewerDid)
-  if (cached) return cached
+  const cached = await getCachedViewerFollows(pool, viewerDid, { allowStale: options?.serveTime })
+  if (cached?.fresh) return cached.dids
+  if (cached && options?.serveTime) {
+    void refreshViewerFollowsInBackground(pool, viewerDid, fetchFollows)
+    return cached.dids
+  }
 
   try {
-    const followed = await fetchFollows(viewerDid)
+    const fetchOpts = options?.serveTime ? { maxMs: SERVE_GRAPH_BUDGET_MS } : undefined
+    const { dids: followed, partial } = await normalizeGraphFetch(
+      await fetchFollows(viewerDid, fetchOpts),
+    )
     await saveViewerFollowCache(pool, viewerDid, followed)
+    if (options?.serveTime && partial) {
+      void refreshViewerFollowsInBackground(pool, viewerDid, fetchFollows)
+    }
     return followed
   } catch {
-    return []
+    return cached?.dids ?? []
   }
 }
 

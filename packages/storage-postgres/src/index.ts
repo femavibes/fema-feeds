@@ -68,6 +68,7 @@ export {
   type AuthorAffinityRecord,
   type FeedInteractionInput,
   type ServedFeedItem,
+  type ViewerGraphResolveOptions,
 } from './viewer-context.js'
 export { getEnrichmentSettings, saveEnrichmentSettings } from './enrichment-settings.js'
 export { getIngestSettings, saveIngestSettings, type IngestSettings } from './ingest-settings.js'

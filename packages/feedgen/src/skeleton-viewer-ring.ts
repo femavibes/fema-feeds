@@ -8,8 +8,8 @@ import {
   projectViewerFollowRingNode,
 } from '@cfb/l2-eval'
 import {
-  fetchActorFollowersDids,
-  fetchActorFollowsDids,
+  fetchActorFollowersDidsWithMeta,
+  fetchActorFollowsDidsWithMeta,
 } from '@cfb/viewer-graph'
 import {
   loadRankerCandidates,
@@ -18,6 +18,16 @@ import {
   type SkeletonPost,
 } from '@cfb/storage-postgres'
 import type pg from 'pg'
+
+const SERVE_GRAPH_RESOLVE_OPTS = { serveTime: true } as const
+
+function serveFetchFollows(viewerDid: string, options?: { maxMs?: number }) {
+  return fetchActorFollowsDidsWithMeta(viewerDid, options)
+}
+
+function serveFetchFollowers(viewerDid: string, options?: { maxMs?: number }) {
+  return fetchActorFollowersDidsWithMeta(viewerDid, options)
+}
 
 async function resolveViewerDirectionRing(
   pool: pg.Pool,
@@ -36,10 +46,10 @@ async function resolveViewerDirectionRing(
     ])
     dids = [...new Set([...follows, ...followers])]
   } else if (direction === 'follows') {
-    dids = await resolveViewerFollowedDids(pool, viewerDid, fetchActorFollowsDids)
+    dids = await resolveViewerFollowedDids(pool, viewerDid, serveFetchFollows, SERVE_GRAPH_RESOLVE_OPTS)
   } else {
     try {
-      dids = await resolveViewerFollowerDids(pool, viewerDid, fetchActorFollowersDids)
+      dids = await resolveViewerFollowerDids(pool, viewerDid, serveFetchFollowers, SERVE_GRAPH_RESOLVE_OPTS)
     } catch {
       dids = []
     }
