@@ -20,6 +20,7 @@ export interface GlobalRegistrySortPackSummary {
   description?: string
   visibility: 'global'
   trustTier: SortPackPackage['trustTier']
+  packKind?: SortPackPackage['packKind']
   updatedAt: string
 }
 
@@ -44,6 +45,7 @@ function toSummary(pkg: SortPackPackage): GlobalRegistrySortPackSummary {
     description: pkg.description,
     visibility: 'global',
     trustTier: pkg.trustTier,
+    packKind: pkg.packKind,
     updatedAt: pkg.updatedAt,
   }
 }
@@ -101,6 +103,7 @@ export async function fetchRemoteGlobalSortPackCatalog(): Promise<SortPackPackag
     description: s.description,
     visibility: 'global' as const,
     trustTier: s.trustTier,
+    packKind: s.packKind ?? 'sort',
     sortKey: { type: 'literal' as const, value: 0 },
     createdAt: s.updatedAt,
     updatedAt: s.updatedAt,
@@ -130,6 +133,7 @@ export async function fetchRemoteGlobalSortPack(
     description: detail.description,
     visibility: 'global',
     trustTier: detail.trustTier,
+    packKind: detail.packKind ?? 'sort',
     sortKey: detail.sortKey,
     createdAt: detail.createdAt,
     updatedAt: detail.updatedAt,
