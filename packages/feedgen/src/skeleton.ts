@@ -216,19 +216,45 @@ async function expandRepostSkeletonItems(
   })
 }
 
+async function refreshViewerServedPosts(
+  pool: pg.Pool,
+  ctx: ViewerPersonalizationContext,
+  viewerDid: string,
+  feedId: string,
+  servedWindowHours: number,
+): Promise<void> {
+  const servedRows = await loadServedPostsForViewer(pool, viewerDid, feedId, servedWindowHours)
+  ctx.servedPosts.clear()
+  for (const sp of servedRows) {
+    ctx.servedPosts.set(sp.postUri, {
+      serveCount: sp.serveCount,
+      servedAt: new Date(sp.servedAt),
+      viewedAt: sp.viewedAt ? new Date(sp.viewedAt) : null,
+    })
+  }
+}
+
 async function loadViewerPersonalizationContext(
   pool: pg.Pool,
   feedId: string,
   viewerDid: string,
   personalization: NativePersonalizationConfig,
 ): Promise<ViewerPersonalizationContext> {
+  const needs = analyzePersonalizationNeeds(personalization)
   const cacheKey = viewerContextCacheKey(feedId, viewerDid)
   const cached = viewerPersonalizationContextCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) {
+    if (needs.servedHistory) {
+      await refreshViewerServedPosts(
+        pool,
+        cached.ctx,
+        viewerDid,
+        feedId,
+        needs.servedWindowHours,
+      )
+    }
     return cached.ctx
   }
-
-  const needs = analyzePersonalizationNeeds(personalization)
   const affinityWindowDays = personalization.affinityBoost?.windowDays ?? 30
 
   const [followedDids, servedRows, affinityCounts, lastOpen, viewerFollowers] = await Promise.all([
