@@ -40,6 +40,7 @@ export function FeedSortingView({
   onSaveSettings,
 }: Props) {
   const [saveModalOpen, setSaveModalOpen] = useState(false)
+  const [libraryRefreshKey, setLibraryRefreshKey] = useState(0)
   const hasPackRef = !!draft.rank?.packRef
   const [source, setSource] = useState<FeedSourceMode>(hasPackRef ? 'subscribed' : 'native')
   const [packExpr, setPackExpr] = useState<L2Expr | null>(null)
@@ -67,7 +68,12 @@ export function FeedSortingView({
             <span className="badge badge-on">{sortModeBadge(mode, weights)}</span>
           </div>
           <div className="workspace-context-head-controls">
-            <FeedSourceToggle value={source} onChange={setSource} />
+            <FeedSourceToggle
+              value={source}
+              onChange={setSource}
+              nativeLabel="Create"
+              subscribedLabel="My collection & subscribed"
+            />
             {source === 'native' && (
               <button
                 type="button"
@@ -91,7 +97,12 @@ export function FeedSortingView({
         )}
         {source === 'subscribed' && (
           <div className="feed-subscribed-section">
-            <SortPackFeedSection draft={draft} onChange={onChange} onPackExprResolved={setPackExpr} />
+            <SortPackFeedSection
+              draft={draft}
+              onChange={onChange}
+              onPackExprResolved={setPackExpr}
+              refreshKey={libraryRefreshKey}
+            />
 
             {/* Read-only formula breakdown for native sort packs */}
             {packExpr && (
@@ -156,7 +167,12 @@ export function FeedSortingView({
         </div>
       ) : null}
 
-      <SaveSortPackModal draft={draft} open={saveModalOpen} onClose={() => setSaveModalOpen(false)} />
+      <SaveSortPackModal
+        draft={draft}
+        open={saveModalOpen}
+        onClose={() => setSaveModalOpen(false)}
+        onSaved={() => setLibraryRefreshKey((k) => k + 1)}
+      />
     </div>
   )
 }

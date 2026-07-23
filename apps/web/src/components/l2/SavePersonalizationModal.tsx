@@ -7,9 +7,10 @@ interface Props {
   draft: FeedConfig
   open: boolean
   onClose: () => void
+  onSaved?: () => void
 }
 
-export function SavePersonalizationModal({ draft, open, onClose }: Props) {
+export function SavePersonalizationModal({ draft, open, onClose, onSaved }: Props) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -35,6 +36,7 @@ export function SavePersonalizationModal({ draft, open, onClose }: Props) {
         packKind: 'personalization',
       })
       setName('')
+      onSaved?.()
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed')

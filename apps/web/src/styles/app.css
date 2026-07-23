@@ -12053,6 +12053,28 @@ body.l2-visual-open #root {
   font-weight: 600;
 }
 
+.feed-source-toggle-btn-wide {
+  max-width: 11rem;
+  line-height: 1.2;
+  white-space: normal;
+  text-align: center;
+}
+
+.feed-formula-library-section > * + * {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border, #333);
+}
+
+.feed-formula-pack-group-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #999);
+  margin: 0.75rem 0 0.35rem;
+}
+
 /* --- Native Injector Panel --- */
 
 .native-injector-panel {

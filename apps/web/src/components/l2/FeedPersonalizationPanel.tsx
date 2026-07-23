@@ -5,7 +5,6 @@ import { clearPersonalizationFormulaPackRef } from '../../lib/feed-personalizati
 import { PERSONALIZATION_FIELDS } from '../../lib/formula-parser'
 import { ToggleRow } from '../ToggleRow'
 import { SortFormulaBuilder, type FormulaTemplate, type FormulaFieldGroup } from './SortFormulaBuilder'
-import { PersonalizationFormulaFeedSection } from '../sort-packs/PersonalizationFormulaFeedSection'
 
 interface Props {
   draft: FeedConfig
@@ -278,7 +277,6 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
 
       {mode === 'formula' && (
         <div className="feed-personalization-formula">
-          <PersonalizationFormulaFeedSection draft={draft} onChange={onChange} />
           <div className="feed-personalization-formula-head">
             <p className="card-hint">
               Write a formula that scores each post for this viewer. Higher scores appear first.

@@ -4,9 +4,17 @@ interface Props {
   value: FeedSourceMode
   onChange: (mode: FeedSourceMode) => void
   label?: string
+  nativeLabel?: string
+  subscribedLabel?: string
 }
 
-export function FeedSourceToggle({ value, onChange, label = 'Source' }: Props) {
+export function FeedSourceToggle({
+  value,
+  onChange,
+  label = 'Source',
+  nativeLabel = 'Native',
+  subscribedLabel = 'Subscribed',
+}: Props) {
   return (
     <div className="feed-source-toggle-wrap">
       <span className="feed-source-toggle-label">{label}</span>
@@ -17,15 +25,15 @@ export function FeedSourceToggle({ value, onChange, label = 'Source' }: Props) {
           aria-pressed={value === 'native'}
           onClick={() => onChange('native')}
         >
-          Native
+          {nativeLabel}
         </button>
         <button
           type="button"
-          className={`feed-source-toggle-btn${value === 'subscribed' ? ' is-active' : ''}`}
+          className={`feed-source-toggle-btn feed-source-toggle-btn-wide${value === 'subscribed' ? ' is-active' : ''}`}
           aria-pressed={value === 'subscribed'}
           onClick={() => onChange('subscribed')}
         >
-          Subscribed
+          {subscribedLabel}
         </button>
       </div>
     </div>

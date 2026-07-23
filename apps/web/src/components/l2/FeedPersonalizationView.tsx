@@ -4,6 +4,7 @@ import { FeedSourceToggle, type FeedSourceMode } from '../FeedSourceToggle'
 import { FeedPersonalizationPanel } from './FeedPersonalizationPanel'
 import { SavePersonalizationModal } from './SavePersonalizationModal'
 import { RankerFeedSection } from '../plugins/RankerFeedSection'
+import { PersonalizationFormulaFeedSection } from '../sort-packs/PersonalizationFormulaFeedSection'
 
 interface Props {
   draft: FeedConfig
@@ -30,8 +31,23 @@ export function FeedPersonalizationView({
   onSaveSettings,
 }: Props) {
   const [saveModalOpen, setSaveModalOpen] = useState(false)
+  const [libraryRefreshKey, setLibraryRefreshKey] = useState(0)
   const hasRankerRef = !!draft.rank?.rankerRef
-  const [source, setSource] = useState<FeedSourceMode>(hasRankerRef ? 'subscribed' : 'native')
+  const hasFormulaPackRef = !!draft.personalization?.formulaPackRef
+  const [source, setSource] = useState<FeedSourceMode>(
+    hasRankerRef || hasFormulaPackRef ? 'subscribed' : 'native',
+  )
+
+  const badge =
+    source === 'subscribed'
+      ? hasRankerRef
+        ? 'Custom code'
+        : hasFormulaPackRef
+          ? 'Saved formula'
+          : 'Library'
+      : draft.personalization?.formulaEnabled
+        ? 'Formula'
+        : 'Toggles'
 
   return (
     <div className="workspace-page feed-personalization-view">
@@ -39,14 +55,15 @@ export function FeedPersonalizationView({
         <div className="workspace-context-head-row workspace-context-head-row-split">
           <div>
             <h2>Personalization</h2>
-            <span className="badge badge-on">
-              {source === 'subscribed'
-                ? 'Subscribed'
-                : draft.personalization?.formulaEnabled ? 'Formula' : 'Toggles'}
-            </span>
+            <span className="badge badge-on">{badge}</span>
           </div>
           <div className="workspace-context-head-controls">
-            <FeedSourceToggle value={source} onChange={setSource} />
+            <FeedSourceToggle
+              value={source}
+              onChange={setSource}
+              nativeLabel="Create"
+              subscribedLabel="My collection & subscribed"
+            />
             {source === 'native' && (
               <button
                 type="button"
@@ -70,7 +87,12 @@ export function FeedPersonalizationView({
           <FeedPersonalizationPanel draft={draft} onChange={onChange} />
         )}
         {source === 'subscribed' && (
-          <div className="feed-subscribed-section">
+          <div className="feed-subscribed-section feed-formula-library-section">
+            <PersonalizationFormulaFeedSection
+              draft={draft}
+              onChange={onChange}
+              refreshKey={libraryRefreshKey}
+            />
             <RankerFeedSection draft={draft} onChange={onChange} />
           </div>
         )}
@@ -91,7 +113,12 @@ export function FeedPersonalizationView({
         </div>
       ) : null}
 
-      <SavePersonalizationModal draft={draft} open={saveModalOpen} onClose={() => setSaveModalOpen(false)} />
+      <SavePersonalizationModal
+        draft={draft}
+        open={saveModalOpen}
+        onClose={() => setSaveModalOpen(false)}
+        onSaved={() => setLibraryRefreshKey((k) => k + 1)}
+      />
     </div>
   )
 }
