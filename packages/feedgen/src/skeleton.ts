@@ -4,10 +4,6 @@ import {
   isFeedPubliclyServed,
   PERSONALIZATION_DEPTH_DEFAULT,
   PERSONALIZATION_DEPTH_MAX,
-  PERSONALIZATION_PAGE_DEPTH_BUFFER,
-  PERSONALIZATION_PAGE_DEPTH_MIN,
-  PERSONALIZATION_QUICK_DEPTH_MIN,
-  PERSONALIZATION_QUICK_DEPTH_PAGE_FACTOR,
 } from '@cfb/core-types'
 
 import type pg from 'pg'
@@ -81,8 +77,6 @@ interface PersonalizationSession {
   viewerDid: string
   uris: string[]
   expiresAt: number
-  expandComplete: boolean
-  expandPromise?: Promise<void>
 }
 
 const PERSONALIZATION_SESSION_TTL_MS = 10 * 60 * 1000
@@ -140,53 +134,6 @@ function personalizationActive(config: NativePersonalizationConfig | undefined):
 function personalizationDepth(config: NativePersonalizationConfig, limit: number): number {
   const depth = config.depth ?? PERSONALIZATION_DEPTH_DEFAULT
   return Math.max(limit, Math.min(depth, PERSONALIZATION_DEPTH_MAX))
-}
-
-function quickPersonalizationDepth(fullDepth: number, limit: number): number {
-  return Math.min(
-    fullDepth,
-    Math.max(limit * PERSONALIZATION_QUICK_DEPTH_PAGE_FACTOR, PERSONALIZATION_QUICK_DEPTH_MIN),
-  )
-}
-
-function pagePersonalizationDepth(fullDepth: number, limit: number): number {
-  return Math.min(
-    fullDepth,
-    Math.max(limit + PERSONALIZATION_PAGE_DEPTH_BUFFER, PERSONALIZATION_PAGE_DEPTH_MIN),
-  )
-}
-
-function personalizationExpandStages(fullDepth: number, limit: number, useQuick: boolean): number[] {
-  if (!useQuick || fullDepth <= pagePersonalizationDepth(fullDepth, limit)) {
-    return [fullDepth]
-  }
-  const stages = [
-    pagePersonalizationDepth(fullDepth, limit),
-    quickPersonalizationDepth(fullDepth, limit),
-    fullDepth,
-  ]
-  return [...new Set(stages)]
-}
-
-function quickFirstOpenEnabled(config: NativePersonalizationConfig): boolean {
-  return config.quickFirstOpen !== false
-}
-
-/**
- * Quick-first-open scores only the top ~70 sort_key posts for page 1. Serve/view
- * formulas need the full depth window so never-served posts (low sort_key, deep
- * in the pool) can outrank penalized high-sort posts the viewer already burned.
- */
-export function shouldUseQuickFirstOpen(
-  config: NativePersonalizationConfig,
-  fullDepth: number,
-  limit: number,
-): boolean {
-  if (!quickFirstOpenEnabled(config)) return false
-  if (fullDepth <= pagePersonalizationDepth(fullDepth, limit)) return false
-  const needs = analyzePersonalizationNeeds(config)
-  if (config.formulaEnabled && needs.servedHistory) return false
-  return true
 }
 
 /** Map stored repost URIs → subject post + reasonRepost for AppView hydration. */
@@ -364,42 +311,10 @@ async function computePersonalizedUris(
   return personalized.map((r) => r.post)
 }
 
-function expandPersonalizationSessionInBackground(
-  pool: pg.Pool,
-  config: FeedConfig,
-  project: ProjectL1Config | undefined,
-  viewerDid: string,
-  sessionId: string,
-  stages: number[],
-): Promise<void> {
-  const run = async () => {
-    for (const depth of stages.slice(1)) {
-      viewerPersonalizationContextCache.delete(viewerContextCacheKey(config.feedId, viewerDid))
-      const uris = await computePersonalizedUris(pool, config, project, viewerDid, depth)
-      const session = personalizationSessions.get(sessionId)
-      if (
-        !session ||
-        session.feedId !== config.feedId ||
-        session.viewerDid !== viewerDid ||
-        session.expiresAt < Date.now()
-      ) {
-        return
-      }
-      session.uris = uris
-    }
-    const session = personalizationSessions.get(sessionId)
-    if (session) session.expandComplete = true
-  }
-
-  return run().catch((err) => {
-    console.error('[personalization] background expand failed', config.feedId, sessionId, err)
-  })
-}
-
 /**
  * Build (and cache) the personalized ordering for one viewer session:
- * fetch a deep window of top candidates by sort order, filter, personalize
- * the whole window with base_score = real sort_key, and store the result.
+ * fetch the full depth window of top candidates by sort order, filter,
+ * personalize with base_score = real sort_key, and store the result.
  */
 async function buildPersonalizationSession(
   pool: pg.Pool,
@@ -410,30 +325,14 @@ async function buildPersonalizationSession(
   sessionId: string,
 ): Promise<PersonalizationSession> {
   const personalization = config.personalization!
-  const fullDepth = personalizationDepth(personalization, limit)
-  const useQuick = shouldUseQuickFirstOpen(personalization, fullDepth, limit)
-  const stages = personalizationExpandStages(fullDepth, limit, useQuick)
-  const initialDepth = stages[0]!
-
-  const uris = await computePersonalizedUris(pool, config, project, viewerDid, initialDepth)
+  const depth = personalizationDepth(personalization, limit)
+  const uris = await computePersonalizedUris(pool, config, project, viewerDid, depth)
 
   const session: PersonalizationSession = {
     feedId: config.feedId,
     viewerDid,
     uris,
     expiresAt: Date.now() + PERSONALIZATION_SESSION_TTL_MS,
-    expandComplete: stages.length === 1,
-  }
-
-  if (stages.length > 1) {
-    session.expandPromise = expandPersonalizationSessionInBackground(
-      pool,
-      config,
-      project,
-      viewerDid,
-      sessionId,
-      stages,
-    )
   }
 
   prunePersonalizationSessions()
@@ -483,10 +382,6 @@ export async function handleGetFeedSkeleton(
       session = await buildPersonalizationSession(
         pool, config, params.project, params.viewerDid!, limit, sessionId,
       )
-    }
-
-    if (offset + limit > session.uris.length && session.expandPromise) {
-      await session.expandPromise.catch(() => undefined)
     }
 
     pageRows = session.uris.slice(offset, offset + limit).map((post) => ({ post }))

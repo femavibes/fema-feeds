@@ -68,33 +68,23 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
       </div>
 
       <section className="feed-personalization-section feed-personalization-serve-section">
-        <div className="feed-personalization-serve-row">
-          <label className="feed-personalization-field feed-personalization-field--inline">
-            Personalization depth
-            <input
-              type="number"
-              step="50"
-              min="50"
-              max={PERSONALIZATION_DEPTH_MAX}
-              value={config.depth ?? PERSONALIZATION_DEPTH_DEFAULT}
-              onChange={(e) => {
-                const raw = parseInt(e.target.value) || PERSONALIZATION_DEPTH_DEFAULT
-                update({ depth: Math.max(50, Math.min(raw, PERSONALIZATION_DEPTH_MAX)) })
-              }}
-            />
-          </label>
-          <ToggleRow
-            label="Quick first open"
-            hint="Score a smaller window first, then expand to full depth in the background."
-            checked={config.quickFirstOpen !== false}
-            onChange={(on) => update({ quickFirstOpen: on })}
-            ariaLabel="Quick first open"
+        <label className="feed-personalization-field feed-personalization-field--inline">
+          Personalization depth
+          <input
+            type="number"
+            step="50"
+            min="50"
+            max={PERSONALIZATION_DEPTH_MAX}
+            value={config.depth ?? PERSONALIZATION_DEPTH_DEFAULT}
+            onChange={(e) => {
+              const raw = parseInt(e.target.value) || PERSONALIZATION_DEPTH_DEFAULT
+              update({ depth: Math.max(50, Math.min(raw, PERSONALIZATION_DEPTH_MAX)) })
+            }}
           />
-        </div>
+        </label>
         <p className="card-hint feed-personalization-serve-hint">
-          Depth controls how many top-sorted posts personalization can reorder — bigger reaches deeper,
-          smaller serves faster. Quick first open only applies when depth is larger than the initial slice
-          (about four pages); turn it off if you prefer waiting for the full window on first load.
+          How many top-sorted candidates the formula can reorder on each open. Higher depth reaches
+          never-served posts deeper in the pool; lower depth is faster.
         </p>
       </section>
 
