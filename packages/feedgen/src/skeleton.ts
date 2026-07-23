@@ -172,6 +172,23 @@ function quickFirstOpenEnabled(config: NativePersonalizationConfig): boolean {
   return config.quickFirstOpen !== false
 }
 
+/**
+ * Quick-first-open scores only the top ~70 sort_key posts for page 1. Serve/view
+ * formulas need the full depth window so never-served posts (low sort_key, deep
+ * in the pool) can outrank penalized high-sort posts the viewer already burned.
+ */
+export function shouldUseQuickFirstOpen(
+  config: NativePersonalizationConfig,
+  fullDepth: number,
+  limit: number,
+): boolean {
+  if (!quickFirstOpenEnabled(config)) return false
+  if (fullDepth <= pagePersonalizationDepth(fullDepth, limit)) return false
+  const needs = analyzePersonalizationNeeds(config)
+  if (config.formulaEnabled && needs.servedHistory) return false
+  return true
+}
+
 /** Map stored repost URIs → subject post + reasonRepost for AppView hydration. */
 async function expandRepostSkeletonItems(
   pool: pg.Pool,
@@ -394,7 +411,7 @@ async function buildPersonalizationSession(
 ): Promise<PersonalizationSession> {
   const personalization = config.personalization!
   const fullDepth = personalizationDepth(personalization, limit)
-  const useQuick = quickFirstOpenEnabled(personalization) && fullDepth > pagePersonalizationDepth(fullDepth, limit)
+  const useQuick = shouldUseQuickFirstOpen(personalization, fullDepth, limit)
   const stages = personalizationExpandStages(fullDepth, limit, useQuick)
   const initialDepth = stages[0]!
 
