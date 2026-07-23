@@ -141,24 +141,37 @@ export function emptyFeed(
   projectId: string,
   feedId: string,
   name: string,
-  pinnedLogicBlock?: import('@cfb/core-types').LogicBlockRef,
+  pinnedLogicBlocks: import('@cfb/core-types').LogicBlockRef[] = [],
 ): FeedConfig {
-  const blockNodeId = pinnedLogicBlock ? newId('lb') : ''
-  const match: FeedConfig['match'] = pinnedLogicBlock
-    ? {
-        type: 'group',
-        id: 'root',
-        logic: 'any',
-        children: [
-          {
-            type: 'logic_block_ref',
-            id: blockNodeId,
-            packageId: pinnedLogicBlock.packageId,
-            versionPin: pinnedLogicBlock.versionPin,
-          } as import('@cfb/core-types').L2RuleNode,
-        ],
-      }
-    : { type: 'group', id: 'root', logic: 'any', children: [] }
+  if (pinnedLogicBlocks.length === 0) {
+    return {
+      feedId,
+      projectId,
+      name,
+      enabled: false,
+      poolScope: 'project_only',
+      match: { type: 'group', id: 'root', logic: 'any', children: [] },
+    }
+  }
+
+  const children: import('@cfb/core-types').L2RuleNode[] = []
+  const positions: Record<string, { x: number; y: number }> = {}
+  const edges: NonNullable<FeedConfig['visualLayout']>['edges'] = []
+
+  pinnedLogicBlocks.forEach((ref, index) => {
+    const blockNodeId = newId('lb')
+    children.push({
+      type: 'logic_block_ref',
+      id: blockNodeId,
+      packageId: ref.packageId,
+      versionPin: ref.versionPin,
+    } as import('@cfb/core-types').L2RuleNode)
+    positions[blockNodeId] = { x: 300 + index * 280, y: 200 }
+    edges.push(
+      { id: `e-start-${blockNodeId}`, source: 'start', target: blockNodeId, branch: true },
+      { id: `e-${blockNodeId}-end`, source: blockNodeId, target: 'end', branch: true },
+    )
+  })
 
   return {
     feedId,
@@ -166,18 +179,16 @@ export function emptyFeed(
     name,
     enabled: false,
     poolScope: 'project_only',
-    match,
-    ...(pinnedLogicBlock
-      ? {
-          visualLayout: {
-            positions: { [blockNodeId]: { x: 300, y: 200 } },
-            edges: [
-              { id: `e-start-${blockNodeId}`, source: 'start', target: blockNodeId, branch: true },
-              { id: `e-${blockNodeId}-end`, source: blockNodeId, target: 'end', branch: true },
-            ],
-          },
-        }
-      : {}),
+    match: {
+      type: 'group',
+      id: 'root',
+      logic: 'any',
+      children,
+    },
+    visualLayout: {
+      positions,
+      edges,
+    },
   }
 }
 

@@ -180,8 +180,13 @@ export interface ProjectL1Config {
   strictIncludeGate?: CompiledIngestGate
   /** Metadata about strict gate compilation. */
   strictGateMeta?: import('./strict-ingest.js').StrictGateMeta
-  /** Logic block pinned to this project — auto-inserted into new feeds. */
+  /**
+   * Logic blocks pinned to this project — auto-inserted into new feeds.
+   * @deprecated Prefer {@link pinnedLogicBlocks}. Legacy single-pin field is migrated on read.
+   */
   pinnedLogicBlock?: import('./logic-blocks.js').LogicBlockRef
+  /** Logic blocks pinned to this project — auto-inserted into new feeds. */
+  pinnedLogicBlocks?: import('./logic-blocks.js').LogicBlockRef[]
 }
 
 export type { ProjectPrefilter } from './prefilter.js'
@@ -234,6 +239,7 @@ export * from './ownership.js'
 export * from './deployment.js'
 export * from './feed-lifecycle.js'
 export * from './logic-blocks.js'
+export * from './project-pinned-logic-blocks.js'
 export * from './sort-packs.js'
 export * from './plugins.js'
 export * from './marketplace-listing.js'

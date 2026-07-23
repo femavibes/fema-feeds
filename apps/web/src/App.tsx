@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { EnrichmentSettings, FeedConfig, ProjectL1Config } from '@cfb/core-types'
+import { projectPinnedLogicBlocks } from '@cfb/core-types'
 import {
   api,
   type AuthUser,
@@ -373,7 +374,9 @@ export function App() {
     setError(null)
     setMessage(null)
     try {
-      const { feed } = await api.createFeed(emptyFeed(draft.projectId, feedId, name, draft.pinnedLogicBlock))
+      const { feed } = await api.createFeed(
+        emptyFeed(draft.projectId, feedId, name, projectPinnedLogicBlocks(draft)),
+      )
       setFeeds((prev) => [...prev, feed].sort((a, b) => a.name.localeCompare(b.name)))
       setSelectedFeedId(feed.feedId)
       setBuilderSection('project')
@@ -632,7 +635,7 @@ export function App() {
       {showCreateFeedModal && draft && (
         <CreateFeedModal
           projectId={draft.projectId}
-          pinnedLogicBlock={draft.pinnedLogicBlock}
+          pinnedLogicBlocks={projectPinnedLogicBlocks(draft)}
           onClose={() => { setShowCreateFeedModal(false); setCreateFeedSourceLogic(null); setCreateFeedSourceLabel(null) }}
           onCreate={(feed, avatarFile) => handleCreateFeedFromModal(feed, avatarFile)}
           sourceLogic={createFeedSourceLogic}

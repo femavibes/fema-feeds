@@ -12785,8 +12785,22 @@ body.l2-visual-open #root {
   gap: 0;
 }
 
-.logic-block-pin-btn {
+.logic-block-pin-item.is-pinned .marketplace-catalog-card {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.logic-block-pin-actions {
+  display: flex;
+  gap: 0.35rem;
   width: 100%;
+}
+
+.logic-block-pin-actions .logic-block-pin-btn {
+  flex: 1;
+}
+
+.logic-block-pin-btn {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
   border-top: none;
@@ -12796,6 +12810,54 @@ body.l2-visual-open #root {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
   flex: 1;
+}
+
+.project-logic-blocks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 0.75rem;
+}
+
+.project-logic-blocks-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.65rem;
+}
+
+.project-logic-blocks-section-head.solo {
+  margin-bottom: 0.65rem;
+}
+
+.project-logic-blocks-section-head h4 {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.project-logic-blocks-pinned-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.project-logic-blocks-pinned .logic-block-pin-item {
+  max-width: none;
+}
+
+.project-logic-blocks-pinned-grid {
+  margin-top: 0;
 }
 
 /* ============================================================

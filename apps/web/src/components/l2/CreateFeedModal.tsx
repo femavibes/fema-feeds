@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FeedConfig } from '@cfb/core-types'
 import { ToggleRow } from '../ToggleRow'
 import { api, type SlugCollisionResult } from '../../api/client'
+import { emptyFeed } from '../../lib/l2-form'
 
 /** Logic fields that get cloned when copying a feed. */
 export type FeedLogicFields = Pick<
@@ -12,7 +13,7 @@ export type FeedLogicFields = Pick<
 export interface CreateFeedModalProps {
   projectId: string
   onClose: () => void
-  pinnedLogicBlock?: import('@cfb/core-types').LogicBlockRef
+  pinnedLogicBlocks?: import('@cfb/core-types').LogicBlockRef[]
   onCreate: (feed: FeedConfig, avatarFile?: File) => Promise<void>
   /** Pre-filled logic when cloning */
   sourceLogic?: FeedLogicFields | null
@@ -39,7 +40,7 @@ const SETTINGS_KEYS = SETTINGS_TOGGLES.map((t) => t.key)
 export function CreateFeedModal({
   projectId,
   onClose,
-  pinnedLogicBlock,
+  pinnedLogicBlocks = [],
   onCreate,
   sourceLogic,
   sourceLabel,
@@ -142,6 +143,7 @@ export function CreateFeedModal({
     }
     setCreateError(null)
     setBusy(true)
+    const seeded = emptyFeed(projectId, id, name.trim() || id, pinnedLogicBlocks)
     const feed: FeedConfig = {
       feedId: id,
       projectId,
@@ -149,14 +151,12 @@ export function CreateFeedModal({
       description: description.trim() || undefined,
       enabled: true,
       poolScope: 'project_only',
-      match: effectiveLogic?.match ?? (pinnedLogicBlock
-        ? { type: 'group', id: 'root', logic: 'any', children: [{ type: 'logic_block_ref', id: 'lb-project', packageId: pinnedLogicBlock.packageId, versionPin: pinnedLogicBlock.versionPin }] }
-        : { type: 'group', id: 'root', logic: 'any', children: [] }),
+      match: effectiveLogic?.match ?? seeded.match,
       ...(effectiveLogic?.rank && { rank: effectiveLogic.rank }),
       ...(effectiveLogic?.visualLayout
         ? { visualLayout: effectiveLogic.visualLayout }
-        : pinnedLogicBlock
-          ? { visualLayout: { positions: { 'lb-project': { x: 300, y: 200 } }, edges: [{ id: 'e-start-lb-project', source: 'start', target: 'lb-project', branch: true }, { id: 'e-lb-project-end', source: 'lb-project', target: 'end', branch: true }] } }
+        : seeded.visualLayout
+          ? { visualLayout: seeded.visualLayout }
           : {}),
       ...(effectiveLogic?.injector && { injector: effectiveLogic.injector }),
       ...(effectiveLogic?.authorLists && { authorLists: effectiveLogic.authorLists }),
