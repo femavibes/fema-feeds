@@ -28,15 +28,16 @@ export interface ViewerPersonalizationContext {
 }
 
 /**
- * Base score per post — the real sort_key from sorting, normalized so the
- * minimum is 1 (keeps multiplicative boosts meaningful even with negative
- * or zero keys). Falls back to page position when the window has no score
- * variance (e.g. chronological feeds where every sort_key is 0) or when no
- * sort keys were provided.
+ * Base score per post — the real sort_key from sorting.
+ * Toggle mode: linear normalize (min → 1) so multipliers stay meaningful.
+ * Formula mode: log1p scale so serve/view penalties in the formula can
+ * reorder across the full depth window (linear base_score ~1..450 would
+ * always dominate a divided penalty).
  */
 function resolveBaseScores(
   posts: SkeletonPost[],
   sortKeys: Map<string, number> | undefined,
+  formulaMode: boolean,
 ): (post: SkeletonPost, idx: number) => number {
   if (sortKeys && sortKeys.size > 0) {
     let min = Infinity
@@ -48,6 +49,12 @@ function resolveBaseScores(
       if (k > max) max = k
     }
     if (Number.isFinite(min) && max > min) {
+      if (formulaMode) {
+        return (post) => {
+          const k = sortKeys.get(post.post)
+          return k == null ? 1 : Math.log1p(k - min) + 1
+        }
+      }
       return (post) => {
         const k = sortKeys.get(post.post)
         return k == null ? 1 : k - min + 1
@@ -70,10 +77,11 @@ export function applyNativePersonalization(
 ): SkeletonPost[] {
   if (!config || !viewer) return posts
 
-  const baseScoreOf = resolveBaseScores(posts, sortKeys)
+  const formulaMode = Boolean(config.formulaEnabled && config.formula)
+  const baseScoreOf = resolveBaseScores(posts, sortKeys, formulaMode)
 
   // Formula mode: evaluate the L2Expr personalization formula per post
-  if (config.formulaEnabled && config.formula) {
+  if (formulaMode) {
     const scored = posts.map((post, originalIdx) => {
       const authorDid = extractAuthorDid(post.post)
       const postCtx: PersonalizationPostContext = {

@@ -155,3 +155,77 @@ describe('personalization formula served vs viewed fields', () => {
     )).toBe(0)
   })
 })
+
+describe('applyNativePersonalization formula base_score', () => {
+  it('demotes heavily served high-sort posts below unseen low-sort posts', () => {
+    const gravel = 'at://did:plc:author/app.bsky.feed.post/top'
+    const unseen = 'at://did:plc:other/app.bsky.feed.post/fresh'
+    const viewer: ViewerPersonalizationContext = {
+      viewerDid: 'did:plc:viewer',
+      followedDids: new Set(['did:plc:author']),
+      followerDids: new Set(),
+      mutualDids: new Set(),
+      servedPosts: new Map([
+        [gravel, { serveCount: 40, servedAt: new Date(), viewedAt: new Date() }],
+      ]),
+      affinityCounts: new Map(),
+      hoursSinceLastOpen: 1,
+    }
+    const config = {
+      ...DEFAULT_PERSONALIZATION,
+      formulaEnabled: true,
+      formula: {
+        type: 'binary' as const,
+        op: '/' as const,
+        left: {
+          type: 'binary' as const,
+          op: '*' as const,
+          left: { type: 'field' as const, field: 'base_score' as never },
+          right: {
+            type: 'binary' as const,
+            op: '+' as const,
+            left: { type: 'literal' as const, value: 1 },
+            right: {
+              type: 'binary' as const,
+              op: '*' as const,
+              left: { type: 'field' as const, field: 'is_followed' as never },
+              right: { type: 'literal' as const, value: 0.4 },
+            },
+          },
+        },
+        right: {
+          type: 'binary' as const,
+          op: '+' as const,
+          left: {
+            type: 'binary' as const,
+            op: '+' as const,
+            left: { type: 'literal' as const, value: 1 },
+            right: {
+              type: 'binary' as const,
+              op: '*' as const,
+              left: { type: 'field' as const, field: 'times_served' as never },
+              right: { type: 'literal' as const, value: 0.55 },
+            },
+          },
+          right: {
+            type: 'binary' as const,
+            op: '*' as const,
+            left: { type: 'field' as const, field: 'was_viewed' as never },
+            right: { type: 'literal' as const, value: 5 },
+          },
+        },
+      },
+    }
+    const sortKeys = new Map([
+      [gravel, 450],
+      [unseen, 5],
+    ])
+    const result = applyNativePersonalization(
+      [{ post: gravel }, { post: unseen }],
+      config,
+      viewer,
+      sortKeys,
+    )
+    expect(result[0]?.post).toBe(unseen)
+  })
+})

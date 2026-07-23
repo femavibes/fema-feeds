@@ -257,7 +257,7 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
           {showFieldRef && (
             <div className="feed-personalization-field-legend">
               <dl className="formula-field-legend">
-                <dt>base_score</dt><dd>Sort key from Sorting tab (the starting score)</dd>
+                <dt>base_score</dt><dd>Log-scaled sort key within the depth window (~1 for lowest, ~7 for highest at depth 500)</dd>
                 <dt>is_followed</dt><dd>1 if viewer follows post author, 0 if not</dd>
                 <dt>is_follower</dt><dd>1 if post author follows the viewer, 0 if not</dd>
                 <dt>is_mutual</dt><dd>1 if mutual follow (both follow each other), 0 if not</dd>
