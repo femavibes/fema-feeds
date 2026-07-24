@@ -12,6 +12,7 @@
     "@cfb/core-types": "workspace:*",
     "@cfb/l1-compile": "workspace:*",
     "@cfb/l1-registry": "workspace:*",
+    "@cfb/l2-eval": "workspace:*",
     "@cfb/l2-graph": "workspace:*",
     "@cfb/post-resolve": "workspace:*",
     "@codemirror/lang-json": "^6.0.2",

@@ -447,6 +447,18 @@ export async function unsubscribeLogicBlock(
   return (res.rowCount ?? 0) > 0
 }
 
+export async function deleteLogicBlockPackage(
+  pool: pg.Pool,
+  packageId: string,
+  ownerDid: string,
+): Promise<boolean> {
+  const res = await pool.query(
+    `DELETE FROM logic_block_packages WHERE id = $1 AND owner_did = $2`,
+    [packageId, ownerDid],
+  )
+  return (res.rowCount ?? 0) > 0
+}
+
 export async function setLogicBlockVisibility(
   pool: pg.Pool,
   packageId: string,

@@ -83,23 +83,26 @@ export async function insertSortPackVersionSnapshot(
     packageId: string
     version: string
     sortKey: L2Expr
+    editorProfile?: import('@cfb/core-types').SortPackEditorProfile | null
     name: string
     description?: string | null
   },
 ): Promise<void> {
   await pool.query(
-    `INSERT INTO sort_pack_package_versions (package_id, version, sort_key, name, description)
-     VALUES ($1, $2, $3::jsonb, $4, $5)
+    `INSERT INTO sort_pack_package_versions (package_id, version, sort_key, name, description, editor_profile)
+     VALUES ($1, $2, $3::jsonb, $4, $5, $6::jsonb)
      ON CONFLICT (package_id, version) DO UPDATE
        SET sort_key = EXCLUDED.sort_key,
            name = EXCLUDED.name,
-           description = EXCLUDED.description`,
+           description = EXCLUDED.description,
+           editor_profile = EXCLUDED.editor_profile`,
     [
       input.packageId,
       input.version,
       JSON.stringify(input.sortKey),
       input.name,
       input.description ?? null,
+      input.editorProfile ? JSON.stringify(input.editorProfile) : null,
     ],
   )
 }

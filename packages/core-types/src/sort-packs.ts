@@ -9,6 +9,15 @@ export type SortPackUpdatePolicy = LogicBlockUpdatePolicy
 /** Stored formula purpose — sort uses post metrics; personalization uses viewer signals. */
 export type SortPackKind = 'sort' | 'personalization'
 
+/** UI mode used when the pack was saved — drives collection edit experience. */
+export type SortPackEditorMode = 'engagement' | 'advanced' | 'builder' | 'formula'
+
+export interface SortPackEditorProfile {
+  mode: SortPackEditorMode
+  /** Engagement/advanced tuning sliders — not recoverable from sortKey alone. */
+  tuning?: SortTuning
+}
+
 export interface SortPackRef {
   packageId: string
   versionPin: string
@@ -27,6 +36,8 @@ export interface SortPackPackage {
   trustTier: SortPackTrustTier
   packKind: SortPackKind
   sortKey: L2Expr
+  /** How to edit in collection — engagement toggles vs formula builder, etc. */
+  editorProfile?: SortPackEditorProfile
   createdAt: string
   updatedAt: string
   listing?: import('./marketplace-listing.js').MarketplaceListingMeta

@@ -35,6 +35,8 @@ import {
 
   unsubscribeLogicBlock,
 
+  deleteLogicBlockPackage,
+
   setPackageListingMeta,
 
   updateLogicBlockPackage,
@@ -548,6 +550,24 @@ export function registerLogicBlockRoutes(
     const ok = await unsubscribeLogicBlock(pool, userDid, c.req.param('id'))
 
     if (!ok) return c.json({ error: 'not subscribed' }, 404)
+
+    return c.json({ ok: true })
+
+  })
+
+
+
+  app.delete('/api/logic-blocks/:id', async (c) => {
+
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+
+    const userDid = getUserDid(c)
+
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+
+    const ok = await deleteLogicBlockPackage(pool, c.req.param('id'), userDid)
+
+    if (!ok) return c.json({ error: 'not found or not owner' }, 404)
 
     return c.json({ ok: true })
 

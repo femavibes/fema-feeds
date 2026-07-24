@@ -13,6 +13,7 @@ import {
   setPluginWasmArtifact,
   subscribePlugin,
   unsubscribePlugin,
+  deletePluginPackage,
   setPackageListingMeta,
   updatePluginPackage,
 } from '@cfb/storage-postgres'
@@ -329,6 +330,20 @@ export function registerPluginRoutes(app: Hono, pool: Pool | null): void {
     if (!userDid) return c.json({ error: 'login_required' }, 401)
     const ok = await unsubscribePlugin(pool, userDid, c.req.param('id'))
     if (!ok) return c.json({ error: 'not subscribed' }, 404)
+    return c.json({ ok: true })
+  })
+
+  app.delete('/api/plugins/:id', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+    const packageId = c.req.param('id')
+    const existing = await getPluginPackageById(pool, packageId)
+    if (!existing) return c.json({ error: 'not found' }, 404)
+    if (existing.ownerDid !== userDid) return c.json({ error: 'not found or not owner' }, 404)
+    const ok = await deletePluginPackage(pool, packageId, userDid)
+    if (!ok) return c.json({ error: 'not found or not owner' }, 404)
+    if (existing.wasmSha256) evictWasmCache(existing.wasmSha256)
     return c.json({ ok: true })
   })
 

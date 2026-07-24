@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FeedConfig } from '@cfb/core-types'
 
 import { api } from '../../api/client'
+import { buildPersonalizationEditorProfile } from '../../lib/sort-pack-editor-profile'
 
 interface Props {
   draft: FeedConfig
@@ -32,6 +33,7 @@ export function SavePersonalizationModal({ draft, open, onClose, onSaved }: Prop
         name: name.trim() || 'Custom personalization',
         description: `Personalization formula saved from ${draft.name}`,
         sortKey: formula,
+        editorProfile: buildPersonalizationEditorProfile(),
         visibility: 'collection',
         packKind: 'personalization',
       })

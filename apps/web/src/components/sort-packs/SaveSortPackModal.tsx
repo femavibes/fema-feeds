@@ -3,6 +3,7 @@ import type { FeedConfig, EngagementWeights } from '@cfb/core-types'
 
 import { api } from '../../api/client'
 import { detectSortMode, rankExprForMode, DEFAULT_ENGAGEMENT_WEIGHTS } from '../../lib/feed-sorting'
+import { buildSortEditorProfile } from '../../lib/sort-pack-editor-profile'
 
 interface Props {
   draft: FeedConfig
@@ -32,6 +33,7 @@ export function SaveSortPackModal({ draft, open, onClose, onSaved }: Props) {
       await api.createSortPack({
         name: name.trim() || 'Custom sort',
         sortKey,
+        editorProfile: buildSortEditorProfile(draft),
         visibility: 'collection',
       })
       setName('')

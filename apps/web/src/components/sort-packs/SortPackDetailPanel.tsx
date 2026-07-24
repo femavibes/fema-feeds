@@ -26,7 +26,6 @@ interface Props {
   onSubscribed?: () => void
   onPublished?: () => void
   onEditListing?: () => void
-  onEdit?: () => void
   onMetadataSaved?: (pkg: SortPackPackage) => void
 }
 
@@ -44,7 +43,6 @@ export function SortPackDetailPanel({
   onSubscribed,
   onPublished,
   onEditListing,
-  onEdit,
   onMetadataSaved,
 }: Props) {
   const [versions, setVersions] = useState<SortPackPackage[]>([])
@@ -256,11 +254,6 @@ export function SortPackDetailPanel({
       <div className="logic-block-detail-actions">
         {variant === 'collection' && isOwner && (
           <>
-            {onEdit ? (
-              <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={onEdit}>
-                Edit formula
-              </button>
-            ) : null}
             {metaDirty && (
               <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void saveMetadata()}>
                 Save name & slug

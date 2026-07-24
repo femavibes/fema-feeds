@@ -37,6 +37,8 @@ interface Props {
   onChange: (next: FeedConfig | ((prev: FeedConfig) => FeedConfig)) => void
   layout?: 'main' | 'sidebar'
   applyBar?: ApplyBarProps
+  /** Lock mode picker to this mode (collection edit). */
+  initialMode?: SortMode
 }
 
 const CREATE_SORT_MODES = SORT_MODE_OPTIONS.map((o) => o.id as SortMode)
@@ -49,10 +51,10 @@ function resolveCreateSortMode(rank: FeedConfig['rank'], explicit: SortMode | nu
   return DEFAULT_CREATE_SORT_MODE
 }
 
-export function FeedSortingPanel({ draft, onChange, layout = 'sidebar', applyBar }: Props) {
+export function FeedSortingPanel({ draft, onChange, layout = 'sidebar', applyBar, initialMode }: Props) {
   const isMain = layout === 'main'
   const detectedMode = useMemo(() => detectSortMode(draft.rank), [draft.rank])
-  const [explicitMode, setExplicitMode] = useState<SortMode | null>(null)
+  const [explicitMode, setExplicitMode] = useState<SortMode | null>(initialMode ?? null)
   const mode = isMain
     ? resolveCreateSortMode(draft.rank, explicitMode)
     : (explicitMode ?? detectedMode)
@@ -74,9 +76,28 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar', applyBar
     setTuning(draft.rank?.tuning ? { ...DEFAULT_SORT_TUNING, ...draft.rank.tuning } : DEFAULT_SORT_TUNING)
   }, [draft.feedId])
 
+  useEffect(() => {
+    if (initialMode) setExplicitMode(initialMode)
+  }, [initialMode, draft.feedId])
+
+  // Keep rank.sortMode aligned with the visible engagement/advanced tab so saves reopen correctly.
+  useEffect(() => {
+    if (mode !== 'engagement' && mode !== 'advanced') return
+    if (draft.rank?.sortMode === mode) return
+    onChange((prev) => ({
+      ...prev,
+      rank: {
+        ...prev.rank,
+        sortKey: prev.rank?.sortKey,
+        tuning: prev.rank?.tuning ?? tuning,
+        sortMode: mode,
+      },
+    }))
+  }, [mode, draft.rank?.sortMode, tuning])
+
   // Create tab: a subscribed sort pack isn't a Create toggle — seed first mode as preview only.
   useEffect(() => {
-    if (!isMain) return
+    if (!isMain || !applyBar) return
     if (!hasSortPackRef(draft.rank)) return
     setExplicitMode(DEFAULT_CREATE_SORT_MODE)
     onChange((prev) => applySortMode(prev, DEFAULT_CREATE_SORT_MODE, DEFAULT_ENGAGEMENT_WEIGHTS, DEFAULT_SORT_TUNING))

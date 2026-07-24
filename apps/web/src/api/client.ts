@@ -893,6 +893,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  deleteLogicBlock: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/api/logic-blocks/${id}`, { method: 'DELETE' }),
   publishLogicBlockVisibility: (id: string, visibility: import('@cfb/core-types').LogicBlockVisibility) =>
     apiFetch<{ package: import('@cfb/core-types').LogicBlockPackage }>(
       `/api/logic-blocks/${id}/visibility`,
@@ -1017,6 +1019,7 @@ export const api = {
     slug?: string
     description?: string
     sortKey: import('@cfb/core-types').L2Expr
+    editorProfile?: import('@cfb/core-types').SortPackEditorProfile
     visibility?: import('@cfb/core-types').SortPackVisibility
     packKind?: import('@cfb/core-types').SortPackKind
   }) =>
@@ -1031,6 +1034,7 @@ export const api = {
       slug?: string
       description?: string | null
       sortKey?: import('@cfb/core-types').L2Expr
+      editorProfile?: import('@cfb/core-types').SortPackEditorProfile | null
       bumpVersion?: boolean
       listing?: import('@cfb/core-types').MarketplaceListingMeta | null
     },
@@ -1039,6 +1043,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  deleteSortPack: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/api/sort-packs/${id}`, { method: 'DELETE' }),
   publishSortPack: (id: string, visibility: 'deployment' | 'global') =>
     apiFetch<{ package: import('@cfb/core-types').SortPackPackage }>(
       `/api/sort-packs/${id}/visibility`,
@@ -1127,6 +1133,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  deletePlugin: (id: string) =>
+    apiFetch<{ ok: boolean }>(`/api/plugins/${id}`, { method: 'DELETE' }),
   publishPluginVisibility: (id: string, visibility: 'deployment' | 'global') =>
     apiFetch<{ package: import('@cfb/core-types').PluginPackage }>(`/api/plugins/${id}/visibility`, {
       method: 'PATCH',

@@ -1,4 +1,5 @@
 import type { FeedConfig, L2Expr, L2NumericField, EngagementWeights, SortTuning } from '@cfb/core-types'
+import { exprUsesField } from '@cfb/l2-eval'
 import {
   DEFAULT_ENGAGEMENT_WEIGHTS,
   DEFAULT_SORT_TUNING,
@@ -138,6 +139,22 @@ function tuningHasAdvancedExtras(tuning?: SortTuning): boolean {
   return false
 }
 
+/** Fields that only appear in advanced-scoring formulas (not plain engagement). */
+const ADVANCED_FORMULA_FIELDS = [
+  'author_follower_count',
+  'author_posts_count',
+  'text_length',
+  'facet_tag_count',
+  'facet_mention_count',
+  'facet_link_count',
+  'video_size_bytes',
+  'link_thumb_size_bytes',
+] as const satisfies readonly L2NumericField[]
+
+function exprUsesAdvancedFields(expr: L2Expr): boolean {
+  return ADVANCED_FORMULA_FIELDS.some((field) => exprUsesField(expr, field))
+}
+
 export function detectSortMode(rank: FeedConfig['rank']): SortMode {
   if (rank?.packRef) return 'pack'
   if (!rank?.sortKey) return 'chronological'
@@ -145,6 +162,7 @@ export function detectSortMode(rank: FeedConfig['rank']): SortMode {
   if (rank.sortMode === 'advanced' || (rank.sortMode as string | undefined) === 'custom') return 'advanced'
   if (rank.sortMode === 'engagement') return 'engagement'
   if (tuningHasAdvancedExtras(rank.tuning)) return 'advanced'
+  if (rank.sortKey && exprUsesAdvancedFields(rank.sortKey)) return 'advanced'
   const w = detectEngagementWeights(rank.sortKey)
   if (w.likes.enabled || w.reposts.enabled || w.replies.enabled || w.quotes.enabled || w.bookmarks.enabled) {
     return 'engagement'

@@ -12,6 +12,7 @@ import {
   setSortPackVisibility,
   subscribeSortPack,
   unsubscribeSortPack,
+  deleteSortPackPackage,
   setPackageListingMeta,
   updateSortPackPackage,
   upsertSortPackRegistryMirror,
@@ -138,6 +139,7 @@ export function registerSortPackRoutes(
           slug?: string
           description?: string
           sortKey?: L2Expr
+          editorProfile?: import('@cfb/core-types').SortPackEditorProfile | null
           visibility?: SortPackVisibility
           packKind?: 'sort' | 'personalization'
         }>()
@@ -155,6 +157,7 @@ export function registerSortPackRoutes(
       name,
       description: body.description?.trim() || undefined,
       sortKey,
+      editorProfile: body.editorProfile ?? undefined,
       visibility: body.visibility ?? 'collection',
       packKind,
     })
@@ -172,24 +175,27 @@ export function registerSortPackRoutes(
           slug?: string
           description?: string | null
           sortKey?: L2Expr
+          editorProfile?: import('@cfb/core-types').SortPackEditorProfile | null
           bumpVersion?: boolean
           listing?: import('@cfb/core-types').MarketplaceListingMeta | null
         }>()
         .catch(() => null)) ?? {}
     const hasSortKey = body.sortKey != null
+    const hasEditorProfile = body.editorProfile !== undefined
     const hasMeta =
       body.name !== undefined || body.slug !== undefined || body.description !== undefined
     const hasListing = body.listing !== undefined
-    if (!hasSortKey && !hasMeta && !hasListing) {
-      return c.json({ error: 'provide sortKey and/or name, slug, description, or listing' }, 400)
+    if (!hasSortKey && !hasEditorProfile && !hasMeta && !hasListing) {
+      return c.json({ error: 'provide sortKey and/or name, slug, description, editorProfile, or listing' }, 400)
     }
     const packageId = c.req.param('id')
     let pkg: Awaited<ReturnType<typeof updateSortPackPackage>> = null
-    if (hasSortKey || hasMeta) {
+    if (hasSortKey || hasMeta || hasEditorProfile) {
       const slug = body.slug !== undefined ? normalizeSlug(body.slug || body.name || '') : undefined
       if (body.slug !== undefined && !slug) return c.json({ error: 'slug required' }, 400)
       const result = await updateSortPackPackage(pool, packageId, userDid, {
         sortKey: hasSortKey ? body.sortKey : undefined,
+        editorProfile: hasEditorProfile ? body.editorProfile : undefined,
         name: body.name?.trim(),
         slug,
         description: body.description,
@@ -244,6 +250,15 @@ export function registerSortPackRoutes(
     if (!userDid) return c.json({ error: 'login_required' }, 401)
     const ok = await unsubscribeSortPack(pool, userDid, c.req.param('id'))
     if (!ok) return c.json({ error: 'not subscribed' }, 404)
+    return c.json({ ok: true })
+  })
+
+  app.delete('/api/sort-packs/:id', async (c) => {
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+    const ok = await deleteSortPackPackage(pool, c.req.param('id'), userDid)
+    if (!ok) return c.json({ error: 'not found or not owner' }, 404)
     return c.json({ ok: true })
   })
 

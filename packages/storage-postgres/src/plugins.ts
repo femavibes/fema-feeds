@@ -363,6 +363,18 @@ export async function unsubscribePlugin(
   return (res.rowCount ?? 0) > 0
 }
 
+export async function deletePluginPackage(
+  pool: pg.Pool,
+  packageId: string,
+  ownerDid: string,
+): Promise<boolean> {
+  const res = await pool.query(
+    `DELETE FROM plugin_packages WHERE id = $1 AND owner_did = $2`,
+    [packageId, ownerDid],
+  )
+  return (res.rowCount ?? 0) > 0
+}
+
 export async function setPluginVisibility(
   pool: pg.Pool,
   packageId: string,

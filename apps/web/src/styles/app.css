@@ -11588,7 +11588,79 @@ body.l2-visual-open #root {
   padding-top: 0.5rem;
 }
 
-.sort-formula-editor {
+.sort-formula-editor-backdrop {
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  overflow: hidden;
+}
+
+.sort-formula-editor.sort-formula-editor-dialog {
+  position: relative;
+  inset: auto;
+  z-index: auto;
+  width: min(1040px, 100%);
+  height: calc(100vh - 1.5rem);
+  max-height: calc(100vh - 1.5rem);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-1);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 0.375rem);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.sort-formula-editor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+}
+
+.sort-formula-editor-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.sort-formula-editor-meta {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.sort-formula-editor-error {
+  margin: 0;
+  padding: 0.5rem 1rem 0;
+  flex-shrink: 0;
+}
+
+.sort-formula-editor-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.75rem 1rem 1.25rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sort-formula-editor-body .feed-sorting-panel,
+.sort-formula-editor-body .feed-personalization-panel {
+  padding: 0;
+}
+
+/* Legacy fullscreen editor shell (logic blocks) */
+.sort-formula-editor:not(.sort-formula-editor-dialog) {
   position: fixed;
   inset: 0;
   z-index: 10000;
@@ -11598,7 +11670,7 @@ body.l2-visual-open #root {
   color: var(--text);
 }
 
-.sort-formula-editor .logic-block-visual-editor-head {
+.sort-formula-editor:not(.sort-formula-editor-dialog) .logic-block-visual-editor-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -11608,22 +11680,15 @@ body.l2-visual-open #root {
   background: var(--surface);
 }
 
-.sort-formula-editor .logic-block-visual-editor-actions {
+.sort-formula-editor:not(.sort-formula-editor-dialog) .logic-block-visual-editor-actions {
   display: flex;
   gap: 0.4rem;
   flex-wrap: wrap;
 }
 
-.sort-formula-editor .logic-block-visual-editor-meta {
+.sort-formula-editor:not(.sort-formula-editor-dialog) .logic-block-visual-editor-meta {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
-}
-
-.sort-formula-editor-body {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: auto;
-  padding: 0.75rem 1rem 1rem;
 }
 
 .sort-pack-version-compare {
@@ -12785,6 +12850,19 @@ body.l2-visual-open #root {
 
 .is-sidebar-expanded .sidebar-expand-bar-icon {
   transform: rotate(180deg);
+}
+
+.collection-delete-bar {
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--border, #333);
+}
+
+.collection-delete-error {
+  margin: 0 0 0.4rem;
+}
+
+.collection-delete-btn {
+  width: 100%;
 }
 
 /* Feed avatar upload field */

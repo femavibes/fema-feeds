@@ -41,6 +41,7 @@ import {
 } from './marketplace/MarketplaceListingEditor'
 import { CollectionAllView, type CollectionAllSelection } from './marketplace/CollectionAllView'
 import { SidebarExpandBar } from './SidebarExpandBar'
+import { CollectionDeleteBar } from './CollectionDeleteBar'
 
 
 
@@ -371,29 +372,11 @@ export function CollectionWorkspace() {
 
 
 
-  if (editingSortPack) {
-
-    return (
-
-      <SortFormulaEditor
-
-        pkg={editingSortPack}
-
-        onClose={() => setEditingSortPack(null)}
-
-        onSaved={handleSavedFromSortEditor}
-
-      />
-
-    )
-
-  }
-
-
-
   const isLogicOwner = Boolean(userDid && selectedLogic && selectedLogic.ownerDid === userDid)
 
   const isSortOwner = Boolean(userDid && selectedSort && selectedSort.ownerDid === userDid)
+
+  const isPluginOwner = Boolean(userDid && selectedPlugin && selectedPlugin.ownerDid === userDid)
 
   const showingLogicDetail = Boolean(
     collectionView !== 'developer_guide' &&
@@ -416,6 +399,65 @@ export function CollectionWorkspace() {
   const showSortEditInHeader = showingSortDetail && isSortOwner
 
   const showDetailEditInHeader = showLogicEditInHeader || showSortEditInHeader
+
+  const handleDeleteSelected = useCallback(async () => {
+    if (selectedLogic && isLogicOwner) {
+      await api.deleteLogicBlock(selectedLogic.id)
+      setSelectedLogic(null)
+      setEditingPkg(null)
+      bumpRefresh()
+      return
+    }
+    if (selectedSort && isSortOwner) {
+      await api.deleteSortPack(selectedSort.id)
+      setSelectedSort(null)
+      setEditingSortPack(null)
+      bumpRefresh()
+      return
+    }
+    if (selectedPlugin && isPluginOwner) {
+      await api.deletePlugin(selectedPlugin.id)
+      setSelectedPlugin(null)
+      bumpRefresh()
+    }
+  }, [
+    bumpRefresh,
+    isLogicOwner,
+    isPluginOwner,
+    isSortOwner,
+    selectedLogic,
+    selectedPlugin,
+    selectedSort,
+  ])
+
+  const deleteBarProps = (() => {
+    if (collectionView === 'developer_guide' || listingEditor) return null
+    if (selectedLogic && isLogicOwner) {
+      return { label: 'Delete logic block', itemName: selectedLogic.name, onDelete: handleDeleteSelected }
+    }
+    if (selectedSort && isSortOwner) {
+      const isPersonalization = (selectedSort.packKind ?? 'sort') === 'personalization'
+      return {
+        label: isPersonalization ? 'Delete personalization formula' : 'Delete sorting formula',
+        itemName: selectedSort.name,
+        onDelete: handleDeleteSelected,
+      }
+    }
+    if (selectedPlugin && isPluginOwner) {
+      const kindLabel =
+        selectedPlugin.kind === 'injector'
+          ? 'injector'
+          : selectedPlugin.kind === 'enricher'
+            ? 'enricher'
+            : 'ranker plugin'
+      return {
+        label: `Delete ${kindLabel}`,
+        itemName: selectedPlugin.name,
+        onDelete: handleDeleteSelected,
+      }
+    }
+    return null
+  })()
 
 
 
@@ -827,10 +869,6 @@ export function CollectionWorkspace() {
                   : undefined
               }
 
-              onEdit={
-                isSortOwner && selectedSort ? () => openSortEditor(selectedSort) : undefined
-              }
-
               onMetadataSaved={(pkg) => {
 
                 setSelectedSort(pkg)
@@ -945,10 +983,6 @@ export function CollectionWorkspace() {
                   : undefined
               }
 
-              onEdit={
-                isSortOwner && selectedSort ? () => openSortEditor(selectedSort) : undefined
-              }
-
               onMetadataSaved={(pkg) => {
 
                 setSelectedSort(pkg)
@@ -975,10 +1009,6 @@ export function CollectionWorkspace() {
                 isSortOwner && selectedSort
                   ? () => setListingEditor({ productKind: 'sort_pack', pkg: selectedSort })
                   : undefined
-              }
-
-              onEdit={
-                isSortOwner && selectedSort ? () => openSortEditor(selectedSort) : undefined
               }
 
               onMetadataSaved={(pkg) => {
@@ -1057,6 +1087,13 @@ export function CollectionWorkspace() {
           ) : null}
 
         </div>
+        {deleteBarProps ? (
+          <CollectionDeleteBar
+            label={deleteBarProps.label}
+            itemName={deleteBarProps.itemName}
+            onDelete={deleteBarProps.onDelete}
+          />
+        ) : null}
         {(selectedLogic || selectedSort || selectedPlugin) && (
           <SidebarExpandBar expanded={sidebarExpanded} onToggle={() => setSidebarExpanded((v) => !v)} />
         )}
@@ -1064,6 +1101,13 @@ export function CollectionWorkspace() {
       </MobileRail>
 
       </div>
+      {editingSortPack ? (
+        <SortFormulaEditor
+          pkg={editingSortPack}
+          onClose={() => setEditingSortPack(null)}
+          onSaved={handleSavedFromSortEditor}
+        />
+      ) : null}
     </>
   )
 }

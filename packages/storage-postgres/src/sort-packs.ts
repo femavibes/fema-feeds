@@ -1,5 +1,6 @@
 import type {
   L2Expr,
+  SortPackEditorProfile,
   SortPackKind,
   SortPackPackage,
   SortPackSubscription,
@@ -17,6 +18,15 @@ import {
   sortPackVersionExists,
 } from './package-version-snapshots.js'
 
+function parseEditorProfile(raw: unknown): SortPackEditorProfile | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const mode = (raw as SortPackEditorProfile).mode
+  if (mode !== 'engagement' && mode !== 'advanced' && mode !== 'builder' && mode !== 'formula') {
+    return undefined
+  }
+  return raw as SortPackEditorProfile
+}
+
 function rowFromVersionJoin(row: {
   id: string
   owner_did: string
@@ -30,6 +40,7 @@ function rowFromVersionJoin(row: {
   sort_key: L2Expr
   name: string
   description: string | null
+  editor_profile?: unknown
   created_at: Date
 }): SortPackPackage {
   return {
@@ -43,6 +54,7 @@ function rowFromVersionJoin(row: {
     trustTier: row.trust_tier,
     packKind: row.pack_kind ?? 'sort',
     sortKey: row.sort_key,
+    editorProfile: parseEditorProfile(row.editor_profile),
     listing: parseListingMeta(row.listing_meta),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
@@ -60,6 +72,7 @@ function rowToPackage(row: {
   trust_tier: SortPackTrustTier
   pack_kind?: SortPackKind
   sort_key: L2Expr
+  editor_profile?: unknown
   listing_meta?: unknown
   created_at: Date
   updated_at: Date
@@ -75,6 +88,7 @@ function rowToPackage(row: {
     trustTier: row.trust_tier,
     packKind: row.pack_kind ?? 'sort',
     sortKey: row.sort_key,
+    editorProfile: parseEditorProfile(row.editor_profile),
     listing: parseListingMeta(row.listing_meta),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
@@ -99,7 +113,7 @@ export async function getSortPackPackageById(
   }
   const res = await pool.query(
     `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.pack_kind, p.listing_meta, p.updated_at,
-            v.version, v.sort_key, v.name, v.description, v.created_at
+            v.version, v.sort_key, v.name, v.description, v.editor_profile, v.created_at
      FROM sort_pack_packages p
      INNER JOIN sort_pack_package_versions v
        ON v.package_id = p.id AND v.version = $2
@@ -119,7 +133,7 @@ export async function getSortPackPackagesByRefs(
   const versions = refs.map((r) => r.versionPin)
   const res = await pool.query(
     `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.pack_kind, p.listing_meta, p.updated_at,
-            v.version, v.sort_key, v.name, v.description, v.created_at
+            v.version, v.sort_key, v.name, v.description, v.editor_profile, v.created_at
      FROM sort_pack_packages p
      INNER JOIN UNNEST($1::uuid[], $2::text[]) AS r(id, version)
        ON p.id = r.id
@@ -157,7 +171,7 @@ export async function listSortPackSubscriptions(
   const res = await pool.query(
     `SELECT s.owner_did, s.package_id, s.version_pin, s.update_policy, s.subscribed_at,
             p.id, p.owner_did AS pkg_owner_did, p.slug, p.visibility, p.trust_tier, p.pack_kind, p.listing_meta,
-            p.updated_at, v.version, v.sort_key, v.name, v.description, v.created_at
+            p.updated_at, v.version, v.sort_key, v.name, v.description, v.editor_profile, v.created_at
      FROM sort_pack_subscriptions s
      JOIN sort_pack_packages p ON p.id = s.package_id
      JOIN sort_pack_package_versions v
@@ -196,6 +210,7 @@ export interface CreateSortPackInput {
   name: string
   description?: string
   sortKey: L2Expr
+  editorProfile?: SortPackEditorProfile
   visibility?: SortPackVisibility
   packKind?: SortPackKind
 }
@@ -221,6 +236,7 @@ export async function updateSortPackPackage(
   ownerDid: string,
   input: {
     sortKey?: L2Expr
+    editorProfile?: SortPackEditorProfile | null
     name?: string
     slug?: string
     description?: string | null
@@ -241,9 +257,18 @@ export async function updateSortPackPackage(
   }
 
   const sortChanged = input.sortKey != null
+  const profileChanged = input.editorProfile !== undefined
   const bumpVersion = sortChanged && input.bumpVersion !== false
   const version = bumpVersion ? bumpPatchVersion(existing.version) : existing.version
   const sortJson = sortChanged ? JSON.stringify(input.sortKey) : JSON.stringify(existing.sortKey)
+  const profileJson =
+    input.editorProfile !== undefined
+      ? input.editorProfile == null
+        ? null
+        : JSON.stringify(input.editorProfile)
+      : existing.editorProfile
+        ? JSON.stringify(existing.editorProfile)
+        : null
 
   const res = await pool.query(
     `UPDATE sort_pack_packages
@@ -252,6 +277,7 @@ export async function updateSortPackPackage(
          name = COALESCE($6, name),
          slug = COALESCE($7, slug),
          description = CASE WHEN $8 THEN $9 ELSE description END,
+         editor_profile = CASE WHEN $10 THEN $11::jsonb ELSE editor_profile END,
          updated_at = NOW()
      WHERE id = $1 AND owner_did = $2 AND version = $3
      RETURNING *`,
@@ -265,6 +291,8 @@ export async function updateSortPackPackage(
       input.slug?.trim() || null,
       input.description !== undefined,
       input.description === undefined ? null : input.description?.trim() || null,
+      profileChanged,
+      profileJson,
     ],
   )
   if (!res.rows[0]) return null
@@ -274,6 +302,7 @@ export async function updateSortPackPackage(
       packageId: pkg.id,
       version: pkg.version,
       sortKey: pkg.sortKey,
+      editorProfile: pkg.editorProfile ?? null,
       name: pkg.name,
       description: pkg.description ?? null,
     })
@@ -301,6 +330,7 @@ export async function createSortPackPackage(
   if (existing.rows[0]) {
     const updated = await updateSortPackPackage(pool, existing.rows[0].id, input.ownerDid, {
       sortKey: input.sortKey,
+      editorProfile: input.editorProfile,
       name: input.name,
       description: input.description,
       bumpVersion: true,
@@ -318,8 +348,8 @@ export async function createSortPackPackage(
   const version = '1.0.0'
   const res = await pool.query(
     `INSERT INTO sort_pack_packages
-       (owner_did, slug, version, name, description, visibility, sort_key, pack_kind)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8)
+       (owner_did, slug, version, name, description, visibility, sort_key, pack_kind, editor_profile)
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9::jsonb)
      RETURNING *`,
     [
       input.ownerDid,
@@ -330,6 +360,7 @@ export async function createSortPackPackage(
       visibility,
       JSON.stringify(input.sortKey),
       packKind,
+      input.editorProfile ? JSON.stringify(input.editorProfile) : null,
     ],
   )
   let pkg = rowToPackage(res.rows[0])
@@ -337,6 +368,7 @@ export async function createSortPackPackage(
     packageId: pkg.id,
     version: pkg.version,
     sortKey: pkg.sortKey,
+    editorProfile: pkg.editorProfile ?? null,
     name: pkg.name,
     description: pkg.description ?? null,
   })
@@ -387,6 +419,18 @@ export async function unsubscribeSortPack(
   const res = await pool.query(
     `DELETE FROM sort_pack_subscriptions WHERE owner_did = $1 AND package_id = $2`,
     [ownerDid, packageId],
+  )
+  return (res.rowCount ?? 0) > 0
+}
+
+export async function deleteSortPackPackage(
+  pool: pg.Pool,
+  packageId: string,
+  ownerDid: string,
+): Promise<boolean> {
+  const res = await pool.query(
+    `DELETE FROM sort_pack_packages WHERE id = $1 AND owner_did = $2`,
+    [packageId, ownerDid],
   )
   return (res.rowCount ?? 0) > 0
 }
@@ -461,7 +505,7 @@ export async function listSortPackPackageVersions(
 ): Promise<SortPackPackage[]> {
   const res = await pool.query(
     `SELECT p.id, p.owner_did, p.slug, p.visibility, p.trust_tier, p.pack_kind, p.listing_meta, p.updated_at,
-            v.version, v.sort_key, v.name, v.description, v.created_at
+            v.version, v.sort_key, v.name, v.description, v.editor_profile, v.created_at
      FROM sort_pack_package_versions v
      INNER JOIN sort_pack_packages p ON p.id = v.package_id
      WHERE v.package_id = $1
