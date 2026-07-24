@@ -11,6 +11,7 @@ import type pg from 'pg'
 import {
   getFeedSkeleton,
   getFeedCandidateWindow,
+  feedCandidateSortOptions,
   loadServedPostsForViewer,
   loadViewerAffinityCounts,
   loadViewerLastFeedOpen,
@@ -293,7 +294,7 @@ async function computePersonalizedUris(
   const personalization = config.personalization!
 
   const [window, viewerPerCtx] = await Promise.all([
-    getFeedCandidateWindow(pool, config.feedId, depth),
+    getFeedCandidateWindow(pool, config.feedId, depth, feedCandidateSortOptions(config.rank)),
     loadViewerPersonalizationContext(pool, config.feedId, viewerDid, personalization),
   ])
 
@@ -389,7 +390,13 @@ export async function handleGetFeedSkeleton(
       ? `${PERSONALIZED_CURSOR_PREFIX}${sessionId}::${offset + limit}`
       : undefined
   } else {
-    const skeleton = await getFeedSkeleton(pool, config.feedId, limit, params.cursor)
+    const skeleton = await getFeedSkeleton(
+      pool,
+      config.feedId,
+      limit,
+      params.cursor,
+      feedCandidateSortOptions(config.rank),
+    )
     pageRows = await applyViewerFollowRingFilter(
       pool,
       config,

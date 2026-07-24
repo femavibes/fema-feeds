@@ -28,11 +28,9 @@ export interface ViewerPersonalizationContext {
 }
 
 /**
- * Base score per post — the real sort_key from sorting.
- * Toggle mode: linear normalize (min → 1) so multipliers stay meaningful.
- * Formula mode: log1p scale so serve/view penalties in the formula can
- * reorder across the full depth window (linear base_score ~1..450 would
- * always dominate a divided penalty).
+ * Base score per post.
+ * Formula mode: raw sort_key from sorting (formula builder is source of truth).
+ * Toggle mode: linear normalize within the window (min → 1) so multipliers stay meaningful.
  */
 function resolveBaseScores(
   posts: SkeletonPost[],
@@ -40,6 +38,10 @@ function resolveBaseScores(
   formulaMode: boolean,
 ): (post: SkeletonPost, idx: number) => number {
   if (sortKeys && sortKeys.size > 0) {
+    if (formulaMode) {
+      return (post) => sortKeys.get(post.post) ?? 0
+    }
+
     let min = Infinity
     let max = -Infinity
     for (const p of posts) {
@@ -49,17 +51,12 @@ function resolveBaseScores(
       if (k > max) max = k
     }
     if (Number.isFinite(min) && max > min) {
-      if (formulaMode) {
-        return (post) => {
-          const k = sortKeys.get(post.post)
-          return k == null ? 1 : Math.log1p(k - min) + 1
-        }
-      }
       return (post) => {
         const k = sortKeys.get(post.post)
         return k == null ? 1 : k - min + 1
       }
     }
+    return (post) => sortKeys.get(post.post) ?? 0
   }
   return (_post, idx) => posts.length - idx
 }

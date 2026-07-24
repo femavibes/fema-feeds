@@ -8,7 +8,7 @@ import type { ViewerPersonalizationContext } from './native-personalization.js'
 export interface PersonalizationPostContext {
   postUri: string
   authorDid: string | null
-  /** The sort_key from sorting (base score). */
+  /** Raw sort_key from sorting — passed through unchanged for formula mode. */
   baseScore: number
 }
 

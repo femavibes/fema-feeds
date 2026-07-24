@@ -49,6 +49,7 @@ import {
   getAuthorListCache,
 
   getFeedSkeleton,
+  feedCandidateSortOptions,
 
   getFeedVersion,
 
@@ -1195,7 +1196,13 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     const cursor = c.req.query('cursor') ?? undefined
 
-    const skeleton = await getFeedSkeleton(pool, id, limit, cursor)
+    const skeleton = await getFeedSkeleton(
+      pool,
+      id,
+      limit,
+      cursor,
+      feedCandidateSortOptions(config.rank),
+    )
 
     const ranked = await applyFeedRanker(pool, config, skeleton.feed, limit)
 
@@ -1223,7 +1230,13 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
     const limit = Math.min(Number(c.req.query('limit') ?? 50), 100)
     const cursor = c.req.query('cursor') ?? undefined
-    const skeleton = await getFeedSkeleton(pool, id, limit, cursor)
+    const skeleton = await getFeedSkeleton(
+      pool,
+      id,
+      limit,
+      cursor,
+      feedCandidateSortOptions(config.rank),
+    )
     const ranked = await applyFeedRanker(pool, config, skeleton.feed, limit)
     const feed = await applyFeedInjector(pool, config, ranked, limit)
     const candidateCount = await countFeedCandidates(pool, id)

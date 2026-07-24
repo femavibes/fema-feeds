@@ -13,6 +13,7 @@ import {
   getProjectIdsForPostsBatch,
   listAllPoolPosts,
   listFeedCandidateRows,
+  feedCandidateSortOptions,
   listPoolPostsFiltered,
   listPostsForProject,
   normalizedPostFromRow,
@@ -172,7 +173,12 @@ async function previewMatchesFromCandidates(
         : await countAllPoolPosts(pool)
       : await countPostsForProject(pool, feed.projectId)
 
-  const candidateRows = await listFeedCandidateRows(pool, feed.feedId, limit)
+  const candidateRows = await listFeedCandidateRows(
+    pool,
+    feed.feedId,
+    limit,
+    feedCandidateSortOptions(feed.rank),
+  )
   const remoteBudget = { left: 12 }
   const matches: PoolMatchItem[] = []
 

@@ -548,7 +548,6 @@
         }
       },
       "scoreFloor": 0,
-      "maxAgeHours": 0,
       "ratioSignals": {
         "quoteRatio": {
           "weight": 0,

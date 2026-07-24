@@ -96,11 +96,13 @@ export type AuthorFairnessMode = 'off' | 'log' | 'sqrt' | 'sigmoid'
 
 export type DecayMode = 'none' | 'halflife' | 'exponential' | 'rate'
 
+/** Chronological feed order when no sortKey is set. */
+export type ChronologicalOrder = 'newest' | 'oldest'
+
 export interface SortTuning {
   decayMode: DecayMode
   decayHalfLifeHours: number
   editorScoreWeight: number
-  maxAgeHours: number
   authorFairness: AuthorFairnessMode
   mediaBonus: MediaBonus
   contentSignals: ContentSignals
@@ -135,6 +137,19 @@ export interface FeedRankConfig {
 
   /** UI tuning values — stored alongside sortKey so the panel can restore them without pattern-matching. */
   tuning?: SortTuning
+  /** When no sortKey/packRef — order by indexed time (default newest). */
+  chronologicalOrder?: ChronologicalOrder
+  /** UI mode that produced sortKey (engagement, advanced, or builder). */
+  sortMode?: 'engagement' | 'advanced' | 'builder'
   /** Custom ranker plugin — reorders skeleton at serve time; runs after DB sort, before inject. */
   rankerRef?: RankerRef
+}
+
+export function isChronologicalRank(rank?: FeedRankConfig): boolean {
+  return Boolean(rank && !rank.sortKey && !rank.packRef)
+}
+
+export function resolveChronologicalOrder(rank?: FeedRankConfig): ChronologicalOrder {
+  if (!isChronologicalRank(rank)) return 'newest'
+  return rank?.chronologicalOrder === 'oldest' ? 'oldest' : 'newest'
 }

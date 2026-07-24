@@ -7,6 +7,7 @@ import {
   FORMULA_FUNCTIONS,
 } from '../../lib/formula-parser'
 import { FormulaBlocks, type FormulaBlockActions } from './FormulaBlocks'
+import { SORT_FORMULA_CHUNK_TEMPLATES } from '../../lib/feed-sort-chunks'
 
 export interface FormulaTemplate {
   name: string
@@ -50,7 +51,7 @@ const SORT_FIELD_GROUPS: FormulaFieldGroup[] = [
   },
   {
     label: 'Content',
-    fields: ['text_len', 'images', 'video_size', 'hashtags', 'links', 'mentions', 'editor_score', 'age_hours'],
+    fields: ['text_len', 'images', 'video_size', 'hashtags', 'links', 'mentions', 'editor_score', 'post_age_hours'],
   },
 ]
 
@@ -62,11 +63,12 @@ const SORT_TEMPLATES: FormulaTemplate[] = [
   { name: 'Power curve', formula: 'pow(likes + 1, 0.7) * 10' },
   { name: 'Capped engagement', formula: 'clamp(likes * 2 + reposts * 3, 0, 1000)' },
   { name: 'Video boost', formula: 'likes + reposts * 2 + if(video_size > 0, 50, 0)' },
-  { name: 'Time decay', formula: '(likes + reposts * 2) / (age_hours / 24 + 1)' },
+  { name: 'Time decay', formula: '(likes + reposts * 2) / (post_age_hours / 24 + 1)' },
   { name: 'Discussion finder', formula: 'replies * 3 + quotes * 5 - likes * 0.1' },
   { name: 'Small account boost', formula: '(likes + reposts) * max(1, 100 / (followers + 1))' },
   { name: 'Audience boost', formula: 'likes + reposts * 2 + audience_likes * 3 + audience_reposts * 5' },
   { name: 'Audience-first', formula: 'audience_likes * 10 + audience_reposts * 15 + log(likes + 1) * 5' },
+  ...SORT_FORMULA_CHUNK_TEMPLATES.map((t) => ({ name: `Chunk: ${t.name}`, formula: t.formula })),
 ]
 
 export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, placeholder, readOnly = false }: Props) {

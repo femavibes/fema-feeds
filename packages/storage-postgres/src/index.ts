@@ -149,9 +149,11 @@ export {
   purgeExpiredFeedCandidates,
   purgeOutOfScopeCandidates,
   bumpAudienceEngagement,
+  feedCandidateSortOptions,
   type FeedCandidateInput,
   type FeedCandidateRow,
   type FeedCandidateWindowRow,
+  type FeedCandidateSortOptions,
   type SkeletonPost,
 } from './feed-candidates.js'
 export {

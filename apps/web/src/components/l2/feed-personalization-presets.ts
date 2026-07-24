@@ -10,7 +10,6 @@ export const PERSONALIZATION_TEMPLATES: FormulaTemplate[] = [
   { name: 'Full personalization', formula: 'base_score * if(is_followed > 0, 1.3, 1) + feed_affinity * 10 - times_served * 30' },
   { name: 'Freshness recovery', formula: 'base_score + if(hours_since_last_open > 24, 100, 0)' },
   { name: 'Social proximity', formula: 'base_score * (1 + is_followed * 0.3 + is_mutual * 0.5) + feed_affinity * 5' },
-  { name: 'Engagement + social', formula: 'base_score + likes * if(is_followed > 0, 2, 1) + feed_affinity * 8' },
   { name: 'Interaction recency', formula: 'base_score * if(days_since_interaction < 7, 1.4, if(days_since_interaction < 30, 1.1, 1))' },
 ]
 
@@ -30,13 +29,5 @@ export const PERSONALIZATION_FIELD_GROUPS: FormulaFieldGroup[] = [
   {
     label: 'Feed affinity (interactions via this feed)',
     fields: ['feed_affinity', 'feed_affinity_likes', 'feed_affinity_reposts', 'feed_affinity_replies', 'feed_affinity_quotes'],
-  },
-  {
-    label: 'Post metrics',
-    fields: ['likes', 'reposts', 'replies', 'quotes', 'bookmarks', 'followers', 'follows', 'posts'],
-  },
-  {
-    label: 'Content',
-    fields: ['text_len', 'images', 'video_size', 'hashtags', 'links', 'mentions', 'editor_score', 'age_hours'],
   },
 ]

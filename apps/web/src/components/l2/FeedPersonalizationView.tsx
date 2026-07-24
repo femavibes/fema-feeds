@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FeedConfig } from '@cfb/core-types'
 import { FeedSourceToggle, type FeedSourceMode } from '../FeedSourceToggle'
 import { FeedPersonalizationPanel } from './FeedPersonalizationPanel'
+import { FeedPersonalizationOrchestrationSection } from './FeedPersonalizationOrchestrationSection'
 import { SavePersonalizationModal } from './SavePersonalizationModal'
 import { RankerFeedSection } from '../plugins/RankerFeedSection'
 import { PersonalizationFormulaFeedSection } from '../sort-packs/PersonalizationFormulaFeedSection'
@@ -47,7 +48,7 @@ export function FeedPersonalizationView({
           : 'Library'
       : draft.personalization?.formulaEnabled
         ? 'Formula builder'
-        : 'Toggles'
+        : 'Presets'
 
   return (
     <div className="workspace-page feed-personalization-view">
@@ -88,6 +89,7 @@ export function FeedPersonalizationView({
         )}
         {source === 'subscribed' && (
           <div className="feed-subscribed-section feed-formula-library-section">
+            <FeedPersonalizationOrchestrationSection draft={draft} onChange={onChange} />
             <PersonalizationFormulaFeedSection
               draft={draft}
               onChange={onChange}

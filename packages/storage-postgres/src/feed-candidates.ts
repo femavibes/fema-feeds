@@ -1,4 +1,31 @@
+import type { FeedRankConfig } from '@cfb/core-types'
+import { isChronologicalRank, resolveChronologicalOrder } from '@cfb/core-types'
 import type pg from 'pg'
+
+export interface FeedCandidateSortOptions {
+  /** Chronological feeds only — oldest indexed posts first. */
+  oldestFirst?: boolean
+}
+
+export function feedCandidateSortOptions(rank?: FeedRankConfig): FeedCandidateSortOptions {
+  return {
+    oldestFirst: isChronologicalRank(rank) && resolveChronologicalOrder(rank) === 'oldest',
+  }
+}
+
+function orderClause(options?: FeedCandidateSortOptions): string {
+  if (options?.oldestFirst) {
+    return 'ORDER BY sort_key ASC, post_indexed_at ASC NULLS LAST'
+  }
+  return 'ORDER BY sort_key DESC, post_indexed_at DESC NULLS LAST'
+}
+
+function cursorPredicate(options?: FeedCandidateSortOptions): string | null {
+  if (options?.oldestFirst) {
+    return ' AND (sort_key > $2 OR (sort_key = $2 AND post_indexed_at > $3))'
+  }
+  return null
+}
 
 export interface FeedCandidateInput {
   feedId: string
@@ -81,11 +108,12 @@ export async function listFeedCandidateRows(
   pool: pg.Pool,
   feedId: string,
   limit: number,
+  sortOptions?: FeedCandidateSortOptions,
 ): Promise<FeedCandidateRow[]> {
   const res = await pool.query<{ post_uri: string; sort_key: string; post_indexed_at: Date | null }>(
     `SELECT post_uri, sort_key, post_indexed_at FROM feed_candidates
      WHERE feed_id = $1 AND (expires_at IS NULL OR expires_at > NOW())
-     ORDER BY sort_key DESC, post_indexed_at DESC NULLS LAST
+     ${orderClause(sortOptions)}
      LIMIT $2`,
     [feedId, limit],
   )
@@ -144,6 +172,7 @@ export async function getFeedSkeleton(
   feedId: string,
   limit: number,
   cursor?: string,
+  sortOptions?: FeedCandidateSortOptions,
 ): Promise<{ feed: SkeletonPost[]; cursor?: string }> {
   const params: unknown[] = [feedId]
   let sql = `SELECT post_uri, sort_key, post_indexed_at FROM feed_candidates
@@ -154,14 +183,19 @@ export async function getFeedSkeleton(
       const sortKey = Number(cursor.slice(0, sep))
       const indexedMs = Number(cursor.slice(sep + 2))
       params.push(sortKey, new Date(indexedMs))
-      sql += ` AND (sort_key < $2 OR (sort_key = $2 AND (post_indexed_at IS NULL OR post_indexed_at < $3)))`
+      const oldest = cursorPredicate(sortOptions)
+      if (oldest) {
+        sql += oldest
+      } else {
+        sql += ` AND (sort_key < $2 OR (sort_key = $2 AND (post_indexed_at IS NULL OR post_indexed_at < $3)))`
+      }
     } else {
       params.push(Number(cursor))
       sql += ` AND sort_key < $${params.length}`
     }
   }
   params.push(limit + 1)
-  sql += ` ORDER BY sort_key DESC, post_indexed_at DESC NULLS LAST LIMIT $${params.length}`
+  sql += ` ${orderClause(sortOptions)} LIMIT $${params.length}`
 
   const res = await pool.query<{ post_uri: string; sort_key: string; post_indexed_at: Date | null }>(sql, params)
   const hasMore = res.rows.length > limit
@@ -187,11 +221,12 @@ export async function getFeedCandidateWindow(
   pool: pg.Pool,
   feedId: string,
   depth: number,
+  sortOptions?: FeedCandidateSortOptions,
 ): Promise<FeedCandidateWindowRow[]> {
   const res = await pool.query<{ post_uri: string; sort_key: string }>(
     `SELECT post_uri, sort_key FROM feed_candidates
      WHERE feed_id = $1 AND (expires_at IS NULL OR expires_at > NOW())
-     ORDER BY sort_key DESC, post_indexed_at DESC NULLS LAST
+     ${orderClause(sortOptions)}
      LIMIT $2`,
     [feedId, depth],
   )
@@ -228,7 +263,7 @@ export async function getAgeSweepPostUris(
   return res.rows.map((r) => r.post_uri)
 }
 
-/** Delete candidates past their expiry (maxAgeHours from sort tuning). */
+/** Delete candidates past their expiry (legacy rows from removed maxAgeHours tuning). */
 export async function purgeExpiredFeedCandidates(pool: pg.Pool): Promise<number> {
   const res = await pool.query(
     `DELETE FROM feed_candidates WHERE expires_at IS NOT NULL AND expires_at < NOW()`,

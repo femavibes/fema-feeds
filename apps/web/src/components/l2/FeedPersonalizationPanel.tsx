@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import type { FeedConfig, L2Expr, NativePersonalizationConfig } from '@cfb/core-types'
-import { DEFAULT_PERSONALIZATION, PERSONALIZATION_DEPTH_DEFAULT, PERSONALIZATION_DEPTH_MAX, resolveSuppressServed } from '@cfb/core-types'
+import { DEFAULT_PERSONALIZATION, resolveSuppressServed } from '@cfb/core-types'
 import { clearPersonalizationFormulaPackRef } from '../../lib/feed-personalization'
 import { PERSONALIZATION_FIELDS } from '../../lib/formula-parser'
 import { ToggleRow } from '../ToggleRow'
 import { SortFormulaBuilder } from './SortFormulaBuilder'
+import { FeedPersonalizationOrchestrationSection } from './FeedPersonalizationOrchestrationSection'
+import { FeedModePicker } from './FeedModePicker'
+import { PERSONALIZATION_MODE_OPTIONS, type PersonalizationModeId } from '../../lib/feed-personalization-modes'
 import {
   PERSONALIZATION_FIELD_GROUPS,
   PERSONALIZATION_TEMPLATES,
@@ -15,13 +18,13 @@ interface Props {
   onChange: (next: FeedConfig) => void
 }
 
-type PersonalizationMode = 'toggles' | 'formula'
+type PersonalizationMode = PersonalizationModeId
 
 export function FeedPersonalizationPanel({ draft, onChange }: Props) {
   const config = draft.personalization ?? DEFAULT_PERSONALIZATION
   const suppressServed = resolveSuppressServed(config) ?? DEFAULT_PERSONALIZATION.suppressServed!
   const [mode, setMode] = useState<PersonalizationMode>(
-    config.formulaEnabled ? 'formula' : 'toggles',
+    config.formulaEnabled ? 'formula' : 'presets',
   )
   const [showFieldRef, setShowFieldRef] = useState(false)
 
@@ -49,46 +52,17 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
 
   return (
     <div className="feed-personalization-panel">
-      {/* Mode toggle */}
-      <div className="option-toggle-list feed-personalization-modes" role="radiogroup" aria-label="Personalization mode">
-        <ToggleRow
-          label="Toggles"
-          hint="Simple on/off switches for common personalization behaviors."
-          checked={mode === 'toggles'}
-          onChange={(on) => { if (on) handleModeChange('toggles') }}
-          ariaLabel="Toggle-based personalization"
-        />
-        <ToggleRow
-          label="Formula builder"
-          hint="Write a math formula using viewer signals (base_score, is_followed, affinity, etc.)."
-          checked={mode === 'formula'}
-          onChange={(on) => { if (on) handleModeChange('formula') }}
-          ariaLabel="Formula builder personalization"
-        />
-      </div>
+      <FeedModePicker
+        options={[...PERSONALIZATION_MODE_OPTIONS]}
+        value={mode}
+        onChange={(id) => handleModeChange(id as PersonalizationMode)}
+        ariaLabel="Personalization mode"
+        className="feed-personalization-modes"
+      />
 
-      <section className="feed-personalization-section feed-personalization-serve-section">
-        <label className="feed-personalization-field feed-personalization-field--inline">
-          Personalization depth
-          <input
-            type="number"
-            step="50"
-            min="50"
-            max={PERSONALIZATION_DEPTH_MAX}
-            value={config.depth ?? PERSONALIZATION_DEPTH_DEFAULT}
-            onChange={(e) => {
-              const raw = parseInt(e.target.value) || PERSONALIZATION_DEPTH_DEFAULT
-              update({ depth: Math.max(50, Math.min(raw, PERSONALIZATION_DEPTH_MAX)) })
-            }}
-          />
-        </label>
-        <p className="card-hint feed-personalization-serve-hint">
-          How many top-sorted candidates the formula can reorder on each open. Higher depth reaches
-          never-served posts deeper in the pool; lower depth is faster.
-        </p>
-      </section>
+      <FeedPersonalizationOrchestrationSection draft={draft} onChange={onChange} />
 
-      {mode === 'toggles' && (
+      {mode === 'presets' && (
         <div className="feed-personalization-toggles">
           <section className="feed-personalization-section">
             <ToggleRow
@@ -179,30 +153,6 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
 
           <section className="feed-personalization-section">
             <ToggleRow
-              label="Author diversity"
-              hint="Prevent too many consecutive posts from the same author."
-              checked={config.authorDiversity?.enabled ?? false}
-              onChange={(on) => update({ authorDiversity: { ...config.authorDiversity!, enabled: on } })}
-              ariaLabel="Author diversity"
-            />
-            {config.authorDiversity?.enabled && (
-              <label className="feed-personalization-field">
-                Max consecutive
-                <input
-                  type="number"
-                  step="1"
-                  min="1"
-                  max="10"
-                  value={config.authorDiversity.maxConsecutive}
-                  onChange={(e) => update({ authorDiversity: { enabled: true, maxConsecutive: parseInt(e.target.value) || 2 } })}
-                />
-                <span className="card-hint">How many posts from same author before forcing variety</span>
-              </label>
-            )}
-          </section>
-
-          <section className="feed-personalization-section">
-            <ToggleRow
               label="Affinity boost"
               hint="Boost posts from authors the viewer frequently interacts with."
               checked={config.affinityBoost?.enabled ?? false}
@@ -257,7 +207,7 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
           {showFieldRef && (
             <div className="feed-personalization-field-legend">
               <dl className="formula-field-legend">
-                <dt>base_score</dt><dd>Log-scaled sort key within the depth window (~1 for lowest, ~7 for highest at depth 500)</dd>
+                <dt>base_score</dt><dd>Raw sort_key from the Sorting tab (same value stored in the pool). Use log(base_score + 1) in your formula if you want compressed scaling.</dd>
                 <dt>is_followed</dt><dd>1 if viewer follows post author, 0 if not</dd>
                 <dt>is_follower</dt><dd>1 if post author follows the viewer, 0 if not</dd>
                 <dt>is_mutual</dt><dd>1 if mutual follow (both follow each other), 0 if not</dd>

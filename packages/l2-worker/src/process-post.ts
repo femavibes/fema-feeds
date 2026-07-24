@@ -21,22 +21,13 @@ export interface ProcessPostResult {
 
 /**
  * sort_key is purely the formula result. Recency is handled by the secondary
- * sort column (post_indexed_at DESC) in the skeleton query, so equal scores
- * sort newest-first without a hidden time term dominating the formula.
+ * sort column (post_indexed_at DESC/ASC per chronologicalOrder) in the skeleton
+ * query, so equal scores sort by time without a hidden time term in the formula.
  * Chronological feeds (no formula) write 0 and rely entirely on the tiebreaker.
  */
 function postIndexedAtDate(post: NormalizedPost): Date | null {
   const t = Date.parse(post.indexedAt)
   return Number.isFinite(t) ? new Date(t) : null
-}
-
-/** Candidate expiry from tuning.maxAgeHours (replaces the old score multiplier). */
-function candidateExpiresAt(feed: FeedConfig, post: NormalizedPost): Date | null {
-  const maxAgeHours = feed.rank?.tuning?.maxAgeHours ?? 0
-  if (maxAgeHours <= 0) return null
-  const t = Date.parse(post.indexedAt)
-  if (!Number.isFinite(t)) return null
-  return new Date(t + maxAgeHours * 60 * 60 * 1000)
 }
 
 function feedsForPost(
@@ -114,7 +105,6 @@ export async function processPostForFeeds(
       score: sortKey,
       sortKey,
       postIndexedAt: postIndexedAtDate(post),
-      expiresAt: candidateExpiresAt(feed, post),
     })
     written++
   }

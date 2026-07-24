@@ -157,7 +157,38 @@ describe('personalization formula served vs viewed fields', () => {
 })
 
 describe('applyNativePersonalization formula base_score', () => {
-  it('demotes heavily served high-sort posts below unseen low-sort posts', () => {
+  it('passes raw sort_key through as base_score', () => {
+    const high = 'at://did:plc:author/app.bsky.feed.post/top'
+    const low = 'at://did:plc:other/app.bsky.feed.post/fresh'
+    const viewer: ViewerPersonalizationContext = {
+      viewerDid: 'did:plc:viewer',
+      followedDids: new Set(),
+      followerDids: new Set(),
+      mutualDids: new Set(),
+      servedPosts: new Map(),
+      affinityCounts: new Map(),
+      hoursSinceLastOpen: null,
+    }
+    const config = {
+      ...DEFAULT_PERSONALIZATION,
+      formulaEnabled: true,
+      formula: { type: 'field' as const, field: 'base_score' as never },
+    }
+    const sortKeys = new Map([
+      [high, 450],
+      [low, 5],
+    ])
+    const result = applyNativePersonalization(
+      [{ post: low }, { post: high }],
+      config,
+      viewer,
+      sortKeys,
+    )
+    expect(result[0]?.post).toBe(high)
+    expect(result[1]?.post).toBe(low)
+  })
+
+  it('uses raw sort_key as base_score and lets formula-authored log scale demote served posts', () => {
     const gravel = 'at://did:plc:author/app.bsky.feed.post/top'
     const unseen = 'at://did:plc:other/app.bsky.feed.post/fresh'
     const viewer: ViewerPersonalizationContext = {
@@ -180,7 +211,16 @@ describe('applyNativePersonalization formula base_score', () => {
         left: {
           type: 'binary' as const,
           op: '*' as const,
-          left: { type: 'field' as const, field: 'base_score' as never },
+          left: {
+            type: 'unary' as const,
+            op: 'log' as const,
+            operand: {
+              type: 'binary' as const,
+              op: '+' as const,
+              left: { type: 'field' as const, field: 'base_score' as never },
+              right: { type: 'literal' as const, value: 1 },
+            },
+          },
           right: {
             type: 'binary' as const,
             op: '+' as const,

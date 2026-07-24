@@ -17,6 +17,8 @@ export const FORMULA_FIELDS: Record<string, L2NumericField> = {
   links: 'facet_link_count',
   mentions: 'facet_mention_count',
   editor_score: 'editor_score',
+  post_age_hours: 'post_age_hours',
+  /** @deprecated Use post_age_hours */
   age_hours: 'post_age_hours',
   audience_likes: 'audience_like_count',
   audience_reposts: 'audience_repost_count',
@@ -24,9 +26,6 @@ export const FORMULA_FIELDS: Record<string, L2NumericField> = {
 
 /** Personalization fields — viewer-relative signals available at serve time. */
 export const PERSONALIZATION_FIELDS: Record<string, L2NumericField | string> = {
-  // All sorting fields available too
-  ...FORMULA_FIELDS,
-  // Viewer-relative fields
   base_score: 'base_score',
   is_followed: 'is_followed',
   is_follower: 'is_follower',
