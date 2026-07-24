@@ -3364,9 +3364,65 @@ body {
   padding-top: 1rem;
   border-top: 1px solid var(--border);
 }
+
+.feed-settings-apply-bar-toolbar {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.feed-settings-apply-top-divider {
+  margin: 0.75rem 0 0.65rem;
+}
+
+.feed-settings-apply-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  width: 100%;
+}
+
+.feed-settings-apply-note {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-settings-apply-note .feed-settings-apply-hint {
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.feed-settings-apply-note .feed-settings-apply-hint + .feed-settings-apply-hint {
+  margin-top: 0.2rem;
+}
+
+.feed-settings-apply-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.feed-settings-apply-actions .formula-field-ref-wrap {
+  margin-bottom: 0;
+}
+
+.feed-settings-apply-actions .formula-field-ref-head {
+  justify-content: flex-end;
+}
+
+.feed-settings-apply-btn {
+  flex-shrink: 0;
+}
+
+.feed-settings-apply-divider {
+  margin: 0.65rem 0 0.5rem;
+}
+
 .feed-settings-apply-hint {
   margin: 0;
-  max-width: 42rem;
 }
 
 .feed-sorting-panel-main .feed-sorting-modes,
@@ -3476,6 +3532,11 @@ body {
 }
 
 .feed-sorting-panel-main .feed-sorting-chronological {
+  border-top: none;
+  padding-top: 0;
+}
+
+.feed-sorting-panel-main .feed-sorting-tuning {
   border-top: none;
   padding-top: 0;
 }
@@ -12276,6 +12337,14 @@ body.l2-visual-open #root {
   flex-shrink: 0;
 }
 
+.formula-field-ref-compact .formula-field-ref-head {
+  justify-content: flex-end;
+}
+
+.formula-field-ref-compact .formula-field-ref-toggle {
+  white-space: nowrap;
+}
+
 .formula-field-ref-icon {
   flex-shrink: 0;
   opacity: 0.88;
@@ -12382,7 +12451,22 @@ body.l2-visual-open #root {
   grid-template-columns: minmax(240px, 1fr) minmax(300px, 1.15fr);
   gap: 1.25rem 1.5rem;
   align-items: start;
-  margin-top: 0.75rem;
+}
+
+.feed-formula-library-picks-header {
+  margin-bottom: 0.5rem;
+}
+
+.feed-formula-library-picks-header .sidebar-block-title {
+  margin-bottom: 0.35rem;
+}
+
+.feed-formula-library-picks-header .card-hint {
+  margin: 0 0 0.5rem;
+}
+
+.feed-formula-library-picks-header .l2-inspector-field {
+  max-width: 20rem;
 }
 
 .feed-formula-library-picks {

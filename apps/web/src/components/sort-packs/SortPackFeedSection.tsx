@@ -137,27 +137,6 @@ export function SortPackFeedSection({
 
   return (
     <div className="feed-sorting-packs">
-      <p className="sidebar-block-title">Native sorting formulas</p>
-      {usingPack && packRef ? (
-        <>
-          <p className="card-hint">
-            Using <strong>{packRef.label ?? 'sort pack'}</strong> v{packRef.versionPin}. Preview others below, then apply when ready.
-          </p>
-          <UpdatePolicySelect
-            value={packRef.updatePolicy ?? 'notify'}
-            onChange={(policy) => {
-              const next = setSortPackUpdatePolicy(draft, policy)
-              onStagingChange(next)
-              void onApplySettings(next)
-            }}
-          />
-        </>
-      ) : (
-        <p className="card-hint">
-          Preview a formula from My collection or a marketplace subscription. Apply only when you want it on this feed.
-        </p>
-      )}
-
       {upgrade ? (
         <div className="feed-sorting-upgrade feed-logic-upgrades-item">
           <p className="settings-hint">
@@ -193,6 +172,29 @@ export function SortPackFeedSection({
 
       <div className="feed-formula-library-layout">
         <div className="feed-formula-library-picks">
+          <div className="feed-formula-library-picks-header">
+            <p className="sidebar-block-title">Native sorting formulas</p>
+            {usingPack && packRef ? (
+              <>
+                <p className="card-hint">
+                  Using <strong>{packRef.label ?? 'sort pack'}</strong> v{packRef.versionPin}. Preview others below, then apply when ready.
+                </p>
+                <UpdatePolicySelect
+                  value={packRef.updatePolicy ?? 'notify'}
+                  onChange={(policy) => {
+                    const next = setSortPackUpdatePolicy(draft, policy)
+                    onStagingChange(next)
+                    void onApplySettings(next)
+                  }}
+                />
+              </>
+            ) : (
+              <p className="card-hint">
+                Preview a formula from My collection or a marketplace subscription. Apply only when you want it on this feed.
+              </p>
+            )}
+          </div>
+
           {collectionPackages.length > 0 ? (
             <>
               <p className="feed-formula-pack-group-label">My collection</p>

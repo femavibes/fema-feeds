@@ -42,9 +42,11 @@ interface Props {
   fieldLegendHint?: string
   /** Preview mode — show builder UI without editing or persisting changes. */
   readOnly?: boolean
+  /** When true, field reference is rendered by the parent (e.g. apply toolbar). */
+  hideFieldReference?: boolean
 }
 
-export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, snippets, placeholder, fieldLegend, fieldLegendToggleLabel, fieldLegendHint, readOnly = false }: Props) {
+export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, snippets, placeholder, fieldLegend, fieldLegendToggleLabel, fieldLegendHint, readOnly = false, hideFieldReference = false }: Props) {
   const fieldMap = fields ?? FORMULA_FIELDS
   const groups = fieldGroups ?? SORT_FIELD_GROUPS
   const templateList = templates ?? SORT_TEMPLATES
@@ -163,7 +165,7 @@ export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, field
     <div className={`formula-editor${readOnly ? ' formula-editor-readonly' : ''}`}>
       {/* Editor */}
       <section className="formula-editor-main">
-        {!readOnly ? (
+        {!readOnly && !hideFieldReference ? (
           <FormulaFieldReference
             hint={legendHint}
             toggleLabel={legendToggleLabel}

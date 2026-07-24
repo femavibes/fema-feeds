@@ -4,7 +4,6 @@ import { FeedSourceToggle, type FeedSourceMode } from '../FeedSourceToggle'
 import { FeedSortingPanel } from './FeedSortingPanel'
 import { SortPackFeedSection } from '../sort-packs/SortPackFeedSection'
 import { SaveSortPackModal } from '../sort-packs/SaveSortPackModal'
-import { FeedSettingsApplyBar } from './FeedSettingsApplyBar'
 import { detectSortMode, sortModeBadge, DEFAULT_ENGAGEMENT_WEIGHTS, detectEngagementWeights } from '../../lib/feed-sorting'
 import { sortingSettingsApplied } from '../../lib/feed-settings-apply'
 
@@ -80,16 +79,17 @@ export function FeedSortingView({
 
       <section className="card feed-sorting-view-panel">
         {source === 'native' && (
-          <>
-            <FeedSortingPanel draft={staging} onChange={setStaging} layout="main" />
-            <FeedSettingsApplyBar
-              applied={applied}
-              busy={applyBusy}
-              onApply={() => void handleApply()}
-              rescoreNote
-              hint="Preview your sort mode and weights, then apply when ready. Only one sort source can be active on this feed."
-            />
-          </>
+          <FeedSortingPanel
+            draft={staging}
+            onChange={setStaging}
+            layout="main"
+            applyBar={{
+              applied,
+              busy: applyBusy,
+              onApply: () => void handleApply(),
+              rescoreNote: true,
+            }}
+          />
         )}
         {source === 'subscribed' && (
           <div className="feed-subscribed-section">

@@ -92,15 +92,16 @@ export function FeedPersonalizationView({
 
       <section className="card feed-sorting-view-panel">
         {source === 'native' && (
-          <>
-            <FeedPersonalizationPanel draft={staging} onChange={setStaging} />
-            <FeedSettingsApplyBar
-              applied={applied}
-              busy={applyBusy}
-              onApply={() => void handleApply()}
-              hint="Preview presets or a formula, then apply when ready. Only one personalization source can be active."
-            />
-          </>
+          <FeedPersonalizationPanel
+            draft={staging}
+            onChange={setStaging}
+            applyBar={{
+              applied,
+              busy: applyBusy,
+              onApply: () => void handleApply(),
+              serveNote: true,
+            }}
+          />
         )}
         {source === 'subscribed' && (
           <div className="feed-subscribed-section feed-formula-library-section">

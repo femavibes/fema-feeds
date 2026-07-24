@@ -27,6 +27,10 @@ interface Props {
   toggleLabel?: string
   hideLabel?: string
   hint?: string
+  /** Omit the inline hint paragraph (e.g. when shown in a compact toolbar row). */
+  hideHint?: boolean
+  /** Compact toggle-only layout for toolbar rows beside apply button. */
+  compact?: boolean
 }
 
 export function FormulaFieldReference({
@@ -34,13 +38,15 @@ export function FormulaFieldReference({
   toggleLabel = 'Field reference',
   hideLabel = 'Hide reference',
   hint,
+  hideHint = false,
+  compact = false,
 }: Props) {
   const [open, setOpen] = useState(false)
 
   return (
-    <div className="formula-field-ref-wrap">
+    <div className={`formula-field-ref-wrap${compact ? ' formula-field-ref-compact' : ''}`}>
       <div className="formula-field-ref-head">
-        {hint ? <p className="card-hint formula-field-ref-hint">{hint}</p> : null}
+        {!hideHint && hint ? <p className="card-hint formula-field-ref-hint">{hint}</p> : null}
         <button
           type="button"
           className="btn btn-ghost btn-sm formula-field-ref-toggle"

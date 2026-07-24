@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FeedConfig, L2Expr, NativePersonalizationConfig } from '@cfb/core-types'
 import { DEFAULT_PERSONALIZATION, resolveSuppressServed } from '@cfb/core-types'
 import { clearPersonalizationFormulaPackRef } from '../../lib/feed-personalization'
@@ -14,20 +14,48 @@ import {
   PERSONALIZATION_SNIPPETS,
   PERSONALIZATION_TEMPLATES,
 } from './feed-personalization-presets'
+import { FeedSettingsApplyBar } from './FeedSettingsApplyBar'
+import { FormulaFieldReference } from './FormulaFieldReference'
+
+interface ApplyBarProps {
+  applied: boolean
+  busy?: boolean
+  onApply: () => void
+  serveNote?: boolean
+}
 
 interface Props {
   draft: FeedConfig
   onChange: (next: FeedConfig) => void
+  applyBar?: ApplyBarProps
 }
 
 type PersonalizationMode = PersonalizationModeId
+const DEFAULT_CREATE_PERSONALIZATION_MODE: PersonalizationMode = 'presets'
 
-export function FeedPersonalizationPanel({ draft, onChange }: Props) {
+export function FeedPersonalizationPanel({ draft, onChange, applyBar }: Props) {
   const config = draft.personalization ?? DEFAULT_PERSONALIZATION
   const suppressServed = resolveSuppressServed(config) ?? DEFAULT_PERSONALIZATION.suppressServed!
   const [mode, setMode] = useState<PersonalizationMode>(
-    config.formulaEnabled ? 'formula' : 'presets',
+    applyBar && draft.personalization?.formulaPackRef
+      ? DEFAULT_CREATE_PERSONALIZATION_MODE
+      : config.formulaEnabled
+        ? 'formula'
+        : 'presets',
   )
+
+  // Create tab: subscribed formula pack isn't a Create toggle — seed presets as preview only.
+  useEffect(() => {
+    if (!applyBar) return
+    if (!draft.personalization?.formulaPackRef) return
+    setMode(DEFAULT_CREATE_PERSONALIZATION_MODE)
+    onChange(
+      clearPersonalizationFormulaPackRef({
+        ...draft,
+        personalization: { ...config, formulaEnabled: false },
+      }),
+    )
+  }, [applyBar, draft.feedId, draft.personalization?.formulaPackRef?.packageId])
 
   const update = (patch: Partial<NativePersonalizationConfig>) => {
     onChange({ ...draft, personalization: { ...config, ...patch } })
@@ -61,7 +89,29 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
         className="feed-personalization-modes"
       />
 
-      <hr className="feed-sort-section-divider feed-personalization-mode-divider" />
+      {applyBar ? (
+        <>
+          <hr className="feed-sort-section-divider feed-settings-apply-top-divider" />
+          <FeedSettingsApplyBar
+            {...applyBar}
+            layout="toolbar"
+            trailing={
+              mode === 'formula' ? (
+                <FormulaFieldReference
+                  entries={PERSONALIZATION_FORMULA_FIELD_LEGEND}
+                  toggleLabel="Viewer fields"
+                  hideLabel="Hide viewer fields"
+                  hideHint
+                  compact
+                />
+              ) : null
+            }
+          />
+          <hr className="feed-sort-section-divider feed-settings-apply-divider" />
+        </>
+      ) : (
+        <hr className="feed-sort-section-divider feed-personalization-mode-divider" />
+      )}
 
       {mode === 'presets' && (
         <div className="feed-personalization-toggles">
@@ -203,6 +253,7 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
             fieldLegend={PERSONALIZATION_FORMULA_FIELD_LEGEND}
             fieldLegendToggleLabel="Viewer fields"
             fieldLegendHint="Write a formula that scores each post for this viewer. Higher scores appear first. Use base_score for the sort key from the Sorting tab."
+            hideFieldReference={!!applyBar}
             placeholder="base_score * if(is_followed > 0, 1.3, 1) + affinity * 10"
           />
         </div>

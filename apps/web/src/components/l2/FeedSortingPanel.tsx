@@ -11,6 +11,7 @@ import {
   detectEngagementWeights,
   detectSortMode,
   engagementFormulaLabel,
+  hasSortPackRef,
   rebuildSortRank,
   sortModeBadge,
   type SortMode,
@@ -20,17 +21,41 @@ import { FeedSortingAdvancedPanel } from './FeedSortingAdvancedPanel'
 import { FeedSortingChronologicalPanel } from './FeedSortingChronologicalPanel'
 import { FeedSortingEngagementPanel } from './FeedSortingEngagementPanel'
 import { SortFormulaBuilder } from './SortFormulaBuilder'
+import { FeedSettingsApplyBar } from './FeedSettingsApplyBar'
+import { FormulaFieldReference } from './FormulaFieldReference'
+import { SORT_FORMULA_FIELD_LEGEND } from './formula-field-legend-data'
+
+interface ApplyBarProps {
+  applied: boolean
+  busy?: boolean
+  onApply: () => void
+  rescoreNote?: boolean
+}
 
 interface Props {
   draft: FeedConfig
   onChange: (next: FeedConfig | ((prev: FeedConfig) => FeedConfig)) => void
   layout?: 'main' | 'sidebar'
+  applyBar?: ApplyBarProps
 }
 
-export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props) {
+const CREATE_SORT_MODES = SORT_MODE_OPTIONS.map((o) => o.id as SortMode)
+const DEFAULT_CREATE_SORT_MODE: SortMode = 'chronological'
+
+function resolveCreateSortMode(rank: FeedConfig['rank'], explicit: SortMode | null): SortMode {
+  if (explicit && CREATE_SORT_MODES.includes(explicit)) return explicit
+  const detected = detectSortMode(rank)
+  if (CREATE_SORT_MODES.includes(detected)) return detected
+  return DEFAULT_CREATE_SORT_MODE
+}
+
+export function FeedSortingPanel({ draft, onChange, layout = 'sidebar', applyBar }: Props) {
+  const isMain = layout === 'main'
   const detectedMode = useMemo(() => detectSortMode(draft.rank), [draft.rank])
   const [explicitMode, setExplicitMode] = useState<SortMode | null>(null)
-  const mode = explicitMode ?? detectedMode
+  const mode = isMain
+    ? resolveCreateSortMode(draft.rank, explicitMode)
+    : (explicitMode ?? detectedMode)
   const detectedWeights = useMemo(
     () => draft.rank?.sortKey ? detectEngagementWeights(draft.rank.sortKey) : DEFAULT_ENGAGEMENT_WEIGHTS,
     [draft.rank?.sortKey],
@@ -48,6 +73,14 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
   useEffect(() => {
     setTuning(draft.rank?.tuning ? { ...DEFAULT_SORT_TUNING, ...draft.rank.tuning } : DEFAULT_SORT_TUNING)
   }, [draft.feedId])
+
+  // Create tab: a subscribed sort pack isn't a Create toggle — seed first mode as preview only.
+  useEffect(() => {
+    if (!isMain) return
+    if (!hasSortPackRef(draft.rank)) return
+    setExplicitMode(DEFAULT_CREATE_SORT_MODE)
+    onChange((prev) => applySortMode(prev, DEFAULT_CREATE_SORT_MODE, DEFAULT_ENGAGEMENT_WEIGHTS, DEFAULT_SORT_TUNING))
+  }, [isMain, draft.feedId, draft.rank?.packRef?.packageId])
 
   const selectMode = (next: SortMode) => {
     setExplicitMode(next)
@@ -91,8 +124,6 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
     }
   }
 
-  const isMain = layout === 'main'
-
   return (
     <div className={`feed-sorting-panel${isMain ? ' feed-sorting-panel-main' : ''}`}>
       {!isMain ? (
@@ -109,6 +140,28 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
         ariaLabel="Sort mode"
         className="feed-sorting-modes"
       />
+
+      {isMain && applyBar ? (
+        <>
+          <hr className="feed-sort-section-divider feed-settings-apply-top-divider" />
+          <FeedSettingsApplyBar
+            {...applyBar}
+            layout="toolbar"
+            trailing={
+              mode === 'builder' ? (
+                <FormulaFieldReference
+                  entries={SORT_FORMULA_FIELD_LEGEND}
+                  toggleLabel="Signal reference"
+                  hideLabel="Hide signal reference"
+                  hideHint
+                  compact
+                />
+              ) : null
+            }
+          />
+          <hr className="feed-sort-section-divider feed-settings-apply-divider" />
+        </>
+      ) : null}
 
       {mode === 'chronological' && (
         <FeedSortingChronologicalPanel draft={draft} onChange={onChange} />
@@ -138,6 +191,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
         <div className="feed-sorting-tuning">
           <SortFormulaBuilder
             draft={draft}
+            hideFieldReference={isMain && !!applyBar}
             onChange={(expr) => onChange((prev) => ({
               ...prev,
               rank: { ...prev.rank, sortKey: expr, sortMode: 'builder' },
