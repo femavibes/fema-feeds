@@ -7,6 +7,7 @@ import { PackageVersionHistory } from '../marketplace/PackageVersionHistory'
 import { MarketplaceListingHero } from '../marketplace/MarketplaceListingHero'
 import { LogicBlockMetadataFields } from '../logic-blocks/LogicBlockMetadataFields'
 import { LogicBlockTrustBadge, trustLabel, visibilityLabel } from '../logic-blocks/logic-block-labels'
+import { SortPackVersionCompare } from './SortPackVersionCompare'
 
 export type SortPackDetailVariant = 'marketplace' | 'collection'
 export type SortPackMarketplaceSection = 'details' | 'listing'
@@ -25,6 +26,7 @@ interface Props {
   onSubscribed?: () => void
   onPublished?: () => void
   onEditListing?: () => void
+  onEdit?: () => void
   onMetadataSaved?: (pkg: SortPackPackage) => void
 }
 
@@ -42,6 +44,7 @@ export function SortPackDetailPanel({
   onSubscribed,
   onPublished,
   onEditListing,
+  onEdit,
   onMetadataSaved,
 }: Props) {
   const [versions, setVersions] = useState<SortPackPackage[]>([])
@@ -50,13 +53,14 @@ export function SortPackDetailPanel({
   const [slug, setSlug] = useState('')
   const [description, setDescription] = useState('')
   const [metaDirty, setMetaDirty] = useState(false)
-  const [updatePolicyLocal, setUpdatePolicyLocal] = useState<import('@cfb/core-types').SortPackUpdatePolicy>('pinned')
+  const [updatePolicyLocal, setUpdatePolicyLocal] = useState<import('@cfb/core-types').SortPackUpdatePolicy>('notify')
   const updatePolicy = updatePolicyProp ?? updatePolicyLocal
   const setUpdatePolicy = onUpdatePolicyChange ?? setUpdatePolicyLocal
   const [busy, setBusy] = useState(false)
   const actionBusy = busy || subscriptionBusy
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [compare, setCompare] = useState<{ fromVersion: string; toVersion: string } | null>(null)
 
   useEffect(() => {
     if (!pkg) {
@@ -223,7 +227,9 @@ export function SortPackDetailPanel({
           productKind="sort_pack"
           packageId={pkg.id}
           latestVersion={pkg.version}
+          pinnedVersion={versionPin}
           mode="owner"
+          onCompareVersions={(fromVersion, toVersion) => setCompare({ fromVersion, toVersion })}
         />
       ) : null}
 
@@ -250,6 +256,11 @@ export function SortPackDetailPanel({
       <div className="logic-block-detail-actions">
         {variant === 'collection' && isOwner && (
           <>
+            {onEdit ? (
+              <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={onEdit}>
+                Edit formula
+              </button>
+            ) : null}
             {metaDirty && (
               <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void saveMetadata()}>
                 Save name & slug
@@ -274,6 +285,17 @@ export function SortPackDetailPanel({
           </>
         )}
       </div>
+
+      {compare ? (
+        <SortPackVersionCompare
+          packageId={pkg.id}
+          fromVersion={compare.fromVersion}
+          toVersion={compare.toVersion}
+          title={pkg.name}
+          variant={(pkg.packKind ?? 'sort') === 'personalization' ? 'personalization' : 'sort'}
+          onClose={() => setCompare(null)}
+        />
+      ) : null}
     </div>
   )
 }

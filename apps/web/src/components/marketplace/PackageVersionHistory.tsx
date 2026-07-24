@@ -20,7 +20,7 @@ interface Props {
   updatePolicy?: 'pinned' | 'notify' | 'auto_minor'
   mode: 'owner' | 'subscriber'
   onPinVersion?: (version: string, updatePolicy?: 'pinned' | 'notify' | 'auto_minor') => void
-  /** Logic blocks only — open A vs B compare (from = pinned/selected, to = latest). */
+  /** Logic blocks and sort packs — open A vs B compare (from = pinned/selected, to = latest). */
   onCompareVersions?: (fromVersion: string, toVersion: string) => void
   busy?: boolean
 }
@@ -109,7 +109,7 @@ export function PackageVersionHistory({
         })}
       </ul>
 
-      {productKind === 'logic_block' && onCompareVersions && versions.length >= 2 ? (
+      {(productKind === 'logic_block' || productKind === 'sort_pack') && onCompareVersions && versions.length >= 2 ? (
         <div className="package-version-history-actions">
           <button
             type="button"

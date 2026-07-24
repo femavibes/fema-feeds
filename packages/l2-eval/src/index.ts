@@ -27,7 +27,9 @@ export {
 } from './logic-block-upgrades.js'
 export type { LogicBlockRefInFeed } from './logic-block-upgrades.js'
 export {
+  bumpAutoMinorSortPackPin,
   feedWithResolvedRank,
+  manualSortPackUpgradeHint,
   resolveSortPackVersionPin,
   scanSortPackUpgrade,
 } from './sort-packs.js'

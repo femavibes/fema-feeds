@@ -29,6 +29,7 @@ import { resolveSortPackCatalog } from './marketplace-catalog-resolve.js'
 import { getUserDid } from './request-user.js'
 import { rejectOwnerGlobalVisibility } from './marketplace-visibility.js'
 import { isRequestMaster } from './require-master.js'
+import { propagateAutoMinorPinsForSortPack } from './sort-pack-upgrades.js'
 
 function normalizeSlug(raw: string): string {
   return raw
@@ -57,7 +58,12 @@ async function resolveSortPackForSubscribe(
   return upsertSortPackRegistryMirror(pool, remote)
 }
 
-export function registerSortPackRoutes(app: Hono, pool: Pool | null): void {
+export function registerSortPackRoutes(
+  app: Hono,
+  pool: Pool | null,
+  options?: { feedsDir?: string },
+): void {
+  const feedsDir = options?.feedsDir
   registerGlobalSortPackRegistryRoutes(app, pool)
 
   app.get('/api/sort-packs/collection', async (c) => {
@@ -207,6 +213,9 @@ export function registerSortPackRoutes(app: Hono, pool: Pool | null): void {
     }
     const refreshed = await getSortPackPackageById(pool, packageId, pkg?.version)
     if (!refreshed) return c.json({ error: 'not found or not owner' }, 404)
+    if (pkg && body.bumpVersion !== false && hasSortKey && feedsDir) {
+      await propagateAutoMinorPinsForSortPack(feedsDir, pool, refreshed.id, refreshed.version)
+    }
     return c.json({ package: refreshed })
   })
 

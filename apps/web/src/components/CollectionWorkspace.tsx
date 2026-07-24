@@ -21,6 +21,8 @@ import { LogicBlocksCollectionView } from './logic-blocks/LogicBlocksCollectionV
 
 import { SortPackDetailPanel } from './sort-packs/SortPackDetailPanel'
 
+import { SortFormulaEditor } from './sort-packs/SortFormulaEditor'
+
 import { SortPacksCollectionView } from './sort-packs/SortPacksCollectionView'
 
 import { PersonalizationFormulasCollectionView } from './sort-packs/PersonalizationFormulasCollectionView'
@@ -84,6 +86,8 @@ export function CollectionWorkspace() {
   const [selectedPlugin, setSelectedPlugin] = useState<PluginPackage | null>(null)
 
   const [editingPkg, setEditingPkg] = useState<LogicBlockPackage | null>(null)
+
+  const [editingSortPack, setEditingSortPack] = useState<SortPackPackage | null>(null)
 
   const [listingEditor, setListingEditor] = useState<ListingEditorTarget | null>(null)
 
@@ -215,11 +219,35 @@ export function CollectionWorkspace() {
 
 
 
+  const handleSavedFromSortEditor = (pkg: SortPackPackage) => {
+
+    setSelectedSort(pkg)
+
+    setEditingSortPack(null)
+
+    bumpRefresh()
+
+  }
+
+
+
   const openEditor = useCallback((pkg: LogicBlockPackage) => {
 
     setSelectedLogic(pkg)
 
     setEditingPkg(pkg)
+
+    setError(null)
+
+  }, [])
+
+
+
+  const openSortEditor = useCallback((pkg: SortPackPackage) => {
+
+    setSelectedSort(pkg)
+
+    setEditingSortPack(pkg)
 
     setError(null)
 
@@ -343,6 +371,26 @@ export function CollectionWorkspace() {
 
 
 
+  if (editingSortPack) {
+
+    return (
+
+      <SortFormulaEditor
+
+        pkg={editingSortPack}
+
+        onClose={() => setEditingSortPack(null)}
+
+        onSaved={handleSavedFromSortEditor}
+
+      />
+
+    )
+
+  }
+
+
+
   const isLogicOwner = Boolean(userDid && selectedLogic && selectedLogic.ownerDid === userDid)
 
   const isSortOwner = Boolean(userDid && selectedSort && selectedSort.ownerDid === userDid)
@@ -354,7 +402,20 @@ export function CollectionWorkspace() {
       (collectionScope === 'logic_blocks' || collectionScope === 'all'),
   )
 
+  const showingSortDetail = Boolean(
+    collectionView !== 'developer_guide' &&
+      !listingEditor &&
+      selectedSort &&
+      (collectionScope === 'sort_packs' ||
+        collectionScope === 'all' ||
+        (collectionScope === 'rankers' && selectedSort.packKind === 'personalization')),
+  )
+
   const showLogicEditInHeader = showingLogicDetail && isLogicOwner
+
+  const showSortEditInHeader = showingSortDetail && isSortOwner
+
+  const showDetailEditInHeader = showLogicEditInHeader || showSortEditInHeader
 
 
 
@@ -660,7 +721,7 @@ export function CollectionWorkspace() {
       <MobileRail label="Details">
       <aside className="sidebar sidebar-right marketplace-sidebar">
 
-        <div className={`sidebar-head${showLogicEditInHeader ? ' marketplace-sidebar-toolbar' : ''}`} title="CollectionWorkspace.tsx">
+        <div className={`sidebar-head${showDetailEditInHeader ? ' marketplace-sidebar-toolbar' : ''}`} title="CollectionWorkspace.tsx">
 
           <div className="sidebar-head-text marketplace-sidebar-head-labels">
 
@@ -688,6 +749,16 @@ export function CollectionWorkspace() {
                 onClick={() => openEditor(selectedLogic)}
               >
                 Edit logic
+              </button>
+            </div>
+          ) : showSortEditInHeader && selectedSort ? (
+            <div className="marketplace-sidebar-toolbar-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => openSortEditor(selectedSort)}
+              >
+                Edit formula
               </button>
             </div>
           ) : null}
@@ -754,6 +825,10 @@ export function CollectionWorkspace() {
                 isSortOwner && selectedSort
                   ? () => setListingEditor({ productKind: 'sort_pack', pkg: selectedSort })
                   : undefined
+              }
+
+              onEdit={
+                isSortOwner && selectedSort ? () => openSortEditor(selectedSort) : undefined
               }
 
               onMetadataSaved={(pkg) => {
@@ -870,6 +945,10 @@ export function CollectionWorkspace() {
                   : undefined
               }
 
+              onEdit={
+                isSortOwner && selectedSort ? () => openSortEditor(selectedSort) : undefined
+              }
+
               onMetadataSaved={(pkg) => {
 
                 setSelectedSort(pkg)
@@ -896,6 +975,10 @@ export function CollectionWorkspace() {
                 isSortOwner && selectedSort
                   ? () => setListingEditor({ productKind: 'sort_pack', pkg: selectedSort })
                   : undefined
+              }
+
+              onEdit={
+                isSortOwner && selectedSort ? () => openSortEditor(selectedSort) : undefined
               }
 
               onMetadataSaved={(pkg) => {

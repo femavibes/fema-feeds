@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FeedConfig, SortPackPackage } from '@cfb/core-types'
+import type { FeedConfig, SortPackPackage, SortPackUpdatePolicy, SortPackUpgradeHint } from '@cfb/core-types'
 
 import { api } from '../../api/client'
 import { useCurrentUserDid } from '../../hooks/useCurrentUserDid'
-import { applyPersonalizationFormulaPack } from '../../lib/feed-personalization'
+import {
+  applyPersonalizationFormulaPack,
+  setPersonalizationFormulaUpdatePolicy,
+} from '../../lib/feed-personalization'
 import { excludeOwnFromSubscribed } from '../../lib/feed-subscriptions'
-import { FeedFormulaPackGrid } from './FeedFormulaPackGrid'
 import { FeedFormulaPreviewPanel } from '../l2/FeedFormulaPreviewPanel'
+import { FeedFormulaPackGrid } from './FeedFormulaPackGrid'
+import { SortPackVersionCompare } from './SortPackVersionCompare'
+import { UpdatePolicySelect, updatePolicyHint } from './UpdatePolicySelect'
 
 interface Props {
   draft: FeedConfig
@@ -24,6 +29,10 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
     Awaited<ReturnType<typeof api.listSortPackSubscriptions>>['subscriptions']
   >([])
   const [collection, setCollection] = useState<SortPackPackage[]>([])
+  const [upgradeBusy, setUpgradeBusy] = useState(false)
+  const [upgrade, setUpgrade] = useState<SortPackUpgradeHint | null>(null)
+  const [applyPolicy, setApplyPolicy] = useState<SortPackUpdatePolicy>('notify')
+  const [compare, setCompare] = useState<{ fromVersion: string; toVersion: string; title: string } | null>(null)
 
   const packRef = draft.personalization?.formulaPackRef
   const appliedPackageId = packRef?.packageId ?? null
@@ -47,6 +56,18 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
   useEffect(() => {
     setPreviewPackageId(appliedPackageId)
   }, [appliedPackageId, refreshKey])
+
+  useEffect(() => {
+    setApplyPolicy(packRef?.updatePolicy ?? 'notify')
+  }, [packRef?.packageId, packRef?.updatePolicy])
+
+  useEffect(() => {
+    if (!draft.feedId) return
+    void api
+      .getFeedFormulaPackUpgrade(draft.feedId)
+      .then((res) => setUpgrade(res.upgrade))
+      .catch(() => setUpgrade(null))
+  }, [draft.feedId, packRef?.versionPin, packRef?.updatePolicy, refreshKey])
 
   const subscribedPackages = useMemo(
     () =>
@@ -75,7 +96,19 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
   )
 
   const applyPack = (pkg: SortPackPackage) => {
-    onChange(applyPersonalizationFormulaPack(draft, pkg))
+    onChange(applyPersonalizationFormulaPack(draft, pkg, applyPolicy))
+  }
+
+  const applyUpgrade = async () => {
+    if (!draft.feedId) return
+    setUpgradeBusy(true)
+    try {
+      const res = await api.applyFeedFormulaPackUpgrade(draft.feedId)
+      onChange(res.feed)
+      setUpgrade(null)
+    } finally {
+      setUpgradeBusy(false)
+    }
   }
 
   const hasAny = collectionPackages.length > 0 || subscribedPackages.length > 0
@@ -85,15 +118,53 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
     <div className="feed-sorting-packs feed-personalization-formula-packs">
       <p className="sidebar-block-title">Native personalization formulas</p>
       {packRef ? (
-        <p className="card-hint">
-          Using <strong>{packRef.label ?? 'saved formula'}</strong> v{packRef.versionPin}. Preview others below, then
-          apply when ready.
-        </p>
+        <>
+          <p className="card-hint">
+            Using <strong>{packRef.label ?? 'saved formula'}</strong> v{packRef.versionPin}. Preview others below, then apply when ready.
+          </p>
+          <UpdatePolicySelect
+            value={packRef.updatePolicy ?? 'notify'}
+            onChange={(policy) => onChange(setPersonalizationFormulaUpdatePolicy(draft, policy))}
+          />
+        </>
       ) : (
         <p className="card-hint">
           Preview a formula from My collection or a marketplace subscription. Apply only when you want it on this feed.
         </p>
       )}
+
+      {upgrade ? (
+        <div className="feed-sorting-upgrade feed-logic-upgrades-item">
+          <p className="settings-hint">
+            <strong>{upgrade.label ?? upgrade.packageName}</strong> v{upgrade.pinnedVersion} → v{upgrade.latestVersion}
+            {' · '}{updatePolicyHint(upgrade.updatePolicy, upgrade.patchUpgrade)}
+          </p>
+          <div className="feed-formula-preview-actions">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={upgradeBusy}
+              onClick={() =>
+                setCompare({
+                  fromVersion: upgrade.pinnedVersion,
+                  toVersion: upgrade.latestVersion,
+                  title: upgrade.label ?? upgrade.packageName,
+                })
+              }
+            >
+              Compare
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={upgradeBusy}
+              onClick={() => void applyUpgrade()}
+            >
+              {upgradeBusy ? 'Updating…' : `Upgrade to v${upgrade.latestVersion}`}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="feed-formula-library-layout">
         <div className="feed-formula-library-picks">
@@ -146,6 +217,9 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
                   {previewIsApplied ? 'In use on this feed' : 'Use on this feed'}
                 </button>
               </div>
+              {!previewIsApplied ? (
+                <UpdatePolicySelect value={applyPolicy} onChange={setApplyPolicy} />
+              ) : null}
               <FeedFormulaPreviewPanel expr={previewPackage.sortKey} variant="personalization" />
             </>
           ) : (
@@ -155,6 +229,17 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
           )}
         </div>
       </div>
+
+      {compare && (upgrade?.packageId ?? appliedPackageId) ? (
+        <SortPackVersionCompare
+          packageId={upgrade?.packageId ?? appliedPackageId!}
+          fromVersion={compare.fromVersion}
+          toVersion={compare.toVersion}
+          title={compare.title}
+          variant="personalization"
+          onClose={() => setCompare(null)}
+        />
+      ) : null}
     </div>
   )
 }

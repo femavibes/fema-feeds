@@ -1043,6 +1043,15 @@ export const api = {
       feed: import('@cfb/core-types').FeedConfig
       applied: import('@cfb/core-types').SortPackUpgradeHint | null
     }>(`/api/feeds/${feedId}/sort-pack-upgrade/apply`, { method: 'POST', body: '{}' }),
+  getFeedFormulaPackUpgrade: (feedId: string) =>
+    apiFetch<{ upgrade: import('@cfb/core-types').SortPackUpgradeHint | null }>(
+      `/api/feeds/${feedId}/formula-pack-upgrade`,
+    ),
+  applyFeedFormulaPackUpgrade: (feedId: string) =>
+    apiFetch<{
+      feed: import('@cfb/core-types').FeedConfig
+      applied: import('@cfb/core-types').SortPackUpgradeHint | null
+    }>(`/api/feeds/${feedId}/formula-pack-upgrade/apply`, { method: 'POST', body: '{}' }),
   listPluginCatalog: (kind: 'injector' | 'ranker' | 'enricher', scope: 'deployment' | 'global' | 'all' = 'all') =>
     apiFetch<{
       packages: import('@cfb/core-types').PluginPackage[]

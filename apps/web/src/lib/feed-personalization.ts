@@ -1,4 +1,4 @@
-import type { FeedConfig, L2Expr, SortPackPackage } from '@cfb/core-types'
+import type { FeedConfig, L2Expr, SortPackPackage, SortPackUpdatePolicy } from '@cfb/core-types'
 
 export function personalizationFormulasMatch(
   a: L2Expr | undefined,
@@ -11,6 +11,7 @@ export function personalizationFormulasMatch(
 export function applyPersonalizationFormulaPack(
   draft: FeedConfig,
   pack: Pick<SortPackPackage, 'id' | 'version' | 'name' | 'sortKey'>,
+  updatePolicy: SortPackUpdatePolicy = 'notify',
 ): FeedConfig {
   return {
     ...draft,
@@ -22,7 +23,23 @@ export function applyPersonalizationFormulaPack(
         packageId: pack.id,
         versionPin: pack.version,
         label: pack.name,
+        updatePolicy,
       },
+    },
+  }
+}
+
+export function setPersonalizationFormulaUpdatePolicy(
+  draft: FeedConfig,
+  updatePolicy: SortPackUpdatePolicy,
+): FeedConfig {
+  const ref = draft.personalization?.formulaPackRef
+  if (!ref) return draft
+  return {
+    ...draft,
+    personalization: {
+      ...draft.personalization,
+      formulaPackRef: { ...ref, updatePolicy },
     },
   }
 }

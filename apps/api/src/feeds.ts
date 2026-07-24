@@ -23,6 +23,7 @@ import { resolveFeedSortPack } from './sort-pack-eval.js'
 import {
   applyFeedSortPackUpgrade,
   scanFeedSortPackUpgrade,
+  syncAutoMinorSortPackPin,
 } from './sort-pack-upgrades.js'
 
 import { buildFeedPublishInfo, applyFeedInjector, applyFeedRanker, resolveFeedgenServiceDid } from '@cfb/feedgen'
@@ -242,6 +243,8 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
       if (pool) {
         await syncAutoMinorLogicBlockPins(feedsDir, id, pool)
+        await syncAutoMinorSortPackPin(feedsDir, id, pool, 'rank')
+        await syncAutoMinorSortPackPin(feedsDir, id, pool, 'personalization')
       }
 
       const state = await loadFeedEditorState(feedsDir, id, pool)
@@ -440,6 +443,42 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
   })
 
 
+
+  app.get('/api/feeds/:id/formula-pack-upgrade', async (c) => {
+    const id = c.req.param('id')
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    try {
+      const state = await loadFeedEditorState(feedsDir, id, pool)
+      const access = assertFeedAccess(state.live, getUserDid(c))
+      if (!access.ok) return c.json({ error: 'not found' }, access.status)
+      const upgrade = await scanFeedSortPackUpgrade(feedsDir, id, pool, 'personalization')
+      return c.json({ upgrade })
+    } catch {
+      return c.json({ error: 'not found' }, 404)
+    }
+  })
+
+  app.post('/api/feeds/:id/formula-pack-upgrade/apply', async (c) => {
+    const id = c.req.param('id')
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+    try {
+      const state = await loadFeedEditorState(feedsDir, id, pool)
+      const access = assertFeedAccess(state.live, userDid)
+      if (!access.ok) return c.json({ error: 'not found' }, access.status)
+      const result = await applyFeedSortPackUpgrade(feedsDir, id, pool, userDid, 'personalization')
+      const nextState = await loadFeedEditorState(feedsDir, id, pool)
+      return c.json({
+        feed: result.feed,
+        applied: result.applied,
+        live: nextState.live,
+        hasUnpublishedDraft: nextState.hasUnpublishedDraft,
+      })
+    } catch {
+      return c.json({ error: 'upgrade failed' }, 500)
+    }
+  })
 
   app.post('/api/feeds/:id/sort-pack-upgrade/apply', async (c) => {
 

@@ -155,7 +155,7 @@ export function detectSortMode(rank: FeedConfig['rank']): SortMode {
 export function applySortPack(
   draft: FeedConfig,
   pack: { id: string; version: string; name: string },
-  updatePolicy: import('@cfb/core-types').SortPackUpdatePolicy = 'pinned',
+  updatePolicy: import('@cfb/core-types').SortPackUpdatePolicy = 'notify',
 ): FeedConfig {
   return {
     ...draft,
@@ -166,6 +166,21 @@ export function applySortPack(
         label: pack.name,
         updatePolicy,
       },
+    },
+  }
+}
+
+export function setSortPackUpdatePolicy(
+  draft: FeedConfig,
+  updatePolicy: import('@cfb/core-types').SortPackUpdatePolicy,
+): FeedConfig {
+  const ref = draft.rank?.packRef
+  if (!ref) return draft
+  return {
+    ...draft,
+    rank: {
+      ...draft.rank,
+      packRef: { ...ref, updatePolicy },
     },
   }
 }

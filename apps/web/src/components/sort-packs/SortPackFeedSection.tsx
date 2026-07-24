@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { FeedConfig, L2Expr, SortPackPackage } from '@cfb/core-types'
+import type { FeedConfig, L2Expr, SortPackPackage, SortPackUpdatePolicy, SortPackUpgradeHint } from '@cfb/core-types'
 
 import { api } from '../../api/client'
 import { useCurrentUserDid } from '../../hooks/useCurrentUserDid'
@@ -7,9 +7,12 @@ import { excludeOwnFromSubscribed } from '../../lib/feed-subscriptions'
 import {
   applySortPack,
   hasSortPackRef,
+  setSortPackUpdatePolicy,
 } from '../../lib/feed-sorting'
-import { FeedFormulaPackGrid } from './FeedFormulaPackGrid'
 import { FeedFormulaPreviewPanel } from '../l2/FeedFormulaPreviewPanel'
+import { FeedFormulaPackGrid } from './FeedFormulaPackGrid'
+import { SortPackVersionCompare } from './SortPackVersionCompare'
+import { UpdatePolicySelect, updatePolicyHint } from './UpdatePolicySelect'
 
 interface Props {
   draft: FeedConfig
@@ -30,7 +33,9 @@ export function SortPackFeedSection({
   >([])
   const [collection, setCollection] = useState<SortPackPackage[]>([])
   const [upgradeBusy, setUpgradeBusy] = useState(false)
-  const [upgradeHint, setUpgradeHint] = useState<string | null>(null)
+  const [upgrade, setUpgrade] = useState<SortPackUpgradeHint | null>(null)
+  const [applyPolicy, setApplyPolicy] = useState<SortPackUpdatePolicy>('notify')
+  const [compare, setCompare] = useState<{ fromVersion: string; toVersion: string; title: string } | null>(null)
 
   const packRef = draft.rank?.packRef
   const appliedPackageId = packRef?.packageId ?? null
@@ -57,6 +62,10 @@ export function SortPackFeedSection({
   useEffect(() => {
     setPreviewPackageId(appliedPackageId)
   }, [appliedPackageId, refreshKey])
+
+  useEffect(() => {
+    setApplyPolicy(packRef?.updatePolicy ?? 'notify')
+  }, [packRef?.packageId, packRef?.updatePolicy])
 
   const subscribedPackages = useMemo(
     () =>
@@ -93,19 +102,12 @@ export function SortPackFeedSection({
     if (!draft.feedId) return
     void api
       .getFeedSortPackUpgrade(draft.feedId)
-      .then((res) => {
-        const u = res.upgrade
-        if (!u) {
-          setUpgradeHint(null)
-          return
-        }
-        setUpgradeHint(`Sort pack “${u.packageName}” has v${u.latestVersion} (pinned v${u.pinnedVersion}).`)
-      })
-      .catch(() => setUpgradeHint(null))
-  }, [draft.feedId, packRef?.versionPin])
+      .then((res) => setUpgrade(res.upgrade))
+      .catch(() => setUpgrade(null))
+  }, [draft.feedId, packRef?.versionPin, packRef?.updatePolicy, refreshKey])
 
   const applyPack = (pkg: SortPackPackage) => {
-    onChange(applySortPack(draft, pkg, 'pinned'))
+    onChange(applySortPack(draft, pkg, applyPolicy))
   }
 
   const applyUpgrade = async () => {
@@ -114,7 +116,7 @@ export function SortPackFeedSection({
     try {
       const res = await api.applyFeedSortPackUpgrade(draft.feedId)
       onChange(res.feed)
-      setUpgradeHint(null)
+      setUpgrade(null)
     } finally {
       setUpgradeBusy(false)
     }
@@ -127,27 +129,51 @@ export function SortPackFeedSection({
     <div className="feed-sorting-packs">
       <p className="sidebar-block-title">Native sorting formulas</p>
       {usingPack && packRef ? (
-        <p className="card-hint">
-          Using <strong>{packRef.label ?? 'sort pack'}</strong> v{packRef.versionPin}
-          {packRef.updatePolicy ? ` (${packRef.updatePolicy})` : ''}. Preview others below, then apply when ready.
-        </p>
+        <>
+          <p className="card-hint">
+            Using <strong>{packRef.label ?? 'sort pack'}</strong> v{packRef.versionPin}. Preview others below, then apply when ready.
+          </p>
+          <UpdatePolicySelect
+            value={packRef.updatePolicy ?? 'notify'}
+            onChange={(policy) => onChange(setSortPackUpdatePolicy(draft, policy))}
+          />
+        </>
       ) : (
         <p className="card-hint">
           Preview a formula from My collection or a marketplace subscription. Apply only when you want it on this feed.
         </p>
       )}
 
-      {upgradeHint ? (
-        <div className="feed-sorting-upgrade">
-          <p className="settings-hint">{upgradeHint}</p>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            disabled={upgradeBusy}
-            onClick={() => void applyUpgrade()}
-          >
-            {upgradeBusy ? 'Updating…' : 'Upgrade sort pack'}
-          </button>
+      {upgrade ? (
+        <div className="feed-sorting-upgrade feed-logic-upgrades-item">
+          <p className="settings-hint">
+            <strong>{upgrade.label ?? upgrade.packageName}</strong> v{upgrade.pinnedVersion} → v{upgrade.latestVersion}
+            {' · '}{updatePolicyHint(upgrade.updatePolicy, upgrade.patchUpgrade)}
+          </p>
+          <div className="feed-formula-preview-actions">
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={upgradeBusy}
+              onClick={() =>
+                setCompare({
+                  fromVersion: upgrade.pinnedVersion,
+                  toVersion: upgrade.latestVersion,
+                  title: upgrade.label ?? upgrade.packageName,
+                })
+              }
+            >
+              Compare
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={upgradeBusy}
+              onClick={() => void applyUpgrade()}
+            >
+              {upgradeBusy ? 'Updating…' : `Upgrade to v${upgrade.latestVersion}`}
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -202,6 +228,9 @@ export function SortPackFeedSection({
                   {previewIsApplied ? 'In use on this feed' : 'Use on this feed'}
                 </button>
               </div>
+              {!previewIsApplied ? (
+                <UpdatePolicySelect value={applyPolicy} onChange={setApplyPolicy} />
+              ) : null}
               <FeedFormulaPreviewPanel expr={previewPackage.sortKey} variant="sort" />
             </>
           ) : (
@@ -211,6 +240,17 @@ export function SortPackFeedSection({
           )}
         </div>
       </div>
+
+      {compare && (upgrade?.packageId ?? appliedPackageId) ? (
+        <SortPackVersionCompare
+          packageId={upgrade?.packageId ?? appliedPackageId!}
+          fromVersion={compare.fromVersion}
+          toVersion={compare.toVersion}
+          title={compare.title}
+          variant="sort"
+          onClose={() => setCompare(null)}
+        />
+      ) : null}
     </div>
   )
 }
