@@ -3364,7 +3364,7 @@ body {
 }
 
 .feed-sort-shared-section {
-  grid-column: 1 / -1;
+  width: 100%;
 }
 
 .feed-sort-section-divider {
@@ -3377,6 +3377,26 @@ body {
   margin-bottom: 0.35rem;
 }
 
+.feed-sorting-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem 1.5rem;
+  width: 100%;
+}
+
+.feed-sorting-signal-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.feed-sort-shared-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem 1.5rem;
+}
+
 .feed-sorting-chronological {
   padding-top: 0.65rem;
   border-top: 1px solid var(--border);
@@ -3385,12 +3405,6 @@ body {
 .feed-sorting-panel-main .feed-sorting-chronological {
   border-top: none;
   padding-top: 0;
-}
-
-.feed-sorting-panel-main .feed-sorting-tuning {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem 1.5rem;
 }
 
 .feed-sorting-signals {
@@ -3434,11 +3448,11 @@ body {
 }
 
 .feed-sorting-formula-display {
-  grid-column: 1 / -1;
   display: flex;
   align-items: baseline;
   gap: 0.4rem;
   padding: 0.4rem 0;
+  width: 100%;
 }
 
 .feed-sorting-formula-label {
@@ -3475,6 +3489,7 @@ fieldset.feed-sorting-tuning-fields {
   flex-direction: column;
   gap: 0.2rem;
   font-size: 0.8rem;
+  min-width: 0;
 }
 
 .feed-sorting-tuning-fields input[type="number"] {

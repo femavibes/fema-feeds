@@ -1,5 +1,4 @@
 import type { EngagementWeights, SortTuning } from '@cfb/core-types'
-import { ToggleRow } from '../ToggleRow'
 import {
   CONTENT_SIGNALS,
   ENGAGEMENT_SIGNALS,
@@ -8,6 +7,7 @@ import {
 } from './feed-sorting-signals'
 import { FeedSortSharedSection } from './FeedSortSharedSection'
 import { FeedSortingSignalRows } from './FeedSortingSignalRows'
+import { FeedSortingTuningSignalRows } from './FeedSortingTuningSignalRows'
 
 interface Props {
   weights: EngagementWeights
@@ -66,103 +66,55 @@ export function FeedSortingAdvancedPanel({
   onWeightsChange,
   onTuningChange,
 }: Props) {
+  const mediaValues = Object.fromEntries(
+    MEDIA_SIGNALS.map((s) => [s.key, tuning.mediaBonus[s.key]]),
+  )
+  const contentValues = Object.fromEntries(
+    CONTENT_SIGNALS.map((s) => [s.key, tuning.contentSignals[s.key]]),
+  )
+  const ratioValues = Object.fromEntries(
+    RATIO_SIGNALS.map((s) => [s.key, tuning.ratioSignals[s.key]]),
+  )
+
   return (
     <div className="feed-sorting-tuning">
-      <div className="feed-sorting-signals">
-        <p className="sidebar-block-title">Engagement signals</p>
-        <FeedSortingSignalRows
-          signals={ENGAGEMENT_SIGNALS}
-          weights={weights}
-          onChange={(key, signal) => onWeightsChange({ ...weights, [key]: signal })}
-        />
+      <div className="feed-sorting-signal-grid">
+        <section className="feed-sorting-signal-group">
+          <p className="sidebar-block-title">Engagement signals</p>
+          <FeedSortingSignalRows
+            signals={ENGAGEMENT_SIGNALS}
+            weights={weights}
+            onChange={(key, signal) => onWeightsChange({ ...weights, [key]: signal })}
+          />
+        </section>
 
-        <p className="sidebar-block-title" style={{ marginTop: '0.75rem' }}>Media bonus</p>
-        {MEDIA_SIGNALS.map((sig) => {
-          const signal = tuning.mediaBonus[sig.key]
-          return (
-            <div key={sig.key} className="feed-sorting-signal-row">
-              <ToggleRow
-                label={sig.label}
-                hint="Flat bonus added to score when present"
-                checked={signal.enabled}
-                onChange={(on) => onTuningChange(updateMedia(tuning, sig.key, { enabled: on }))}
-                ariaLabel={`Boost ${sig.label.toLowerCase()} posts`}
-              />
-              <label className="feed-sorting-weight-input">
-                {signal.enabled ? (
-                  <>
-                    <span className="feed-sorting-weight-label">+</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={signal.weight}
-                      onChange={(e) => onTuningChange(updateMedia(tuning, sig.key, { weight: Math.max(0, parseInt(e.target.value) || 0) }))}
-                    />
-                  </>
-                ) : null}
-              </label>
-            </div>
-          )
-        })}
+        <section className="feed-sorting-signal-group">
+          <p className="sidebar-block-title">Media bonus</p>
+          <FeedSortingTuningSignalRows
+            signals={MEDIA_SIGNALS.map((s) => ({ ...s, hint: 'Flat bonus added to score when present' }))}
+            values={mediaValues}
+            weightPrefix="+"
+            onChange={(key, patch) => onTuningChange(updateMedia(tuning, key as keyof SortTuning['mediaBonus'], patch))}
+          />
+        </section>
 
-        <p className="sidebar-block-title" style={{ marginTop: '0.75rem' }}>Content signals</p>
-        {CONTENT_SIGNALS.map((sig) => {
-          const signal = tuning.contentSignals[sig.key]
-          return (
-            <div key={sig.key} className="feed-sorting-signal-row">
-              <ToggleRow
-                label={sig.label}
-                hint={sig.hint}
-                checked={signal.enabled}
-                onChange={(on) => onTuningChange(updateContent(tuning, sig.key, { enabled: on }))}
-                ariaLabel={sig.hint}
-              />
-              <label className="feed-sorting-weight-input">
-                {signal.enabled ? (
-                  <>
-                    <span className="feed-sorting-weight-label">×</span>
-                    <input
-                      type="number"
-                      step="1"
-                      value={signal.weight}
-                      onChange={(e) => onTuningChange(updateContent(tuning, sig.key, { weight: parseInt(e.target.value) || 0 }))}
-                    />
-                  </>
-                ) : null}
-              </label>
-            </div>
-          )
-        })}
+        <section className="feed-sorting-signal-group">
+          <p className="sidebar-block-title">Content signals</p>
+          <FeedSortingTuningSignalRows
+            signals={CONTENT_SIGNALS}
+            values={contentValues}
+            onChange={(key, patch) => onTuningChange(updateContent(tuning, key as keyof SortTuning['contentSignals'], patch))}
+          />
+        </section>
 
-        <p className="sidebar-block-title" style={{ marginTop: '0.75rem' }}>Engagement ratios</p>
-        {RATIO_SIGNALS.map((sig) => {
-          const signal = tuning.ratioSignals[sig.key]
-          return (
-            <div key={sig.key} className="feed-sorting-signal-row">
-              <ToggleRow
-                label={sig.label}
-                hint={sig.hint}
-                checked={signal.enabled}
-                onChange={(on) => onTuningChange(updateRatio(tuning, sig.key, { enabled: on }))}
-                ariaLabel={sig.hint}
-              />
-              <label className="feed-sorting-weight-input">
-                {signal.enabled ? (
-                  <>
-                    <span className="feed-sorting-weight-label">×</span>
-                    <input
-                      type="number"
-                      step="1"
-                      value={signal.weight}
-                      onChange={(e) => onTuningChange(updateRatio(tuning, sig.key, { weight: parseInt(e.target.value) || 0 }))}
-                    />
-                  </>
-                ) : null}
-              </label>
-            </div>
-          )
-        })}
+        <section className="feed-sorting-signal-group">
+          <p className="sidebar-block-title">Engagement ratios</p>
+          <FeedSortingTuningSignalRows
+            signals={RATIO_SIGNALS}
+            values={ratioValues}
+            onChange={(key, patch) => onTuningChange(updateRatio(tuning, key as keyof SortTuning['ratioSignals'], patch))}
+          />
+        </section>
       </div>
 
       <FeedSortSharedSection tuning={tuning} onChange={onTuningChange} />

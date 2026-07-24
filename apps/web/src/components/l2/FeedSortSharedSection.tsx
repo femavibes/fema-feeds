@@ -18,7 +18,7 @@ export function FeedSortSharedSection({ tuning, onChange, disabled }: Props) {
     <section className="feed-sort-shared-section">
       <hr className="feed-sort-section-divider" />
       <p className="sidebar-block-title">Shared scoring</p>
-      <fieldset className="feed-sorting-tuning-fields" disabled={disabled}>
+      <fieldset className="feed-sorting-tuning-fields feed-sort-shared-fields" disabled={disabled}>
         <label className="l2-inspector-field">
           Time decay
           <select
