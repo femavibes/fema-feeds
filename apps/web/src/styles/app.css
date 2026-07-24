@@ -12153,6 +12153,58 @@ body.l2-visual-open #root {
   border-top: 1px solid var(--border, #333);
 }
 
+.feed-formula-library-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(300px, 1.15fr);
+  gap: 1.25rem 1.5rem;
+  align-items: start;
+  margin-top: 0.75rem;
+}
+
+.feed-formula-library-picks {
+  min-width: 0;
+}
+
+.feed-formula-library-picks .feed-formula-pack-grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+}
+
+.feed-formula-library-preview {
+  min-width: 0;
+  position: sticky;
+  top: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border, #333);
+  border-radius: var(--radius, 0.375rem);
+  background: var(--bg-elevated, #1a1a2e);
+}
+
+.feed-formula-library-preview-empty {
+  margin: 0;
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+}
+
+.feed-formula-library-preview .feed-formula-preview-actions {
+  margin-bottom: 0.75rem;
+}
+
+.feed-formula-library-preview .feed-subscribed-readonly {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+@media (max-width: 900px) {
+  .feed-formula-library-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .feed-formula-library-preview {
+    position: static;
+  }
+}
+
 .feed-formula-pack-group-label {
   font-size: 0.72rem;
   font-weight: 600;

@@ -95,56 +95,66 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
         </p>
       )}
 
-      {collectionPackages.length > 0 ? (
-        <>
-          <p className="feed-formula-pack-group-label">My collection</p>
-          <FeedFormulaPackGrid
-            packages={collectionPackages}
-            previewPackageId={previewPackageId}
-            appliedPackageId={appliedPackageId}
-            onPreview={(pkg) => setPreviewPackageId(pkg.id)}
-          />
-        </>
-      ) : null}
+      <div className="feed-formula-library-layout">
+        <div className="feed-formula-library-picks">
+          {collectionPackages.length > 0 ? (
+            <>
+              <p className="feed-formula-pack-group-label">My collection</p>
+              <FeedFormulaPackGrid
+                packages={collectionPackages}
+                previewPackageId={previewPackageId}
+                appliedPackageId={appliedPackageId}
+                onPreview={(pkg) => setPreviewPackageId(pkg.id)}
+              />
+            </>
+          ) : null}
 
-      {subscribedPackages.length > 0 ? (
-        <>
-          <p className="feed-formula-pack-group-label">Subscribed</p>
-          <FeedFormulaPackGrid
-            packages={subscribedPackages}
-            previewPackageId={previewPackageId}
-            appliedPackageId={appliedPackageId}
-            subscribed
-            onPreview={(pkg) => setPreviewPackageId(pkg.id)}
-          />
-        </>
-      ) : null}
+          {subscribedPackages.length > 0 ? (
+            <>
+              <p className="feed-formula-pack-group-label">Subscribed</p>
+              <FeedFormulaPackGrid
+                packages={subscribedPackages}
+                previewPackageId={previewPackageId}
+                appliedPackageId={appliedPackageId}
+                subscribed
+                onPreview={(pkg) => setPreviewPackageId(pkg.id)}
+              />
+            </>
+          ) : null}
 
-      {!hasAny ? (
-        <p className="card-hint">
-          Nothing saved yet. On <strong>Create</strong>, write a formula and use <strong>Save to collection</strong>,
-          or subscribe in Marketplace → Personalization formulas.
-        </p>
-      ) : null}
-
-      {previewPackage ? (
-        <div className="feed-formula-preview-wrap">
-          <div className="feed-formula-preview-actions">
+          {!hasAny ? (
             <p className="card-hint">
-              Previewing <strong>{previewPackage.name}</strong> v{previewPackage.version}
+              Nothing saved yet. On <strong>Create</strong>, write a formula and use <strong>Save to collection</strong>,
+              or subscribe in Marketplace → Personalization formulas.
             </p>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm"
-              disabled={previewIsApplied}
-              onClick={() => applyPack(previewPackage)}
-            >
-              {previewIsApplied ? 'In use on this feed' : 'Use on this feed'}
-            </button>
-          </div>
-          <FeedFormulaPreviewPanel expr={previewPackage.sortKey} variant="personalization" />
+          ) : null}
         </div>
-      ) : null}
+
+        <div className="feed-formula-library-preview">
+          {previewPackage ? (
+            <>
+              <div className="feed-formula-preview-actions">
+                <p className="card-hint">
+                  Previewing <strong>{previewPackage.name}</strong> v{previewPackage.version}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={previewIsApplied}
+                  onClick={() => applyPack(previewPackage)}
+                >
+                  {previewIsApplied ? 'In use on this feed' : 'Use on this feed'}
+                </button>
+              </div>
+              <FeedFormulaPreviewPanel expr={previewPackage.sortKey} variant="personalization" />
+            </>
+          ) : (
+            <p className="card-hint feed-formula-library-preview-empty">
+              Select a formula to preview its expression.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
