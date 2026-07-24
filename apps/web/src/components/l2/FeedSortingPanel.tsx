@@ -154,7 +154,7 @@ export function FeedSortingPanel({ draft, onChange, layout = 'sidebar' }: Props)
               ? (draft.rank?.chronologicalOrder === 'oldest'
                 ? 'Oldest posts first by indexed time.'
                 : 'Newest posts first by indexed time.')
-              : 'Formula applied when candidates are rebuilt after Update live.'}
+              : 'Preview — click Use on this feed when ready.'}
           </span>
         </div>
       ) : null}

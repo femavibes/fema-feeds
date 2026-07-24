@@ -34,6 +34,7 @@ import { loadPostMetrics, loadMentionDidsForFeed, loadFollowRingsForFeed, previe
 import { setPostEngagement } from '@cfb/storage-postgres'
 
 import { seedAuthorListsFromFeeds } from '@cfb/list-cache'
+import { applyFeedSettingsLive } from './feed-settings-live.js'
 
 import { resolvePostInput } from '@cfb/post-resolve'
 
@@ -680,7 +681,34 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
   })
 
+  app.post('/api/feeds/:id/apply-settings', async (c) => {
+    const id = c.req.param('id')
+    if (!pool) return c.json({ error: 'DATABASE_URL not configured' }, 503)
 
+    const body = await c.req.json<FeedConfig>()
+    if (body.feedId !== id) {
+      return c.json({ error: 'feedId must match URL' }, 400)
+    }
+
+    let live: FeedConfig
+    try {
+      live = await loadFeed(feedsDir, id)
+    } catch {
+      return c.json({ error: 'not found' }, 404)
+    }
+
+    const access = assertFeedAccess(live, getUserDid(c))
+    if (!access.ok) return c.json({ error: 'not found' }, access.status)
+
+    const userDid = getUserDid(c)
+    if (!userDid) return c.json({ error: 'login_required' }, 401)
+
+    const result = await applyFeedSettingsLive(feedsDir, pool, id, userDid, body)
+    await seedAuthorListsFromFeeds(pool, [result.feed])
+    await seedFollowRingsFromFeeds(pool, [result.feed])
+
+    return c.json(result)
+  })
 
   app.post('/api/feeds/:id/update', async (c) => {
 

@@ -11,6 +11,7 @@ import {
 } from '../l2/formula-field-legend-data'
 import {
   PERSONALIZATION_FIELD_GROUPS,
+  PERSONALIZATION_SNIPPETS,
   PERSONALIZATION_TEMPLATES,
 } from '../l2/feed-personalization-presets'
 
@@ -136,6 +137,7 @@ export function SortFormulaEditor({ pkg, onClose, onSaved }: Props) {
           fields={isPersonalization ? PERSONALIZATION_FIELDS : undefined}
           fieldGroups={isPersonalization ? PERSONALIZATION_FIELD_GROUPS : undefined}
           templates={isPersonalization ? PERSONALIZATION_TEMPLATES : undefined}
+          snippets={isPersonalization ? PERSONALIZATION_SNIPPETS : undefined}
           fieldLegend={isPersonalization ? PERSONALIZATION_FORMULA_FIELD_LEGEND : SORT_FORMULA_FIELD_LEGEND}
           fieldLegendToggleLabel={isPersonalization ? 'Viewer fields' : 'Signal reference'}
           placeholder={

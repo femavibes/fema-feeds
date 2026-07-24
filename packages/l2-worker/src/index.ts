@@ -25,6 +25,7 @@ export {
   type ProcessPostResult,
 } from './process-post.js'
 export { reevalPoolForFeeds, startBackgroundReeval, getRebuildStatus, clearRebuildStatus, cancelRebuild, type ReevalResult, type ReevalProgress } from './reeval.js'
+export { startBackgroundRescoreCandidates, getRescoreStatus, type RescoreProgress } from './rescore-candidates.js'
 export { previewFeedPoolMatches, type PoolMatchItem, type PoolMatchResult } from './match-pool.js'
 export type {
   PoolMatchAuthor,

@@ -140,6 +140,7 @@ export {
   deleteFeedCandidatesForFeed,
   deleteFeedCandidatesForFeeds,
   countFeedCandidates,
+  listFeedCandidatePostUris,
   listFeedCandidateRows,
   getStaleFeedCandidateUris,
   countStaleFeedCandidates,

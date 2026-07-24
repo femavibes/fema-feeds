@@ -10,17 +10,16 @@ import { FormulaBlocks, type FormulaBlockActions } from './FormulaBlocks'
 import { FormulaFieldReference } from './FormulaFieldReference'
 import type { FormulaFieldLegendEntry } from './formula-field-legend-data'
 import { SORT_FORMULA_FIELD_LEGEND } from './formula-field-legend-data'
-import { SORT_FORMULA_CHUNK_TEMPLATES } from '../../lib/feed-sort-chunks'
+import {
+  SORT_FIELD_GROUPS,
+  SORT_SNIPPETS,
+  SORT_TEMPLATES,
+  type FormulaFieldGroup,
+  type FormulaSnippet,
+  type FormulaTemplate,
+} from './formula-builder-presets'
 
-export interface FormulaTemplate {
-  name: string
-  formula: string
-}
-
-export interface FormulaFieldGroup {
-  label: string
-  fields: string[]
-}
+export type { FormulaFieldGroup, FormulaSnippet, FormulaTemplate } from './formula-builder-presets'
 
 interface Props {
   draft: { rank?: { sortKey?: L2Expr } }
@@ -33,6 +32,8 @@ interface Props {
   fieldGroups?: FormulaFieldGroup[]
   /** Custom templates. Defaults to SORT_TEMPLATES. */
   templates?: FormulaTemplate[]
+  /** Composable insert snippets. Defaults to SORT_SNIPPETS. */
+  snippets?: FormulaSnippet[]
   /** Placeholder text for the formula editor. */
   placeholder?: string
   /** Collapsible field legend entries. Defaults to sort signal reference. */
@@ -43,45 +44,11 @@ interface Props {
   readOnly?: boolean
 }
 
-const SORT_FIELD_GROUPS: FormulaFieldGroup[] = [
-  {
-    label: 'Network engagement',
-    fields: ['likes', 'reposts', 'replies', 'quotes', 'bookmarks'],
-  },
-  {
-    label: 'Audience engagement (this feed\'s readers)',
-    fields: ['audience_likes', 'audience_reposts'],
-  },
-  {
-    label: 'Author',
-    fields: ['followers', 'follows', 'posts'],
-  },
-  {
-    label: 'Content',
-    fields: ['text_len', 'images', 'video_size', 'hashtags', 'links', 'mentions', 'editor_score', 'post_age_hours', 'post_created_hours'],
-  },
-]
-
-const SORT_TEMPLATES: FormulaTemplate[] = [
-  { name: 'Engagement', formula: 'likes + reposts * 2 + replies' },
-  { name: 'Log engagement', formula: 'log(likes + 1) * 10 + log(reposts + 1) * 15' },
-  { name: 'Engagement rate', formula: '(likes + reposts) / (followers + 1) * 100' },
-  { name: 'Sqrt fairness', formula: '(likes + reposts * 2) / (sqrt(followers) + 1)' },
-  { name: 'Power curve', formula: 'pow(likes + 1, 0.7) * 10' },
-  { name: 'Capped engagement', formula: 'clamp(likes * 2 + reposts * 3, 0, 1000)' },
-  { name: 'Video boost', formula: 'likes + reposts * 2 + if(video_size > 0, 50, 0)' },
-  { name: 'Time decay', formula: '(likes + reposts * 2) / (post_created_hours / 24 + 1)' },
-  { name: 'Discussion finder', formula: 'replies * 3 + quotes * 5 - likes * 0.1' },
-  { name: 'Small account boost', formula: '(likes + reposts) * max(1, 100 / (followers + 1))' },
-  { name: 'Audience boost', formula: 'likes + reposts * 2 + audience_likes * 3 + audience_reposts * 5' },
-  { name: 'Audience-first', formula: 'audience_likes * 10 + audience_reposts * 15 + log(likes + 1) * 5' },
-  ...SORT_FORMULA_CHUNK_TEMPLATES.map((t) => ({ name: `Chunk: ${t.name}`, formula: t.formula })),
-]
-
-export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, placeholder, fieldLegend, fieldLegendToggleLabel, fieldLegendHint, readOnly = false }: Props) {
+export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, snippets, placeholder, fieldLegend, fieldLegendToggleLabel, fieldLegendHint, readOnly = false }: Props) {
   const fieldMap = fields ?? FORMULA_FIELDS
   const groups = fieldGroups ?? SORT_FIELD_GROUPS
   const templateList = templates ?? SORT_TEMPLATES
+  const snippetList = snippets ?? SORT_SNIPPETS
   const placeholderText = placeholder ?? 'likes + reposts * 2 + replies'
   const legendEntries = fieldLegend ?? SORT_FORMULA_FIELD_LEGEND
   const legendToggleLabel = fieldLegendToggleLabel ?? 'Signal reference'
@@ -234,6 +201,7 @@ export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, field
           onUpdate={readOnly ? () => undefined : handleChange}
           actionsRef={blockActionsRef}
           fields={fieldMap}
+          snippets={snippetList}
         />
       </section>
 
@@ -300,7 +268,7 @@ export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, field
 
           {/* Templates */}
           <section className="formula-editor-ref">
-            <p className="sidebar-block-title">Templates <span className="sfb-hint">(click to apply)</span></p>
+            <p className="sidebar-block-title">Templates <span className="sfb-hint">(replaces entire formula)</span></p>
             <div className="formula-editor-templates">
               {templateList.map((t) => (
                 <button

@@ -60,6 +60,8 @@ interface Props {
   onRefreshList?: (listId: string) => Promise<void>
   onListsChanged?: () => void | Promise<void>
   /** Promote draft → live. May receive a freshly flushed editor feed (preferred over parent state). */
+  onApplyFeedSettings: (feed: FeedConfig) => Promise<void>
+  applySettingsBusy?: boolean
   onUpdateLive?: (feed?: FeedConfig) => Promise<void>
   /** So Deploy sidebar can flush the open visual/JSON editor before Update Live. */
   onRegisterLivePayloadResolver?: (resolve: (() => Promise<FeedConfig>) | null) => void
@@ -87,6 +89,8 @@ export function FeedL2Workspace({
   onFeedUpgradeApplied,
   onRefreshList,
   onListsChanged,
+  onApplyFeedSettings,
+  applySettingsBusy = false,
   onUpdateLive,
   onRegisterLivePayloadResolver,
   onCloneFeed,
@@ -399,22 +403,18 @@ export function FeedL2Workspace({
       {view === 'sorting' && (
         <FeedSortingView
           draft={draft}
-          onChange={onSettingsChange}
-          settingsDirty={settingsDirty}
-          settingsAutosaveState={settingsAutosaveState}
-          settingsSaving={settingsSaving}
-          onSaveSettings={onSaveSettings}
+          liveFeed={liveFeed}
+          onApplySettings={onApplyFeedSettings}
+          applyBusy={applySettingsBusy}
         />
       )}
 
       {view === 'personalization' && (
         <FeedPersonalizationView
           draft={draft}
-          onChange={onSettingsChange}
-          settingsDirty={settingsDirty}
-          settingsAutosaveState={settingsAutosaveState}
-          settingsSaving={settingsSaving}
-          onSaveSettings={onSaveSettings}
+          liveFeed={liveFeed}
+          onApplySettings={onApplyFeedSettings}
+          applyBusy={applySettingsBusy}
         />
       )}
 

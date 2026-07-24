@@ -11,6 +11,7 @@ import { PERSONALIZATION_FORMULA_FIELD_LEGEND } from './formula-field-legend-dat
 import { PERSONALIZATION_MODE_OPTIONS, type PersonalizationModeId } from '../../lib/feed-personalization-modes'
 import {
   PERSONALIZATION_FIELD_GROUPS,
+  PERSONALIZATION_SNIPPETS,
   PERSONALIZATION_TEMPLATES,
 } from './feed-personalization-presets'
 
@@ -198,6 +199,7 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
             fields={PERSONALIZATION_FIELDS}
             fieldGroups={PERSONALIZATION_FIELD_GROUPS}
             templates={PERSONALIZATION_TEMPLATES}
+            snippets={PERSONALIZATION_SNIPPETS}
             fieldLegend={PERSONALIZATION_FORMULA_FIELD_LEGEND}
             fieldLegendToggleLabel="Viewer fields"
             fieldLegendHint="Write a formula that scores each post for this viewer. Higher scores appear first. Use base_score for the sort key from the Sorting tab."

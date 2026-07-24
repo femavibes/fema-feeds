@@ -16,14 +16,22 @@ import { UpdatePolicySelect, updatePolicyHint } from './UpdatePolicySelect'
 
 interface Props {
   draft: FeedConfig
-  onChange: (next: FeedConfig) => void
+  liveFeed: FeedConfig | null
+  onApplySettings: (next: FeedConfig) => Promise<void>
+  onStagingChange: (next: FeedConfig) => void
+  onFeedUpdated?: (feed: FeedConfig) => void
+  applyBusy?: boolean
   onPackExprResolved?: (expr: L2Expr | null) => void
   refreshKey?: number
 }
 
 export function SortPackFeedSection({
   draft,
-  onChange,
+  liveFeed,
+  onApplySettings,
+  onStagingChange,
+  onFeedUpdated,
+  applyBusy = false,
   onPackExprResolved,
   refreshKey = 0,
 }: Props) {
@@ -37,9 +45,9 @@ export function SortPackFeedSection({
   const [applyPolicy, setApplyPolicy] = useState<SortPackUpdatePolicy>('notify')
   const [compare, setCompare] = useState<{ fromVersion: string; toVersion: string; title: string } | null>(null)
 
-  const packRef = draft.rank?.packRef
+  const packRef = liveFeed?.rank?.packRef ?? draft.rank?.packRef
   const appliedPackageId = packRef?.packageId ?? null
-  const usingPack = hasSortPackRef(draft.rank)
+  const usingPack = hasSortPackRef(liveFeed?.rank ?? draft.rank)
   const [previewPackageId, setPreviewPackageId] = useState<string | null>(appliedPackageId)
 
   const sortingSubscriptions = useMemo(
@@ -106,8 +114,10 @@ export function SortPackFeedSection({
       .catch(() => setUpgrade(null))
   }, [draft.feedId, packRef?.versionPin, packRef?.updatePolicy, refreshKey])
 
-  const applyPack = (pkg: SortPackPackage) => {
-    onChange(applySortPack(draft, pkg, applyPolicy))
+  const applyPack = async (pkg: SortPackPackage) => {
+    const next = applySortPack(draft, pkg, applyPolicy)
+    onStagingChange(next)
+    await onApplySettings(next)
   }
 
   const applyUpgrade = async () => {
@@ -115,7 +125,7 @@ export function SortPackFeedSection({
     setUpgradeBusy(true)
     try {
       const res = await api.applyFeedSortPackUpgrade(draft.feedId)
-      onChange(res.feed)
+      onFeedUpdated?.(res.feed)
       setUpgrade(null)
     } finally {
       setUpgradeBusy(false)
@@ -135,7 +145,11 @@ export function SortPackFeedSection({
           </p>
           <UpdatePolicySelect
             value={packRef.updatePolicy ?? 'notify'}
-            onChange={(policy) => onChange(setSortPackUpdatePolicy(draft, policy))}
+            onChange={(policy) => {
+              const next = setSortPackUpdatePolicy(draft, policy)
+              onStagingChange(next)
+              void onApplySettings(next)
+            }}
           />
         </>
       ) : (
@@ -222,8 +236,8 @@ export function SortPackFeedSection({
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  disabled={previewIsApplied}
-                  onClick={() => applyPack(previewPackage)}
+                  disabled={previewIsApplied || applyBusy}
+                  onClick={() => void applyPack(previewPackage)}
                 >
                   {previewIsApplied ? 'In use on this feed' : 'Use on this feed'}
                 </button>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { L2Expr } from '@cfb/core-types'
 import { parseFormula, FORMULA_FIELDS } from '../../lib/formula-parser'
 import { ConditionEditor, conditionToFormula, defaultCondition, type ConditionNode } from './ConditionEditor'
+import type { FormulaSnippet } from './formula-builder-presets'
 
 /** Try to parse a block text like "if(likes > 100, reposts * 2, 0)" back into a ConditionNode + then expression. */
 function parseConditionFromText(text: string, fields: Record<string, string>): { condition: ConditionNode; thenExpr: string } | null {
@@ -56,6 +57,8 @@ interface Props {
   actionsRef?: React.MutableRefObject<FormulaBlockActions | null>
   /** Custom field map for validation. Defaults to FORMULA_FIELDS. */
   fields?: Record<string, string>
+  /** Insertable expression snippets. */
+  snippets?: FormulaSnippet[]
 }
 
 export interface FormulaBlockActions {
@@ -176,28 +179,7 @@ function blockCategory(text: string): string {
 
 const OP_OPTIONS: BlockOp[] = ['+', '-', '*', '/']
 
-const ADD_SNIPPETS: { label: string; text: string }[] = [
-  { label: 'Likes', text: 'likes' },
-  { label: 'Reposts', text: 'reposts' },
-  { label: 'Replies', text: 'replies' },
-  { label: 'Quotes', text: 'quotes' },
-  { label: 'Bookmarks', text: 'bookmarks' },
-  { label: 'Followers', text: 'followers' },
-  { label: 'Log likes', text: 'log(likes + 1) * 10' },
-  { label: 'Sqrt replies', text: 'sqrt(replies + 1)' },
-  { label: 'Engagement rate', text: '(likes + reposts) / (followers + 1) * 100' },
-  { label: 'Video bonus', text: 'if(video_size > 0, 50, 0)' },
-  { label: 'Image bonus', text: 'if(images > 0, 20, 0)' },
-  { label: 'Time decay', text: '(post_created_hours / 24 + 1)' },
-  { label: 'Editor score', text: 'editor_score' },
-  { label: 'Audience likes', text: 'audience_likes' },
-  { label: 'Audience reposts', text: 'audience_reposts' },
-  { label: 'Audience boost', text: 'audience_likes * 3 + audience_reposts * 5' },
-  { label: 'Power likes', text: 'pow(likes + 1, 0.7) * 10' },
-  { label: 'Custom...', text: '' },
-]
-
-export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionChange, actionsRef, fields }: Props) {
+export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionChange, actionsRef, fields, snippets = [] }: Props) {
   const fieldMap = fields ?? FORMULA_FIELDS
   const [showAdd, setShowAdd] = useState(false)
   const [editIdx, setEditIdx] = useState<number | null>(null)
@@ -648,14 +630,20 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
         ))}
       </div>
 
-      {/* Add block */}
+      {/* Insert snippet */}
       {showAdd ? (
         <div className="formula-blocks-add-panel">
-          <p className="sidebar-block-title">Add a block</p>
-          <div className="formula-blocks-add-grid">
-            {ADD_SNIPPETS.filter((s) => s.text).map((s) => (
-              <button key={s.text} type="button" className="formula-blocks-add-item" onClick={() => addBlock(s.text)}>
-                {s.label}
+          <p className="sidebar-block-title">Insert snippet <span className="sfb-hint">(appends a block)</span></p>
+          <div className="formula-blocks-snippet-list">
+            {snippets.map((snippet) => (
+              <button
+                key={snippet.formula}
+                type="button"
+                className="formula-blocks-snippet"
+                onClick={() => addBlock(snippet.formula)}
+              >
+                <span className="formula-blocks-snippet-name">{snippet.name}</span>
+                <code className="formula-blocks-snippet-code">{snippet.formula}</code>
               </button>
             ))}
           </div>
@@ -672,7 +660,7 @@ export function FormulaBlocks({ expr, formulaText, error, onUpdate, onSelectionC
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAdd(false)}>Cancel</button>
         </div>
       ) : (
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAdd(true)}>+ Add block</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAdd(true)}>+ Insert snippet</button>
       )}
     </div>
   )

@@ -15,7 +15,11 @@ import { UpdatePolicySelect, updatePolicyHint } from './UpdatePolicySelect'
 
 interface Props {
   draft: FeedConfig
-  onChange: (next: FeedConfig) => void
+  liveFeed: FeedConfig | null
+  onApplySettings: (next: FeedConfig) => Promise<void>
+  onStagingChange: (next: FeedConfig) => void
+  onFeedUpdated?: (feed: FeedConfig) => void
+  applyBusy?: boolean
   refreshKey?: number
 }
 
@@ -23,7 +27,15 @@ function isPersonalizationPack(pkg: SortPackPackage): boolean {
   return (pkg.packKind ?? 'sort') === 'personalization'
 }
 
-export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey = 0 }: Props) {
+export function PersonalizationFormulaFeedSection({
+  draft,
+  liveFeed,
+  onApplySettings,
+  onStagingChange,
+  onFeedUpdated,
+  applyBusy = false,
+  refreshKey = 0,
+}: Props) {
   const userDid = useCurrentUserDid()
   const [subscriptions, setSubscriptions] = useState<
     Awaited<ReturnType<typeof api.listSortPackSubscriptions>>['subscriptions']
@@ -34,7 +46,7 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
   const [applyPolicy, setApplyPolicy] = useState<SortPackUpdatePolicy>('notify')
   const [compare, setCompare] = useState<{ fromVersion: string; toVersion: string; title: string } | null>(null)
 
-  const packRef = draft.personalization?.formulaPackRef
+  const packRef = liveFeed?.personalization?.formulaPackRef ?? draft.personalization?.formulaPackRef
   const appliedPackageId = packRef?.packageId ?? null
   const [previewPackageId, setPreviewPackageId] = useState<string | null>(appliedPackageId)
 
@@ -95,8 +107,10 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
     [allPackages, previewPackageId],
   )
 
-  const applyPack = (pkg: SortPackPackage) => {
-    onChange(applyPersonalizationFormulaPack(draft, pkg, applyPolicy))
+  const applyPack = async (pkg: SortPackPackage) => {
+    const next = applyPersonalizationFormulaPack(draft, pkg, applyPolicy)
+    onStagingChange(next)
+    await onApplySettings(next)
   }
 
   const applyUpgrade = async () => {
@@ -104,7 +118,7 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
     setUpgradeBusy(true)
     try {
       const res = await api.applyFeedFormulaPackUpgrade(draft.feedId)
-      onChange(res.feed)
+      onFeedUpdated?.(res.feed)
       setUpgrade(null)
     } finally {
       setUpgradeBusy(false)
@@ -124,7 +138,11 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
           </p>
           <UpdatePolicySelect
             value={packRef.updatePolicy ?? 'notify'}
-            onChange={(policy) => onChange(setPersonalizationFormulaUpdatePolicy(draft, policy))}
+            onChange={(policy) => {
+              const next = setPersonalizationFormulaUpdatePolicy(draft, policy)
+              onStagingChange(next)
+              void onApplySettings(next)
+            }}
           />
         </>
       ) : (
@@ -211,8 +229,8 @@ export function PersonalizationFormulaFeedSection({ draft, onChange, refreshKey 
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  disabled={previewIsApplied}
-                  onClick={() => applyPack(previewPackage)}
+                  disabled={previewIsApplied || applyBusy}
+                  onClick={() => void applyPack(previewPackage)}
                 >
                   {previewIsApplied ? 'In use on this feed' : 'Use on this feed'}
                 </button>

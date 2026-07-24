@@ -97,6 +97,26 @@ export async function countFeedCandidates(pool: pg.Pool, feedId: string): Promis
   return Number(res.rows[0]?.count ?? 0)
 }
 
+/** Paginate post URIs in feed_candidates for lightweight rescore jobs. */
+export async function listFeedCandidatePostUris(
+  pool: pg.Pool,
+  feedId: string,
+  limit: number,
+  afterUri?: string,
+): Promise<string[]> {
+  const params: unknown[] = [feedId, limit]
+  const cursorSql = afterUri ? ' AND post_uri > $3' : ''
+  if (afterUri) params.push(afterUri)
+  const res = await pool.query<{ post_uri: string }>(
+    `SELECT post_uri FROM feed_candidates
+     WHERE feed_id = $1${cursorSql}
+     ORDER BY post_uri ASC
+     LIMIT $2`,
+    params,
+  )
+  return res.rows.map((r) => r.post_uri)
+}
+
 export interface FeedCandidateRow {
   postUri: string
   sortKey: number

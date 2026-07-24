@@ -1,43 +1,51 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { FeedConfig } from '@cfb/core-types'
 import { FeedSourceToggle, type FeedSourceMode } from '../FeedSourceToggle'
 import { FeedPersonalizationPanel } from './FeedPersonalizationPanel'
 import { FeedPersonalizationOrchestrationSection } from './FeedPersonalizationOrchestrationSection'
 import { SavePersonalizationModal } from './SavePersonalizationModal'
+import { FeedSettingsApplyBar } from './FeedSettingsApplyBar'
 import { RankerFeedSection } from '../plugins/RankerFeedSection'
 import { PersonalizationFormulaFeedSection } from '../sort-packs/PersonalizationFormulaFeedSection'
+import { personalizationSettingsApplied } from '../../lib/feed-settings-apply'
+import { clearPersonalizationFormulaPackRef } from '../../lib/feed-personalization'
 
 interface Props {
   draft: FeedConfig
-  onChange: (next: FeedConfig | ((prev: FeedConfig) => FeedConfig)) => void
-  settingsDirty: boolean
-  settingsAutosaveState: 'idle' | 'pending' | 'saving' | 'saved' | 'error'
-  settingsSaving: boolean
-  onSaveSettings: () => void
-}
-
-function autosaveLabel(state: Props['settingsAutosaveState']): string | null {
-  if (state === 'pending' || state === 'saving') return 'Autosaving…'
-  if (state === 'saved') return 'Saved to draft'
-  if (state === 'error') return 'Autosave failed — save manually'
-  return 'Unsaved — autosaving'
+  liveFeed: FeedConfig | null
+  onApplySettings: (next: FeedConfig) => Promise<void>
+  applyBusy?: boolean
 }
 
 export function FeedPersonalizationView({
   draft,
-  onChange,
-  settingsDirty,
-  settingsAutosaveState,
-  settingsSaving,
-  onSaveSettings,
+  liveFeed,
+  onApplySettings,
+  applyBusy = false,
 }: Props) {
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [libraryRefreshKey, setLibraryRefreshKey] = useState(0)
-  const hasRankerRef = !!draft.rank?.rankerRef
-  const hasFormulaPackRef = !!draft.personalization?.formulaPackRef
+  const hasRankerRef = !!liveFeed?.rank?.rankerRef
+  const hasFormulaPackRef = !!liveFeed?.personalization?.formulaPackRef
   const [source, setSource] = useState<FeedSourceMode>(
     hasRankerRef || hasFormulaPackRef ? 'subscribed' : 'native',
   )
+  const [staging, setStaging] = useState(draft)
+  const [syncRevision, setSyncRevision] = useState(0)
+
+  useEffect(() => {
+    setStaging(draft)
+  }, [draft, syncRevision])
+
+  const applied = personalizationSettingsApplied(staging, liveFeed)
+
+  const handleApply = useCallback(async () => {
+    const payload = staging.personalization?.formulaEnabled
+      ? staging
+      : clearPersonalizationFormulaPackRef(staging)
+    await onApplySettings(payload)
+    setSyncRevision((r) => r + 1)
+  }, [onApplySettings, staging])
 
   const badge =
     source === 'subscribed'
@@ -46,7 +54,7 @@ export function FeedPersonalizationView({
         : hasFormulaPackRef
           ? 'Saved formula'
           : 'Library'
-      : draft.personalization?.formulaEnabled
+      : staging.personalization?.formulaEnabled
         ? 'Formula builder'
         : 'Presets'
 
@@ -78,45 +86,47 @@ export function FeedPersonalizationView({
         </div>
         <p className="card-hint">
           Viewer-aware adjustments applied at serve time for <strong>{draft.name}</strong>.
-          Each viewer gets a personalized page order based on their follow graph, interaction
-          history, and what they've already seen.
+          Personalization applies immediately on this feed — no <strong>Update Live</strong> needed.
         </p>
       </header>
 
       <section className="card feed-sorting-view-panel">
         {source === 'native' && (
-          <FeedPersonalizationPanel draft={draft} onChange={onChange} />
+          <>
+            <FeedPersonalizationPanel draft={staging} onChange={setStaging} />
+            <FeedSettingsApplyBar
+              applied={applied}
+              busy={applyBusy}
+              onApply={() => void handleApply()}
+              hint="Preview presets or a formula, then apply when ready. Only one personalization source can be active."
+            />
+          </>
         )}
         {source === 'subscribed' && (
           <div className="feed-subscribed-section feed-formula-library-section">
             <PersonalizationFormulaFeedSection
-              draft={draft}
-              onChange={onChange}
+              draft={staging}
+              liveFeed={liveFeed}
+              onApplySettings={onApplySettings}
+              onStagingChange={setStaging}
+              onFeedUpdated={() => setSyncRevision((r) => r + 1)}
+              applyBusy={applyBusy}
               refreshKey={libraryRefreshKey}
             />
-            <RankerFeedSection draft={draft} onChange={onChange} />
-            <FeedPersonalizationOrchestrationSection draft={draft} onChange={onChange} />
+            <RankerFeedSection draft={staging} onChange={setStaging} />
+            <FeedPersonalizationOrchestrationSection draft={staging} onChange={setStaging} />
+            <FeedSettingsApplyBar
+              applied={applied}
+              busy={applyBusy}
+              onApply={() => void handleApply()}
+              hint="Feed layout changes (depth, author diversity) apply with the button above when editing orchestration."
+            />
           </div>
         )}
       </section>
 
-      {settingsDirty ? (
-        <div className="workspace-save-status">
-          <span className="badge badge-warn">Unsaved</span>
-          <span className="card-hint">{autosaveLabel(settingsAutosaveState)}</span>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            disabled={settingsSaving}
-            onClick={onSaveSettings}
-          >
-            {settingsSaving ? 'Saving…' : 'Save now'}
-          </button>
-        </div>
-      ) : null}
-
       <SavePersonalizationModal
-        draft={draft}
+        draft={staging}
         open={saveModalOpen}
         onClose={() => setSaveModalOpen(false)}
         onSaved={() => setLibraryRefreshKey((k) => k + 1)}

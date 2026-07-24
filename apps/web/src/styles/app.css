@@ -3355,6 +3355,20 @@ body {
   padding: 1rem 1.15rem;
 }
 
+.feed-settings-apply-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.feed-settings-apply-hint {
+  margin: 0;
+  max-width: 42rem;
+}
+
 .feed-sorting-panel-main .feed-sorting-modes,
 .feed-mode-picker.feed-sorting-modes,
 .feed-mode-picker.feed-personalization-modes {
@@ -11868,24 +11882,42 @@ body.l2-visual-open #root {
   flex-direction: column;
   gap: 0.4rem;
 }
-.formula-blocks-add-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
+.formula-blocks-snippet-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.35rem;
+  margin-bottom: 0.15rem;
 }
-.formula-blocks-add-item {
+.formula-blocks-snippet {
   display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.75rem;
-  padding: 0.3rem 0.5rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  min-width: 0;
+  padding: 0.35rem 0.45rem;
   border: 1px solid var(--border);
-  border-radius: 0.25rem;
+  border-radius: 0.3rem;
   background: var(--bg-card);
   cursor: pointer;
+  text-align: left;
+  transition: border-color 0.1s;
+  color: #fff;
 }
-.formula-blocks-add-item:hover {
+.formula-blocks-snippet:hover {
   border-color: var(--accent);
+}
+.formula-blocks-snippet-name {
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.formula-blocks-snippet-code {
+  font-size: 0.68rem;
+  font-family: monospace;
+  opacity: 0.72;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 .formula-blocks-add-custom {
   display: flex;

@@ -70,6 +70,7 @@ export function ProjectWorkspace({
   const [feedBusy, setFeedBusy] = useState(false)
   const [settingsDirty, setSettingsDirty] = useState(false)
   const [settingsSaving, setSettingsSaving] = useState(false)
+  const [applySettingsBusy, setApplySettingsBusy] = useState(false)
   const [settingsAutosaveState, setSettingsAutosaveState] =
     useState<SettingsAutosaveState>('idle')
   const [ingestionView, setIngestionView] = useState<IngestionWorkspaceView>('overview')
@@ -278,6 +279,28 @@ export function ProjectWorkspace({
     }
   }, [feedDraft, onNotify, onLiveUpdated])
 
+  const handleApplyFeedSettings = useCallback(async (feed: FeedConfig) => {
+    setApplySettingsBusy(true)
+    onNotify(null, null)
+    try {
+      const res = await api.applyFeedSettings(prepareFeedDraftPayload(feed))
+      setFeedDraft(structuredClone(res.feed))
+      onLiveUpdated(res.live, res.hasUnpublishedDraft)
+      setSettingsDirty(false)
+      onNotify(
+        res.rankRescoreStarted
+          ? 'Applied to this feed — rescoring existing candidates in the background.'
+          : 'Applied to this feed.',
+        null,
+      )
+    } catch (e) {
+      onNotify(null, e instanceof Error ? e.message : 'Apply failed')
+      throw e
+    } finally {
+      setApplySettingsBusy(false)
+    }
+  }, [onNotify, onLiveUpdated])
+
   const livePayloadResolverRef = useRef<(() => Promise<FeedConfig>) | null>(null)
   const registerLivePayloadResolver = useCallback((resolve: (() => Promise<FeedConfig>) | null) => {
     livePayloadResolverRef.current = resolve
@@ -400,6 +423,8 @@ export function ProjectWorkspace({
               }}
               onRefreshList={onRefreshList}
               onListsChanged={onListsChanged}
+              onApplyFeedSettings={handleApplyFeedSettings}
+              applySettingsBusy={applySettingsBusy}
               onUpdateLive={handleUpdateLive}
               onRegisterLivePayloadResolver={registerLivePayloadResolver}
               onCloneFeed={onCloneFeed && feedDraft ? () => onCloneFeed(feedDraft) : undefined}

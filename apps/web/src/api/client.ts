@@ -569,6 +569,16 @@ export const api = {
       `/api/feeds/${feed.feedId}/draft`,
       { method: 'PUT', body: JSON.stringify(feed) },
     ),
+  applyFeedSettings: (feed: FeedConfig) =>
+    apiFetch<{
+      feed: FeedConfig
+      live: FeedConfig
+      hasUnpublishedDraft: boolean
+      rankRescoreStarted: boolean
+    }>(`/api/feeds/${feed.feedId}/apply-settings`, {
+      method: 'POST',
+      body: JSON.stringify(feed),
+    }),
   updateFeed: (feed: FeedConfig) =>
     apiFetch<FeedUpdateResult>(`/api/feeds/${feed.feedId}/update`, {
       method: 'POST',

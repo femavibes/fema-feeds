@@ -8,6 +8,7 @@ export function feedRulesFingerprint(feed: FeedConfig): string {
     poolScope: feed.poolScope,
     match: feed.match,
     rank: feed.rank,
+    personalization: feed.personalization,
   })
 }
 

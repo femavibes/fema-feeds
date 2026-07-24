@@ -18,6 +18,7 @@ export interface AgeSweepStats {
 const TIME_AGE_FIELDS = ['post_age_hours', 'post_created_hours'] as const
 
 function exprUsesTimeAge(expr: NonNullable<FeedConfig['rank']>['sortKey']): boolean {
+  if (!expr) return false
   return TIME_AGE_FIELDS.some((field) => exprUsesField(expr, field))
 }
 
