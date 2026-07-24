@@ -1584,7 +1584,7 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
       const fields: Array<{ field: string; value: number }> = [
         'like_count', 'repost_count', 'reply_count', 'quote_count', 'bookmark_count',
         'author_follower_count', 'author_follows_count', 'author_posts_count',
-        'facet_tag_count', 'text_length', 'post_age_hours',
+        'facet_tag_count', 'text_length', 'post_age_hours', 'post_created_hours',
         'image_count', 'video_size_bytes', 'link_thumb_size_bytes',
         'facet_link_count', 'facet_mention_count', 'editor_score',
       ].map((field) => ({

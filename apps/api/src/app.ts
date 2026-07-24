@@ -171,7 +171,7 @@ export function createApp(options?: {
     options?.ingest ??
     createIngestRunner({ projectsDir: dir, feedsDir: feedDir, pool, ownsPool: false })
 
-  // Age sweep: re-evals sort keys for feeds whose formula uses post_age_hours
+  // Age sweep: re-evals sort keys for feeds whose formula uses post_age_hours or post_created_hours
   // and purges expired candidates. Runs with the API — independent of ingest —
   // so time-based feeds stay fresh even when ingest is stopped.
   const ageSweep = pool ? startAgeSweep(pool, () => loadAllFeeds(feedDir)) : null

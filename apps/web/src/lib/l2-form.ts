@@ -32,6 +32,7 @@ export const L2_NUMERIC_FIELDS: L2NumericField[] = [
   'text_length',
   'media_type',
   'post_age_hours',
+  'post_created_hours',
   'image_count',
   'image_max_size_bytes',
   'image_min_size_bytes',
@@ -463,6 +464,8 @@ export function fieldLabel(field: string): string {
       return 'Media type (0–5)'
     case 'post_age_hours':
       return 'Post age (hours, indexed)'
+    case 'post_created_hours':
+      return 'Post age (hours, createdAt)'
     case 'image_count':
       return 'Image count'
     case 'image_max_size_bytes':

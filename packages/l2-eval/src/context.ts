@@ -75,6 +75,8 @@ export function numericFieldValue(
       return ctx.rankSnapshot.mediaType
     case 'post_age_hours':
       return postAgeHours(ctx, 'indexed_at')
+    case 'post_created_hours':
+      return postAgeHours(ctx, 'created_at')
     case 'image_count':
       return ctx.rankSnapshot.mediaStats.imageCount
     case 'image_max_size_bytes':

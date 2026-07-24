@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FeedConfig, NormalizedPost } from '@cfb/core-types'
 import { evaluateFeedL2 } from './evaluate.js'
+import { buildL2Runtime, numericFieldValue } from './context.js'
 
 const basePost: NormalizedPost = {
   uri: 'at://did:plc:x/app.bsky.feed.post/1',
@@ -811,6 +812,16 @@ describe('evaluateFeedL2', () => {
         nowMs: Date.parse('2026-06-18T10:00:00.000Z'),
       }).matched,
     ).toBe(false)
+  })
+
+  it('numericFieldValue distinguishes indexed vs created age', () => {
+    const createdAt = '2026-06-01T00:00:00.000Z'
+    const indexedAt = '2026-06-17T10:00:00.000Z'
+    const nowMs = Date.parse('2026-06-17T16:00:00.000Z')
+    const ctx = buildL2Runtime({ ...basePost, createdAt, indexedAt }, undefined, nowMs)
+
+    expect(numericFieldValue(ctx, 'post_age_hours')).toBe(6)
+    expect(numericFieldValue(ctx, 'post_created_hours')).toBe(400)
   })
 
   it('matches alt text when embed detail present', () => {

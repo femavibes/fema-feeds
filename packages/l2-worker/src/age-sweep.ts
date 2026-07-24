@@ -15,8 +15,14 @@ export interface AgeSweepStats {
   errors: number
 }
 
+const TIME_AGE_FIELDS = ['post_age_hours', 'post_created_hours'] as const
+
+function exprUsesTimeAge(expr: NonNullable<FeedConfig['rank']>['sortKey']): boolean {
+  return TIME_AGE_FIELDS.some((field) => exprUsesField(expr, field))
+}
+
 /**
- * Feeds whose (resolved) sort formula references post_age_hours.
+ * Feeds whose (resolved) sort formula references post_age_hours or post_created_hours.
  * Only these pay for time-based re-evals — everything else has a
  * time-invariant sort_key and needs no sweep.
  */
@@ -26,7 +32,7 @@ async function feedsUsingPostAge(pool: pg.Pool, feeds: FeedConfig[]): Promise<Fe
     if (!feed.enabled) continue
     const resolved = await resolveFeedSortPack(pool, feed).catch(() => feed)
     const expr = resolved.rank?.sortKey
-    if (expr && exprUsesField(expr, 'post_age_hours')) out.push(feed)
+    if (expr && exprUsesTimeAge(expr)) out.push(feed)
   }
   return out
 }

@@ -182,7 +182,7 @@ function compileConditional(cond: ConditionalConfig, baseExpr: L2Expr): L2Expr {
 
 function applyDecay(expr: L2Expr, decay: DecayConfig): L2Expr {
   if (decay.curve === 'none' || decay.halfLifeHours <= 0) return expr
-  const age = fieldExpr('post_age_hours')
+  const age = fieldExpr('post_created_hours')
 
   switch (decay.curve) {
     case 'exponential':

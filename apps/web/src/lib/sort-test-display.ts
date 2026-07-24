@@ -23,6 +23,7 @@ export function formatSortScore(value: number): string {
 
 const BREAKDOWN_FIELD_ORDER = [
   'post_age_hours',
+  'post_created_hours',
   'editor_score',
   'like_count',
   'repost_count',
@@ -48,7 +49,7 @@ export function sortBreakdownFields(fields: SortTestResult['fields']): SortTestR
 }
 
 export function formatBreakdownValue(field: string, value: number): string {
-  if (field === 'post_age_hours') return `${value.toFixed(2)}h`
+  if (field === 'post_age_hours' || field === 'post_created_hours') return `${value.toFixed(2)}h`
   if (field === 'editor_score') return value.toLocaleString()
   return value.toLocaleString()
 }

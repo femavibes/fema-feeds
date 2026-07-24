@@ -7,6 +7,7 @@ import { ToggleRow } from '../ToggleRow'
 import { SortFormulaBuilder } from './SortFormulaBuilder'
 import { FeedPersonalizationOrchestrationSection } from './FeedPersonalizationOrchestrationSection'
 import { FeedModePicker } from './FeedModePicker'
+import { PERSONALIZATION_FORMULA_FIELD_LEGEND } from './formula-field-legend-data'
 import { PERSONALIZATION_MODE_OPTIONS, type PersonalizationModeId } from '../../lib/feed-personalization-modes'
 import {
   PERSONALIZATION_FIELD_GROUPS,
@@ -26,7 +27,6 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
   const [mode, setMode] = useState<PersonalizationMode>(
     config.formulaEnabled ? 'formula' : 'presets',
   )
-  const [showFieldRef, setShowFieldRef] = useState(false)
 
   const update = (patch: Partial<NativePersonalizationConfig>) => {
     onChange({ ...draft, personalization: { ...config, ...patch } })
@@ -60,7 +60,7 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
         className="feed-personalization-modes"
       />
 
-      <FeedPersonalizationOrchestrationSection draft={draft} onChange={onChange} />
+      <hr className="feed-sort-section-divider feed-personalization-mode-divider" />
 
       {mode === 'presets' && (
         <div className="feed-personalization-toggles">
@@ -191,41 +191,6 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
 
       {mode === 'formula' && (
         <div className="feed-personalization-formula">
-          <div className="feed-personalization-formula-head">
-            <p className="card-hint">
-              Write a formula that scores each post for this viewer. Higher scores appear first.
-              Use <code>base_score</code> for the sort key from the Sorting tab.
-            </p>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm"
-              onClick={() => setShowFieldRef(!showFieldRef)}
-            >
-              {showFieldRef ? 'Hide field reference' : '📖 Viewer fields'}
-            </button>
-          </div>
-          {showFieldRef && (
-            <div className="feed-personalization-field-legend">
-              <dl className="formula-field-legend">
-                <dt>base_score</dt><dd>Raw sort_key from the Sorting tab (same value stored in the pool). Use log(base_score + 1) in your formula if you want compressed scaling.</dd>
-                <dt>is_followed</dt><dd>1 if viewer follows post author, 0 if not</dd>
-                <dt>is_follower</dt><dd>1 if post author follows the viewer, 0 if not</dd>
-                <dt>is_mutual</dt><dd>1 if mutual follow (both follow each other), 0 if not</dd>
-                <dt>times_served</dt><dd>Times this post was returned in getFeedSkeleton</dd>
-                <dt>hours_since_served</dt><dd>Hours since last skeleton serve (0 if never)</dd>
-                <dt>was_viewed</dt><dd>1 if client reported interactionSeen, else 0 (requires acceptsInteractions on Bluesky publish)</dd>
-                <dt>times_viewed</dt><dd>1 if viewed (0/1 until repeat views are tracked)</dd>
-                <dt>hours_since_viewed</dt><dd>Hours since client-reported view (0 if never)</dd>
-                <dt>hours_since_last_open</dt><dd>Hours since viewer last opened this feed</dd>
-                <dt>days_since_interaction</dt><dd>Days since last interaction with this author</dd>
-                <dt>feed_affinity</dt><dd>Total interactions with author via this feed</dd>
-                <dt>feed_affinity_likes</dt><dd>Likes on author's posts via this feed</dd>
-                <dt>feed_affinity_reposts</dt><dd>Reposts of author via this feed</dd>
-                <dt>feed_affinity_replies</dt><dd>Replies to author via this feed</dd>
-                <dt>feed_affinity_quotes</dt><dd>Quotes of author via this feed</dd>
-              </dl>
-            </div>
-          )}
           <SortFormulaBuilder
             draft={draft}
             onChange={handleFormulaChange}
@@ -233,10 +198,15 @@ export function FeedPersonalizationPanel({ draft, onChange }: Props) {
             fields={PERSONALIZATION_FIELDS}
             fieldGroups={PERSONALIZATION_FIELD_GROUPS}
             templates={PERSONALIZATION_TEMPLATES}
+            fieldLegend={PERSONALIZATION_FORMULA_FIELD_LEGEND}
+            fieldLegendToggleLabel="Viewer fields"
+            fieldLegendHint="Write a formula that scores each post for this viewer. Higher scores appear first. Use base_score for the sort key from the Sorting tab."
             placeholder="base_score * if(is_followed > 0, 1.3, 1) + affinity * 10"
           />
         </div>
       )}
+
+      <FeedPersonalizationOrchestrationSection draft={draft} onChange={onChange} />
     </div>
   )
 }

@@ -188,7 +188,7 @@ const ADD_SNIPPETS: { label: string; text: string }[] = [
   { label: 'Engagement rate', text: '(likes + reposts) / (followers + 1) * 100' },
   { label: 'Video bonus', text: 'if(video_size > 0, 50, 0)' },
   { label: 'Image bonus', text: 'if(images > 0, 20, 0)' },
-  { label: 'Time decay', text: '(post_age_hours / 24 + 1)' },
+  { label: 'Time decay', text: '(post_created_hours / 24 + 1)' },
   { label: 'Editor score', text: 'editor_score' },
   { label: 'Audience likes', text: 'audience_likes' },
   { label: 'Audience reposts', text: 'audience_reposts' },

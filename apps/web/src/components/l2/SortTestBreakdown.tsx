@@ -44,7 +44,7 @@ export function SortTestBreakdown({ result, feed, compact = false }: Props) {
               <tr
                 key={f.field}
                 className={
-                  f.field === 'post_age_hours' || f.field === 'editor_score'
+                  f.field === 'post_age_hours' || f.field === 'post_created_hours' || f.field === 'editor_score'
                     ? 'sort-tester-row-highlight'
                     : undefined
                 }

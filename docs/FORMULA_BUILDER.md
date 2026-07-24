@@ -46,7 +46,9 @@ hashtags → facet_tag_count
 links → facet_link_count
 mentions → facet_mention_count
 editor_score → editor_score
-age_hours → post_age_hours
+post_age_hours → hours since indexed into this project
+post_created_hours → hours since record.createdAt (UTC)
+age_hours → post_age_hours (deprecated)
 ```
 
 ### Operators

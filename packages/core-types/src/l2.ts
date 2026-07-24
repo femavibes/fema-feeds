@@ -14,6 +14,7 @@ export type L2NumericField =
   | 'text_length'
   | 'media_type'
   | 'post_age_hours'
+  | 'post_created_hours'
   | 'image_count'
   | 'image_max_size_bytes'
   | 'image_min_size_bytes'

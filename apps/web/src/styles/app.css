@@ -3379,22 +3379,81 @@ body {
 
 .feed-sorting-signal-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 0.75rem 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 0;
+  column-gap: 4rem;
   width: 100%;
 }
 
 .feed-sorting-signal-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 3.75rem;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+  align-items: center;
   min-width: 0;
 }
 
+.feed-sorting-signal-group:nth-child(odd) {
+  padding-right: 1.5rem;
+}
+
+.feed-sorting-signal-group:nth-child(even) {
+  padding-left: 1.5rem;
+}
+
+.feed-sorting-signal-group > .sidebar-block-title {
+  grid-column: 1 / -1;
+  margin-bottom: 0.15rem;
+}
+
 .feed-sort-shared-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.feed-sort-shared-dropdown-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 0.75rem 1.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 0;
+  column-gap: 4rem;
+}
+
+.feed-sort-shared-dropdown-row > .l2-inspector-field:nth-child(odd) {
+  padding-right: 1.5rem;
+}
+
+.feed-sort-shared-dropdown-row > .l2-inspector-field:nth-child(even) {
+  padding-left: 1.5rem;
+}
+
+.feed-sort-shared-solo-field {
+  max-width: calc(50% - 2rem);
+}
+
+@media (max-width: 560px) {
+  .feed-sorting-signal-grid {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+  }
+
+  .feed-sort-shared-dropdown-row {
+    grid-template-columns: 1fr;
+    column-gap: 0;
+  }
+
+  .feed-sorting-signal-group:nth-child(odd),
+  .feed-sorting-signal-group:nth-child(even),
+  .feed-sort-shared-dropdown-row > .l2-inspector-field:nth-child(odd),
+  .feed-sort-shared-dropdown-row > .l2-inspector-field:nth-child(even) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .feed-sort-shared-solo-field {
+    max-width: none;
+  }
 }
 
 .feed-sorting-chronological {
@@ -3408,31 +3467,51 @@ body {
 }
 
 .feed-sorting-signals {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 3.75rem;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.feed-sorting-signals > .sidebar-block-title {
+  grid-column: 1 / -1;
+  margin-bottom: 0.15rem;
 }
 
 .feed-sorting-signal-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   align-items: center;
-  gap: 0.4rem;
 }
 
 .feed-sorting-signal-row .toggle-row {
-  width: 7rem;
-  flex-shrink: 0;
+  display: contents;
+}
+
+.feed-sorting-signal-row .toggle-row-label {
+  min-width: 0;
+}
+
+.feed-sorting-signal-row .toggle-row-hint {
+  overflow-wrap: anywhere;
 }
 
 .feed-sorting-signal-label {
   font-size: 0.85rem;
-  min-width: 4.5rem;
+  min-width: 0;
 }
 
 .feed-sorting-weight-input {
   display: flex;
   align-items: center;
   gap: 0.2rem;
+  grid-column: 3;
+  justify-self: start;
+  min-width: 3.75rem;
+  min-height: 1.75rem;
 }
 
 .feed-sorting-weight-label {
@@ -12111,15 +12190,22 @@ body.l2-visual-open #root {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.15rem 1.5rem;
-  margin-bottom: 1rem;
+}
+
+.feed-personalization-mode-divider {
+  margin-top: 0;
+}
+
+.feed-personalization-orchestration {
+  width: 100%;
 }
 
 .feed-personalization-toggles {
-  margin-top: 0.5rem;
+  margin-top: 0;
 }
 
 .feed-personalization-formula {
-  margin-top: 0.5rem;
+  margin-top: 0;
 }
 
 .feed-personalization-formula-head {
@@ -12134,6 +12220,36 @@ body.l2-visual-open #root {
   margin: 0;
 }
 
+.formula-field-ref-wrap {
+  margin-bottom: 0.5rem;
+}
+
+.formula-field-ref-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.formula-field-ref-hint {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.formula-field-ref-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.formula-field-ref-icon {
+  flex-shrink: 0;
+  opacity: 0.88;
+}
+
+.formula-field-legend-panel,
 .feed-personalization-field-legend {
   margin-bottom: 0.75rem;
   padding: 0.5rem 0.75rem;

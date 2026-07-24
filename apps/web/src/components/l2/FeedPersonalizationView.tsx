@@ -89,13 +89,13 @@ export function FeedPersonalizationView({
         )}
         {source === 'subscribed' && (
           <div className="feed-subscribed-section feed-formula-library-section">
-            <FeedPersonalizationOrchestrationSection draft={draft} onChange={onChange} />
             <PersonalizationFormulaFeedSection
               draft={draft}
               onChange={onChange}
               refreshKey={libraryRefreshKey}
             />
             <RankerFeedSection draft={draft} onChange={onChange} />
+            <FeedPersonalizationOrchestrationSection draft={draft} onChange={onChange} />
           </div>
         )}
       </section>

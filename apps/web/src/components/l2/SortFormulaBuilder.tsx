@@ -7,6 +7,9 @@ import {
   FORMULA_FUNCTIONS,
 } from '../../lib/formula-parser'
 import { FormulaBlocks, type FormulaBlockActions } from './FormulaBlocks'
+import { FormulaFieldReference } from './FormulaFieldReference'
+import type { FormulaFieldLegendEntry } from './formula-field-legend-data'
+import { SORT_FORMULA_FIELD_LEGEND } from './formula-field-legend-data'
 import { SORT_FORMULA_CHUNK_TEMPLATES } from '../../lib/feed-sort-chunks'
 
 export interface FormulaTemplate {
@@ -32,6 +35,10 @@ interface Props {
   templates?: FormulaTemplate[]
   /** Placeholder text for the formula editor. */
   placeholder?: string
+  /** Collapsible field legend entries. Defaults to sort signal reference. */
+  fieldLegend?: FormulaFieldLegendEntry[]
+  fieldLegendToggleLabel?: string
+  fieldLegendHint?: string
   /** Preview mode — show builder UI without editing or persisting changes. */
   readOnly?: boolean
 }
@@ -51,7 +58,7 @@ const SORT_FIELD_GROUPS: FormulaFieldGroup[] = [
   },
   {
     label: 'Content',
-    fields: ['text_len', 'images', 'video_size', 'hashtags', 'links', 'mentions', 'editor_score', 'post_age_hours'],
+    fields: ['text_len', 'images', 'video_size', 'hashtags', 'links', 'mentions', 'editor_score', 'post_age_hours', 'post_created_hours'],
   },
 ]
 
@@ -63,7 +70,7 @@ const SORT_TEMPLATES: FormulaTemplate[] = [
   { name: 'Power curve', formula: 'pow(likes + 1, 0.7) * 10' },
   { name: 'Capped engagement', formula: 'clamp(likes * 2 + reposts * 3, 0, 1000)' },
   { name: 'Video boost', formula: 'likes + reposts * 2 + if(video_size > 0, 50, 0)' },
-  { name: 'Time decay', formula: '(likes + reposts * 2) / (post_age_hours / 24 + 1)' },
+  { name: 'Time decay', formula: '(likes + reposts * 2) / (post_created_hours / 24 + 1)' },
   { name: 'Discussion finder', formula: 'replies * 3 + quotes * 5 - likes * 0.1' },
   { name: 'Small account boost', formula: '(likes + reposts) * max(1, 100 / (followers + 1))' },
   { name: 'Audience boost', formula: 'likes + reposts * 2 + audience_likes * 3 + audience_reposts * 5' },
@@ -71,11 +78,14 @@ const SORT_TEMPLATES: FormulaTemplate[] = [
   ...SORT_FORMULA_CHUNK_TEMPLATES.map((t) => ({ name: `Chunk: ${t.name}`, formula: t.formula })),
 ]
 
-export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, placeholder, readOnly = false }: Props) {
+export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, fieldGroups, templates, placeholder, fieldLegend, fieldLegendToggleLabel, fieldLegendHint, readOnly = false }: Props) {
   const fieldMap = fields ?? FORMULA_FIELDS
   const groups = fieldGroups ?? SORT_FIELD_GROUPS
   const templateList = templates ?? SORT_TEMPLATES
   const placeholderText = placeholder ?? 'likes + reposts * 2 + replies'
+  const legendEntries = fieldLegend ?? SORT_FORMULA_FIELD_LEGEND
+  const legendToggleLabel = fieldLegendToggleLabel ?? 'Signal reference'
+  const legendHint = fieldLegendHint ?? 'Each post gets a score from this formula. Higher scores rank first when the skeleton is built.'
 
   const [text, setText] = useState(() => {
     const expr = initialExpr ?? draft.rank?.sortKey
@@ -186,6 +196,14 @@ export function SortFormulaBuilder({ draft, onChange, initialExpr, fields, field
     <div className={`formula-editor${readOnly ? ' formula-editor-readonly' : ''}`}>
       {/* Editor */}
       <section className="formula-editor-main">
+        {!readOnly ? (
+          <FormulaFieldReference
+            hint={legendHint}
+            toggleLabel={legendToggleLabel}
+            hideLabel={`Hide ${legendToggleLabel.toLowerCase()}`}
+            entries={legendEntries}
+          />
+        ) : null}
         <textarea
           ref={textareaRef}
           className={`formula-editor-input${error ? ' formula-editor-input-error' : ''}`}

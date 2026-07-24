@@ -12,11 +12,11 @@ function binary(op: '+' | '-' | '*' | '/', left: L2Expr, right: L2Expr): L2Expr 
   return { type: 'binary', op, left, right }
 }
 
-/** Time decay — divide or multiply score by a function of post_age_hours. */
+/** Time decay — divide or multiply score by a function of post_created_hours. */
 export function compileDecay(base: L2Expr, mode: DecayMode, halfLifeHours: number): L2Expr {
   if (mode === 'none') return base
   if (mode === 'rate') {
-    return binary('/', base, binary('+', fieldExpr('post_age_hours'), literal(1)))
+    return binary('/', base, binary('+', fieldExpr('post_created_hours'), literal(1)))
   }
   if (halfLifeHours <= 0) return base
   if (mode === 'exponential') {
@@ -27,19 +27,19 @@ export function compileDecay(base: L2Expr, mode: DecayMode, halfLifeHours: numbe
         type: 'binary',
         op: '**',
         left: literal(0.5),
-        right: binary('/', fieldExpr('post_age_hours'), literal(halfLifeHours)),
+        right: binary('/', fieldExpr('post_created_hours'), literal(halfLifeHours)),
       },
     )
   }
-  return binary('/', base, binary('+', literal(1), binary('/', fieldExpr('post_age_hours'), literal(halfLifeHours))))
+  return binary('/', base, binary('+', literal(1), binary('/', fieldExpr('post_created_hours'), literal(halfLifeHours))))
 }
 
 export function decayFormulaLabel(mode: DecayMode, halfLifeHours: number): string | null {
   if (mode === 'none') return null
-  if (mode === 'rate') return '/ (post_age_hours + 1)'
+  if (mode === 'rate') return '/ (post_created_hours + 1)'
   if (halfLifeHours <= 0) return null
-  if (mode === 'exponential') return `* pow(0.5, post_age_hours / ${halfLifeHours})`
-  return `/ (1 + post_age_hours / ${halfLifeHours}h)`
+  if (mode === 'exponential') return `* pow(0.5, post_created_hours / ${halfLifeHours})`
+  return `/ (1 + post_created_hours / ${halfLifeHours}h)`
 }
 
 export function compileEditorBoost(base: L2Expr, weight: number): L2Expr {
@@ -101,9 +101,9 @@ export function sharedScoringFormulaSuffix(tuning: SortTuning): string {
 
 /** Formula-builder template text for shared chunks. */
 export const SORT_FORMULA_CHUNK_TEMPLATES = [
-  { name: 'Half-life decay', formula: '(score) / (1 + post_age_hours / 24)' },
-  { name: 'Exponential decay', formula: '(score) * pow(0.5, post_age_hours / 24)' },
-  { name: 'Engagement rate decay', formula: '(score) / (post_age_hours + 1)' },
+  { name: 'Half-life decay', formula: '(score) / (1 + post_created_hours / 24)' },
+  { name: 'Exponential decay', formula: '(score) * pow(0.5, post_created_hours / 24)' },
+  { name: 'Engagement rate decay', formula: '(score) / (post_created_hours + 1)' },
   { name: 'Editor score boost', formula: '(score) + editor_score * 100' },
   { name: 'Author fairness (gentle)', formula: '(score) / (followers / 1000 + 1)' },
   { name: 'Author fairness (moderate)', formula: '(score) / (followers / 100 + 1)' },

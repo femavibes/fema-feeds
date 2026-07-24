@@ -6,6 +6,10 @@ import { PERSONALIZATION_FIELDS } from '../../lib/formula-parser'
 import { LogicBlockMetadataFields } from '../logic-blocks/LogicBlockMetadataFields'
 import { SortFormulaBuilder } from '../l2/SortFormulaBuilder'
 import {
+  PERSONALIZATION_FORMULA_FIELD_LEGEND,
+  SORT_FORMULA_FIELD_LEGEND,
+} from '../l2/formula-field-legend-data'
+import {
   PERSONALIZATION_FIELD_GROUPS,
   PERSONALIZATION_TEMPLATES,
 } from '../l2/feed-personalization-presets'
@@ -132,6 +136,8 @@ export function SortFormulaEditor({ pkg, onClose, onSaved }: Props) {
           fields={isPersonalization ? PERSONALIZATION_FIELDS : undefined}
           fieldGroups={isPersonalization ? PERSONALIZATION_FIELD_GROUPS : undefined}
           templates={isPersonalization ? PERSONALIZATION_TEMPLATES : undefined}
+          fieldLegend={isPersonalization ? PERSONALIZATION_FORMULA_FIELD_LEGEND : SORT_FORMULA_FIELD_LEGEND}
+          fieldLegendToggleLabel={isPersonalization ? 'Viewer fields' : 'Signal reference'}
           placeholder={
             isPersonalization
               ? 'base_score * if(is_followed > 0, 1.3, 1) + feed_affinity * 10'
