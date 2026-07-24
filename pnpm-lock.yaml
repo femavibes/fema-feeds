@@ -172,6 +172,9 @@ importers:
       '@cfb/l1-registry':
         specifier: workspace:*
         version: link:../../packages/l1-registry
+      '@cfb/l2-eval':
+        specifier: workspace:*
+        version: link:../../packages/l2-eval
       '@cfb/l2-graph':
         specifier: workspace:*
         version: link:../../packages/l2-graph
