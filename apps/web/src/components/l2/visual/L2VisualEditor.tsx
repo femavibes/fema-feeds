@@ -50,6 +50,7 @@ import {
   type NodeSources,
 } from './graph-sync'
 import { buildPaletteSourceEntries } from '../../../lib/feed-source-palette'
+import { type PaletteItem, type PaletteLogicBlockEntry, type PalettePick } from './palette'
 
 type AutosaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 
