@@ -67,6 +67,8 @@ export type GraphNodeData = {
   paramDriven?: boolean
   /** Leaf body expanded (keyword terms, …). Default false. */
   expanded?: boolean
+  /** Ingress source kind (scout, substitute, native pull, …). */
+  sourceType?: 'project_pool' | 'static_uri_list' | 'feed' | 'subscribed' | 'scout' | 'substitute'
   /** Locked: skip group expand/collapse-all; block delete / extract / reparent. */
   locked?: boolean
   /** Group: any descendant leaf is expanded. */
@@ -141,8 +143,14 @@ export function StartNode({ data }: NodeProps<Node<GraphNodeData>>) {
 }
 
 export function SourceNode({ data }: NodeProps<Node<GraphNodeData>>) {
+  const kindClass =
+    data.sourceType === 'scout'
+      ? 'l2-flow-source-scout'
+      : data.sourceType === 'substitute'
+        ? 'l2-flow-source-substitute'
+        : ''
   return (
-    <div className={`l2-flow-node l2-flow-source ${data.selected ? 'selected' : ''}`}>
+    <div className={`l2-flow-node l2-flow-source ${kindClass} ${data.selected ? 'selected' : ''}`}>
       <Handle type="source" position={Position.Right} className="l2-flow-handle" />
       <span className="l2-flow-source-label">{data.label}</span>
     </div>

@@ -137,9 +137,17 @@ export function isInverseDirection(direction: SubstitutionDirection): boolean {
 
 let tablesEnsured = false
 
+export interface ResolvedSubstitutionTarget {
+  targetUri: string
+  direction: SubstitutionDirection
+  feedId: string
+}
+
 export interface SubstitutionResult {
   votesRecorded: number
+  /** @deprecated Prefer `resolved` — kept for callers that only need URIs. */
   resolvedTargets: string[]
+  resolved: ResolvedSubstitutionTarget[]
 }
 
 /**
@@ -165,6 +173,13 @@ export async function processSubstitution(
 
   let votesRecorded = 0
   const resolvedTargets: string[] = []
+  const resolved: ResolvedSubstitutionTarget[] = []
+
+  function markResolved(targetUri: string, direction: SubstitutionDirection, feedId: string): void {
+    if (resolvedTargets.includes(targetUri)) return
+    resolvedTargets.push(targetUri)
+    resolved.push({ targetUri, direction, feedId })
+  }
 
   for (const feed of applicableFeeds) {
     const subNodes = collectSubstituteNodes(feed)
@@ -205,8 +220,8 @@ export async function processSubstitution(
         )
 
         // When threshold met, promote the arriving post (and any other quoters/repliers)
-        if (count >= node.threshold && !resolvedTargets.includes(post.uri)) {
-          resolvedTargets.push(post.uri)
+        if (count >= node.threshold) {
+          markResolved(post.uri, node.direction, node.feedId)
         }
       } else {
         // Standard: arriving post is the source, resolve the target to promote
@@ -231,14 +246,14 @@ export async function processSubstitution(
           node.timeWindowHours || undefined,
         )
 
-        if (count >= node.threshold && !resolvedTargets.includes(targetUri)) {
-          resolvedTargets.push(targetUri)
+        if (count >= node.threshold) {
+          markResolved(targetUri, node.direction, node.feedId)
         }
       }
     }
   }
 
-  return { votesRecorded, resolvedTargets }
+  return { votesRecorded, resolvedTargets, resolved }
 }
 
 /** Evaluate sibling conditions against a post (lightweight L2 eval without metrics).

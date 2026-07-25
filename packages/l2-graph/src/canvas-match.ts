@@ -32,6 +32,13 @@ function findParentIdInMatch(root: L2RuleGroup, nodeId: string): string | null {
   return null
 }
 
+/** Fixed ingress node ids on the visual canvas (output-only — nothing wires in). */
+export const INGRESS_SOURCE_IDS = new Set(['scout', 'substitute'])
+
+export function isIngressSourceNodeId(nodeId: string): boolean {
+  return INGRESS_SOURCE_IDS.has(nodeId) || /^source-\d+$/.test(nodeId)
+}
+
 /** Canvas wires only connect start/end and direct children of the feed root. */
 export function isTopLevelCanvasNode(match: L2RuleGroup, nodeId: string): boolean {
   if (nodeId === 'start' || nodeId === 'end' || nodeId === match.id) return false
@@ -45,9 +52,14 @@ export function isAllowedCanvasEdge(match: L2RuleGroup, edge: FlowCanvasEdge): b
   const { source, target } = edge
   if (!source || !target || source === target) return false
   if (target === 'start' || source === 'end') return false
+  if (isIngressSourceNodeId(target)) return false
 
   if (source === 'start') {
     return target !== 'end' && isTopLevelCanvasNode(match, target)
+  }
+  if (isIngressSourceNodeId(source)) {
+    if (target === 'end') return true
+    return isTopLevelCanvasNode(match, target)
   }
   if (target === 'end') {
     return source !== 'start' && isTopLevelCanvasNode(match, source)

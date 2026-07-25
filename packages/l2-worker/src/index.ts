@@ -49,6 +49,7 @@ export {
   resolveTargetPost,
   type SubstituteNodeInfo,
   type SubstitutionResult,
+  type ResolvedSubstitutionTarget,
 } from './substitution.js'
 
 export {

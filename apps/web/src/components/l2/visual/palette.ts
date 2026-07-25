@@ -19,8 +19,6 @@ import {
   newRegexCondition,
   newScoreNode,
   newParametersNode,
-  newScoutCondition,
-  newSubstituteCondition,
   newFollowRingCondition,
   newUrlCondition,
 } from '../../../lib/l2-form'
@@ -69,7 +67,7 @@ export interface PaletteLogicBlockEntry {
 export interface PaletteSourceEntry {
   kind: 'source'
   sourceId: string
-  sourceType: 'project_pool' | 'static_uri_list' | 'feed' | 'subscribed'
+  sourceType: 'project_pool' | 'static_uri_list' | 'feed' | 'subscribed' | 'scout' | 'substitute'
   label: string
   description?: string
 }
@@ -299,22 +297,6 @@ export const PALETTE_ITEMS: PaletteItem[] = [
     category: 'scoring',
     action: 'condition',
     factory: newScoreNode,
-  },
-  {
-    id: 'substitute',
-    label: 'Substitute',
-    description: 'Replace matching replies/quotes with their root/parent/quoted post (vote threshold)',
-    category: 'discovery',
-    action: 'condition',
-    factory: newSubstituteCondition,
-  },
-  {
-    id: 'scout',
-    label: 'Scout discovery',
-    description: 'Discover posts via community engagement signals — N scouts interact → fetch & evaluate',
-    category: 'discovery',
-    action: 'condition',
-    factory: newScoutCondition,
   },
 ]
 

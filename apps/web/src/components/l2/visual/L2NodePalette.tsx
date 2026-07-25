@@ -11,6 +11,7 @@ import {
   type PaletteItem,
   type PaletteLogicBlockEntry,
   type PalettePick,
+  type PaletteSourceEntry,
   type PaletteSourceId,
   type SubscriptionSectionId,
 } from './palette'
@@ -20,8 +21,8 @@ interface Props {
   itemFilter?: (item: PaletteItem) => boolean
   /** Hide collection / subscription sources (prefilter editor). */
   nativeOnly?: boolean
-  /** Configured feed sources (shown in a Sources section of the palette). */
-  feedSources?: import('@cfb/core-types').NativeFeedSource[]
+  /** Configured ingress sources (scout, substitute, native pulls). */
+  paletteSourceEntries?: PaletteSourceEntry[]
 }
 
 function matchesSearch(text: string, q: string): boolean {
@@ -171,7 +172,7 @@ function PaletteNodeButton({
   )
 }
 
-export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSources }: Props) {
+export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, paletteSourceEntries }: Props) {
   const [source, setSource] = useState<PaletteSourceId>('native')
   const [activeNativeSection, setActiveNativeSection] = useState<PaletteCategory>('structure')
   const [collectionSection, setCollectionSection] = useState<CollectionSectionId>('saved_blocks')
@@ -302,7 +303,7 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
                 </button>
               </li>
             ))}
-            {feedSources && feedSources.length > 0 && (
+            {paletteSourceEntries && paletteSourceEntries.length > 0 && (
               <li>
                 <button
                   type="button"
@@ -310,7 +311,6 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
                   onClick={() => {
                     setSource('native')
                     setActiveNativeSection('sources' as PaletteCategory)
-                    // Scroll to sources section
                     const el = catalogRef.current?.querySelector('.l2-palette-section-sources')
                     el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                   }}
@@ -447,30 +447,24 @@ export function L2NodePalette({ onPick, itemFilter, nativeOnly = false, feedSour
                 )
               })
             )}
-            {feedSources && feedSources.length > 0 && (
+            {paletteSourceEntries && paletteSourceEntries.length > 0 && (
               <div className="l2-palette-section l2-palette-section-sources">
                 <h4>Sources</h4>
                 <ul className="l2-palette-list">
-                  {feedSources.map((src, i) => {
-                    const sourceId = `source-${i}`
-                    const label = src.type === 'feed' ? src.feedId : src.type === 'project_pool' ? src.projectId : `${src.uris.length} URIs`
-                    const desc = src.type === 'feed' ? 'Feed candidates' : src.type === 'project_pool' ? 'Project pool' : 'Static URI list'
-                    const entry = { kind: 'source' as const, sourceId, sourceType: src.type, label, description: desc }
-                    return (
-                      <PaletteNodeButton
-                        key={sourceId}
-                        label={label}
-                        description={desc}
-                        draggable
-                        pick={{ kind: 'source', entry }}
-                        onClick={() => onPick({ kind: 'source', entry })}
-                        onDragStart={(e) => {
-                          const { mime, data } = paletteDragPayload({ kind: 'source', entry })
-                          e.dataTransfer.setData(mime, data)
-                        }}
-                      />
-                    )
-                  })}
+                  {paletteSourceEntries.map((entry) => (
+                    <PaletteNodeButton
+                      key={entry.sourceId}
+                      label={entry.label}
+                      description={entry.description ?? entry.sourceType}
+                      draggable
+                      pick={{ kind: 'source', entry }}
+                      onClick={() => onPick({ kind: 'source', entry })}
+                      onDragStart={(e) => {
+                        const { mime, data } = paletteDragPayload({ kind: 'source', entry })
+                        e.dataTransfer.setData(mime, data)
+                      }}
+                    />
+                  ))}
                 </ul>
                 <p className="card-hint">Configure sources on the Sources tab.</p>
               </div>

@@ -355,6 +355,8 @@ export function registerFeedRoutes(app: Hono, options: { feedsDir: string; proje
 
           projectId: body.projectId.trim(),
 
+          enabled: body.enabled ?? true,
+
           poolScope: body.poolScope ?? 'project_only',
 
         },

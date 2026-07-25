@@ -31,6 +31,9 @@ export function FeedSourcesView({
 
   const nativeCount = draft.sources?.native?.length ?? 0
   const subscribedCount = draft.sources?.subscribed?.length ?? 0
+  const scoutOn = Boolean(draft.sources?.scout?.enabled ?? draft.sources?.scout)
+  const substituteOn = Boolean(draft.sources?.substitute?.enabled ?? draft.sources?.substitute)
+  const activeCount = nativeCount + subscribedCount + 1 + (scoutOn ? 1 : 0) + (substituteOn ? 1 : 0)
 
   return (
     <div className="workspace-page feed-sources-view">
@@ -39,7 +42,7 @@ export function FeedSourcesView({
           <div>
             <h2>Sources</h2>
             <span className="badge badge-on">
-              {nativeCount + subscribedCount + 1} active
+              {activeCount} active
             </span>
           </div>
           <FeedSourceToggle value={source} onChange={setSource} />

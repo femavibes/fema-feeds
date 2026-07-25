@@ -1,4 +1,10 @@
-import type { FeedConfig, L1ProjectResult, NormalizedPost } from '@cfb/core-types'
+import type {
+  FeedCandidateMatchVia,
+  FeedConfig,
+  L1ProjectResult,
+  NormalizedPost,
+  SubstitutionDirection,
+} from '@cfb/core-types'
 import { resolveFeedMatch } from '@cfb/l2-graph'
 import { evaluateFeedL2 } from '@cfb/l2-eval'
 import type pg from 'pg'
@@ -43,8 +49,11 @@ function feedsForPost(
 }
 
 export interface ProcessPostOptions {
-  /** When true, discovery nodes auto-pass (for substitution targets). */
+  /** When true, discovery nodes auto-pass (for substitution targets). @deprecated — use source paths instead. */
   skipDiscovery?: boolean
+  /** Ingress attribution for feed_candidates stats (default pool). */
+  matchedVia?: FeedCandidateMatchVia
+  substituteDirection?: SubstitutionDirection
 }
 
 export async function processPostForFeeds(
@@ -105,6 +114,8 @@ export async function processPostForFeeds(
       score: sortKey,
       sortKey,
       postIndexedAt: postIndexedAtDate(post),
+      matchedVia: options?.matchedVia ?? 'pool',
+      substituteDirection: options?.substituteDirection,
     })
     written++
   }

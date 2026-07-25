@@ -51,6 +51,9 @@ import {
   type EditorParamPreview,
 } from '../../../lib/param-bind-preview'
 import { ConditionRow } from '../ConditionRow'
+import { ScoutSourceEditor, SubstituteSourceEditor } from '../DiscoverySourceEditors'
+import { isIngressSourceNodeId } from '@cfb/l2-graph'
+import { ingressSourceLabel } from '../../../lib/feed-source-palette'
 import { ParamTargetBadge } from '../ParamControlModeModal'
 import {
   LogicBlockParamValuesEditor,
@@ -72,15 +75,7 @@ function edgeLabel(edges: CanvasEdge[], edgeId: string): string {
 
   if (!edge) return edgeId
 
-  const name = (id: string) => {
-
-    if (id === 'start') return 'START'
-
-    if (id === 'end') return 'FEED'
-
-    return id
-
-  }
+  const name = (id: string) => ingressSourceLabel(id)
 
   return `${name(edge.source)} → ${name(edge.target)}`
 
@@ -210,6 +205,8 @@ export function L2PropertiesInspector({
 }: Props) {
 
   const selected = selectedId ? findInMatch(match, selectedId) : null
+  const ingressSourceId =
+    selectedId && isIngressSourceNodeId(selectedId) ? selectedId : null
   const paramOverrides = editorParamPreview?.overrides
 
   const effectiveById = indexRuleNodesById(applyParametersToMatch(match, { values: paramOverrides }))
@@ -326,11 +323,13 @@ export function L2PropertiesInspector({
 
     !selectedNodeLocked
 
+  const canDeleteIngressSource = Boolean(ingressSourceId) && !selectedNodeLocked
+
   const canDeleteEdge = Boolean(selectedEdgeId)
 
-  const showNodeId = Boolean(selected && selectedId)
+  const showNodeId = Boolean((selected && selectedId) || ingressSourceId)
   const showFooter =
-    showNodeId || (!readOnly && (canDeleteNode || canDeleteEdge))
+    showNodeId || (!readOnly && (canDeleteNode || canDeleteIngressSource || canDeleteEdge))
 
 
 
@@ -348,7 +347,7 @@ export function L2PropertiesInspector({
 
         >
 
-            {!selected && !selectedEdgeId && (
+            {!selected && !ingressSourceId && !selectedEdgeId && (
 
               readOnly ? (
 
@@ -406,6 +405,41 @@ export function L2PropertiesInspector({
               </div>
 
             )}
+
+
+
+            {ingressSourceId && onPatchDraft ? (
+              <div className="l2-inspector-ingress-source">
+                <p className="l2-inspector-guide-title">{ingressSourceLabel(ingressSourceId)}</p>
+                <p className="card-hint">
+                  Ingress source — posts enter here and flow through wired logic to FEED. Edit full
+                  config on the Sources tab.
+                </p>
+                {ingressSourceId === 'scout' && draft.sources?.scout ? (
+                  <ScoutSourceEditor
+                    value={draft.sources.scout}
+                    onChange={(scout) =>
+                      onPatchDraft({ sources: { ...draft.sources, scout } })
+                    }
+                    readOnly={readOnly}
+                  />
+                ) : null}
+                {ingressSourceId === 'substitute' && draft.sources?.substitute ? (
+                  <SubstituteSourceEditor
+                    value={draft.sources.substitute}
+                    onChange={(substitute) =>
+                      onPatchDraft({ sources: { ...draft.sources, substitute } })
+                    }
+                    readOnly={readOnly}
+                  />
+                ) : null}
+                {ingressSourceId.startsWith('source-') ? (
+                  <p className="card-hint">
+                    Native pull source — configure project, feed, or URI list on the Sources tab.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
 
 

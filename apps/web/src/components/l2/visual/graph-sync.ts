@@ -1,5 +1,6 @@
 import type { Connection, Edge, Node } from '@xyflow/react'
 import type { L2GroupLogic, L2NodeProvenance, L2NodeTrace, L2RuleGroup, L2RuleNode } from '@cfb/core-types'
+import type { PaletteSourceEntry } from './palette'
 import {
   layoutMatchFlow,
   countGroupDescendantNodes,
@@ -72,7 +73,7 @@ export function flowGraphToRfNodes(
   positions: NodePositions,
   nodeLabels: NodeLabels = {},
   nodeSources: NodeSources = {},
-  feedSources?: import('@cfb/core-types').NativeFeedSource[],
+  feedSources?: PaletteSourceEntry[],
   expandedNodeIds: readonly string[] = [],
   lockedNodeIds: readonly string[] = [],
   paramOverrides?: ParamValueMap,
@@ -228,32 +229,31 @@ export function flowGraphToRfNodes(
     }
   })
 
-  // Add source nodes that have been placed on the canvas (from positions)
+  // Ingress source nodes placed on the canvas (scout, substitute, native pulls)
   if (feedSources?.length) {
-    feedSources.forEach((src, i) => {
-      const sourceId = `source-${i}`
-      const pos = positions[sourceId]
-      if (!pos) return // not placed yet — still in palette only
-      const label = src.type === 'feed' ? src.feedId : src.type === 'project_pool' ? src.projectId : `${src.uris.length} URIs`
+    for (const entry of feedSources) {
+      const pos = positions[entry.sourceId]
+      if (!pos) continue
       nodes.push({
-        id: sourceId,
+        id: entry.sourceId,
         type: 'source' as const,
         position: pos,
         data: {
-          label,
-          subtitle: src.type,
-          nodeId: sourceId,
-          selected: sourceId === selectedId,
+          label: entry.label,
+          subtitle: entry.description ?? entry.sourceType,
+          nodeId: entry.sourceId,
+          sourceType: entry.sourceType,
+          selected: entry.sourceId === selectedId,
           showPorts: true,
         },
         draggable: true,
         connectable: true,
         selectable: true,
-        selected: sourceId === selectedId,
+        selected: entry.sourceId === selectedId,
         zIndex: 1,
         style: { width: 160, height: 40 },
       })
-    })
+    }
   }
 
   return nodes

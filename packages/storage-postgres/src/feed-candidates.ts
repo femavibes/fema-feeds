@@ -1,5 +1,13 @@
-import type { FeedRankConfig } from '@cfb/core-types'
-import { isChronologicalRank, resolveChronologicalOrder } from '@cfb/core-types'
+import type {
+  FeedCandidateMatchVia,
+  FeedRankConfig,
+  SubstitutionDirection,
+} from '@cfb/core-types'
+import {
+  isChronologicalRank,
+  preferMatchVia,
+  resolveChronologicalOrder,
+} from '@cfb/core-types'
 import type pg from 'pg'
 
 export interface FeedCandidateSortOptions {
@@ -35,6 +43,33 @@ export interface FeedCandidateInput {
   expiresAt?: Date | null
   /** Post indexed_at — recency tiebreaker for equal sort keys. */
   postIndexedAt?: Date | null
+  /** Ingress that matched this candidate (pool, scout, substitute, …). */
+  matchedVia?: FeedCandidateMatchVia
+  /** Set when matchedVia is substitute — granular stats breakdown. */
+  substituteDirection?: SubstitutionDirection
+}
+
+export interface FeedCandidateMatchViaCounts {
+  pool: number
+  scout: number
+  substitute: number
+  feed: number
+  project_pool: number
+  static_uri: number
+  subscribed: number
+  /** Rows with null matched_via (legacy / not yet attributed). */
+  unknown: number
+}
+
+const EMPTY_MATCH_VIA_COUNTS: FeedCandidateMatchViaCounts = {
+  pool: 0,
+  scout: 0,
+  substitute: 0,
+  feed: 0,
+  project_pool: 0,
+  static_uri: 0,
+  subscribed: 0,
+  unknown: 0,
 }
 
 export interface SkeletonPost {
@@ -46,16 +81,86 @@ export async function upsertFeedCandidate(
   input: FeedCandidateInput,
 ): Promise<void> {
   await pool.query(
-    `INSERT INTO feed_candidates (feed_id, post_uri, score, sort_key, expires_at, post_indexed_at, last_eval_at)
-     VALUES ($1, $2, $3, $4, $5, $6, NOW())
+    `INSERT INTO feed_candidates (
+       feed_id, post_uri, score, sort_key, expires_at, post_indexed_at,
+       matched_via, substitute_direction, last_eval_at
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
      ON CONFLICT (feed_id, post_uri) DO UPDATE SET
        score = EXCLUDED.score,
        sort_key = EXCLUDED.sort_key,
        expires_at = COALESCE(EXCLUDED.expires_at, feed_candidates.expires_at),
        post_indexed_at = COALESCE(EXCLUDED.post_indexed_at, feed_candidates.post_indexed_at),
+       matched_via = COALESCE(EXCLUDED.matched_via, feed_candidates.matched_via),
+       substitute_direction = COALESCE(EXCLUDED.substitute_direction, feed_candidates.substitute_direction),
        last_eval_at = NOW()`,
-    [input.feedId, input.postUri, input.score, input.sortKey, input.expiresAt ?? null, input.postIndexedAt ?? null],
+    [
+      input.feedId,
+      input.postUri,
+      input.score,
+      input.sortKey,
+      input.expiresAt ?? null,
+      input.postIndexedAt ?? null,
+      input.matchedVia ?? null,
+      input.substituteDirection ?? null,
+    ],
   )
+}
+
+/** Candidate counts grouped by ingress source — for future feed stats UI. */
+export async function countFeedCandidatesByMatchVia(
+  pool: pg.Pool,
+  feedId: string,
+): Promise<FeedCandidateMatchViaCounts> {
+  const res = await pool.query<{ matched_via: string | null; count: string }>(
+    `SELECT matched_via, count(*)::text AS count
+     FROM feed_candidates
+     WHERE feed_id = $1
+     GROUP BY matched_via`,
+    [feedId],
+  )
+  const counts = { ...EMPTY_MATCH_VIA_COUNTS }
+  for (const row of res.rows) {
+    const n = Number(row.count)
+    if (!row.matched_via) {
+      counts.unknown += n
+      continue
+    }
+    const key = row.matched_via as keyof FeedCandidateMatchViaCounts
+    if (key in counts && key !== 'unknown') {
+      counts[key] += n
+    } else {
+      counts.unknown += n
+    }
+  }
+  return counts
+}
+
+/** Substitute candidates broken down by promotion direction. */
+export async function countSubstituteCandidatesByDirection(
+  pool: pg.Pool,
+  feedId: string,
+): Promise<Partial<Record<SubstitutionDirection, number>>> {
+  const res = await pool.query<{ substitute_direction: string; count: string }>(
+    `SELECT substitute_direction, count(*)::text AS count
+     FROM feed_candidates
+     WHERE feed_id = $1 AND matched_via = 'substitute' AND substitute_direction IS NOT NULL
+     GROUP BY substitute_direction`,
+    [feedId],
+  )
+  const out: Partial<Record<SubstitutionDirection, number>> = {}
+  for (const row of res.rows) {
+    out[row.substitute_direction as SubstitutionDirection] = Number(row.count)
+  }
+  return out
+}
+
+/** Resolve which matched_via to persist when re-upserting the same post. */
+export function resolveCandidateMatchVia(
+  current: FeedCandidateMatchVia | null | undefined,
+  incoming: FeedCandidateMatchVia,
+): FeedCandidateMatchVia {
+  return preferMatchVia(current, incoming)
 }
 
 export async function deleteFeedCandidate(

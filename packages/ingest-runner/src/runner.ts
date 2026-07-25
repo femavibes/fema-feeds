@@ -434,8 +434,8 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
                   feeds,
                 ).then(
                   (sub) => {
-                    if (sub.resolvedTargets.length === 0) return
-                    for (const targetUri of sub.resolvedTargets) {
+                    if (sub.resolved.length === 0) return
+                    for (const { targetUri, direction } of sub.resolved) {
                       void resolveTargetPost(pool, targetUri, fetchPostFromApi).then(
                         (target) => {
                           if (!target) return
@@ -449,7 +449,11 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
                                 target,
                                 matchedProjectIdsFromL1(matched),
                                 feeds,
-                                { skipDiscovery: true },
+                                {
+                                  skipDiscovery: true,
+                                  matchedVia: 'substitute',
+                                  substituteDirection: direction,
+                                },
                               ).then(
                                 (r) => {
                                   l2Evaluated += r.evaluated
@@ -564,7 +568,7 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
           const projectMatches = [{ projectId, matched: true, matchedVia: 'jetstream' as const, trace: [] }]
           await persistL1Matches(pool, { post, matches: projectMatches })
           if (feeds.length === 0) return true
-          const r = await processPostForFeeds(pool, post, [projectId], feeds)
+          const r = await processPostForFeeds(pool, post, [projectId], feeds, { matchedVia: 'scout' })
           l2Evaluated += r.evaluated
           l2Matched += r.matched
           l2Written += r.written

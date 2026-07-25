@@ -71,6 +71,7 @@ export {
   edgesWouldCycle,
   flattenTopLevelMatch,
   isAllowedCanvasEdge,
+  isIngressSourceNodeId,
   isTopLevelCanvasNode,
   normalizeCanvasFeedStorage,
   resolveFeedMatch,

@@ -149,7 +149,7 @@ export function emptyFeed(
       feedId,
       projectId,
       name,
-      enabled: false,
+      enabled: true,
       poolScope: 'project_only',
       match: { type: 'group', id: 'root', logic: 'any', children: [] },
     }
@@ -178,7 +178,7 @@ export function emptyFeed(
     feedId,
     projectId,
     name,
-    enabled: false,
+    enabled: true,
     poolScope: 'project_only',
     match: {
       type: 'group',

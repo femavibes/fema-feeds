@@ -51,7 +51,7 @@ export function newFeedShell(
   return {
     ...feed,
     ownerDid: ownerDid ?? feed.ownerDid,
-    enabled: false,
+    enabled: feed.enabled ?? true,
     published: false,
     liveAt: undefined,
     publishedAt: undefined,

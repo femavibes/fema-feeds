@@ -86,7 +86,7 @@ interface Props {
   onToggleNodeLocked?: (nodeId: string) => void
   onCollapseAllInGroup?: (groupId: string) => void
   onExpandAllInGroup?: (groupId: string) => void
-  feedSources?: import('@cfb/core-types').NativeFeedSource[]
+  paletteSourceEntries?: import('./palette').PaletteSourceEntry[]
   canvasEdges: CanvasEdge[]
   selectedId: string | null
   selectedEdgeId: string | null
@@ -155,7 +155,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
     onToggleNodeLocked,
     onCollapseAllInGroup,
     onExpandAllInGroup,
-    feedSources,
+    paletteSourceEntries,
     canvasEdges,
     selectedId,
     selectedEdgeId,
@@ -283,7 +283,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
           positionsRef.current,
           nodeLabelsRef.current,
           nodeSourcesRef.current,
-          feedSources,
+          paletteSourceEntries,
           expandedNodeIdsRef.current,
           lockedNodeIdsRef.current,
           paramPreviewOverrides,
@@ -292,7 +292,7 @@ const CanvasBody = forwardRef<L2GraphCanvasHandle, Props>(function CanvasBody(
       ),
     )
     setEdges(canvasEdgesToRf(canvasEdges, selectedEdgeId))
-  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, collapsedGroupKey, lockedKey, feedSources, layoutTick, paramPreviewOverrides, lockNodesForReadOnly, setNodes, setEdges])
+  }, [structureKey, match, selectedEdgeId, canvasEdges, expandedKey, collapsedGroupKey, lockedKey, paletteSourceEntries, layoutTick, paramPreviewOverrides, lockNodesForReadOnly, setNodes, setEdges])
 
   useEffect(() => {
     setNodes((nds) =>

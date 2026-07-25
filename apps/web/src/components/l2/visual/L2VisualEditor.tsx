@@ -49,7 +49,7 @@ import {
   type NodePositions,
   type NodeSources,
 } from './graph-sync'
-import { type PaletteItem, type PaletteLogicBlockEntry, type PalettePick } from './palette'
+import { buildPaletteSourceEntries } from '../../../lib/feed-source-palette'
 
 type AutosaveState = 'idle' | 'pending' | 'saving' | 'saved' | 'error'
 
@@ -213,6 +213,10 @@ export function L2VisualEditor({
   }, [])
 
   const match = useMemo(() => normalizeRuleGroup(draft.match), [draft.match])
+  const paletteSourceEntries = useMemo(
+    () => buildPaletteSourceEntries(draft.sources),
+    [draft.sources],
+  )
   const positions = draft.visualLayout?.positions ?? {}
   const savedCanvasEdges = draft.visualLayout?.edges
   const canvasEdges = savedCanvasEdges ?? []
@@ -1044,7 +1048,7 @@ export function L2VisualEditor({
               onPick={handlePalettePick}
               itemFilter={paletteItemFilter}
               nativeOnly={prefilterMode}
-              feedSources={draft.sources?.native}
+              paletteSourceEntries={paletteSourceEntries}
             />
             <RailResizeHandle
               label="Resize palette"
@@ -1073,7 +1077,7 @@ export function L2VisualEditor({
             editorParamPreview={editorParamPreview}
             match={match}
             positions={positions}
-            feedSources={draft.sources?.native}
+            paletteSourceEntries={paletteSourceEntries}
             canvasEdges={canvasEdges}
             selectedId={selectedId}
             selectedEdgeId={selectedEdgeId}

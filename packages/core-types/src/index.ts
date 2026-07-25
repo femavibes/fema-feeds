@@ -256,7 +256,20 @@ export type { KeywordMatchOptions } from './post-search.js'
 export { type NativePersonalizationConfig, DEFAULT_PERSONALIZATION, PERSONALIZATION_DEPTH_DEFAULT, PERSONALIZATION_DEPTH_MAX, resolveSuppressServed, personalizationServedWindowHours } from './personalization.js'
 
 export { type NativeInjectorConfig, type NativePinnedInjector, type NativePinnedPost, type NativeRotatingInjector } from './native-injectors.js'
-export { type NativeFeedSource, type ProjectPoolSource, type FeedCandidateSource, type StaticUriListSource, type SubscribedSourceConfig, type FeedSourcesConfig } from './feed-sources.js'
+export {
+  type FeedCandidateMatchVia,
+  type NativeFeedSource,
+  type ProjectPoolSource,
+  type FeedCandidateSource,
+  type StaticUriListSource,
+  type SubscribedSourceConfig,
+  type ScoutFeedSource,
+  type SubstituteFeedSource,
+  type SubstitutePathwayConfig,
+  type FeedSourcesConfig,
+  MATCH_VIA_PRIORITY,
+  preferMatchVia,
+} from './feed-sources.js'
 export * from './backfill.js'
 export * from './substitution.js'
 export * from './scout-discovery.js'

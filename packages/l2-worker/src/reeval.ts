@@ -165,14 +165,18 @@ async function runReeval(
       // Process substitution for existing replies
       if (hasSubNodes) {
         const sub = await processSubstitution(pool, post, projectIds, feeds)
-        for (const targetUri of sub.resolvedTargets) {
+        for (const { targetUri, direction } of sub.resolved) {
           const target = await resolveTargetPost(pool, targetUri, fetchPostFromApi)
           if (!target) continue
           await persistL1Matches(pool, {
             post: target,
             matches: projectIds.map((pid) => ({ projectId: pid, matched: true, matchedVia: 'jetstream' as const, trace: [] })),
           }).catch(() => {})
-          const tr = await processPostForFeeds(pool, target, projectIds, feeds, { skipDiscovery: true })
+          const tr = await processPostForFeeds(pool, target, projectIds, feeds, {
+            skipDiscovery: true,
+            matchedVia: 'substitute',
+            substituteDirection: direction,
+          })
           evaluated += tr.evaluated
           matched += tr.matched
           written += tr.written

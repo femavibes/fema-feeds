@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import type { FeedConfig, NativeFeedSource } from '@cfb/core-types'
 import { api } from '../../api/client'
+import {
+  defaultScoutFeedSource,
+  defaultSubstituteFeedSource,
+  liftDiscoveryConditionsToSources,
+} from '../../lib/feed-source-defaults'
+import { ScoutSourceEditor, SubstituteSourceEditor } from './DiscoverySourceEditors'
+import { ToggleRow } from '../ToggleRow'
 
 interface Props {
   draft: FeedConfig
@@ -25,8 +32,100 @@ export function NativeSourcesPanel({ draft, onChange }: Props) {
     updateSources(sources.filter((_, i) => i !== index))
   }
 
+  const updateSourcesConfig = (patch: Partial<NonNullable<FeedConfig['sources']>>) => {
+    onChange({ ...draft, sources: { ...sourcesConfig, ...patch } })
+  }
+
+  const enableScout = () => {
+    const lifted = liftDiscoveryConditionsToSources(draft)
+    if (lifted.sources?.scout) {
+      onChange(lifted)
+      return
+    }
+    updateSourcesConfig({ scout: defaultScoutFeedSource() })
+  }
+
+  const enableSubstitute = () => {
+    const lifted = liftDiscoveryConditionsToSources(draft)
+    if (lifted.sources?.substitute) {
+      onChange(lifted)
+      return
+    }
+    updateSourcesConfig({ substitute: defaultSubstituteFeedSource() })
+  }
+
+  const scout = sourcesConfig.scout
+  const substitute = sourcesConfig.substitute
+  const scoutOn = Boolean(scout?.enabled ?? scout)
+  const substituteOn = Boolean(substitute?.enabled ?? substitute)
+
   return (
     <div className="native-sources-panel">
+      {/* Discovery ingress sources */}
+      <section className="native-source-scope">
+        <p className="sidebar-block-title">Discovery sources</p>
+        <p className="card-hint">
+          Scout and Substitute appear as ingress nodes in the visual editor — wire each through
+          logic nodes to FEED, like START.
+        </p>
+
+        <div className="native-injector-card">
+          <div className="injector-card">
+            <div className="injector-card-head">
+              <span className="injector-card-type">🔭 Scout discovery</span>
+              <ToggleRow
+                label=""
+                ariaLabel="Enable scout discovery source"
+                checked={scoutOn}
+                onChange={(on) => {
+                  if (on) enableScout()
+                  else if (scout) updateSourcesConfig({ scout: { ...scout, enabled: false } })
+                }}
+              />
+            </div>
+            {scoutOn && scout ? (
+              <div className="injector-card-body">
+                <ScoutSourceEditor
+                  value={scout}
+                  onChange={(next) => updateSourcesConfig({ scout: next })}
+                />
+              </div>
+            ) : (
+              <p className="card-hint">Engagement signals from scout accounts fetch external posts.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="native-injector-card">
+          <div className="injector-card">
+            <div className="injector-card-head">
+              <span className="injector-card-type">↪ Substitute promotion</span>
+              <ToggleRow
+                label=""
+                ariaLabel="Enable substitute promotion source"
+                checked={substituteOn}
+                onChange={(on) => {
+                  if (on) enableSubstitute()
+                  else if (substitute) updateSourcesConfig({ substitute: { ...substitute, enabled: false } })
+                }}
+              />
+            </div>
+            {substituteOn && substitute ? (
+              <div className="injector-card-body">
+                <SubstituteSourceEditor
+                  value={substitute}
+                  onChange={(next) => updateSourcesConfig({ substitute: next })}
+                />
+              </div>
+            ) : (
+              <p className="card-hint">
+                Replies and quotes vote toward promoted root, parent, or quoted posts.
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
       {/* Pool scope — configures the START node */}
       <section className="native-source-scope">
         <p className="sidebar-block-title">Default pool (START node)</p>

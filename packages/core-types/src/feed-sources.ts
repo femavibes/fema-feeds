@@ -1,5 +1,40 @@
+import type { ScoutAutoDeriveConfig, ScoutThresholdConfig } from './scout-discovery.js'
+import type { SubstitutionDirection } from './substitution.js'
+
 /** Pool scope — which posts the default START node evaluates. */
 export type FeedPoolScope = 'project' | 'all_projects'
+
+/**
+ * Ingress that produced a feed candidate — for stats breakdown (UI later).
+ * @see docs/FEED_SOURCES_PLAN.md
+ */
+export type FeedCandidateMatchVia =
+  | 'pool'
+  | 'scout'
+  | 'substitute'
+  | 'feed'
+  | 'project_pool'
+  | 'static_uri'
+  | 'subscribed'
+
+/** When the same post matches multiple paths, higher priority wins for attribution. */
+export const MATCH_VIA_PRIORITY: Record<FeedCandidateMatchVia, number> = {
+  substitute: 4,
+  scout: 3,
+  subscribed: 2,
+  feed: 2,
+  project_pool: 2,
+  static_uri: 2,
+  pool: 1,
+}
+
+export function preferMatchVia(
+  current: FeedCandidateMatchVia | null | undefined,
+  incoming: FeedCandidateMatchVia,
+): FeedCandidateMatchVia {
+  if (!current) return incoming
+  return MATCH_VIA_PRIORITY[incoming] >= MATCH_VIA_PRIORITY[current] ? incoming : current
+}
 
 /** Native feed source — provides additional posts for evaluation without custom code. */
 export type NativeFeedSource = ProjectPoolSource | FeedCandidateSource | StaticUriListSource
@@ -29,10 +64,38 @@ export interface SubscribedSourceConfig {
   config?: Record<string, unknown>
 }
 
+/** Scout discovery source — engagement signals fetch external posts for eval. */
+export interface ScoutFeedSource {
+  type: 'scout'
+  enabled?: boolean
+  scouts?: string[]
+  autoDerive?: ScoutAutoDeriveConfig
+  threshold: ScoutThresholdConfig
+  maxPostAgeHours?: number
+}
+
+/** One vote→promote pathway on the substitute source (replaces a substitute condition node). */
+export interface SubstitutePathwayConfig {
+  direction: SubstitutionDirection
+  threshold: number
+  timeWindowHours?: number
+}
+
+/** Substitute promotion source — replies/quotes vote; promoted target enters this ingress. */
+export interface SubstituteFeedSource {
+  type: 'substitute'
+  enabled?: boolean
+  pathways: SubstitutePathwayConfig[]
+}
+
 /** Full sources config on a feed. */
 export interface FeedSourcesConfig {
   /** Native sources (other project pools, other feeds, static URIs). */
   native?: NativeFeedSource[]
   /** Subscribed custom code sources from marketplace. */
   subscribed?: SubscribedSourceConfig[]
+  /** Scout discovery ingress (canvas: SCOUT → logic → END). */
+  scout?: ScoutFeedSource
+  /** Substitute promotion ingress (canvas: SUBSTITUTE → logic → END). */
+  substitute?: SubstituteFeedSource
 }
