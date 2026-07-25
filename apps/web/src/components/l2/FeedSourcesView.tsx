@@ -31,8 +31,8 @@ export function FeedSourcesView({
 
   const nativeCount = draft.sources?.native?.length ?? 0
   const subscribedCount = draft.sources?.subscribed?.length ?? 0
-  const scoutOn = Boolean(draft.sources?.scout?.enabled ?? draft.sources?.scout)
-  const substituteOn = Boolean(draft.sources?.substitute?.enabled ?? draft.sources?.substitute)
+  const scoutOn = Boolean(draft.sources?.scout)
+  const substituteOn = Boolean(draft.sources?.substitute)
   const activeCount = nativeCount + subscribedCount + 1 + (scoutOn ? 1 : 0) + (substituteOn ? 1 : 0)
 
   return (
