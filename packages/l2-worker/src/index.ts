@@ -19,6 +19,7 @@ export {
   loadLogicBlockPackagesForFeeds,
 } from './strict-gate-logic-blocks.js'
 export {
+  resolveMatchForEval,
   processPostForFeeds,
   type ProcessPostOptions,
   matchedProjectIdsFromL1,
@@ -37,10 +38,11 @@ export { reevalPostInPool } from './reeval-post.js'
 export { startAgeSweep, type AgeSweepStats } from './age-sweep.js'
 export { listProjectPoolPosts, type ProjectPoolResult } from './list-project-pool.js'
 
-export { resolveSourcePosts } from './resolve-sources.js'
+export { resolveSourcePosts, resolveNativeSourcePosts, processNativeSourcesForFeeds } from './resolve-sources.js'
 
 export {
   collectSubstituteNodes,
+  collectSubstitutePathways,
   resolveTargetUri,
   resolveInverseSourceUri,
   postMatchesDirection,
@@ -48,6 +50,7 @@ export {
   processSubstitution,
   resolveTargetPost,
   type SubstituteNodeInfo,
+  type SubstitutePathwayInfo,
   type SubstitutionResult,
   type ResolvedSubstitutionTarget,
 } from './substitution.js'

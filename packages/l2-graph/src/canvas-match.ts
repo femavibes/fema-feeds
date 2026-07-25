@@ -75,8 +75,8 @@ export function sanitizeCanvasEdges<T extends FlowCanvasEdge>(
   return edges.filter((e) => isAllowedCanvasEdge(match, e))
 }
 
-/** All simple paths START → … → END (intermediate node ids only). */
-export function enumeratePathsStartToEnd(edges: FlowCanvasEdge[]): string[][] {
+/** All simple paths ORIGIN → … → END (intermediate node ids only). */
+export function enumeratePathsFromOrigin(edges: FlowCanvasEdge[], origin: string): string[][] {
   const adj = new Map<string, string[]>()
   for (const e of edges) {
     const list = adj.get(e.source) ?? []
@@ -93,13 +93,18 @@ export function enumeratePathsStartToEnd(edges: FlowCanvasEdge[]): string[][] {
     for (const next of adj.get(node) ?? []) {
       if (next === 'end') {
         paths.push(acc)
-      } else if (next !== 'start') {
+      } else if (next !== origin && next !== 'start') {
         walk(next, [...acc, next])
       }
     }
   }
-  walk('start', [])
+  walk(origin, [])
   return paths
+}
+
+/** All simple paths START → … → END (intermediate node ids only). */
+export function enumeratePathsStartToEnd(edges: FlowCanvasEdge[]): string[][] {
+  return enumeratePathsFromOrigin(edges, 'start')
 }
 
 function pathGroupId(path: string[]): string {
@@ -126,15 +131,16 @@ function pathToBranch(match: L2RuleGroup, path: string[]): L2RuleNode | null {
 }
 
 /**
- * Derive feed rules from canvas wiring:
- * - Each START → … → END path is one OR branch.
+ * Derive feed rules from canvas wiring for a single ingress origin.
+ * - Each ORIGIN → … → END path is one OR branch.
  * - Multiple nodes on the same path are AND (serial filters).
  */
-export function canvasEdgesToMatch(
+export function canvasEdgesToMatchForOrigin(
   current: L2RuleGroup,
   edges: FlowCanvasEdge[],
+  origin: string,
 ): L2RuleGroup {
-  const paths = enumeratePathsStartToEnd(edges)
+  const paths = enumeratePathsFromOrigin(edges, origin)
   const branches: L2RuleNode[] = []
 
   for (const path of paths) {
@@ -148,6 +154,18 @@ export function canvasEdgesToMatch(
     logic: 'any',
     children: branches,
   }
+}
+
+/**
+ * Derive feed rules from canvas wiring:
+ * - Each START → … → END path is one OR branch.
+ * - Multiple nodes on the same path are AND (serial filters).
+ */
+export function canvasEdgesToMatch(
+  current: L2RuleGroup,
+  edges: FlowCanvasEdge[],
+): L2RuleGroup {
+  return canvasEdgesToMatchForOrigin(current, edges, 'start')
 }
 
 export function defaultEdgesForTopLevelNode(nodeId: string): FlowCanvasEdge[] {
@@ -206,17 +224,32 @@ export function normalizeCanvasFeedStorage(match: L2RuleGroup): L2RuleGroup {
 
 /** Effective rules for eval: canvas edges define OR paths and AND chains. */
 export function resolveFeedMatch(feed: Pick<FeedConfig, 'match' | 'visualLayout'>): L2RuleGroup {
-  if (!feed.visualLayout) return feed.match
+  return resolveFeedMatchForIngress(feed, 'pool')
+}
 
+function resolveCanvasEdges(feed: Pick<FeedConfig, 'match' | 'visualLayout'>): FlowCanvasEdge[] {
+  if (!feed.visualLayout) return []
   const flat = flattenTopLevelMatch(feed.match)
   const rawEdges = feed.visualLayout.edges?.length
     ? feed.visualLayout.edges.map((e) => ({ source: e.source, target: e.target }))
     : layoutMatchFlow(flat).edges.map((e) => ({ source: e.source, target: e.target }))
-  const edges = sanitizeCanvasEdges(flat, rawEdges)
+  return sanitizeCanvasEdges(flat, rawEdges)
+}
 
-  const resolved = canvasEdgesToMatch(flat, edges)
-  // Parameter Nodes are eval-neutral and must not require START/FEED wires —
-  // reattach any panels from the authored tree so applyParameters can see them.
+/** Effective rules for a single ingress origin (pool = START, scout, substitute, source-N). */
+export function resolveFeedMatchForIngress(
+  feed: Pick<FeedConfig, 'match' | 'visualLayout'>,
+  ingress: import('@cfb/core-types').FeedIngressOrigin,
+): L2RuleGroup {
+  const flat = flattenTopLevelMatch(feed.match)
+  if (!feed.visualLayout) {
+    return ingress === 'pool' ? feed.match : { ...flat, logic: 'any', children: [] }
+  }
+
+  const origin =
+    ingress === 'pool' ? 'start' : ingress
+  const edges = resolveCanvasEdges(feed)
+  const resolved = canvasEdgesToMatchForOrigin(flat, edges, origin)
   const panels = collectParameterNodes(feed.match)
   if (panels.length === 0) return resolved
   const existing = new Set(collectParameterNodes(resolved).map((p) => p.id))

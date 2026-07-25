@@ -66,6 +66,8 @@ export {
 export { flowGraphToMatch, matchRoundTripEquals } from './roundtrip.js'
 export {
   canvasEdgesToMatch,
+  canvasEdgesToMatchForOrigin,
+  enumeratePathsFromOrigin,
   enumeratePathsStartToEnd,
   defaultEdgesForTopLevelNode,
   edgesWouldCycle,
@@ -75,6 +77,7 @@ export {
   isTopLevelCanvasNode,
   normalizeCanvasFeedStorage,
   resolveFeedMatch,
+  resolveFeedMatchForIngress,
   sanitizeCanvasEdges,
   type FlowCanvasEdge,
 } from './canvas-match.js'

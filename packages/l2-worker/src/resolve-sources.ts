@@ -2,6 +2,56 @@ import type { FeedConfig, NativeFeedSource, NormalizedPost } from '@cfb/core-typ
 import type pg from 'pg'
 
 /**
+ * Resolve posts from one native source index for a feed.
+ */
+export async function resolveNativeSourcePosts(
+  pool: pg.Pool,
+  feed: FeedConfig,
+  sourceIndex: number,
+  limit: number = 1000,
+): Promise<NormalizedPost[]> {
+  const source = feed.sources?.native?.[sourceIndex]
+  if (!source) return []
+  return resolveOneSource(pool, source, feed.feedId, limit)
+}
+
+/**
+ * Evaluate posts pulled from configured native sources (source-0, source-1, …).
+ */
+export async function processNativeSourcesForFeeds(
+  pool: pg.Pool,
+  feeds: FeedConfig[],
+  matchedProjectIds: string[],
+): Promise<{ evaluated: number; matched: number; written: number }> {
+  const { processPostForFeeds } = await import('./process-post.js')
+  let evaluated = 0
+  let matched = 0
+  let written = 0
+
+  for (const feed of feeds) {
+    if (!feed.enabled) continue
+    const native = feed.sources?.native
+    if (!native?.length) continue
+    for (let i = 0; i < native.length; i++) {
+      const nodeId = `source-${i}` as `source-${number}`
+      const hasCanvasPath = (feed.visualLayout?.edges ?? []).some((e) => e.source === nodeId)
+      if (!hasCanvasPath) continue
+      const posts = await resolveNativeSourcePosts(pool, feed, i, 500)
+      for (const post of posts) {
+        const r = await processPostForFeeds(pool, post, matchedProjectIds, [feed], {
+          ingress: nodeId,
+        })
+        evaluated += r.evaluated
+        matched += r.matched
+        written += r.written
+      }
+    }
+  }
+
+  return { evaluated, matched, written }
+}
+
+/**
  * Resolve posts from all configured native sources for a feed.
  * Returns normalized posts ready for L2 evaluation.
  */

@@ -8,6 +8,9 @@ import type {
   SubstituteFeedSource,
   SubstitutePathwayConfig,
 } from '@cfb/core-types'
+import { scoutSourceEnabled, substituteSourceEnabled } from '@cfb/core-types'
+
+export { scoutSourceEnabled, substituteSourceEnabled } from '@cfb/core-types'
 
 export function defaultScoutFeedSource(): ScoutFeedSource {
   return {
@@ -90,12 +93,4 @@ export function liftDiscoveryConditionsToSources(feed: FeedConfig): FeedConfig {
 
   const nextMatch = removeNodesFromMatch(feed.match, new Set(['scout', 'substitute']))
   return { ...feed, sources, match: nextMatch }
-}
-
-export function scoutSourceEnabled(sources?: FeedConfig['sources']): boolean {
-  return Boolean(sources?.scout?.enabled ?? sources?.scout)
-}
-
-export function substituteSourceEnabled(sources?: FeedConfig['sources']): boolean {
-  return Boolean(sources?.substitute?.enabled ?? sources?.substitute)
 }

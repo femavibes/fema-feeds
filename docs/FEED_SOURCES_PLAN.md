@@ -202,11 +202,11 @@ Optional later: match pool panel, feed editor sidebar, community stats — **not
 
 ### Phase 3 — Ingest / eval rewire
 
-- [ ] Multi-origin path resolution from canvas edges
-- [ ] Scout handler → eval scout paths (remove condition-node merge)
-- [ ] Substitution → promote → eval substitute paths only (remove skipDiscovery)
-- [ ] Wire `resolveSourcePosts` for native sources through same pipeline
-- [ ] L1 widen when substitute source enabled on feed
+- [x] Multi-origin path resolution from canvas edges
+- [x] Scout handler → eval scout paths (reads `sources.scout` + legacy nodes)
+- [x] Substitution → promote → eval substitute paths only (no skipDiscovery)
+- [x] Wire `resolveSourcePosts` for native sources through same pipeline
+- [x] L1 widen when substitute source enabled on feed
 
 ### Phase 4 — Cleanup
 

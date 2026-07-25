@@ -173,8 +173,7 @@ async function runReeval(
             matches: projectIds.map((pid) => ({ projectId: pid, matched: true, matchedVia: 'jetstream' as const, trace: [] })),
           }).catch(() => {})
           const tr = await processPostForFeeds(pool, target, projectIds, feeds, {
-            skipDiscovery: true,
-            matchedVia: 'substitute',
+            ingress: 'substitute',
             substituteDirection: direction,
           })
           evaluated += tr.evaluated

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest'
 import type { L2RuleGroup } from '@cfb/core-types'
 import {
   canvasEdgesToMatch,
+  enumeratePathsFromOrigin,
   enumeratePathsStartToEnd,
   resolveFeedMatch,
+  resolveFeedMatchForIngress,
   sanitizeCanvasEdges,
 } from './canvas-match.js'
 
@@ -80,6 +82,38 @@ describe('canvas-match', () => {
       expect(path.logic).toBe('all')
       expect(path.children.map((c) => c.id)).toEqual(['lb1', 'ht1'])
     }
+  })
+
+  it('finds scout-origin paths separately from start', () => {
+    const paths = enumeratePathsFromOrigin(
+      [
+        { source: 'start', target: 'kw-dog' },
+        { source: 'kw-dog', target: 'end' },
+        { source: 'scout', target: 'lb-porn' },
+        { source: 'lb-porn', target: 'end' },
+      ],
+      'scout',
+    )
+    expect(paths).toEqual([['lb-porn']])
+  })
+
+  it('pool ingress excludes scout-only paths', () => {
+    const feed = {
+      match: baseMatch,
+      visualLayout: {
+        positions: {},
+        edges: [
+          { id: 'e1', source: 'start', target: 'kw-dog', branch: true },
+          { id: 'e2', source: 'kw-dog', target: 'end', branch: true },
+          { id: 'e3', source: 'scout', target: 'lb-porn', branch: true },
+          { id: 'e4', source: 'lb-porn', target: 'end', branch: true },
+        ],
+      },
+    }
+    const poolMatch = resolveFeedMatchForIngress(feed, 'pool')
+    const scoutMatch = resolveFeedMatchForIngress(feed, 'scout')
+    expect(poolMatch.children).toHaveLength(1)
+    expect(scoutMatch.children).toHaveLength(1)
   })
 
   it('drops stale wires to nested nodes after reparenting into a group', () => {

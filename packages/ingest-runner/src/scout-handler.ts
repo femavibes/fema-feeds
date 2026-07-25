@@ -1,4 +1,5 @@
 import type { FeedConfig, NormalizedPost, ProjectL1Config, ScoutDiscoveryConfig, ScoutInteractionType, L2RuleNode } from '@cfb/core-types'
+import { scoutSourceEnabled } from '@cfb/core-types'
 import { ScoutSignalCounter, type ScoutPersistence, type ScoutTrigger } from '@cfb/l2-worker'
 import {
   getIngestedPost,
@@ -96,9 +97,18 @@ export function createScoutHandler(
       let maxPostAgeHours = project.scoutDiscovery?.maxPostAgeHours
       let maxPendingSignals = project.scoutDiscovery?.maxPendingSignals
 
-      // Collect scout nodes from feeds belonging to this project
+      let autoDerive = project.scoutDiscovery?.autoDerive
+
+      // Collect scouts from feed sources + legacy match-tree scout nodes
       const projectFeeds = (options.feeds ?? []).filter((f) => f.projectId === project.projectId && f.enabled)
       for (const feed of projectFeeds) {
+        const scoutSource = feed.sources?.scout
+        if (scoutSourceEnabled(feed.sources)) {
+          for (const did of scoutSource!.scouts ?? []) allScouts.add(did)
+          if (!threshold) threshold = scoutSource!.threshold
+          if (!maxPostAgeHours && scoutSource!.maxPostAgeHours) maxPostAgeHours = scoutSource!.maxPostAgeHours
+          if (!autoDerive && scoutSource!.autoDerive) autoDerive = scoutSource!.autoDerive
+        }
         for (const node of walkNodes(feed.match)) {
           if (node.type === 'scout') {
             for (const did of node.scouts ?? []) allScouts.add(did)
@@ -108,12 +118,13 @@ export function createScoutHandler(
         }
       }
 
-      if (allScouts.size === 0 || !threshold) continue
+      if (!threshold) continue
+      if (allScouts.size === 0 && !autoDerive) continue
 
       const cfg: ScoutDiscoveryConfig = {
         enabled: true,
         scouts: [...allScouts],
-        autoDerive: project.scoutDiscovery?.autoDerive,
+        autoDerive,
         threshold,
         maxPostAgeHours,
         maxPendingSignals,
@@ -226,14 +237,22 @@ export function createScoutHandler(
   async function refreshAutoDerived(): Promise<void> {
     for (const project of lastConfigs) {
       if (!project.enabled) continue
-      const autoDerive = project.scoutDiscovery?.autoDerive
-      if (!autoDerive) continue
       const counter = counters.get(project.projectId)
       if (!counter) continue
+
+      let autoDerive = project.scoutDiscovery?.autoDerive
+      const manual = new Set(project.scoutDiscovery?.scouts ?? [])
+      for (const feed of options.feeds ?? []) {
+        if (feed.projectId !== project.projectId || !feed.enabled) continue
+        const scoutSource = feed.sources?.scout
+        if (scoutSourceEnabled(feed.sources) && scoutSource?.autoDerive) {
+          autoDerive = autoDerive ?? scoutSource.autoDerive
+          for (const did of scoutSource.scouts ?? []) manual.add(did)
+        }
+      }
+      if (!autoDerive) continue
       const derived = await deriveScoutDids(pool, project.projectId, autoDerive.source, autoDerive.count)
       if (derived.length > 0) {
-        // Merge with manual scouts
-        const manual = project.scoutDiscovery?.scouts ?? []
         const merged = [...new Set([...manual, ...derived])]
         counter.updateScouts(merged)
       }

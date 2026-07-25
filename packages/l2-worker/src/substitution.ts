@@ -7,6 +7,7 @@
  * in the same branch as the substitute node.
  */
 import type { FeedConfig, L2EvalInput, L2NodeTrace, L2RuleNode, L2SubstituteCondition, NormalizedPost, SubstitutionDirection } from '@cfb/core-types'
+import { substituteSourceEnabled } from '@cfb/core-types'
 import type pg from 'pg'
 import {
   insertSubstitutionVote,
@@ -29,6 +30,41 @@ export interface SubstituteNodeInfo {
   timeWindowHours: number
   /** Sibling conditions that must pass for this substitution to fire. */
   siblings: L2RuleNode[]
+}
+
+export interface SubstitutePathwayInfo {
+  feedId: string
+  projectId: string
+  pathwayId: string
+  direction: SubstitutionDirection
+  threshold: number
+  timeWindowHours: number
+  /** Legacy match-tree nodes only — canvas source pathways skip sibling gating on votes. */
+  siblings?: L2RuleNode[]
+}
+
+/** Collect vote pathways from sources.substitute or legacy substitute condition nodes. */
+export function collectSubstitutePathways(feed: FeedConfig): SubstitutePathwayInfo[] {
+  const sub = feed.sources?.substitute
+  if (substituteSourceEnabled(feed.sources) && sub?.pathways?.length) {
+    return sub.pathways.map((p, i) => ({
+      feedId: feed.feedId,
+      projectId: feed.projectId,
+      pathwayId: `substitute-${p.direction}-${i}`,
+      direction: p.direction,
+      threshold: p.threshold,
+      timeWindowHours: p.timeWindowHours ?? 0,
+    }))
+  }
+  return collectSubstituteNodes(feed).map((node) => ({
+    feedId: node.feedId,
+    projectId: node.projectId,
+    pathwayId: node.pathwayId,
+    direction: node.direction,
+    threshold: node.threshold,
+    timeWindowHours: node.timeWindowHours,
+    siblings: node.siblings,
+  }))
 }
 
 /** Walk a feed's rule tree and collect all Substitute nodes with their pathway siblings. */
@@ -182,14 +218,14 @@ export async function processSubstitution(
   }
 
   for (const feed of applicableFeeds) {
-    const subNodes = collectSubstituteNodes(feed)
+    const subNodes = collectSubstitutePathways(feed)
     if (subNodes.length === 0) continue
 
     for (const node of subNodes) {
       if (!postMatchesDirection(post, node.direction)) continue
 
-      // Evaluate sibling conditions — only fire if post matches the pathway
-      if (node.siblings.length > 0 && !postPassesSiblings(post, node.siblings)) continue
+      // Legacy: sibling conditions on match-tree substitute nodes.
+      if (node.siblings?.length && !postPassesSiblings(post, node.siblings)) continue
 
       if (isInverseDirection(node.direction)) {
         // Inverse: post references a pool post → the arriving post is the candidate

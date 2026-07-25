@@ -269,6 +269,11 @@ export {
   type FeedSourcesConfig,
   MATCH_VIA_PRIORITY,
   preferMatchVia,
+  type FeedIngressOrigin,
+  ingressOriginToCanvasNode,
+  scoutSourceEnabled,
+  substituteSourceEnabled,
+  matchedViaForIngress,
 } from './feed-sources.js'
 export * from './backfill.js'
 export * from './substitution.js'

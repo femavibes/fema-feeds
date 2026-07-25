@@ -36,6 +36,38 @@ export function preferMatchVia(
   return MATCH_VIA_PRIORITY[incoming] >= MATCH_VIA_PRIORITY[current] ? incoming : current
 }
 
+/** Canvas / eval ingress origin — maps to a source node id on the visual editor. */
+export type FeedIngressOrigin = 'pool' | 'scout' | 'substitute' | `source-${number}`
+
+export function ingressOriginToCanvasNode(origin: FeedIngressOrigin): string {
+  return origin === 'pool' ? 'start' : origin
+}
+
+export function scoutSourceEnabled(sources?: FeedSourcesConfig): boolean {
+  return Boolean(sources?.scout && (sources.scout.enabled ?? true))
+}
+
+export function substituteSourceEnabled(sources?: FeedSourcesConfig): boolean {
+  return Boolean(sources?.substitute && (sources.substitute.enabled ?? true))
+}
+
+export function matchedViaForIngress(
+  ingress: FeedIngressOrigin,
+  feed: { sources?: FeedSourcesConfig },
+): FeedCandidateMatchVia {
+  if (ingress === 'pool') return 'pool'
+  if (ingress === 'scout') return 'scout'
+  if (ingress === 'substitute') return 'substitute'
+  const m = /^source-(\d+)$/.exec(ingress)
+  if (m) {
+    const src = feed.sources?.native?.[Number(m[1])]
+    if (src?.type === 'feed') return 'feed'
+    if (src?.type === 'project_pool') return 'project_pool'
+    if (src?.type === 'static_uri_list') return 'static_uri'
+  }
+  return 'pool'
+}
+
 /** Native feed source — provides additional posts for evaluation without custom code. */
 export type NativeFeedSource = ProjectPoolSource | FeedCandidateSource | StaticUriListSource
 

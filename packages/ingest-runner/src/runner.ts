@@ -26,6 +26,7 @@ import { backfillPostEngagement, startEngagementRefresh, type EngagementRefreshS
 import type { EnrichmentSettings, FeedConfig } from '@cfb/core-types'
 import {
   matchedProjectIdsFromL1,
+  processNativeSourcesForFeeds,
   processPostForFeeds,
   processSubstitution,
   resolveTargetPost,
@@ -238,6 +239,10 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
     strictGateState = buildStrictGates(configs, feeds, logicBlockPkgs)
     // Reload scout handler with updated configs
     scoutHandler?.reload(configs)
+    if (pool && feeds.length > 0) {
+      const projectIds = configs.filter((c) => c.enabled).map((c) => c.projectId)
+      void processNativeSourcesForFeeds(pool, feeds, projectIds).catch(() => undefined)
+    }
   }
 
   function resetSessionCounters(): void {
@@ -450,8 +455,7 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
                                 matchedProjectIdsFromL1(matched),
                                 feeds,
                                 {
-                                  skipDiscovery: true,
-                                  matchedVia: 'substitute',
+                                  ingress: 'substitute',
                                   substituteDirection: direction,
                                 },
                               ).then(
@@ -568,7 +572,7 @@ export function createIngestRunner(options: IngestRunnerOptions): IngestRunner {
           const projectMatches = [{ projectId, matched: true, matchedVia: 'jetstream' as const, trace: [] }]
           await persistL1Matches(pool, { post, matches: projectMatches })
           if (feeds.length === 0) return true
-          const r = await processPostForFeeds(pool, post, [projectId], feeds, { matchedVia: 'scout' })
+          const r = await processPostForFeeds(pool, post, [projectId], feeds, { ingress: 'scout' })
           l2Evaluated += r.evaluated
           l2Matched += r.matched
           l2Written += r.written

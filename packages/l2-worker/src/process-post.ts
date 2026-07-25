@@ -1,11 +1,13 @@
 import type {
   FeedCandidateMatchVia,
   FeedConfig,
+  FeedIngressOrigin,
   L1ProjectResult,
   NormalizedPost,
   SubstitutionDirection,
 } from '@cfb/core-types'
-import { resolveFeedMatch } from '@cfb/l2-graph'
+import { matchedViaForIngress, scoutSourceEnabled, substituteSourceEnabled } from '@cfb/core-types'
+import { resolveFeedMatchForIngress } from '@cfb/l2-graph'
 import { evaluateFeedL2 } from '@cfb/l2-eval'
 import type pg from 'pg'
 import { deleteFeedCandidate, upsertFeedCandidate, recordFeedParamMatch } from '@cfb/storage-postgres'
@@ -48,10 +50,42 @@ function feedsForPost(
   )
 }
 
+function feedsForIngress(
+  feeds: FeedConfig[],
+  matchedProjectIds: string[],
+  ingress: FeedIngressOrigin,
+): FeedConfig[] {
+  const applicable = feedsForPost(feeds, matchedProjectIds)
+  switch (ingress) {
+    case 'scout':
+      return applicable.filter((f) => scoutSourceEnabled(f.sources))
+    case 'substitute':
+      return applicable.filter((f) => substituteSourceEnabled(f.sources))
+    default:
+      if (/^source-\d+$/.test(ingress)) {
+        const index = Number(ingress.slice('source-'.length))
+        return applicable.filter((f) => {
+          const native = f.sources?.native
+          if (!native?.[index]) return false
+          const nodeId = `source-${index}`
+          const edges = f.visualLayout?.edges ?? []
+          return edges.some((e) => e.source === nodeId)
+        })
+      }
+      return applicable
+  }
+}
+
+export function resolveMatchForEval(feed: FeedConfig, ingress: FeedIngressOrigin = 'pool') {
+  return resolveFeedMatchForIngress(feed, ingress)
+}
+
 export interface ProcessPostOptions {
-  /** When true, discovery nodes auto-pass (for substitution targets). @deprecated — use source paths instead. */
+  /** Ingress path to evaluate (default pool / START). */
+  ingress?: FeedIngressOrigin
+  /** @deprecated Use ingress-specific canvas paths instead. */
   skipDiscovery?: boolean
-  /** Ingress attribution for feed_candidates stats (default pool). */
+  /** Override matched_via (defaults from ingress). */
   matchedVia?: FeedCandidateMatchVia
   substituteDirection?: SubstitutionDirection
 }
@@ -63,7 +97,8 @@ export async function processPostForFeeds(
   feeds: FeedConfig[],
   options?: ProcessPostOptions,
 ): Promise<ProcessPostResult> {
-  const applicable = feedsForPost(feeds, matchedProjectIds)
+  const ingress = options?.ingress ?? 'pool'
+  const applicable = feedsForIngress(feeds, matchedProjectIds, ingress)
   if (applicable.length === 0) {
     return { evaluated: 0, matched: 0, written: 0, matchedFeedIds: [] }
   }
@@ -96,12 +131,15 @@ export async function processPostForFeeds(
       mentionDids: mentionByFeed[feed.feedId],
       followRings: followRingSetsByFeed[feed.feedId],
     })
-    const result = evaluateFeedL2(post, { ...feedForEval, match: resolveFeedMatch(feedForEval) }, {
+    const match = resolveMatchForEval(feedForEval, ingress)
+    const result = evaluateFeedL2(post, { ...feedForEval, match }, {
       ...evalInput,
       ...(options?.skipDiscovery ? { skipDiscovery: true } : {}),
     })
     if (!result.matched) {
-      await deleteFeedCandidate(pool, feed.feedId, post.uri)
+      if (ingress === 'pool') {
+        await deleteFeedCandidate(pool, feed.feedId, post.uri)
+      }
       continue
     }
     matched++
@@ -114,7 +152,7 @@ export async function processPostForFeeds(
       score: sortKey,
       sortKey,
       postIndexedAt: postIndexedAtDate(post),
-      matchedVia: options?.matchedVia ?? 'pool',
+      matchedVia: options?.matchedVia ?? matchedViaForIngress(ingress, feed),
       substituteDirection: options?.substituteDirection,
     })
     written++

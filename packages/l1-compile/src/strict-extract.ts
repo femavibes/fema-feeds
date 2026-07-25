@@ -15,7 +15,8 @@ import type {
   LogicBlockRef,
 } from '@cfb/core-types'
 import { isIngestEligibleNodeType, isViewerFollowRing, nodeRunsAtIngest } from '@cfb/core-types'
-import { applyParametersToMatch, resolveFeedMatch } from '@cfb/l2-graph'
+import { applyParametersToMatch, resolveFeedMatchForIngress } from '@cfb/l2-graph'
+import { substituteSourceEnabled } from '@cfb/core-types'
 import { branchFromPrefilterNode } from './compile-prefilter.js'
 import { dnfPathsFromRule } from './ingest-path-dnf.js'
 
@@ -115,7 +116,7 @@ export function extractStrictIncludePaths(
 ): IngestGateBranch[][] {
   if (!feed.enabled) return []
 
-  const match = applyParametersToMatch(resolveFeedMatch(feed))
+  const match = applyParametersToMatch(resolveFeedMatchForIngress(feed, 'pool'))
   const orChildren: L2RuleNode[] = match.logic === 'any' ? match.children : [match]
   const paths: IngestGateBranch[][] = []
 
@@ -125,11 +126,10 @@ export function extractStrictIncludePaths(
     paths.push(...dnfPathsFromRule(compiled))
   }
 
-  // Note: substitute nodes do NOT inject a blanket post_kind allowance.
-  // Instead, if substitution needs replies/quotes, we widen any post_kind
-  // restrictions in existing paths so that replies/quotes matching keywords
-  // can still enter the pool (substitution fires at L2 on posts that pass L1).
-  const subKinds = collectSubstitutionKinds(match)
+  const subKinds = new Set<'reply' | 'quote'>([
+    ...collectSubstitutionKindsFromSource(feed),
+    ...collectSubstitutionKinds(match),
+  ])
   if (subKinds.size > 0) {
     for (const path of paths) {
       for (const branch of path) {
@@ -145,7 +145,26 @@ export function extractStrictIncludePaths(
   return paths.filter((p) => p.length > 0)
 }
 
-/** Collect post kinds needed by substitute nodes in a rule tree (for reference only). */
+/** Collect post kinds needed by substitute source pathways. */
+function collectSubstitutionKindsFromSource(feed: FeedConfig): Set<'reply' | 'quote'> {
+  const kinds = new Set<'reply' | 'quote'>()
+  if (!substituteSourceEnabled(feed.sources)) return kinds
+  for (const p of feed.sources!.substitute!.pathways ?? []) {
+    if (
+      p.direction === 'reply_to_root' ||
+      p.direction === 'reply_to_parent' ||
+      p.direction === 'replied_to_repliers'
+    ) {
+      kinds.add('reply')
+    }
+    if (p.direction === 'quote_to_quoted' || p.direction === 'quoted_to_quoters') {
+      kinds.add('quote')
+    }
+  }
+  return kinds
+}
+
+/** Collect post kinds needed by substitute nodes in a rule tree (legacy). */
 function collectSubstitutionKinds(node: L2RuleNode): Set<'reply' | 'quote'> {
   const kinds = new Set<'reply' | 'quote'>()
   function walk(n: L2RuleNode): void {
@@ -170,7 +189,8 @@ export function collectSubstitutionKindsFromFeeds(feeds: FeedConfig[]): Set<'rep
   const kinds = new Set<'reply' | 'quote'>()
   for (const feed of feeds) {
     if (!feed.enabled) continue
-    const match = resolveFeedMatch(feed)
+    for (const k of collectSubstitutionKindsFromSource(feed)) kinds.add(k)
+    const match = resolveFeedMatchForIngress(feed, 'pool')
     for (const k of collectSubstitutionKinds(match)) kinds.add(k)
   }
   return kinds
