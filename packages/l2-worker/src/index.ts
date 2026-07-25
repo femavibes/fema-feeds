@@ -41,7 +41,6 @@ export { listProjectPoolPosts, type ProjectPoolResult } from './list-project-poo
 export { resolveSourcePosts, resolveNativeSourcePosts, processNativeSourcesForFeeds } from './resolve-sources.js'
 
 export {
-  collectSubstituteNodes,
   collectSubstitutePathways,
   resolveTargetUri,
   resolveInverseSourceUri,
@@ -49,7 +48,6 @@ export {
   isInverseDirection,
   processSubstitution,
   resolveTargetPost,
-  type SubstituteNodeInfo,
   type SubstitutePathwayInfo,
   type SubstitutionResult,
   type ResolvedSubstitutionTarget,

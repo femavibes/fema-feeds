@@ -9,7 +9,7 @@ import {
   purgeOutOfScopeCandidates,
 } from '@cfb/storage-postgres'
 import { processPostForFeeds } from './process-post.js'
-import { collectSubstituteNodes, processSubstitution, resolveTargetPost } from './substitution.js'
+import { collectSubstitutePathways, processSubstitution, resolveTargetPost } from './substitution.js'
 
 /** Fetch a post from Bluesky public API for substitution target resolution. */
 async function fetchPostFromApi(uri: string): Promise<NormalizedPost | null> {
@@ -127,7 +127,7 @@ async function runReeval(
   let written = 0
 
   // Check if any feed has substitute nodes
-  const hasSubNodes = feeds.some((f) => collectSubstituteNodes(f).length > 0)
+  const hasSubstitute = feeds.some((f) => collectSubstitutePathways(f).length > 0)
 
   // Get total count for progress
   progress.total = await countPoolForFeed(pool, options.projectId)
@@ -163,7 +163,7 @@ async function runReeval(
       written += result.written
 
       // Process substitution for existing replies
-      if (hasSubNodes) {
+      if (hasSubstitute) {
         const sub = await processSubstitution(pool, post, projectIds, feeds)
         for (const { targetUri, direction } of sub.resolved) {
           const target = await resolveTargetPost(pool, targetUri, fetchPostFromApi)

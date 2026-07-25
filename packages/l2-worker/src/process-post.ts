@@ -83,8 +83,6 @@ export function resolveMatchForEval(feed: FeedConfig, ingress: FeedIngressOrigin
 export interface ProcessPostOptions {
   /** Ingress path to evaluate (default pool / START). */
   ingress?: FeedIngressOrigin
-  /** @deprecated Use ingress-specific canvas paths instead. */
-  skipDiscovery?: boolean
   /** Override matched_via (defaults from ingress). */
   matchedVia?: FeedCandidateMatchVia
   substituteDirection?: SubstitutionDirection
@@ -132,10 +130,7 @@ export async function processPostForFeeds(
       followRings: followRingSetsByFeed[feed.feedId],
     })
     const match = resolveMatchForEval(feedForEval, ingress)
-    const result = evaluateFeedL2(post, { ...feedForEval, match }, {
-      ...evalInput,
-      ...(options?.skipDiscovery ? { skipDiscovery: true } : {}),
-    })
+    const result = evaluateFeedL2(post, { ...feedForEval, match }, evalInput)
     if (!result.matched) {
       if (ingress === 'pool') {
         await deleteFeedCandidate(pool, feed.feedId, post.uri)

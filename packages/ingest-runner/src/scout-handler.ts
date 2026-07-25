@@ -1,4 +1,4 @@
-import type { FeedConfig, NormalizedPost, ProjectL1Config, ScoutDiscoveryConfig, ScoutInteractionType, L2RuleNode } from '@cfb/core-types'
+import type { FeedConfig, NormalizedPost, ProjectL1Config, ScoutDiscoveryConfig, ScoutInteractionType } from '@cfb/core-types'
 import { scoutSourceEnabled } from '@cfb/core-types'
 import { ScoutSignalCounter, type ScoutPersistence, type ScoutTrigger } from '@cfb/l2-worker'
 import {
@@ -16,15 +16,6 @@ import {
 } from '@cfb/storage-postgres'
 import { resolveActorsToDids, isActorDid } from '@cfb/profile-enrich'
 import type pg from 'pg'
-
-/** Walk all nodes in a rule tree. */
-function walkNodes(node: L2RuleNode): L2RuleNode[] {
-  const out: L2RuleNode[] = [node]
-  if (node.type === 'group') {
-    for (const child of node.children) out.push(...walkNodes(child))
-  }
-  return out
-}
 
 export interface ScoutHandlerStats {
   signals: number
@@ -99,7 +90,7 @@ export function createScoutHandler(
 
       let autoDerive = project.scoutDiscovery?.autoDerive
 
-      // Collect scouts from feed sources + legacy match-tree scout nodes
+      // Collect scouts from feed sources (Sources tab)
       const projectFeeds = (options.feeds ?? []).filter((f) => f.projectId === project.projectId && f.enabled)
       for (const feed of projectFeeds) {
         const scoutSource = feed.sources?.scout
@@ -108,13 +99,6 @@ export function createScoutHandler(
           if (!threshold) threshold = scoutSource!.threshold
           if (!maxPostAgeHours && scoutSource!.maxPostAgeHours) maxPostAgeHours = scoutSource!.maxPostAgeHours
           if (!autoDerive && scoutSource!.autoDerive) autoDerive = scoutSource!.autoDerive
-        }
-        for (const node of walkNodes(feed.match)) {
-          if (node.type === 'scout') {
-            for (const did of node.scouts ?? []) allScouts.add(did)
-            if (!threshold) threshold = node.threshold
-            if (!maxPostAgeHours && node.maxPostAgeHours) maxPostAgeHours = node.maxPostAgeHours
-          }
         }
       }
 

@@ -4,7 +4,6 @@ import { api } from '../../api/client'
 import {
   defaultScoutFeedSource,
   defaultSubstituteFeedSource,
-  liftDiscoveryConditionsToSources,
 } from '../../lib/feed-source-defaults'
 import { ScoutSourceEditor, SubstituteSourceEditor } from './DiscoverySourceEditors'
 import { ToggleRow } from '../ToggleRow'
@@ -36,23 +35,9 @@ export function NativeSourcesPanel({ draft, onChange }: Props) {
     onChange({ ...draft, sources: { ...sourcesConfig, ...patch } })
   }
 
-  const enableScout = () => {
-    const lifted = liftDiscoveryConditionsToSources(draft)
-    if (lifted.sources?.scout) {
-      onChange(lifted)
-      return
-    }
-    updateSourcesConfig({ scout: defaultScoutFeedSource() })
-  }
+  const enableScout = () => updateSourcesConfig({ scout: defaultScoutFeedSource() })
 
-  const enableSubstitute = () => {
-    const lifted = liftDiscoveryConditionsToSources(draft)
-    if (lifted.sources?.substitute) {
-      onChange(lifted)
-      return
-    }
-    updateSourcesConfig({ substitute: defaultSubstituteFeedSource() })
-  }
+  const enableSubstitute = () => updateSourcesConfig({ substitute: defaultSubstituteFeedSource() })
 
   const scout = sourcesConfig.scout
   const substitute = sourcesConfig.substitute

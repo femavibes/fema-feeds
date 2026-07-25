@@ -210,9 +210,9 @@ Optional later: match pool panel, feed editor sidebar, community stats — **not
 
 ### Phase 4 — Cleanup
 
-- [ ] Remove scout/substitute from condition palette and `l2-eval` no-op passes
-- [ ] Migrate existing feeds: condition node → source config (one-time or lazy)
-- [ ] Update SCOUT_DISCOVERY.md, SUBSTITUTION.md → point here
+- [x] Remove scout/substitute runtime from condition nodes and `skipDiscovery`
+- [x] Deprecated UI for leftover match-tree scout/substitute nodes
+- [ ] Update SCOUT_DISCOVERY.md, SUBSTITUTION.md → point to FEED_SOURCES_PLAN.md
 - [ ] Match pool / preview: show attribution in summary
 
 ### Phase 5 — Stats UI

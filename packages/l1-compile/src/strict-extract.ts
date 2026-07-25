@@ -126,10 +126,7 @@ export function extractStrictIncludePaths(
     paths.push(...dnfPathsFromRule(compiled))
   }
 
-  const subKinds = new Set<'reply' | 'quote'>([
-    ...collectSubstitutionKindsFromSource(feed),
-    ...collectSubstitutionKinds(match),
-  ])
+  const subKinds = collectSubstitutionKindsFromSource(feed)
   if (subKinds.size > 0) {
     for (const path of paths) {
       for (const branch of path) {
@@ -164,34 +161,11 @@ function collectSubstitutionKindsFromSource(feed: FeedConfig): Set<'reply' | 'qu
   return kinds
 }
 
-/** Collect post kinds needed by substitute nodes in a rule tree (legacy). */
-function collectSubstitutionKinds(node: L2RuleNode): Set<'reply' | 'quote'> {
-  const kinds = new Set<'reply' | 'quote'>()
-  function walk(n: L2RuleNode): void {
-    if (n.type === 'substitute') {
-      if (n.direction === 'reply_to_root' || n.direction === 'reply_to_parent' || n.direction === 'replied_to_repliers') {
-        kinds.add('reply')
-      }
-      if (n.direction === 'quote_to_quoted' || n.direction === 'quoted_to_quoters') {
-        kinds.add('quote')
-      }
-    }
-    if (n.type === 'group') {
-      for (const child of n.children) walk(child)
-    }
-  }
-  walk(node)
-  return kinds
-}
-
-/** Collect substitution kinds across all feeds (for widening restrictBranches). */
 export function collectSubstitutionKindsFromFeeds(feeds: FeedConfig[]): Set<'reply' | 'quote'> {
   const kinds = new Set<'reply' | 'quote'>()
   for (const feed of feeds) {
     if (!feed.enabled) continue
     for (const k of collectSubstitutionKindsFromSource(feed)) kinds.add(k)
-    const match = resolveFeedMatchForIngress(feed, 'pool')
-    for (const k of collectSubstitutionKinds(match)) kinds.add(k)
   }
   return kinds
 }

@@ -66,11 +66,6 @@ function trace(
   return outcome === 'pass'
 }
 
-/** Discovery nodes prove topical relevance — skipped for substitution targets. */
-function isDiscoveryNode(type: L2RuleNode['type']): boolean {
-  return type === 'keyword' || type === 'regex' || type === 'hashtag' || type === 'url' || type === 'text'
-}
-
 function evalText(node: L2TextCondition, ctx: L2RuntimeContext): boolean {
   const hay = node.caseInsensitive !== false ? ctx.post.text.toLowerCase() : ctx.post.text
   const needle = node.caseInsensitive !== false ? node.value.toLowerCase() : node.value
@@ -419,24 +414,10 @@ export function evalRuleNode(
     return true
   }
 
-  // Substitute node: at L2 eval time, this is a no-op pass.
-  // Actual vote recording + target resolution happens at ingest time.
-  if (node.type === 'substitute') {
-    trace(traces, node, 'pass', `substitute ${node.direction} (threshold: ${node.threshold})`)
-    return true
-  }
-
-  // Scout node: at L2 eval time, this is a no-op pass.
-  // Actual signal tracking + discovery happens via engagement Jetstream.
-  if (node.type === 'scout') {
-    trace(traces, node, 'pass', `scout discovery (${node.scouts?.length ?? 0} manual, threshold: ${node.threshold.min}-${node.threshold.max})`)
-    return true
-  }
-
-  // skipDiscovery: discovery nodes auto-pass for substitution targets
-  if (input.skipDiscovery && isDiscoveryNode(node.type)) {
-    trace(traces, node, 'pass', 'skipDiscovery (proven by source)')
-    return true
+  // Deprecated match-tree discovery nodes — use Sources tab ingress instead.
+  if (node.type === 'substitute' || node.type === 'scout') {
+    trace(traces, node, 'fail', 'deprecated — remove node; configure Scout/Substitute on Sources tab')
+    return false
   }
 
   let ok = false
