@@ -1,6 +1,6 @@
 import type { FeedConfig, NormalizedPost, ProjectL1Config, ScoutDiscoveryConfig, ScoutInteractionType } from '@cfb/core-types'
 import { scoutSourceEnabled } from '@cfb/core-types'
-import { ScoutSignalCounter, type ScoutPersistence, type ScoutTrigger } from '@cfb/l2-worker'
+import { ScoutSignalCounter, type ScoutPersistence, type ScoutTrigger, loadAuthorListDids } from '@cfb/l2-worker'
 import {
   getIngestedPost,
   deriveScoutDids,
@@ -78,37 +78,79 @@ export function createScoutHandler(
   let lastConfigs = projects
   buildCounters(projects)
 
+  interface ProjectScoutMerge {
+    manual: Set<string>
+    listIds: Set<string>
+    autoDerive?: ScoutDiscoveryConfig['autoDerive']
+  }
+
+  function collectProjectScoutMerge(project: ProjectL1Config): ProjectScoutMerge {
+    const manual = new Set<string>(project.scoutDiscovery?.scouts ?? [])
+    const listIds = new Set<string>()
+    if (project.scoutDiscovery?.listId) listIds.add(project.scoutDiscovery.listId)
+
+    let autoDerive = project.scoutDiscovery?.autoDerive
+    const projectFeeds = (options.feeds ?? []).filter(
+      (f) => f.projectId === project.projectId && f.enabled,
+    )
+    for (const feed of projectFeeds) {
+      const scoutSource = feed.sources?.scout
+      if (!scoutSourceEnabled(feed.sources) || !scoutSource) continue
+      for (const did of scoutSource.scouts ?? []) manual.add(did)
+      if (scoutSource.listId) listIds.add(scoutSource.listId)
+      if (!autoDerive && scoutSource.autoDerive) autoDerive = scoutSource.autoDerive
+    }
+    return { manual, listIds, autoDerive }
+  }
+
+  async function resolveScoutDidSet(merge: ProjectScoutMerge): Promise<string[]> {
+    const manual = [...merge.manual]
+    const resolvedDids = manual.filter((s) => isActorDid(s))
+    const unresolved = manual.filter((s) => !isActorDid(s))
+    const [handleDids, listDids] = await Promise.all([
+      unresolved.length > 0 ? resolveActorsToDids(unresolved) : Promise.resolve([] as string[]),
+      merge.listIds.size > 0 ? loadAuthorListDids(pool, [...merge.listIds]) : Promise.resolve([] as string[]),
+    ])
+    return [...new Set([...resolvedDids, ...handleDids.filter(Boolean), ...listDids])]
+  }
+
+  function applyScoutSet(counter: ScoutSignalCounter, merge: ProjectScoutMerge): void {
+    void resolveScoutDidSet(merge).then((dids) => {
+      if (dids.length > 0) counter.updateScouts(dids)
+    }).catch(() => {})
+  }
+
   function buildCounters(configs: ProjectL1Config[]): void {
     const next = new Map<string, ScoutSignalCounter>()
     for (const project of configs) {
       if (!project.enabled) continue
-      // Merge scouts from project config + feed-level scout nodes
-      const allScouts = new Set<string>(project.scoutDiscovery?.scouts ?? [])
+
       let threshold = project.scoutDiscovery?.threshold
       let maxPostAgeHours = project.scoutDiscovery?.maxPostAgeHours
       let maxPendingSignals = project.scoutDiscovery?.maxPendingSignals
+      const merge = collectProjectScoutMerge(project)
 
-      let autoDerive = project.scoutDiscovery?.autoDerive
-
-      // Collect scouts from feed sources (Sources tab)
-      const projectFeeds = (options.feeds ?? []).filter((f) => f.projectId === project.projectId && f.enabled)
+      const projectFeeds = (options.feeds ?? []).filter(
+        (f) => f.projectId === project.projectId && f.enabled,
+      )
       for (const feed of projectFeeds) {
         const scoutSource = feed.sources?.scout
-        if (scoutSourceEnabled(feed.sources)) {
-          for (const did of scoutSource!.scouts ?? []) allScouts.add(did)
-          if (!threshold) threshold = scoutSource!.threshold
-          if (!maxPostAgeHours && scoutSource!.maxPostAgeHours) maxPostAgeHours = scoutSource!.maxPostAgeHours
-          if (!autoDerive && scoutSource!.autoDerive) autoDerive = scoutSource!.autoDerive
+        if (scoutSourceEnabled(feed.sources) && scoutSource) {
+          if (!threshold) threshold = scoutSource.threshold
+          if (!maxPostAgeHours && scoutSource.maxPostAgeHours) {
+            maxPostAgeHours = scoutSource.maxPostAgeHours
+          }
         }
       }
 
       if (!threshold) continue
-      if (allScouts.size === 0 && !autoDerive) continue
+      if (merge.manual.size === 0 && merge.listIds.size === 0 && !merge.autoDerive) continue
 
       const cfg: ScoutDiscoveryConfig = {
         enabled: true,
-        scouts: [...allScouts],
-        autoDerive,
+        scouts: [...merge.manual],
+        listId: merge.listIds.size === 1 ? [...merge.listIds][0] : undefined,
+        autoDerive: merge.autoDerive,
         threshold,
         maxPostAgeHours,
         maxPendingSignals,
@@ -116,7 +158,6 @@ export function createScoutHandler(
 
       const projectId = project.projectId
 
-      // Persistence callbacks
       const persistence: ScoutPersistence = {
         onSignal: (targetUri, scoutDid, interaction) => {
           void upsertScoutSignal(pool, projectId, targetUri, scoutDid, interaction).catch(() => {})
@@ -131,24 +172,15 @@ export function createScoutHandler(
         },
       }
 
-      // Filter to only resolved DIDs for the counter; resolve handles async after
-      const resolvedDids = cfg.scouts!.filter((s) => isActorDid(s))
-      const counter = new ScoutSignalCounter(cfg, resolvedDids, () => false, persistence)
+      const initialDids = cfg.scouts!.filter((s) => isActorDid(s))
+      const counter = new ScoutSignalCounter(cfg, initialDids, () => false, persistence)
       next.set(projectId, counter)
 
-      // Load persisted signals from DB (non-blocking)
       void loadScoutSignals(pool, projectId).then((signals) => {
         counter.loadSignals(signals)
       }).catch(() => {})
 
-      // Resolve handles in background
-      const unresolved = cfg.scouts!.filter((s) => !isActorDid(s))
-      if (unresolved.length > 0) {
-        void resolveActorsToDids(unresolved).then((dids) => {
-          const merged = [...new Set([...resolvedDids, ...dids.filter(Boolean)])]
-          counter.updateScouts(merged)
-        }).catch(() => {})
-      }
+      applyScoutSet(counter, merge)
     }
     counters = next
   }
@@ -224,22 +256,20 @@ export function createScoutHandler(
       const counter = counters.get(project.projectId)
       if (!counter) continue
 
-      let autoDerive = project.scoutDiscovery?.autoDerive
-      const manual = new Set(project.scoutDiscovery?.scouts ?? [])
-      for (const feed of options.feeds ?? []) {
-        if (feed.projectId !== project.projectId || !feed.enabled) continue
-        const scoutSource = feed.sources?.scout
-        if (scoutSourceEnabled(feed.sources) && scoutSource?.autoDerive) {
-          autoDerive = autoDerive ?? scoutSource.autoDerive
-          for (const did of scoutSource.scouts ?? []) manual.add(did)
+      const merge = collectProjectScoutMerge(project)
+      let dids = await resolveScoutDidSet(merge)
+      if (merge.autoDerive) {
+        const derived = await deriveScoutDids(
+          pool,
+          project.projectId,
+          merge.autoDerive.source,
+          merge.autoDerive.count,
+        )
+        if (derived.length > 0) {
+          dids = [...new Set([...dids, ...derived])]
         }
       }
-      if (!autoDerive) continue
-      const derived = await deriveScoutDids(pool, project.projectId, autoDerive.source, autoDerive.count)
-      if (derived.length > 0) {
-        const merged = [...new Set([...manual, ...derived])]
-        counter.updateScouts(merged)
-      }
+      if (dids.length > 0) counter.updateScouts(dids)
     }
   }
 

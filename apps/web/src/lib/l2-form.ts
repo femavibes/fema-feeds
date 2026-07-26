@@ -549,6 +549,17 @@ export function cloneNodeWithNewIds(node: L2RuleNode): L2RuleNode {
   return cloned
 }
 
+/** Author list IDs referenced by author conditions and scout sources on a feed. */
+export function collectFeedAuthorListReferences(feed: {
+  match: import('@cfb/core-types').L2RuleGroup
+  sources?: import('@cfb/core-types').FeedSourcesConfig
+}): Set<string> {
+  const ids = collectAuthorListIdsFromMatch(feed.match)
+  const scoutListId = feed.sources?.scout?.listId
+  if (scoutListId) ids.add(scoutListId)
+  return ids
+}
+
 /** Author list IDs referenced by author conditions anywhere in the feed rule tree. */
 export function collectAuthorListIdsFromMatch(root: L2RuleGroup): Set<string> {
   const ids = new Set<string>()

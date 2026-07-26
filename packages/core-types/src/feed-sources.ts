@@ -100,7 +100,10 @@ export interface SubscribedSourceConfig {
 export interface ScoutFeedSource {
   type: 'scout'
   enabled?: boolean
+  /** Manual scout DIDs/handles (unioned with list members). */
   scouts?: string[]
+  /** Cached author list id (feed.authorLists or project authorLists) — same as author node. */
+  listId?: string
   autoDerive?: ScoutAutoDeriveConfig
   threshold: ScoutThresholdConfig
   maxPostAgeHours?: number

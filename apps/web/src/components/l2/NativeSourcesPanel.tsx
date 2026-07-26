@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
-import type { FeedConfig, NativeFeedSource } from '@cfb/core-types'
+import type { AuthorListConfig, FeedConfig, NativeFeedSource } from '@cfb/core-types'
+import type { ListCacheEntry } from '../../api/client'
 import { api } from '../../api/client'
+import { pruneFeedAuthorLists } from '../../lib/author-lists'
+import { collectFeedAuthorListReferences } from '../../lib/l2-form'
 import {
   defaultScoutFeedSource,
   defaultSubstituteFeedSource,
@@ -10,9 +13,22 @@ import { ScoutSourceEditor, SubstituteSourceEditor } from './DiscoverySourceEdit
 interface Props {
   draft: FeedConfig
   onChange: (next: FeedConfig) => void
+  projectId: string
+  projectAuthorLists?: AuthorListConfig[]
+  listCache?: ListCacheEntry[]
+  onRefreshList?: (listId: string) => Promise<void>
+  onListCacheInvalidate?: () => void | Promise<void>
 }
 
-export function NativeSourcesPanel({ draft, onChange }: Props) {
+export function NativeSourcesPanel({
+  draft,
+  onChange,
+  projectId,
+  projectAuthorLists = [],
+  listCache = [],
+  onRefreshList,
+  onListCacheInvalidate,
+}: Props) {
   const sourcesConfig = draft.sources ?? {}
   const poolScope = draft.poolScope ?? 'project_only'
   const sources = sourcesConfig.native ?? []
@@ -36,6 +52,39 @@ export function NativeSourcesPanel({ draft, onChange }: Props) {
 
   const removeNativeSource = (index: number) => {
     updateNativeSources(sources.filter((_, i) => i !== index))
+  }
+
+  const handleScoutFeedUpdate = (
+    lists: NonNullable<FeedConfig['authorLists']>,
+    nextScout: NonNullable<FeedConfig['sources']>['scout'],
+  ) => {
+    const referenced = collectFeedAuthorListReferences({
+      match: draft.match,
+      sources: { ...sourcesConfig, scout: nextScout },
+    })
+    const pruned = pruneFeedAuthorLists(lists, referenced)
+    onChange({
+      ...draft,
+      authorLists: pruned.length ? pruned : undefined,
+      sources: { ...sourcesConfig, scout: nextScout },
+    })
+  }
+
+  const updateScoutSource = (nextScout: NonNullable<FeedConfig['sources']>['scout']) => {
+    if (!nextScout) {
+      updateSourcesConfig({ scout: undefined })
+      return
+    }
+    const referenced = collectFeedAuthorListReferences({
+      match: draft.match,
+      sources: { ...sourcesConfig, scout: nextScout },
+    })
+    const pruned = pruneFeedAuthorLists(draft.authorLists ?? [], referenced)
+    onChange({
+      ...draft,
+      authorLists: pruned.length ? pruned : undefined,
+      sources: { ...sourcesConfig, scout: nextScout },
+    })
   }
 
   const hasScout = Boolean(scout)
@@ -80,54 +129,6 @@ export function NativeSourcesPanel({ draft, onChange }: Props) {
             No additional sources. Only the default pool feeds into evaluation.
           </p>
         )}
-
-        {scout ? (
-          <div className="native-injector-card">
-            <div className="injector-card">
-              <div className="injector-card-head">
-                <span className="injector-card-type">🔭 Scout</span>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => updateSourcesConfig({ scout: undefined })}
-                  aria-label="Remove scout source"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="injector-card-body">
-                <ScoutSourceEditor
-                  value={scout}
-                  onChange={(next) => updateSourcesConfig({ scout: next })}
-                />
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {substitute ? (
-          <div className="native-injector-card">
-            <div className="injector-card">
-              <div className="injector-card-head">
-                <span className="injector-card-type">↪ Substitute</span>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => updateSourcesConfig({ substitute: undefined })}
-                  aria-label="Remove substitute source"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="injector-card-body">
-                <SubstituteSourceEditor
-                  value={substitute}
-                  onChange={(next) => updateSourcesConfig({ substitute: next })}
-                />
-              </div>
-            </div>
-          </div>
-        ) : null}
 
         {sources.map((src, i) => (
           <div key={i} className="native-injector-card">
@@ -200,6 +201,67 @@ export function NativeSourcesPanel({ draft, onChange }: Props) {
           </div>
         ))}
 
+        {substitute ? (
+          <div className="native-injector-card">
+            <div className="injector-card">
+              <div className="injector-card-head">
+                <span className="injector-card-type">↪ Substitute</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => updateSourcesConfig({ substitute: undefined })}
+                  aria-label="Remove substitute source"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="injector-card-body">
+                <SubstituteSourceEditor
+                  value={substitute}
+                  onChange={(next) => updateSourcesConfig({ substitute: next })}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {scout ? (
+          <div className="native-injector-card">
+            <div className="injector-card">
+              <div className="injector-card-head">
+                <span className="injector-card-type">🔭 Scout</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => updateSourcesConfig({ scout: undefined })}
+                  aria-label="Remove scout source"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="injector-card-body">
+                <ScoutSourceEditor
+                  value={scout}
+                  onChange={updateScoutSource}
+                  projectId={projectId}
+                  feedId={draft.feedId}
+                  projectAuthorLists={projectAuthorLists}
+                  feedAuthorLists={draft.authorLists ?? []}
+                  onFeedAuthorListsChange={(lists) => {
+                    const referenced = collectFeedAuthorListReferences(draft)
+                    const pruned = pruneFeedAuthorLists(lists, referenced)
+                    onChange({ ...draft, authorLists: pruned.length ? pruned : undefined })
+                  }}
+                  onScoutFeedUpdate={handleScoutFeedUpdate}
+                  listCache={listCache}
+                  onRefreshList={onRefreshList}
+                  onListCacheInvalidate={onListCacheInvalidate}
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {addMode === 'feed' && (
           <AddFeedForm
             onAdd={(feedId) => {
@@ -230,24 +292,6 @@ export function NativeSourcesPanel({ draft, onChange }: Props) {
 
         {!addMode && (
           <div className="native-injector-actions" style={{ marginTop: '0.5rem' }}>
-            {!hasScout ? (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => updateSourcesConfig({ scout: defaultScoutFeedSource() })}
-              >
-                + Scout
-              </button>
-            ) : null}
-            {!hasSubstitute ? (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => updateSourcesConfig({ substitute: defaultSubstituteFeedSource() })}
-              >
-                + Substitute
-              </button>
-            ) : null}
             <button
               type="button"
               className="btn btn-secondary btn-sm"
@@ -269,6 +313,24 @@ export function NativeSourcesPanel({ draft, onChange }: Props) {
             >
               + Static URIs
             </button>
+            {!hasSubstitute ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => updateSourcesConfig({ substitute: defaultSubstituteFeedSource() })}
+              >
+                + Substitute
+              </button>
+            ) : null}
+            {!hasScout ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => updateSourcesConfig({ scout: defaultScoutFeedSource() })}
+              >
+                + Scout
+              </button>
+            ) : null}
           </div>
         )}
       </section>

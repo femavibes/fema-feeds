@@ -2,192 +2,185 @@
 
 ## Problem
 
-Feeds need to discover relevant content beyond what Jetstream delivers directly. Substitution handles reply→root promotion, but there's no mechanism to find entirely new posts that the community would find relevant.
+Feeds need content beyond what Jetstream and L1 filters deliver directly. Substitution promotes related posts from reply/quote chains; scout discovery finds **entirely new posts** that trusted accounts engage with elsewhere on the network.
 
 ## Solution
 
-**Scouts** are accounts whose engagement signals (likes, reposts, replies) indicate content relevance for a feed. When multiple distinct scouts interact with the same post within a time window, that post is fetched and evaluated through the normal L1+L2 pipeline.
+**Scout** is a feed **source ingress** (Sources tab + canvas):
 
-## How It Works
+```
+SCOUT → [logic…] → FEED
+```
 
-1. A feed/project defines a set of **scout DIDs** (manual or auto-derived)
-2. The engagement Jetstream stream already delivers like/repost events with actor DIDs
-3. When a scout interacts with a post NOT already in the pool, a signal is recorded
-4. Signals accumulate per target URI in a co-occurrence counter
-5. When the threshold is met (scaling formula), the post is fetched and run through eval
+**Scouts** are accounts whose likes and reposts signal relevance. When enough **distinct scouts** interact with the same **external** post within a scaling time window, that post is fetched and evaluated on the **SCOUT path only**.
 
-## Scout Sources
+There is **no `skipDiscovery`**. Scout co-engagement decides *which* post to fetch; canvas wiring decides *whether* it lands on the feed (same model as START and SUBSTITUTE).
 
-| Source | Description |
-|--------|-------------|
-| `manual` | Explicitly configured DIDs |
-| `top_pool_authors` | Authors with the most posts in the project pool |
-| `top_engagers` | Accounts that most frequently like/repost pool posts |
+---
 
-Auto-derived scouts are refreshed on a cadence (e.g. every 6 hours).
+## How it works
 
-## Co-Occurrence Counter
+1. Configure scouts on the **Sources** tab (+ Scout): manual accounts, auto-derive, and/or both.
+2. Ingest listens to the **engagement Jetstream** (likes + reposts).
+3. When `actorDid` is in the scout set and interacts with `subjectUri`, a signal is recorded (if not already triggered).
+4. Signals accumulate per target URI (distinct scouts only).
+5. When the scaling threshold is met → fetch post → persist to pool → eval SCOUT path → maybe `feed_candidates` with `matched_via = 'scout'`.
 
-In-memory map: `Map<targetUri, SignalAccumulator>`
+Scout watches **what scouts engage with**, not everything scouts post.
+
+---
+
+## Scout selection
+
+### Manual accounts and Bluesky lists
+
+Add DIDs or handles on the Sources tab, and/or attach a **Bluesky list** (curation list, mod list, or starter pack). List members are synced via the same `author_list_cache` / list poll worker as the author node — stored on `feed.authorLists`, referenced by `sources.scout.listId`.
+
+Manual accounts, list members, and auto-derived scouts are **unioned** into the project scout set at ingest.
+
+### Auto-derive (from project pool)
+
+Refreshed about every **6 hours**:
+
+| Source | Meaning |
+|--------|---------|
+| `top_pool_authors` | Authors with the **most posts in the project pool** |
+| `top_engagers` | Accounts who **most often like/repost posts already in the pool** |
+
+`top_engagers` is **not** engagement on the scout’s own posts. It measures **their** likes/reposts **on pool content** (from `engagement_events`). Falls back to `top_pool_authors` if engagement tracking is unavailable.
+
+Auto-derived DIDs are **unioned** with manual scouts.
+
+### Per-feed config
+
+Scout config lives on each feed’s `sources.scout`. Enabled feeds contribute scouts and threshold settings to the project’s ingest handler (merged scout set, first threshold wins when not set at project level).
+
+---
+
+## Co-occurrence counter
+
+In-memory map: `Map<targetUri, SignalEntry>`
 
 ```ts
-interface SignalAccumulator {
-  /** Distinct scout DIDs that interacted */
-  scouts: Map<scoutDid, InteractionType>
-  /** Timestamp of first signal (clock starts here) */
+interface SignalEntry {
+  scouts: Map<scoutDid, InteractionType>  // distinct scouts
   firstSignalAt: number
-  /** Timestamp of most recent signal */
   lastSignalAt: number
 }
 ```
 
-**Diversity requirement**: Each scout counts once regardless of how many times they interact. A scout who likes AND reposts the same post = 1 distinct signal (though interaction type is tracked for tiebreaking).
+- Each scout counts **once** per target (like + repost = 1 scout).
+- Interaction weights (like 1.0, repost 1.3) are for **tiebreaking only**, not threshold math.
+- Replies are defined in types but **not** wired from the engagement stream today (likes + reposts only).
 
-## Scaling Threshold Formula
+Signals persist in `scout_signals` (loaded on startup, deleted on trigger/sweep).
 
-The required number of distinct scouts scales from `min` to `max` based on elapsed time since the first signal.
+---
 
-### Linear
+## Scaling threshold
 
-```
-elapsed = now - firstSignalAt
-progress = clamp(elapsed / scaleWindowMs, 0, 1)
-required = min + (max - min) * progress
-```
+Required distinct scouts scales from `min` to `max` over `scaleWindowMinutes`:
 
-### Curved (rewards early bursts)
+**Linear:** `required = min + (max - min) * clamp(elapsed / window, 0, 1)`
 
-```
-progress = clamp(elapsed / scaleWindowMs, 0, 1) ^ exponent
-required = min + (max - min) * progress
-```
+**Curved:** progress is raised to `exponent` (default 1.5) before scaling — rewards early bursts.
 
-Default exponent: 1.5 (slower climb early, faster late).
+**Trigger:** `distinctScouts >= required`
 
-| Time (60min window) | Linear required | Curved (1.5) required |
-|---------------------|-----------------|----------------------|
-| 0 min | min (3) | min (3) |
-| 15 min | ~4.3 | ~3.6 |
-| 30 min | ~5.5 | ~4.3 |
-| 45 min | ~6.8 | ~5.6 |
-| 60 min+ | max (8) | max (8) |
+Also configurable: `maxPostAgeHours` (sweep stale signals), `maxPendingSignals` (memory cap).
 
-**Trigger condition**: `distinctScouts >= required` at any point.
+---
 
-## Interaction Weights (Tiebreaking Only)
+## Trigger → eval pipeline
 
-When multiple posts hit threshold simultaneously, interaction type breaks ties:
+When threshold is met:
 
-| Interaction | Weight |
-|-------------|--------|
-| like | 1.0 |
-| repost | 1.3 |
-| reply | 1.2 |
+1. If post **already in pool** → **stop** (no scout-path eval, no re-run for existing pool rows).
+2. Fetch via `app.bsky.feed.getPostThread`
+3. Normalize → `persistL1Matches`
+4. `processPostForFeeds(..., { ingress: 'scout' })`
+5. On match → `feed_candidates` with `matched_via = 'scout'`
 
-These do NOT affect whether a post triggers — only priority ordering when batch-processing.
+### Pre-existing pool posts
 
-## Configuration
+Scout is **forward-looking**, not a pool scanner:
 
-Scouts can be configured in two ways:
+| Scenario | Behavior |
+|----------|----------|
+| Post **not** in pool; scouts hit threshold | Fetch + SCOUT path eval |
+| Post **already** in pool when threshold fires | Trigger skipped — **no** scout ingress eval |
+| Scouts engage with a pool post | Signals may accumulate, but promotion is a no-op at trigger time |
+| Enable scout on a feed with existing pool | **No** retroactive scout pass (unlike substitute reeval) |
 
-### 1. Visual Editor (L2 Scout Node)
+To get pool posts onto the feed via scout logic, they would need to enter through START, substitute, native sources, or a manual reeval on the appropriate ingress — scout only fires on **new** fetches from engagement signals.
 
-Drop a **Scout discovery** node onto the feed canvas. The node's inspector configures:
-- Manual scout DIDs
-- Auto-derive settings
-- Threshold (min/max/window/curve)
-- Max post age
+---
 
-At L2 eval time, the scout node auto-passes (like substitute). The actual discovery happens via the engagement Jetstream stream.
-
-Multiple feeds in the same project can each have scout nodes — their scout DIDs are merged into a single set per project.
-
-### 2. Project-Level Config
+## Config shape
 
 ```ts
-interface ScoutDiscoveryConfig {
-  enabled: boolean
-  scouts?: string[]
+interface ScoutFeedSource {
+  type: 'scout'
+  enabled?: boolean
+  scouts?: string[]           // manual DIDs/handles
   autoDerive?: {
     source: 'top_pool_authors' | 'top_engagers'
     count: number
-    refreshIntervalMinutes?: number  // default 360 (6h)
   }
   threshold: {
     min: number
     max: number
     scaleWindowMinutes: number
     curve: 'linear' | 'curved'
-    exponent?: number     // for curved, default 1.5
+    exponent?: number
   }
-  maxPostAgeHours?: number  // default 48
-  maxPendingSignals?: number  // default 10000
+  maxPostAgeHours?: number
 }
 ```
 
-Project-level config and feed-level scout nodes are merged: all scout DIDs are unioned, and the first threshold found is used if the project doesn't define one.
+Legacy **Scout condition nodes** in the match tree are deprecated. Legacy project-level `scoutDiscovery` may still merge into ingest until fully removed.
 
-## Integration Points
+---
 
-### Engagement Jetstream (existing)
+## Canvas
 
-The `EngagementEvent` interface gains an `actorDid` field. The scout system hooks into the same stream — when `actorDid ∈ scoutSet` and `subjectUri ∉ pool`, record a signal.
+1. **Sources** → + Scout → configure scouts + threshold
+2. **Canvas** → drag **SCOUT** ingress → wire keyword / language / labels / … → **FEED**
 
-### Trigger → Eval Pipeline
+Posts co-engaged by scouts only appear if they pass the SCOUT path you wired.
 
-When threshold is met:
-1. Fetch post via `app.bsky.feed.getPostThread` (same as substitution)
-2. Normalize via `@cfb/post-normalize`
-3. Persist to pool via `persistL1Matches`
-4. Run L2 eval on all enabled feeds for the project (normal eval, NOT skipDiscovery — scouts don't prove topical relevance the way substitution does)
+---
 
-**Key difference from substitution**: scout-discovered posts run FULL L2 eval (discovery + gates). They're candidates, not pre-validated.
+## Follow ring discover mode (related, separate)
 
-### Memory Management
+Follow ring `role: 'discover'` pulls recent posts **authored by** ring members via `getAuthorFeed` polling — “what they post” vs scout’s “what they engage with.”
 
-- Signals are evicted when `maxPostAgeHours` is exceeded (periodic sweep)
-- `maxPendingSignals` caps the map size (LRU eviction of oldest-first-signal entries)
-- On runner restart, counter resets (acceptable — signals are ephemeral)
+Not a scout ingress; documented here because both extend discovery beyond Jetstream L1.
 
-## Follow Ring Discover Mode
+---
 
-Separate from scouts but related: the follow ring gains `role: 'filter' | 'discover'`.
+## Stats
 
-- `role: 'filter'` (default) — existing behavior, gates incoming posts to only those authored by ring members
-- `role: 'discover'` — periodically pulls recent posts from ring members (the hub's followers/follows/both) via `getAuthorFeed` API, runs them through L1+L2
-- Only valid for `hubSource: 'account'` (viewer mode stays filter-only)
-- Polling interval: 30 minutes (configurable)
-- Per poll: fetches 3 ring members' recent posts (rotates through the full ring)
-- New posts are persisted to pool and run through full L2 eval
+Ingest runner exposes scout stats: signals, triggers, fetched, evalPass, evalFail, errors.
 
-Example: hub = `community.bsky.social`, direction = `followers`
-- Filter mode: only posts from accounts that follow `community.bsky.social` pass
-- Discover mode: actively fetch recent posts from accounts that follow `community.bsky.social` and evaluate them
+Candidate rows: `matched_via = 'scout'`.
 
-This is a simpler discovery mechanism: "show me what these community members posted" vs scouts' "show me what the community is engaging with."
+---
 
-## Future Extensions
+## Implementation status
 
-- **Scout tiers**: weight scouts differently based on their historical hit rate
-- **Cross-project scouts**: share scout signals across projects with overlapping topics
+- [x] `ScoutSignalCounter`, scaling threshold, persistence (`scout_signals`)
+- [x] `createScoutHandler` — engagement Jetstream hook, per-project counters
+- [x] Auto-derive (`deriveScoutDids`, `engagement_events` for top engagers)
+- [x] Feed source ingress (`sources.scout`) + canvas SCOUT node
+- [x] Bluesky list support (`listId` + `feed.authorLists`, same as author node)
+- [x] `processPostForFeeds` with `ingress: 'scout'` and `matched_via` attribution
+- [x] Legacy scout condition nodes deprecated
+- [ ] Match pool UI: “N via scout” breakdown
 
-## Implementation Status
+---
 
-- [x] Core types: `ScoutDiscoveryConfig`, `L2ScoutCondition`, `ScoutThresholdConfig`
-- [x] Follow ring: `role: 'filter' | 'discover'` on `FollowRingFilterConfig` and `L2FollowRingCondition`
-- [x] `ScoutSignalCounter` — in-memory co-occurrence counter with linear + curved scaling
-- [x] `computeRequiredScouts()` — threshold formula (14 unit tests)
-- [x] `EngagementEvent.actorDid` — actor DID flows through from Jetstream
-- [x] `createScoutHandler` — merges scouts from project config + feed-level scout nodes
-- [x] Handle resolution — DIDs used immediately, handles resolved async via `resolveActorsToDids`
-- [x] Auto-derive scouts — `deriveScoutDids` queries top pool authors or top engagers, refreshes every 6h
-- [x] Scout stats in `IngestRunnerStatus` — signals, triggers, fetched, evalPass, evalFail, errors
-- [x] Scout stats in web UI — "N scout discoveries" in ingest live stats
-- [x] Visual editor: Scout discovery node in palette (Scoring category)
-- [x] Scout inspector UI: individual account inputs (TermListEditor), min/max threshold, scale window, curve, exponent, max post age
-- [x] Follow ring discover mode: `discoverFromRing()` with round-robin rotation through ring members
-- [x] Follow ring discover polling job: 30-min interval, 3 authors per ring per cycle
-- [x] Follow ring role selector in visual editor (filter/discover dropdown)
-- [x] Persistent signals — `scout_signals` table, loaded on startup, upserted on signal, deleted on trigger/sweep
-- [x] `engagement_events` table — records actor DIDs on pool post engagement, enables `top_engagers` auto-derive
-- [x] Individual scout account inputs (TermListEditor) — replaces textarea in inspector
+## Related docs
+
+- [FEED_SOURCES_PLAN.md](./FEED_SOURCES_PLAN.md) — unified ingress model
+- [SUBSTITUTION.md](./SUBSTITUTION.md) — substitute promotion (complementary)

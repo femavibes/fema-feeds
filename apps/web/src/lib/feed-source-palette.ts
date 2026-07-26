@@ -5,18 +5,8 @@ import { scoutSourceEnabled, substituteSourceEnabled } from './feed-source-defau
 export function buildPaletteSourceEntries(sources?: FeedSourcesConfig): PaletteSourceEntry[] {
   const entries: PaletteSourceEntry[] = []
 
-  if (scoutSourceEnabled(sources) && sources?.scout) {
-    const scoutCount = sources.scout.scouts?.length ?? 0
-    const derive = sources.scout.autoDerive
-    entries.push({
-      kind: 'source',
-      sourceId: 'scout',
-      sourceType: 'scout',
-      label: 'Scout',
-      description: derive
-        ? `Auto scouts + ${scoutCount} manual`
-        : `${scoutCount} scout account${scoutCount === 1 ? '' : 's'}`,
-    })
+  for (const [i, src] of (sources?.native ?? []).entries()) {
+    entries.push(nativeSourceToPaletteEntry(src, i))
   }
 
   if (substituteSourceEnabled(sources) && sources?.substitute) {
@@ -30,8 +20,22 @@ export function buildPaletteSourceEntries(sources?: FeedSourcesConfig): PaletteS
     })
   }
 
-  for (const [i, src] of (sources?.native ?? []).entries()) {
-    entries.push(nativeSourceToPaletteEntry(src, i))
+  if (scoutSourceEnabled(sources) && sources?.scout) {
+    const scout = sources.scout
+    const scoutCount = scout.scouts?.length ?? 0
+    const derive = scout.autoDerive
+    const listNote = scout.listId ? ' + list' : ''
+    entries.push({
+      kind: 'source',
+      sourceId: 'scout',
+      sourceType: 'scout',
+      label: 'Scout',
+      description: derive
+        ? `Auto scouts + ${scoutCount} manual${listNote}`
+        : scout.listId
+          ? `Bluesky list + ${scoutCount} manual scout${scoutCount === 1 ? '' : 's'}`
+          : `${scoutCount} scout account${scoutCount === 1 ? '' : 's'}`,
+    })
   }
 
   return entries

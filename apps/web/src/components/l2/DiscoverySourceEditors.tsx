@@ -1,9 +1,13 @@
 import type {
+  AuthorListConfig,
+  FeedAuthorListConfig,
   ScoutFeedSource,
   SubstituteFeedSource,
   SubstitutePathwayConfig,
   SubstitutionDirection,
 } from '@cfb/core-types'
+import type { ListCacheEntry } from '../../api/client'
+import { ScoutListAttachEditor } from './ScoutListAttachEditor'
 import { TermListEditor } from '../TermListEditor'
 
 const SUBSTITUTION_DIRECTIONS: { value: SubstitutionDirection; label: string }[] = [
@@ -40,9 +44,31 @@ interface ScoutEditorProps {
   value: ScoutFeedSource
   onChange: (next: ScoutFeedSource) => void
   readOnly?: boolean
+  projectId: string
+  feedId?: string
+  projectAuthorLists?: AuthorListConfig[]
+  feedAuthorLists?: FeedAuthorListConfig[]
+  onFeedAuthorListsChange?: (lists: FeedAuthorListConfig[]) => void
+  onScoutFeedUpdate?: (lists: FeedAuthorListConfig[], scout: ScoutFeedSource) => void
+  listCache?: ListCacheEntry[]
+  onRefreshList?: (listId: string) => Promise<void>
+  onListCacheInvalidate?: () => void | Promise<void>
 }
 
-export function ScoutSourceEditor({ value, onChange, readOnly }: ScoutEditorProps) {
+export function ScoutSourceEditor({
+  value,
+  onChange,
+  readOnly,
+  projectId,
+  feedId,
+  projectAuthorLists = [],
+  feedAuthorLists = [],
+  onFeedAuthorListsChange,
+  onScoutFeedUpdate,
+  listCache = [],
+  onRefreshList,
+  onListCacheInvalidate,
+}: ScoutEditorProps) {
   return (
     <div className="discovery-source-editor">
       <label className="l2-condition-field">
@@ -99,11 +125,27 @@ export function ScoutSourceEditor({ value, onChange, readOnly }: ScoutEditorProp
               disabled={readOnly}
             />
           </label>
-          <p className="card-hint">Auto-derived scouts refresh every 6 hours. You can also add manual scouts below.</p>
+          <p className="card-hint">Auto-derived scouts refresh every 6 hours. You can also add a list or manual scouts below.</p>
         </>
       ) : null}
+      {onFeedAuthorListsChange ? (
+        <ScoutListAttachEditor
+          scout={value}
+          onChange={onChange}
+          feedAuthorLists={feedAuthorLists}
+          onFeedAuthorListsChange={onFeedAuthorListsChange}
+          onScoutFeedUpdate={onScoutFeedUpdate}
+          projectAuthorLists={projectAuthorLists}
+          listCache={listCache}
+          projectId={projectId}
+          feedId={feedId}
+          onRefreshList={onRefreshList}
+          onListCacheInvalidate={onListCacheInvalidate}
+          readOnly={readOnly}
+        />
+      ) : null}
       <label className="l2-condition-field">
-        {value.autoDerive ? 'Additional scout accounts (optional)' : 'Scout accounts'}
+        {value.autoDerive || value.listId ? 'Additional scout accounts (optional)' : 'Scout accounts'}
       </label>
       <div className="term-list-scroll scrollbar-modern l2-scout-accounts-scroll">
         <TermListEditor

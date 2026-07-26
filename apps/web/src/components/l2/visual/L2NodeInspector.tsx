@@ -7,7 +7,7 @@ import {
 
   L2_GROUP_LOGIC,
 
-  collectAuthorListIdsFromMatch,
+  collectFeedAuthorListReferences,
 
   findInMatch,
 
@@ -302,11 +302,29 @@ export function L2PropertiesInspector({
     selected?.type === 'author' && onPatchDraft
       ? (lists: FeedAuthorListConfig[], node: L2AuthorCondition) => {
           const nextMatch = updateInMatch(match, selected.id, node)
-          const referenced = collectAuthorListIdsFromMatch(nextMatch)
+          const referenced = collectFeedAuthorListReferences({
+            match: nextMatch,
+            sources: draft.sources,
+          })
           const pruned = pruneFeedAuthorLists(lists, referenced)
           onPatchDraft({
             authorLists: pruned.length ? pruned : undefined,
             match: nextMatch,
+          })
+        }
+      : undefined
+
+  const applyScoutFeedUpdate =
+    ingressSourceId === 'scout' && onPatchDraft
+      ? (lists: FeedAuthorListConfig[], scout: NonNullable<FeedConfig['sources']>['scout']) => {
+          const referenced = collectFeedAuthorListReferences({
+            match,
+            sources: { ...draft.sources, scout },
+          })
+          const pruned = pruneFeedAuthorLists(lists, referenced)
+          onPatchDraft({
+            authorLists: pruned.length ? pruned : undefined,
+            sources: { ...draft.sources, scout },
           })
         }
       : undefined
@@ -418,9 +436,40 @@ export function L2PropertiesInspector({
                 {ingressSourceId === 'scout' && draft.sources?.scout ? (
                   <ScoutSourceEditor
                     value={draft.sources.scout}
-                    onChange={(scout) =>
-                      onPatchDraft({ sources: { ...draft.sources, scout } })
+                    onChange={(scout) => {
+                      if (!onPatchDraft) return
+                      const referenced = collectFeedAuthorListReferences({
+                        match,
+                        sources: { ...draft.sources, scout },
+                      })
+                      const pruned = pruneFeedAuthorLists(draft.authorLists ?? [], referenced)
+                      onPatchDraft({
+                        sources: { ...draft.sources, scout },
+                        authorLists: pruned.length ? pruned : undefined,
+                      })
+                    }}
+                    onScoutFeedUpdate={applyScoutFeedUpdate}
+                    projectId={draft.projectId}
+                    feedId={draft.feedId}
+                    projectAuthorLists={projectAuthorLists}
+                    feedAuthorLists={draft.authorLists ?? []}
+                    onFeedAuthorListsChange={
+                      onPatchDraft
+                        ? (lists) => {
+                            const referenced = collectFeedAuthorListReferences({
+                              match,
+                              sources: draft.sources,
+                            })
+                            const pruned = pruneFeedAuthorLists(lists, referenced)
+                            onPatchDraft({
+                              authorLists: pruned.length ? pruned : undefined,
+                            })
+                          }
+                        : undefined
                     }
+                    listCache={listCache ?? []}
+                    onRefreshList={onRefreshList}
+                    onListCacheInvalidate={onListsChanged}
                     readOnly={readOnly}
                   />
                 ) : null}
@@ -923,7 +972,10 @@ export function L2PropertiesInspector({
                     )
                     const nextMatch = updateInMatch(match, selected.id, authored)
                     if (authored.type === 'author' && onPatchDraft) {
-                      const referenced = collectAuthorListIdsFromMatch(nextMatch)
+                      const referenced = collectFeedAuthorListReferences({
+                        match: nextMatch,
+                        sources: draft.sources,
+                      })
                       const pruned = pruneFeedAuthorLists(draft.authorLists ?? [], referenced)
                       onPatchDraft({
                         match: nextMatch,
@@ -968,7 +1020,10 @@ export function L2PropertiesInspector({
                   onFeedAuthorListsChange={
                     onPatchDraft
                       ? (lists) => {
-                          const referenced = collectAuthorListIdsFromMatch(match)
+                          const referenced = collectFeedAuthorListReferences({
+                            match,
+                            sources: draft.sources,
+                          })
                           const pruned = pruneFeedAuthorLists(lists, referenced)
                           onPatchDraft({
                             authorLists: pruned.length ? pruned : undefined,
@@ -976,7 +1031,10 @@ export function L2PropertiesInspector({
                         }
                       : onDraftChange
                         ? (lists) => {
-                            const referenced = collectAuthorListIdsFromMatch(match)
+                            const referenced = collectFeedAuthorListReferences({
+                              match,
+                              sources: draft.sources,
+                            })
                             const pruned = pruneFeedAuthorLists(lists, referenced)
                             onDraftChange((prev) => ({
                               ...prev,

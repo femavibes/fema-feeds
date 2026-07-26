@@ -28,6 +28,8 @@ export interface ScoutDiscoveryConfig {
   enabled: boolean
   /** Manually specified scout DIDs. */
   scouts?: string[]
+  /** Cached author list id — members are unioned with manual scouts. */
+  listId?: string
   /** Auto-derive scouts from pool data. */
   autoDerive?: ScoutAutoDeriveConfig
   threshold: ScoutThresholdConfig

@@ -1,4 +1,5 @@
 import type { FeedConfig, L2RuleNode } from '@cfb/core-types'
+import { scoutSourceEnabled } from '@cfb/core-types'
 import type pg from 'pg'
 import { getAuthorListCache } from '@cfb/storage-postgres'
 import { getCachedDidList, setCachedDidList } from './did-list-mem-cache.js'
@@ -15,6 +16,32 @@ export function collectAuthorListIds(feeds: FeedConfig[]): string[] {
   }
   for (const feed of feeds) visit(feed.match)
   return [...ids]
+}
+
+/** Bluesky list ids referenced by scout sources on feeds. */
+export function collectScoutListIds(feeds: FeedConfig[]): string[] {
+  const ids = new Set<string>()
+  for (const feed of feeds) {
+    const listId = feed.sources?.scout?.listId
+    if (scoutSourceEnabled(feed.sources) && listId) ids.add(listId)
+  }
+  return [...ids]
+}
+
+export async function loadAuthorListDids(pool: pg.Pool, listIds: string[]): Promise<string[]> {
+  const out: string[] = []
+  await Promise.all(
+    listIds.map(async (listId) => {
+      const mem = getCachedDidList(`author:${listId}`)
+      if (mem) {
+        out.push(...mem.dids)
+        return
+      }
+      const row = await getAuthorListCache(pool, listId)
+      if (row) out.push(...setCachedDidList(`author:${listId}`, row.dids).dids)
+    }),
+  )
+  return out
 }
 
 export async function loadAuthorListsForFeeds(

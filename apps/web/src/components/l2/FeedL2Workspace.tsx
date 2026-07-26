@@ -433,6 +433,11 @@ export function FeedL2Workspace({
         <FeedSourcesView
           draft={draft}
           onChange={onSettingsChange}
+          projectId={project.projectId}
+          projectAuthorLists={project.authorLists ?? []}
+          listCache={listCache.filter((l) => l.projectId === project.projectId)}
+          onRefreshList={onRefreshList}
+          onListsChanged={onListsChanged}
           settingsDirty={settingsDirty}
           settingsAutosaveState={settingsAutosaveState}
           settingsSaving={settingsSaving}

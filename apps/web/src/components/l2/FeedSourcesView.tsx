@@ -1,11 +1,17 @@
 import { useState } from 'react'
-import type { FeedConfig } from '@cfb/core-types'
+import type { AuthorListConfig, FeedConfig } from '@cfb/core-types'
 import { FeedSourceToggle, type FeedSourceMode } from '../FeedSourceToggle'
+import type { ListCacheEntry } from '../../api/client'
 import { NativeSourcesPanel } from './NativeSourcesPanel'
 
 interface Props {
   draft: FeedConfig
   onChange: (next: FeedConfig | ((prev: FeedConfig) => FeedConfig)) => void
+  projectId: string
+  projectAuthorLists?: AuthorListConfig[]
+  listCache?: ListCacheEntry[]
+  onRefreshList?: (listId: string) => Promise<void>
+  onListsChanged?: () => void | Promise<void>
   settingsDirty: boolean
   settingsAutosaveState: 'idle' | 'pending' | 'saving' | 'saved' | 'error'
   settingsSaving: boolean
@@ -22,6 +28,11 @@ function autosaveLabel(state: Props['settingsAutosaveState']): string | null {
 export function FeedSourcesView({
   draft,
   onChange,
+  projectId,
+  projectAuthorLists = [],
+  listCache = [],
+  onRefreshList,
+  onListsChanged,
   settingsDirty,
   settingsAutosaveState,
   settingsSaving,
@@ -56,7 +67,15 @@ export function FeedSourcesView({
 
       <section className="card feed-sorting-view-panel">
         {source === 'native' && (
-          <NativeSourcesPanel draft={draft} onChange={onChange} />
+          <NativeSourcesPanel
+            draft={draft}
+            onChange={onChange}
+            projectId={projectId}
+            projectAuthorLists={projectAuthorLists}
+            listCache={listCache}
+            onRefreshList={onRefreshList}
+            onListCacheInvalidate={onListsChanged}
+          />
         )}
         {source === 'subscribed' && (
           <div className="feed-subscribed-section">
